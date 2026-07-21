@@ -1,1 +1,44 @@
-/node_modules
+# 依赖
+node_modules/
+.pnpm-store/
+
+# 构建产物
+dist/
+build/
+out/
+.next/
+.turbo/
+.umi/
+.umi-production/
+.umi-test/
+dumi/tmp/
+.dumi/tmp*
+
+# 环境变量与密钥
+.env
+.env.local
+.env.*.local
+*.pem
+
+# 日志与缓存
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.cache/
+.eslintcache
+
+# 编辑器与系统文件
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+Thumbs.db
+
+# 生成的本地小册 mock 数据
+apps/react-web/mock/data/local-booklets.generated.ts
+
+# 本地小册目录
+content-local/
