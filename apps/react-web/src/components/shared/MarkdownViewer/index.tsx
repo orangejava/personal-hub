@@ -1,3 +1,4 @@
+import { Image } from 'antd';
 import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -13,6 +14,9 @@ import {
 import 'highlight.js/styles/github.min.css';
 
 export { normalizeImageUrl, resolveMarkdownImageSrc } from '@/utils/markdownImage';
+
+/** 正文图片统一固定展示高度（px） */
+const PROSE_IMAGE_HEIGHT = 400;
 
 interface MarkdownViewerProps {
   source: string;
@@ -62,13 +66,18 @@ function MarkdownImage({
   }
 
   return (
-    <img
-      src={resolved}
-      alt={alt ?? ''}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
-    />
+    <span className="ph-prose-img-wrap">
+      <Image
+        src={resolved}
+        alt={alt ?? ''}
+        height={PROSE_IMAGE_HEIGHT}
+        className="ph-prose-img"
+        referrerPolicy="no-referrer"
+        // antd v6：mask 已弃用，hover 遮罩实际是 cover 层
+        preview={{ mask: false, cover: false }}
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }
 
@@ -76,7 +85,7 @@ function headingId(children: React.ReactNode) {
   return slugifyHeading(flattenMarkdownText(children));
 }
 
-/** Markdown 渲染：GFM + 代码块工具栏 + 图片代理 + 统一 heading 锚点 */
+/** Markdown 渲染：GFM + 代码块工具栏 + 固定高度图片预览 + 统一 heading 锚点 */
 const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
   source,
   prose = true,
@@ -85,22 +94,24 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const content = useMemo(
     () => (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: 'a',
-          img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
-          code: MarkdownCode,
-          h2: ({ children }) => (
-            <h2 id={headingId(children)}>{children}</h2>
-          ),
-          h3: ({ children }) => (
-            <h3 id={headingId(children)}>{children}</h3>
-          ),
-        }}
-      >
-        {normalized}
-      </ReactMarkdown>
+      <Image.PreviewGroup>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            a: 'a',
+            img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
+            code: MarkdownCode,
+            h2: ({ children }) => (
+              <h2 id={headingId(children)}>{children}</h2>
+            ),
+            h3: ({ children }) => (
+              <h3 id={headingId(children)}>{children}</h3>
+            ),
+          }}
+        >
+          {normalized}
+        </ReactMarkdown>
+      </Image.PreviewGroup>
     ),
     [normalized],
   );

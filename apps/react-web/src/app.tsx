@@ -21,6 +21,7 @@ import { resolveMenuSelectedKey } from '@/utils/menuSelection';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import defaultSettings from '../config/defaultSettings';
+import { getThemePreference } from '@/utils/clientPreferences';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
 import { errorConfig } from './requestErrorConfig';
 
@@ -96,6 +97,18 @@ export async function getInitialState(): Promise<InitialState> {
   } catch (_e) {
     // 系统配置拉取失败不阻塞页面
   }
+
+  // 用户本地主题覆盖站点默认，直到用户再次修改
+  const localTheme = getThemePreference();
+  if (localTheme) {
+    state.publicSettings = localTheme;
+    state.settings = {
+      ...state.settings,
+      navTheme: localTheme.navTheme,
+      colorPrimary: localTheme.colorPrimary,
+    };
+  }
+  bootstrapThemeRuntime(state);
 
   const { location } = history;
   // 登录相关页面不拉用户信息

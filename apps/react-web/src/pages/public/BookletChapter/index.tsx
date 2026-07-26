@@ -1,19 +1,27 @@
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { useRequest, useParams, history, Link } from '@umijs/max';
-import { Button, Menu, Progress, Space } from 'antd';
+import { useRequest, useParams, history } from '@umijs/max';
+import { Button, Menu, Progress } from 'antd';
 import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import PublicLayout from '@/layouts/PublicLayout';
 import {
+  BookletChapterFooter,
   ErrorState,
   MarkdownViewer,
+  ScrollBackTop,
   SectionSkeleton,
   TocPanel,
 } from '@/components/shared';
 import { fetchBookletChapters, fetchChapter } from '@/services/booklet';
 import { fetchContentList } from '@/services/content';
-import { scrollPageToTop } from '@/utils/scroll';
+import {
+  calcScrollPercent,
+  getReadingProgress,
+  setReadingProgress,
+} from '@/utils/clientPreferences';
+import { scrollChildIntoCenter, scrollPageToTop } from '@/utils/scroll';
+import type { BookletChapter as BookletChapterType } from '@personal-hub/shared-types';
 import { ContentType } from '@personal-hub/shared-types';
 
 type CollapsibleSidebarProps = {
@@ -22,17 +30,21 @@ type CollapsibleSidebarProps = {
   collapsed: boolean;
   onToggle: () => void;
   className?: string;
-  children: React.ReactNode;
+  menuRef?: React.Ref<HTMLDivElement>;
+  children?: React.ReactNode;
+  menu: React.ReactNode;
 };
 
-/** 可折叠侧栏：高度为视口减去顶栏，内容区独立滚动 */
+/** 可折叠侧栏：高度为视口减去顶栏，菜单区独立滚动 */
 const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   title,
   width,
   collapsed,
   onToggle,
   className,
+  menuRef,
   children,
+  menu,
 }) => (
   <aside
     className={clsx('ph-booklet-sidebar', className, collapsed && 'collapsed')}
@@ -48,24 +60,151 @@ const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         onClick={onToggle}
       />
     </div>
-    {!collapsed && <div className="ph-booklet-sidebar-body">{children}</div>}
+    {!collapsed && (
+      <div className="ph-booklet-sidebar-body">
+        {children}
+        <div ref={menuRef} className="ph-booklet-sidebar-menu">
+          {menu}
+        </div>
+      </div>
+    )}
   </aside>
 );
 
-/** 小册章节阅读：全宽四栏 + 可折叠小册列表/章节目录 */
+type BookletListSidebarProps = {
+  bookletId: string;
+  collapsed: boolean;
+  bookletList: Array<{ id: string; title: string }>;
+  menuTheme: 'light' | 'dark';
+  menuRef: React.RefObject<HTMLDivElement | null>;
+  onToggle: () => void;
+  onBookletClick: (id: string) => void;
+};
+
+/** 最左侧小册列表：切章时不随 chapterId 重渲染 */
+const BookletListSidebar = React.memo<BookletListSidebarProps>(
+  ({
+    bookletId,
+    collapsed,
+    bookletList,
+    menuTheme,
+    menuRef,
+    onToggle,
+    onBookletClick,
+  }) => (
+    <CollapsibleSidebar
+      title="小册列表"
+      width={240}
+      collapsed={collapsed}
+      onToggle={onToggle}
+      className="ph-booklet-sidebar-list"
+      menuRef={menuRef}
+      menu={
+        <Menu
+          theme={menuTheme}
+          mode="inline"
+          selectedKeys={[bookletId]}
+          items={bookletList.map((b) => ({ key: b.id, label: b.title }))}
+          onClick={(e) => onBookletClick(e.key)}
+        />
+      }
+    />
+  ),
+);
+
+type ChapterListSidebarProps = {
+  title: string;
+  chapterId: string;
+  chapters: BookletChapterType[];
+  progressPercent: number;
+  collapsed: boolean;
+  menuTheme: 'light' | 'dark';
+  menuRef: React.RefObject<HTMLDivElement | null>;
+  onToggle: () => void;
+  onChapterClick: (chapterId: string) => void;
+};
+
+/** 章节目录侧栏：仅章节选中态与进度变化时更新 */
+const ChapterListSidebar = React.memo<ChapterListSidebarProps>(
+  ({
+    title,
+    chapterId,
+    chapters,
+    progressPercent,
+    collapsed,
+    menuTheme,
+    menuRef,
+    onToggle,
+    onChapterClick,
+  }) => (
+    <CollapsibleSidebar
+      title={title}
+      width={260}
+      collapsed={collapsed}
+      onToggle={onToggle}
+      className="ph-booklet-sidebar-chapters"
+      menuRef={menuRef}
+      menu={
+        <Menu
+          theme={menuTheme}
+          mode="inline"
+          selectedKeys={[chapterId]}
+          items={chapters.map((c) => ({
+            key: c.id,
+            label: `${c.order}. ${c.title}`,
+          }))}
+          onClick={(e) => onChapterClick(e.key)}
+        />
+      }
+    >
+      <div className="ph-booklet-sidebar-progress">
+        <Progress percent={progressPercent} size="small" />
+      </div>
+    </CollapsibleSidebar>
+  ),
+);
+
+/** 将当前窗口滚动位置写入本地阅读进度 */
+function persistChapterProgress(bookletId: string, chapterId: string) {
+  const scrollY = window.scrollY;
+  setReadingProgress(bookletId, {
+    chapterId,
+    scrollY,
+    percent: calcScrollPercent(scrollY),
+  });
+}
+
+function scrollSidebarItemByIndex(
+  body: HTMLElement | null,
+  itemIndex: number,
+) {
+  if (!body || itemIndex < 0) return;
+  const items = body.querySelectorAll<HTMLElement>('.ant-menu-item');
+  const selected = items[itemIndex];
+  if (!selected) return;
+  scrollChildIntoCenter(body, selected, 'auto');
+}
+
+/** 小册章节阅读：全宽四栏 + 可折叠侧栏 */
 const BookletChapter: React.FC = () => {
   const { menuTheme } = usePublicTheme();
   const params = useParams<{ id: string; chapterId: string }>();
   const bookletId = params.id!;
   const chapterId = params.chapterId!;
 
-  // 进入章节阅读时：收起小册列表、展开章节目录
   const [listCollapsed, setListCollapsed] = useState(true);
   const [chapterCollapsed, setChapterCollapsed] = useState(false);
+  const restoredRef = useRef<string | null>(null);
+  const allowScrollRestoreRef = useRef(true);
+  const listMenuRef = useRef<HTMLDivElement>(null);
+  const chapterMenuRef = useRef<HTMLDivElement>(null);
+  const lastChapterRef = useRef<BookletChapterType | null>(null);
 
   useEffect(() => {
     setListCollapsed(true);
     setChapterCollapsed(false);
+    allowScrollRestoreRef.current = true;
+    restoredRef.current = null;
   }, [bookletId]);
 
   const {
@@ -85,6 +224,12 @@ const BookletChapter: React.FC = () => {
     { ready: !!chapterId, refreshDeps: [bookletId, chapterId] },
   );
 
+  if (chapter) {
+    lastChapterRef.current = chapter;
+  }
+  const displayChapter = chapter ?? lastChapterRef.current;
+  const initialChapterLoad = chapterLoading && !displayChapter;
+
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const prev = currentIndex > 0 ? chapters[currentIndex - 1] : undefined;
   const next =
@@ -101,24 +246,102 @@ const BookletChapter: React.FC = () => {
   );
   const bookletList = bookletListData?.list ?? [];
 
-  const goTo = (nextChapterId: string) => {
+  const bookletListIndex = bookletList.findIndex((b) => b.id === bookletId);
+
+  const goTo = (
+    nextChapterId: string,
+    options?: { restoreScroll?: boolean },
+  ) => {
+    persistChapterProgress(bookletId, chapterId);
+    if (nextChapterId !== chapterId) {
+      if (options?.restoreScroll) {
+        allowScrollRestoreRef.current = true;
+      } else {
+        allowScrollRestoreRef.current = false;
+        scrollPageToTop();
+      }
+    }
     history.push(`/content/booklets/${bookletId}/chapters/${nextChapterId}`);
-    scrollPageToTop();
   };
 
   useEffect(() => {
-    scrollPageToTop();
-  }, [chapterId]);
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        persistChapterProgress(bookletId, chapterId);
+        ticking = false;
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      persistChapterProgress(bookletId, chapterId);
+    };
+  }, [bookletId, chapterId]);
+
+  useEffect(() => {
+    if (!chapter || chapterLoading) return;
+    const restoreKey = `${bookletId}:${chapterId}`;
+    if (restoredRef.current === restoreKey) return;
+    restoredRef.current = restoreKey;
+
+    const progress = getReadingProgress(bookletId);
+    const shouldRestore =
+      allowScrollRestoreRef.current &&
+      progress?.chapterId === chapterId &&
+      (progress.scrollY ?? 0) > 0;
+
+    const timer = window.setTimeout(() => {
+      if (shouldRestore) {
+        window.scrollTo({ top: progress!.scrollY, behavior: 'auto' });
+      } else {
+        scrollPageToTop();
+      }
+    }, 50);
+
+    return () => window.clearTimeout(timer);
+  }, [bookletId, chapterId, chapter, chapterLoading]);
+
+  useLayoutEffect(() => {
+    if (chapterCollapsed || currentIndex < 0) return;
+    const body = chapterMenuRef.current;
+    if (!body) return;
+
+    const align = () => scrollSidebarItemByIndex(body, currentIndex);
+    align();
+    const raf = requestAnimationFrame(align);
+    return () => cancelAnimationFrame(raf);
+  }, [currentIndex, chapterCollapsed]);
+
+  useLayoutEffect(() => {
+    if (listCollapsed || bookletListIndex < 0) return;
+    const body = listMenuRef.current;
+    if (!body) return;
+
+    const align = () => scrollSidebarItemByIndex(body, bookletListIndex);
+    align();
+    const raf = requestAnimationFrame(align);
+    return () => cancelAnimationFrame(raf);
+  }, [bookletListIndex, listCollapsed]);
 
   const onBookletClick = (id: string) => {
-    if (id === bookletId && chapters[0]) {
-      goTo(chapters[0].id);
+    if (id === bookletId && chapters.length) {
+      const saved = getReadingProgress(bookletId);
+      const target =
+        saved?.chapterId && chapters.some((c) => c.id === saved.chapterId)
+          ? saved.chapterId
+          : chapters[0].id;
+      goTo(target, { restoreScroll: true });
       setListCollapsed(true);
       setChapterCollapsed(false);
       return;
     }
     history.push(`/content/${id}`);
   };
+
+  const hasToc = !!displayChapter?.toc?.length;
 
   return (
     <PublicLayout fullWidth>
@@ -134,86 +357,63 @@ const BookletChapter: React.FC = () => {
       )}
       {booklet && (
         <div className="ph-booklet-reader">
-          <CollapsibleSidebar
-            title="小册列表"
-            width={240}
+          <BookletListSidebar
+            bookletId={bookletId}
             collapsed={listCollapsed}
+            bookletList={bookletList}
+            menuTheme={menuTheme}
+            menuRef={listMenuRef}
             onToggle={() => setListCollapsed((v) => !v)}
-            className="ph-booklet-sidebar-list"
-          >
-            <Menu
-              theme={menuTheme}
-              mode="inline"
-              selectedKeys={[bookletId]}
-              items={bookletList.map((b) => ({ key: b.id, label: b.title }))}
-              onClick={(e) => onBookletClick(e.key)}
-            />
-          </CollapsibleSidebar>
+            onBookletClick={onBookletClick}
+          />
 
-          <CollapsibleSidebar
+          <ChapterListSidebar
             title={booklet.title}
-            width={260}
+            chapterId={chapterId}
+            chapters={chapters}
+            progressPercent={progressPercent}
             collapsed={chapterCollapsed}
+            menuTheme={menuTheme}
+            menuRef={chapterMenuRef}
             onToggle={() => setChapterCollapsed((v) => !v)}
-            className="ph-booklet-sidebar-chapters"
-          >
-            <div style={{ padding: '0 12px 8px' }}>
-              <Progress percent={progressPercent} size="small" />
-            </div>
-            <Menu
-              theme={menuTheme}
-              mode="inline"
-              selectedKeys={[chapterId]}
-              items={chapters.map((c) => ({
-                key: c.id,
-                label: `${c.order}. ${c.title}`,
-              }))}
-              onClick={(e) => goTo(e.key)}
-            />
-          </CollapsibleSidebar>
+            onChapterClick={goTo}
+          />
 
-          <div className="ph-booklet-main">
-            {chapterLoading && <SectionSkeleton variant="article" rows={10} />}
-            {chapter && (
-              <>
-                <h2>{chapter.title}</h2>
-                <MarkdownViewer source={chapter.body} />
-                <div
-                  style={{
-                    marginTop: 32,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 12,
-                  }}
-                >
-                  <Space>
-                    <Button
-                      disabled={!prev}
-                      onClick={() => prev && goTo(prev.id)}
-                    >
-                      上一章
-                    </Button>
-                    <Button
-                      disabled={!next}
-                      onClick={() => next && goTo(next.id)}
-                    >
-                      下一章
-                    </Button>
-                  </Space>
-                  <Link to="/content">返回内容中心</Link>
+          <div className="ph-booklet-body">
+            <div className="ph-booklet-columns ph-booklet-content">
+              <main className="ph-booklet-main">
+                {initialChapterLoad && (
+                  <SectionSkeleton variant="article" rows={10} />
+                )}
+                {displayChapter && (
+                  <>
+                    <h2>{displayChapter.title}</h2>
+                    <MarkdownViewer source={displayChapter.body} />
+                  </>
+                )}
+              </main>
+
+              <aside className="ph-booklet-toc">
+                <div className="ph-booklet-toc-sticky">
+                  {hasToc && displayChapter?.toc ? (
+                    <TocPanel items={displayChapter.toc} />
+                  ) : null}
                 </div>
-              </>
+              </aside>
+            </div>
+
+            {displayChapter && (
+              <BookletChapterFooter
+                prevId={prev?.id}
+                nextId={next?.id}
+                onNavigate={goTo}
+                showTocColumn
+              />
             )}
           </div>
-
-          {chapter?.toc?.length ? (
-            <aside className="ph-booklet-toc">
-              <TocPanel items={chapter.toc} />
-            </aside>
-          ) : null}
         </div>
       )}
+      <ScrollBackTop visibilityHeight={200} />
     </PublicLayout>
   );
 };

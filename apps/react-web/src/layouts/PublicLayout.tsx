@@ -10,8 +10,10 @@ import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
+import { setThemePreference } from '@/utils/clientPreferences';
 import { loginOut } from '@/utils/loginOut';
 import { localizeMenu } from '@/utils/localizeMenu';
+import { getPageTransitionKey } from '@/utils/pageTransitionKey';
 
 /**
  * 公开前台布局：顶栏 + 内容区
@@ -104,7 +106,7 @@ const PublicLayout: React.FC<{
         className={fullWidth ? 'ph-public-main-full' : 'ph-container'}
         style={fullWidth ? undefined : { padding: 'var(--ph-page-padding)' }}
       >
-        <PageTransition routeKey={history.location.pathname}>
+        <PageTransition routeKey={getPageTransitionKey(history.location.pathname)}>
           {children}
         </PageTransition>
       </main>
@@ -114,9 +116,10 @@ const PublicLayout: React.FC<{
         onClose={() =>
           setInitialState((s) => ({ ...s, publicSettingDrawerOpen: false }))
         }
-        onChange={(next) =>
-          setInitialState((s) => ({ ...s, publicSettings: next }))
-        }
+        onChange={(next) => {
+          setThemePreference(next);
+          setInitialState((s) => ({ ...s, publicSettings: next }));
+        }}
       />
     </div>
   );

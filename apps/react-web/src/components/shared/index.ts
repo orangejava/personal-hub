@@ -24,3 +24,6 @@ export { default as MarkdownCodeBlock } from './MarkdownCodeBlock';
 export { default as PdfViewer } from './PdfViewer';
 export { default as WordViewer } from './WordViewer';
 export { default as RichTextViewer } from './RichTextViewer';
+export { default as ScrollBackTop } from './ScrollBackTop';
+export { default as BookletChapterFooter } from './BookletChapterFooter';
+export type { BookletChapterFooterProps } from './BookletChapterFooter';
