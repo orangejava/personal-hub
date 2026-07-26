@@ -17,8 +17,9 @@
 - `react-first/phase-4-5-experience-deepening.md` — 阶段 4.5 动效、骨架屏、结果态和操作反馈深化
 - `react-first/phase-5-ai-shell.md` — 阶段 5 AI 工作台基础壳层、Ant Design X 本地封装与 mock 契约
 - `react-first/ai-composer-layout.md` — AI 三页统一布局、可配置输入框和多类型消息渲染
+- `content/booklet-reader-ux.md` — 小册/Markdown 阅读：图片预览、大纲、回顶、主题与进度偏好
 
-进度总览见仓库根 [`completed/README.md`](../../completed/README.md)。
+进度总览见 [`docs/completed/README.md`](../completed/README.md)。
 
 ---
 
@@ -34,7 +35,7 @@
 - `docs/implementation/admin/`：后台管理、配置中心、日志
 - `docs/implementation/ai/`：AI 对话、文本生成、图片生成、用量
 - `docs/implementation/auth/`：登录、鉴权、RBAC
-- `docs/implementation/ops/`：部署、监控、发布流程
+- `docs/implementation/deploy/`：部署落地记录（若有）；权威步骤仍以 `docs/deploy/` 为准
 
 如果某个功能同时跨多个模块，优先放在“主要业务归属模块”目录中，不重复存两份。
 

@@ -9,14 +9,13 @@ import {
   Alert,
   Button,
   Card,
-  FloatButton,
   message,
   Progress,
   Space,
   Tag,
   Typography,
 } from 'antd';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import { ContentType, ContentTypeLabel } from '@personal-hub/shared-types';
 import {
@@ -24,6 +23,7 @@ import {
   MarkdownViewer,
   PdfViewer,
   RichTextViewer,
+  ScrollBackTop,
   SectionSkeleton,
   TocPanel,
   WordViewer,
@@ -35,6 +35,11 @@ import {
   unfavoriteContent,
 } from '@/services/content';
 import { copyToClipboard } from '@/utils/copyToClipboard';
+import {
+  calcScrollPercent,
+  getReadingProgress,
+  setReadingProgress,
+} from '@/utils/clientPreferences';
 import { extractMarkdownToc } from '@/utils/markdown';
 import { fetchBookletChapters } from '@/services/booklet';
 import { scrollPageToTop } from '@/utils/scroll';
@@ -48,38 +53,83 @@ const ContentDetail: React.FC = () => {
   const { initialState } = useModel('@@initialState');
   const [favorited, setFavorited] = useState(false);
   const [readingPercent, setReadingPercent] = useState(0);
+  const restoredRef = useRef<string | null>(null);
   const { data, loading, error, run } = useRequest(() => fetchContentDetail(id), {
     refreshDeps: [id],
   });
   const detail = data;
 
-  // 小册：拉取章节列表后跳转第一章
+  // 小册入口：优先跳上次章节，否则第一章（带 chapterId 的 URL 不经此页）
   const { data: chapterData } = useRequest(
     () => fetchBookletChapters(id),
     { ready: detail?.type === ContentType.Booklet, refreshDeps: [id, detail?.type] },
   );
   useEffect(() => {
-    if (detail?.type === ContentType.Booklet && chapterData?.chapters?.length) {
-      const first = chapterData.chapters[0];
-      history.replace(`/content/booklets/${detail.id}/chapters/${first.id}`);
+    if (detail?.type !== ContentType.Booklet || !chapterData?.chapters?.length) {
+      return;
     }
+    const chapters = chapterData.chapters;
+    const saved = getReadingProgress(detail.id);
+    const target =
+      saved?.chapterId && chapters.some((c) => c.id === saved.chapterId)
+        ? saved.chapterId
+        : chapters[0].id;
+    history.replace(`/content/booklets/${detail.id}/chapters/${target}`);
   }, [detail, chapterData]);
 
   useEffect(() => {
     scrollPageToTop();
+    restoredRef.current = null;
   }, [id]);
 
-  // 阅读进度首版只做 mock 保存，后续接后端时替换为滚动进度持久化
+  // Markdown：滚动进度写入本地 + mock API；进入时恢复 scrollY
   useEffect(() => {
     if (detail?.type !== ContentType.Markdown) return;
-    const percent = 20;
-    setReadingPercent(percent);
-    void saveReadingProgress({
-      contentId: detail.id,
-      percent,
-      updatedAt: new Date().toISOString(),
-    });
+
+    const saved = getReadingProgress(detail.id);
+    if (saved) setReadingPercent(saved.percent);
+
+    let ticking = false;
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      window.requestAnimationFrame(() => {
+        const scrollY = window.scrollY;
+        const percent = calcScrollPercent(scrollY);
+        setReadingPercent(percent);
+        setReadingProgress(detail.id, { scrollY, percent });
+        void saveReadingProgress({
+          contentId: detail.id,
+          percent,
+          updatedAt: new Date().toISOString(),
+        });
+        ticking = false;
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      const scrollY = window.scrollY;
+      const percent = calcScrollPercent(scrollY);
+      setReadingProgress(detail.id, { scrollY, percent });
+    };
   }, [detail]);
+
+  useEffect(() => {
+    if (detail?.type !== ContentType.Markdown || loading) return;
+    if (restoredRef.current === detail.id) return;
+    restoredRef.current = detail.id;
+
+    const saved = getReadingProgress(detail.id);
+    if (!saved?.scrollY) return;
+
+    const timer = window.setTimeout(() => {
+      window.scrollTo({ top: saved.scrollY, behavior: 'auto' });
+      setReadingPercent(saved.percent);
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [detail, loading]);
 
   const toggleFavorite = async () => {
     if (!initialState?.currentUser) {
@@ -201,7 +251,7 @@ const ContentDetail: React.FC = () => {
           )}
         </div>
       )}
-      <FloatButton.BackTop visibilityHeight={300} />
+      <ScrollBackTop visibilityHeight={300} />
     </PublicLayout>
   );
 };

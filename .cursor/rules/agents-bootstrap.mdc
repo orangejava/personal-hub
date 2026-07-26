@@ -1,0 +1,26 @@
+---
+description: 强制先读 AGENTS.md 与 .agents/；commit 以 git-commit skill 为准
+alwaysApply: true
+---
+
+# Agents 引导（Cursor）
+
+跨工具权威目录是仓库根 **`.agents/`**，不是仅本目录。
+
+## 每次任务开始
+
+1. 阅读根目录 `AGENTS.md`（含「Agent 启动必读」）
+2. 阅读 `.agents/rules/` 下全部规则
+3. 按任务加载匹配的 `.agents/skills/*/SKILL.md`
+
+## Git
+
+涉及 commit / push / 提交信息时，**必须**遵循：
+
+`.agents/skills/git-commit/SKILL.md`
+
+未获用户明确授权不得执行 `git commit` 或 `git push`。
+
+## 文档放置
+
+遵循 `.agents/rules/docs-placement.md`（详表见 `docs/README.md`）。

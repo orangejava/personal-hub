@@ -25,8 +25,14 @@
 }
 
 .ph-content-detail-toc {
-  width: 220px;
-  flex: 0 0 220px;
+  width: var(--ph-booklet-toc-width);
+  flex: 0 0 var(--ph-booklet-toc-width);
+  position: sticky;
+  top: calc(var(--ph-header-height) + 16px);
+  align-self: flex-start;
+  max-height: calc(100vh - var(--ph-header-height) - 32px);
+  overflow: hidden;
+  background: var(--ph-bg-layout);
 }
 
 .ph-page {

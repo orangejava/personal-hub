@@ -10,8 +10,9 @@
 | 你在做什么 | 读哪组 |
 |---|---|
 | 当前 `apps/react-web` 开发、mock、Umi | **[react-first/](./react-first/)** |
-| 规划 `apps/next-web`、`apps/api`、数据库、生产部署 | **[long-term/](./long-term/)** |
+| 规划 `apps/next-web`、`apps/api`、数据库 | **[long-term/](./long-term/)** |
 | 产品功能范围（不分阶段） | [../product/](../product/) 大模块文档 |
+| 部署 / 上线 | [../deploy/](../deploy/) |
 
 详细索引与颗粒度标准见 [module-prd-index.md](./module-prd-index.md)。
 
