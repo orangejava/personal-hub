@@ -31,5 +31,5 @@
 
 - 技术栈：[../../foundation/tech-stack.md](../../foundation/tech-stack.md)
 - 架构：[../../foundation/architecture.md](../../foundation/architecture.md)
-- 部署：[../../operations/deployment.md](../../operations/deployment.md)
+- 部署：[../../deploy/README.md](../../deploy/README.md)
 - 后端 API：[../../backend/api.md](../../backend/api.md)

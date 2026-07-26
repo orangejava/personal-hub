@@ -7,14 +7,14 @@
 
 | 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
 |---|---|---|---|---|
-| 阶段 0 工程骨架 | ✅ 已完成 | 2026-06-27 | [phase-0-structure.md](../docs/implementation/react-first/phase-0-structure.md) | — |
-| 阶段 1 基础底座 | ✅ 已完成 | 2026-06-27 | [phase-1-foundation.md](../docs/implementation/react-first/phase-1-foundation.md) | [umi-mock-and-dataflow.md](../study/features/umi-mock-and-dataflow.md) |
-| 阶段 2 公开前台与内容阅读 | ✅ 已完成 | 2026-06-27 | [phase-2-public-reading.md](../docs/implementation/react-first/phase-2-public-reading.md) | [markdown-booklet-reading.md](../study/features/markdown-booklet-reading.md) |
-| 阶段 3 工作区与内容生产 | ✅ 已完成 | 2026-06-27 | [phase-3-workspace.md](../docs/implementation/react-first/phase-3-workspace.md) | — |
-| 阶段 0–3 合并与补强 | ✅ 已完成 | 2026-06-28 | [phase-0-3.md](../docs/implementation/react-first/phase-0-3.md) | [react-first-phase-0-3.md](../study/features/react-first-phase-0-3.md) |
-| 阶段 4 后台运营台 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-closeout.md](../docs/implementation/react-first/phase-4-closeout.md) | — |
-| 阶段 4.5 全站体验底座 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-5-experience-deepening.md](../docs/implementation/react-first/phase-4-5-experience-deepening.md) | [react-experience-system.md](../study/features/react-experience-system.md) |
-| 阶段 5 AI 平台 mock 闭环 | ✅ 已完成本轮收尾 | 2026-07-06 | [phase-5-ai-shell.md](../docs/implementation/react-first/phase-5-ai-shell.md) | [ai-platform-mock-workbench.md](../study/features/ai-platform-mock-workbench.md) |
+| 阶段 0 工程骨架 | ✅ 已完成 | 2026-06-27 | [phase-0-structure.md](../implementation/react-first/phase-0-structure.md) | — |
+| 阶段 1 基础底座 | ✅ 已完成 | 2026-06-27 | [phase-1-foundation.md](../implementation/react-first/phase-1-foundation.md) | [umi-mock-and-dataflow.md](../../study/features/umi-mock-and-dataflow.md) |
+| 阶段 2 公开前台与内容阅读 | ✅ 已完成 | 2026-06-27 | [phase-2-public-reading.md](../implementation/react-first/phase-2-public-reading.md) | [markdown-booklet-reading.md](../../study/features/markdown-booklet-reading.md) |
+| 阶段 3 工作区与内容生产 | ✅ 已完成 | 2026-06-27 | [phase-3-workspace.md](../implementation/react-first/phase-3-workspace.md) | — |
+| 阶段 0–3 合并与补强 | ✅ 已完成 | 2026-06-28 | [phase-0-3.md](../implementation/react-first/phase-0-3.md) | [react-first-phase-0-3.md](../../study/features/react-first-phase-0-3.md) |
+| 阶段 4 后台运营台 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-closeout.md](../implementation/react-first/phase-4-closeout.md) | — |
+| 阶段 4.5 全站体验底座 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-5-experience-deepening.md](../implementation/react-first/phase-4-5-experience-deepening.md) | [react-experience-system.md](../../study/features/react-experience-system.md) |
+| 阶段 5 AI 平台 mock 闭环 | ✅ 已完成本轮收尾 | 2026-07-06 | [phase-5-ai-shell.md](../implementation/react-first/phase-5-ai-shell.md) | [ai-platform-mock-workbench.md](../../study/features/ai-platform-mock-workbench.md) |
 
 ## 验收速览
 

@@ -17,7 +17,6 @@
 | 6 | NestJS 接入（待写） | — |
 | 7 | Next.js 抽离（待写） | — |
 | 5.5 可选 | [phase-5-5-next-api-bridge-prd.md](./phase-5-5-next-api-bridge-prd.md) | 🟡 待确认 |
-| 个人 COS 部署 | [personal-cos-deployment-plan.md](./personal-cos-deployment-plan.md) | 🟡 方案评审稿 |
 
 ## 跨阶段功能 PRD
 
@@ -31,3 +30,4 @@
 
 - 路线图：[../../react-first/roadmap.md](../../react-first/roadmap.md)
 - 实现沉淀：[../../implementation/react-first/](../../implementation/react-first/)
+- 部署（个人远程 / 生产）：[../../deploy/README.md](../../deploy/README.md)

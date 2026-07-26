@@ -15,7 +15,7 @@
 
 | 阶段 | 当前判断 | 依据 | 阶段 5 影响 |
 |---|---|---|---|
-| 阶段 0：工程骨架 | 已完成 | `completed/README.md`、`apps/react-web`、`packages/shared-types` 已存在 | 可直接在 React Web 内新增 AI 模块 |
+| 阶段 0：工程骨架 | 已完成 | `docs/completed/README.md`、`apps/react-web`、`packages/shared-types` 已存在 | 可直接在 React Web 内新增 AI 模块 |
 | 阶段 1：主题/布局/权限/mock 底座 | 已完成 | `app.tsx`、`access.ts`、`models`、`mock`、`services` 已形成约定 | AI 继续沿用 service + mock + `useModel` |
 | 阶段 2：公开前台与内容阅读 | 已完成 | 公开页、内容详情、小册阅读、收藏、阅读进度已实现 | 内容详情可扩展“引用到 AI”入口 |
 | 阶段 3：工作区与内容生产 | 已完成 | 工作区 Dashboard、内容管理、Markdown/RichText、小册、用量页已实现 | `/workspace/usage` 可与 AI Token 用量联动 |
@@ -32,7 +32,7 @@
 | `/ai` 当前仍是公开区占位页 | 未升级 | 阶段 5 第一批改成 AI 专属布局 |
 | `/workspace/ai/history` | 尚无路由 | 阶段 5 新增入口或从工作区菜单跳转到 `/ai/chat` |
 | Admin AI 配置/统计 | 尚无页面 | 阶段 5 后半段新增 mock 配置闭环 |
-| PRD 索引阶段 4 状态有旧值 | 已同步修正 | 后续以 `completed/README.md` 和实现记录为准 |
+| PRD 索引阶段 4 状态有旧值 | 已同步修正 | 后续以 `docs/completed/README.md` 和实现记录为准 |
 
 ### 0.3 当前已有 AI 基础
 

@@ -4,7 +4,7 @@
 > 最后更新：2026-07-06
 > 目标：把 React-first 阶段拆成可执行的开发顺序，先交付完整体验，再逐步接入后端和 Next.js。
 
-> 说明：阶段 0-5 的最终完成状态以 [../../completed/README.md](../../completed/README.md) 与 `docs/implementation/react-first/` 为准。本文早期任务清单中的未勾选项保留为历史拆解，不代表当前未完成。
+> 说明：阶段 0-5 的最终完成状态以 [../completed/README.md](../completed/README.md) 与 `docs/implementation/react-first/` 为准。本文早期任务清单中的未勾选项保留为历史拆解，不代表当前未完成。
 
 ---
 

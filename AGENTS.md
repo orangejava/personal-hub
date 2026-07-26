@@ -1,5 +1,22 @@
 # 项目协作规范
 
+## Agent 启动必读（强制）
+
+每次开始任务时，**必须先阅读**：
+
+1. **本文件** `AGENTS.md`
+2. **`.agents/rules/`** 下全部规则（当前含文档放置、开发工作流）
+3. 与当前任务匹配的 **`.agents/skills/*/SKILL.md`**
+   - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
+
+说明见 [`.agents/README.md`](.agents/README.md)。
+
+未读上述内容时：不得擅自 commit、不得违反文档目录约定、不得做破坏性 git 操作。
+
+目录约定：跨工具使用 **`.agents/`**（复数、点前缀），不是 `agent/`。Cursor 专用薄规则在 `.cursor/rules/`，以指向 `.agents` 为准，避免双源。
+
+---
+
 ## 工作前：先找上下文
 
 每次开始任务前，**先通过以下文档找到当前项目的背景**，再分析和动手：
@@ -7,6 +24,8 @@
 | 文档 | 作用 |
 |---|---|
 | `docs/overview.md` | **先读这里**：产品定位、整体结构、子文档目录、待确认清单 |
+| `docs/README.md` | **文档目录职责**：放哪里 / 不放哪里（防文档散乱） |
+| `.agents/skills/git-commit/SKILL.md` | Git 提交权威规范（授权 + 格式 + 步骤） |
 | `docs/foundation/tech-stack.md` | 技术栈选型与工程架构 |
 | `docs/product/frontend-public.md` | 公开前台页面与功能 |
 | `docs/product/workspace.md` | 登录后工作区 |
@@ -15,14 +34,17 @@
 | `docs/product/content-system.md` | 知识内容模型与格式 |
 | `docs/product/ai-tools.md` | AI 工具平台与接入策略 |
 | `docs/product/flutter.md` | Flutter App 范围与接入 |
-| `docs/operations/deployment.md` | 部署方案 |
+| `docs/deploy/README.md` | 部署文档入口（个人远程 / 生产） |
 
 **规则**：
 - 涉及哪个模块，就先读对应文档，而不是凭印象或猜测
+- **文档必须按 `docs/README.md` 与 `.agents/rules/docs-placement.md` 放置**；部署类禁止写入 `docs/prd/`
 - 文档中有「待细化」或「待讨论」标注的内容，需先与用户确认，不要擅自做决定
-- 讨论有新结论时，同步更新对应文档
+- 讨论有新结论时，同步更新对应文档；新增 docs 后更新 `docs/overview.md` 或子目录 README
 
 ## 先规划，后开发
+
+细则见 `.agents/rules/dev-workflow.md`。摘要：
 
 - 在开始修改代码前，先给出清晰的实现计划。
 - 计划应至少说明：**现象/需求 → 根因或约束 → 解决方案 → 影响范围 → 计划修改的文件**。
@@ -52,6 +74,8 @@
 
 **规则**：
 - 开发前的需求细化、页面逻辑拆解、接口草案，统一放在 `docs/prd/`。
+- **部署、服务器目录、上线命令、备份**，统一放在 `docs/deploy/`。
+- **Git 提交规范与流程**，统一以 `.agents/skills/git-commit/` 为准（不要在 `docs/` 再维护完整副本）。
 - 功能开发完成后的实现说明、调用链、联调约定、落地记录，统一放在 `docs/implementation/` 下，按模块分子目录存放，例如：`docs/implementation/content/markdown-reader.md`。
 - 功能对应的学习文档统一放在 `study/features/` 下，命名优先使用“模块-主题”形式，例如：`study/features/content-markdown-reader.md`。
 - 通用型、长期复用的技术手册继续放在 `study/` 根目录；不要把单次功能复盘和通用手册混放。
@@ -81,6 +105,8 @@
 - 不要无依据地新起一套样式体系或交互模式。
 
 ## 安全增量开发
+
+细则见 `.agents/rules/dev-workflow.md`。摘要：
 
 - 只修改与当前需求直接相关的文件和逻辑，不顺手重构无关代码。
 - 修改**共享组件、工具函数、全局 store、请求封装、路由链路**前，先确认调用方和当前既有行为，避免破坏现有交互和业务流程。

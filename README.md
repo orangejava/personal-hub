@@ -17,5 +17,9 @@ pnpm dev:react
 ## 文档
 
 - [项目总纲](docs/overview.md)
-- [Git 提交规范](docs/engineering/git-commit-convention.md)
-- [个人远程部署方案](docs/prd/react-first/personal-cos-deployment-plan.md)
+- [文档目录规范](docs/README.md)
+- [Agent 规则与技能](.agents/README.md)
+- [Git 提交 skill](.agents/skills/git-commit/SKILL.md)
+- [部署文档入口](docs/deploy/README.md)
+- [个人远程阅读方案](docs/deploy/personal-remote-reading.md)
+- [部署一页速查](docs/deploy/server-deployment-guide.md)

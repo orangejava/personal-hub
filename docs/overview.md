@@ -2,7 +2,7 @@
 
 > 个人知识平台 + AI 工具中台
 > 状态：阶段 5 AI 平台 mock 闭环已完成本轮收尾
-> 最后更新：2026-07-06
+> 最后更新：2026-07-24
 
 ---
 
@@ -41,11 +41,13 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5 AI 平台 mock 闭环已完成本轮收尾**。进度台账见 [../completed/README.md](../completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5 AI 平台 mock 闭环已完成本轮收尾**。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
 ## 子文档目录
+
+> 各目录「放什么 / 不放什么」见 [README.md](./README.md)。
 
 ### 基础架构与选型
 
@@ -91,7 +93,8 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | 文档 | 内容 | 状态 |
 | --- | --- | --- |
 | [engineering/engineering-guide.md](./engineering/engineering-guide.md) | 工程开发指南（环境/目录/规范） | ✅ 已完成 |
-| [engineering/git-commit-convention.md](./engineering/git-commit-convention.md) | Git 提交规范与授权原则 | ✅ 已完成 |
+| [engineering/git-commit-convention.md](./engineering/git-commit-convention.md) | Git 提交入口（stub → `.agents/skills/git-commit`） | ✅ 已迁移 |
+| [../.agents/skills/git-commit/SKILL.md](../.agents/skills/git-commit/SKILL.md) | Git 提交权威规范（跨工具 skill） | ✅ 已完成 |
 | [engineering/dev-credentials.md](./engineering/dev-credentials.md) | 本地 mock 账号与密码 | ✅ 已确定 |
 | [engineering/development-plan.md](./engineering/development-plan.md) | 总执行手册（边开发边学习） | ✅ 已完成 |
 | [engineering/mvp-roadmap.md](./engineering/mvp-roadmap.md) | MVP 开发排期与各阶段目标 | ✅ 已完成 |
@@ -102,6 +105,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 | 文档 | 内容 | 状态 |
 | --- | --- | --- |
+| [completed/README.md](./completed/README.md) | 已完成功能进度台账（阶段状态与验收入口） | ✅ 已完成 |
 | [implementation/README.md](./implementation/README.md) | 功能开发文档固定归档规则 | ✅ 已完成 |
 | [implementation/react-first/phase-0-3.md](./implementation/react-first/phase-0-3.md) | 阶段 0–3 合并实现说明 | ✅ 已完成 |
 | [implementation/react-first/phase-0-structure.md](./implementation/react-first/phase-0-structure.md) | 阶段 0 工程骨架实现说明 | ✅ 已完成 |
@@ -135,8 +139,12 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 | 文档 | 内容 | 状态 |
 | --- | --- | --- |
-| [operations/deployment.md](./operations/deployment.md) | 部署方案（开发/生产/CI/CD） | ✅ 已完成 |
-| [operations/server-deployment-guide.md](./operations/server-deployment-guide.md) | 服务器首次上线实操（Git/小册/COS/PM2） | ✅ 已完成 |
+| [deploy/README.md](./deploy/README.md) | 部署文档总入口 | ✅ 已完成 |
+| [deploy/server-deployment-guide.md](./deploy/server-deployment-guide.md) | 一页速查（命令清单） | ✅ 已完成 |
+| [deploy/personal-remote-reading.md](./deploy/personal-remote-reading.md) | 个人远程阅读完整方案（阶段 A/B） | ✅ 已完成 |
+| [deploy/deployment.md](./deploy/deployment.md) | 长期生产（Docker / CI/CD） | ✅ 已完成 |
+
+> 原 `docs/operations/` 已更名为 `docs/deploy/`。
 
 ---
 

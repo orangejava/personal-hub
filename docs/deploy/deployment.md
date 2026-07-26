@@ -3,7 +3,8 @@
 > 状态：已完成细化（含 React-first 当前阶段说明）
 > 最后更新：2026-07-21
 >
-> **个人远程阅读 + COS 小册方案**（Ubuntu 24.04 / 生产级架构适配）见 [server-deployment-guide.md](./server-deployment-guide.md) 与 [../prd/react-first/personal-cos-deployment-plan.md](../prd/react-first/personal-cos-deployment-plan.md)。
+> **个人远程阅读 + COS 小册方案**（Ubuntu 24.04 / 生产级架构适配）见 [personal-remote-reading.md](./personal-remote-reading.md)；一页速查见 [server-deployment-guide.md](./server-deployment-guide.md)。  
+> 本目录由 `docs/operations/` 更名为 `docs/deploy/`。
 
 ---
 
