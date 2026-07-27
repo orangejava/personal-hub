@@ -1,7 +1,7 @@
 # 个人远程阅读部署方案（COS 小册 + 生产级架构适配）
 
 > 状态：方案评审稿  
-> 最后更新：2026-07-24  
+> 最后更新：2026-07-27  
 > 目标：Ubuntu 24.04 / 2 核 4G / 60GB 服务器上部署 react-first，小册存腾讯 COS，架构对齐后续 React + Next.js + NestJS 生产形态  
 > **目录**：本文已从 `docs/prd/` 迁至 `docs/deploy/`。一页速查见 [server-deployment-guide.md](./server-deployment-guide.md)。
 
@@ -129,7 +129,7 @@ flowchart LR
 │       ├── apps/
 │       ├── packages/
 │       ├── content-local -> /data/.../content-local   # 软链，勿放实体大目录
-│       ├── ecosystem.dev.cjs
+│       ├── ecosystem.config.js
 │       └── ...
 ├── data/
 │   └── personal-hub/
@@ -223,17 +223,17 @@ pnpm sync:booklets
 
 ### A.4 用 PM2 跑 dev（不是 build）
 
-仓库根已提供 `ecosystem.dev.cjs`：
+**权威步骤见 [pm2-deployment.md](./pm2-deployment.md)**。
+
+仓库根 [`ecosystem.config.js`](../../ecosystem.config.js) 会通过 [`scripts/pm2-start-dev.sh`](../../scripts/pm2-start-dev.sh) **启动前自动 sync 小册**，并读取 `CONTENT_LOCAL_DIR=/data/personal-hub/content-local`：
 
 ```bash
 cd /opt/personal-hub
-pm2 start ecosystem.dev.cjs
+pm2 start ecosystem.config.js
 pm2 save
 pm2 startup   # 按提示执行 sudo 命令
-pm2 logs personal-hub-dev --lines 30
+pm2 logs personal-hub-dev --lines 50   # 应看到 sync 完成 + App listening at
 ```
-
-（原内联 ecosystem 配置已移入仓库文件，此处不再重复。）
 
 ### A.5 开放端口（不用 Nginx）
 
@@ -276,17 +276,18 @@ ssh -L 8000:127.0.0.1:8000 <用户>@<服务器IP>
 
 ### A.7 日常更新
 
-**只改代码：**
+**只改代码（推荐一键脚本）：**
 
 ```bash
-cd /opt/personal-hub && git pull && pnpm install && pm2 restart personal-hub-dev
+cd /opt/personal-hub && pnpm deploy:server
+# 依赖异常：pnpm deploy:server -- --clean
 ```
 
 **只改小册：**
 
 ```bash
-# 本地 rsync 后，服务器：
-pnpm sync:booklets && pm2 restart personal-hub-dev
+# 本地 rsync 后，服务器重启即可（启动脚本会自动 sync）：
+pm2 restart personal-hub-dev
 ```
 
 ### A.8 阶段 A 的已知限制（接受即可）
@@ -654,12 +655,12 @@ pnpm --filter api build
 pnpm build:react
 
 # PM2 启动 API
-pm2 start apps/api/ecosystem.config.cjs
+pm2 start apps/api/ecosystem.config.js
 pm2 save
 pm2 startup
 ```
 
-`apps/api/ecosystem.config.cjs`（计划新增）示例：
+`apps/api/ecosystem.config.js`（计划新增）示例：
 
 ```javascript
 module.exports = {
@@ -807,6 +808,7 @@ flowchart LR
 
 ## 9. 相关文档
 
+- [pm2-deployment.md](./pm2-deployment.md) — **PM2 部署权威**（阶段 A 命令与排障）
 - [deployment.md](./deployment.md) — 长期 Docker / CI/CD
 - [server-deployment-guide.md](./server-deployment-guide.md) — 一页速查
 - [../backend/api.md](../backend/api.md) — 正式 API 契约

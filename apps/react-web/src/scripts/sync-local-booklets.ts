@@ -17,13 +17,24 @@ import fg from 'fast-glob';
 const __filename = fileURLToPath(import.meta.url);
 const ROOT = resolve(__filename, '../../..'); // apps/react-web
 const REPO_ROOT = resolve(ROOT, '../..'); // 仓库根 personal-hub
+
+/** 可通过环境变量指定小册根目录（服务器常用 /data/personal-hub/content-local） */
+const CONTENT_LOCAL_ROOT = process.env.CONTENT_LOCAL_DIR
+  ? resolve(process.env.CONTENT_LOCAL_DIR)
+  : join(REPO_ROOT, 'content-local');
+
 const INPUT_DIRS = [
-  join(REPO_ROOT, 'content-local/booklets'),
-  join(REPO_ROOT, 'content-local'),
+  join(CONTENT_LOCAL_ROOT, 'booklets'),
+  CONTENT_LOCAL_ROOT,
 ];
 const OUTPUT = join(ROOT, 'mock/data/local-booklets.generated.ts');
 /** 白名单配置：与脚本同目录，可进 Git */
 const ALLOWLIST_PATH = join(dirname(__filename), 'sync-allowlist.json');
+
+/** 外部 content 目录（非仓库内软链）时默认同步全部，避免白名单与服务器目录名不一致 */
+const isExternalContentDir =
+  !!process.env.CONTENT_LOCAL_DIR &&
+  resolve(process.env.CONTENT_LOCAL_DIR) !== resolve(REPO_ROOT, 'content-local');
 
 /** 非小册目录，扫描时跳过 */
 const SKIP_DIR_NAMES = new Set([
@@ -43,6 +54,14 @@ interface AllowlistConfig {
  * - folders 为空或缺省：同步全部（不推荐，体积大）
  */
 function loadAllowlist(): Set<string> | null {
+  if (process.env.SYNC_BOOKLETS_ALLOW_ALL === '1' || isExternalContentDir) {
+    console.log(
+      isExternalContentDir
+        ? `[sync-booklets] 使用外部目录 ${CONTENT_LOCAL_ROOT}，同步全部小册（忽略白名单）`
+        : '[sync-booklets] SYNC_BOOKLETS_ALLOW_ALL=1，同步全部小册',
+    );
+    return null;
+  }
   if (!existsSync(ALLOWLIST_PATH)) {
     console.warn(`[sync-booklets] 未找到白名单 ${ALLOWLIST_PATH}，将同步全部小册`);
     return null;
