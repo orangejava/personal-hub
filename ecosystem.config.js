@@ -5,7 +5,7 @@
  * - CONTENT_LOCAL_DIR 指向服务器小册目录（默认 /data/personal-hub/content-local）
  * - 必须使用 Umi dev 以保留 mock；接入 NestJS 后改用生产配置
  *
- * 用法（仓库根）：pm2 start ecosystem.config.js
+ * 用法（仓库根）：pm2 start ecosystem.config.js --only personal-hub-dev
  * 详见 docs/deploy/pm2-deployment.md
  */
 module.exports = {

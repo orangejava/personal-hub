@@ -140,9 +140,10 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | 文档 | 内容 | 状态 |
 | --- | --- | --- |
 | [deploy/README.md](./deploy/README.md) | 部署文档总入口 | ✅ 已完成 |
+| [deploy/deployment-plan.md](./deploy/deployment-plan.md) | 完整部署计划（阶段 A/B/C、Gitee、代码/数据目录、NestJS） | ✅ 已完成 |
 | [deploy/pm2-deployment.md](./deploy/pm2-deployment.md) | PM2 部署权威（阶段 A：dev + mock） | ✅ 已完成 |
 | [deploy/server-deployment-guide.md](./deploy/server-deployment-guide.md) | 一页速查（命令清单） | ✅ 已完成 |
-| [deploy/personal-remote-reading.md](./deploy/personal-remote-reading.md) | 个人远程阅读完整方案（阶段 A/B） | ✅ 已完成 |
+| [deploy/personal-remote-reading.md](./deploy/personal-remote-reading.md) | 个人远程阅读细节（阶段 A/B、COS、缓存） | ✅ 已完成 |
 | [deploy/deployment.md](./deploy/deployment.md) | 长期生产（Docker / CI/CD） | ✅ 已完成 |
 
 > 原 `docs/operations/` 已更名为 `docs/deploy/`。

@@ -1,10 +1,11 @@
 # 部署方案
 
-> 状态：已完成细化（含 React-first 当前阶段说明）
-> 最后更新：2026-07-21
+> 状态：长期生产架构（NestJS / Docker / Nginx）
+> 最后更新：2026-07-26
 >
-> **个人远程阅读 + COS 小册方案**（Ubuntu 24.04 / 生产级架构适配）见 [personal-remote-reading.md](./personal-remote-reading.md)；一页速查见 [server-deployment-guide.md](./server-deployment-guide.md)。  
-> 本目录由 `docs/operations/` 更名为 `docs/deploy/`。
+> **完整路线图（阶段 A/B/C、Gitee、目录约定）** → [deployment-plan.md](./deployment-plan.md)
+> **个人远程阅读 + COS** → [personal-remote-reading.md](./personal-remote-reading.md)
+> **一页速查** → [server-deployment-guide.md](./server-deployment-guide.md)
 
 ---
 
@@ -84,16 +85,18 @@ services:
 外部请求
     ↓
 Nginx（80/443）
-    ├── / → Next.js（端口 3000）
-    ├── /api → NestJS（端口 3001）
+    ├── / → react-web dist（阶段 B；长期可含 next-web）
+    ├── /api → NestJS apps/api（端口 3001）
     └── /minio → MinIO（端口 9000，可选）
 
 本机服务
-    ├── PostgreSQL（端口 5432，仅内网）
-    ├── Redis（端口 6379，仅内网）
+    ├── PostgreSQL（端口 5432，仅内网，数据卷 /data/personal-hub/postgres）
+    ├── Redis（端口 6379，仅内网，数据卷 /data/personal-hub/redis）
     ├── MinIO（端口 9000/9001）
     └── Meilisearch（端口 7700，仅内网，后续）
 ```
+
+代码仓库固定 **`/opt/personal-hub`**；持久化数据 **`/data/personal-hub`**。详见 [deployment-plan.md §2](./deployment-plan.md#2-代码与数据分开还是放同一项目下)。
 
 所有服务通过 Docker Compose 管理，Nginx 运行在宿主机（非容器）。
 
@@ -141,7 +144,11 @@ services:
 
 ## CI/CD 流程
 
-**工具：GitHub Actions + SSH 部署**
+**当前推荐（个人项目）：** 本地 push **Gitee** → 服务器 SSH 上 `git pull` + 构建 + PM2 重启（见 [deployment-plan.md §8](./deployment-plan.md#8-日常运维速查)）。
+
+**自动化（可选）：** Gitee Webhook / Gitee Go 触发服务器部署脚本，步骤与下方 GitHub Actions 类似。
+
+**长期模板：GitHub Actions + SSH 部署**（若恢复 GitHub 可达或双 CI）
 
 ### 工作流（`.github/workflows/deploy.yml`）
 
@@ -163,8 +170,10 @@ services:
 ### 环境变量管理
 
 - 开发：`.env.local`（不提交 Git）
-- 生产：服务器上 `/opt/personal-hub/.env`（手动维护）
-- GitHub Actions 需要的 Secrets：`SSH_HOST`、`SSH_USER`、`SSH_KEY`
+- 生产：**`/etc/personal-hub/.env`**（手动维护，软链到 `/opt/personal-hub/.env`）
+- 阶段 A：mock 模式几乎不需要生产 `.env`
+- 阶段 B 起：`DATABASE_URL`、`REDIS_URL`、`COS_*`、`JWT_SECRET` 等见 [personal-remote-reading.md §6.5](./personal-remote-reading.md#65-配置环境变量)
+- CI/CD Secrets：`SSH_HOST`、`SSH_USER`、`SSH_KEY`（Gitee Go / GitHub Actions 共用）
 
 ---
 

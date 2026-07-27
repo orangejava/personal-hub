@@ -3,7 +3,7 @@
 > 状态：方案评审稿  
 > 最后更新：2026-07-27  
 > 目标：Ubuntu 24.04 / 2 核 4G / 60GB 服务器上部署 react-first，小册存腾讯 COS，架构对齐后续 React + Next.js + NestJS 生产形态  
-> **目录**：本文已从 `docs/prd/` 迁至 `docs/deploy/`。一页速查见 [server-deployment-guide.md](./server-deployment-guide.md)。
+> **总览**：[deployment-plan.md](./deployment-plan.md) · **速查**：[server-deployment-guide.md](./server-deployment-guide.md)
 
 ---
 
@@ -167,6 +167,8 @@ ls -la /opt /data /var/cache /etc/personal-hub
 
 ### A.2 服务器一次性软件准备 + 拉代码
 
+> **Git 源：** 服务器使用 **Gitee**（`https://gitee.com/oralemon/personal-hub.git`）。本地开发可继续 push GitHub，部署前 `git push gitee <分支>`。
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git curl wget unzip
@@ -181,11 +183,13 @@ sudo npm install -g pm2
 node -v && pnpm -v && pm2 -v
 
 cd /opt/personal-hub
-git clone <你的私有仓库 URL> .
-git checkout main
+git clone https://gitee.com/oralemon/personal-hub.git .
+git checkout develop    # 或与团队一致的发布分支
 pnpm install
 # prepare 会跑 sync:booklets；尚未 rsync 小册时可能是空/仅示例
 ```
+
+**若第一版为 tar/scp 手动上传、目录无 `.git`：** 见 [deployment-plan.md §5.2](./deployment-plan.md#52-从第一版手动上传迁移到-gitee你的现状)，保留 `/data/personal-hub/content-local` 即可。
 
 ### A.3 同步小册（本地 → 服务器）
 
@@ -216,9 +220,10 @@ rsync -avz --progress \
 
 ```bash
 cd /opt/personal-hub
-ln -sfn /data/personal-hub/content-local ./content-local
+ln -sfnT /data/personal-hub/content-local ./content-local
+readlink -f content-local
 pnpm sync:booklets
-# 白名单约 13 本；见 apps/react-web/src/scripts/sync-allowlist.json
+# 当前白名单最多约 12 本 Markdown 小册；实际数量以目录是否存在为准
 ```
 
 ### A.4 用 PM2 跑 dev（不是 build）
@@ -229,15 +234,21 @@ pnpm sync:booklets
 
 ```bash
 cd /opt/personal-hub
-pm2 start ecosystem.config.js
+
+# 若历史上误启动过旧文件，先清理；not found 可忽略
+pm2 delete ecosystem.dev 2>/dev/null || true
+
+pm2 start ecosystem.config.js --only personal-hub-dev
 pm2 save
 pm2 startup   # 按提示执行 sudo 命令
-pm2 logs personal-hub-dev --lines 50   # 应看到 sync 完成 + App listening at
+pm2 logs personal-hub-dev --lines 50 --nostream   # 应看到 sync 完成 + App listening at
 ```
+
+PM2 进程按 Linux 用户隔离，后续管理必须继续使用启动时的用户，不要混用 `pm2` 和 `sudo pm2`。
 
 ### A.5 开放端口（不用 Nginx）
 
-**云厂商控制台（推荐）：** 安全组入站仅允许 **你的公网 IP** 访问 **TCP 8000**。
+**云厂商控制台（推荐）：** 安全组入站仅允许访问设备的**真实公网出口 IP `/32`**访问 TCP 8000。这里的来源不是服务器 IP，也不是 Mac 的 `192.168.x.x` 局域网 IP；家庭宽带、手机热点、VPN 和代理都可能改变实际出口。
 
 若用 ufw（可选，与云安全组二选一或叠加）：
 
@@ -247,9 +258,22 @@ sudo ufw allow from <你的公网IP> to any port 8000 proto tcp
 sudo ufw enable
 ```
 
+如果 `sudo ufw status verbose` 显示 `inactive`，说明 UFW 当前没有拦截，但腾讯云安全组仍然生效。`0.0.0.0/0` 表示允许全部 IPv4，只能临时用于确认安全组是否为阻塞点；当前 dev + mock 服务不应长期全网开放。
+
 ### A.6 访问与验证
 
-浏览器打开：
+先在服务器内验证应用与监听端口：
+
+```bash
+pm2 status
+ss -lntp | grep ':8000'
+curl -I http://127.0.0.1:8000/content
+curl -I http://127.0.0.1:8000/workspace/booklets
+```
+
+预期进程名为 `personal-hub-dev`、状态为 `online`，端口显示 `*:8000`，HTTP 返回 `200` 或 `302`。服务器内成功只证明应用正常，不代表公网安全组已放行。
+
+然后在本机浏览器打开：
 
 ```txt
 http://<服务器IP>:8000/content
@@ -257,12 +281,22 @@ http://<服务器IP>:8000/workspace/booklets
 http://<服务器IP>:8000/content/booklets/<id>/chapters/<chapterId>
 ```
 
+必须使用 `http://`，阶段 A 的 8000 没有 HTTPS。
+
 验证清单：
 
 - [ ] 内容中心能看到本地同步的小册
 - [ ] 章节可切换、Markdown 正常渲染
 - [ ] `pm2 status` 为 online
 - [ ] 8000 端口未对 `0.0.0.0/0` 全网开放（个人使用）
+
+若只有把安全组来源改成 `0.0.0.0/0` 才能访问，说明之前填写的 `/32` 不是浏览器实际公网出口。可临时开放并在服务器执行：
+
+```bash
+sudo tcpdump -ni any -c 10 'tcp dst port 8000'
+```
+
+刷新页面，从抓包输出的源地址确认真实公网 IP，再立即把安全组收紧为该地址 `/32`。
 
 **更安全的替代：** 不开放 8000，用 SSH 隧道本地访问：
 
@@ -279,6 +313,7 @@ ssh -L 8000:127.0.0.1:8000 <用户>@<服务器IP>
 **只改代码（推荐一键脚本）：**
 
 ```bash
+# 本地先：git push gitee develop
 cd /opt/personal-hub && pnpm deploy:server
 # 依赖异常：pnpm deploy:server -- --clean
 ```
@@ -290,6 +325,13 @@ cd /opt/personal-hub && pnpm deploy:server
 pm2 restart personal-hub-dev
 ```
 
+**停止与移除：**
+
+```bash
+pm2 stop personal-hub-dev
+pm2 delete personal-hub-dev
+```
+
 ### A.8 阶段 A 的已知限制（接受即可）
 
 | 限制 | 说明 |
@@ -297,8 +339,8 @@ pm2 restart personal-hub-dev
 | dev 模式占内存 | 2C4G 够用，建议 `max_memory_restart 1500M` |
 | 首次编译慢 | 启动后等 Umi 编译完成再访问 |
 | mock 列表一次带全章 body | 71 本时首屏略慢；个人阅读可接受；阶段 B 按单章优化 |
-| 无 HTTPS | 个人 IP 直连或 SSH 隧道；阶段 B 再上 Nginx + 证书 |
-| 不宜公网宣传 | 无鉴权 mock 账号；靠 IP 白名单或隧道 |
+| 无 HTTPS | 公网 IP 直连使用 HTTP；阶段 B 再上 Nginx + 证书 |
+| 不宜公网宣传 | 无正式鉴权且运行 dev + mock；必须限制安全组来源，或增加 Nginx Basic Auth |
 
 ---
 
@@ -554,8 +596,8 @@ sudo ufw status
 ```bash
 su - deploy
 cd /opt/personal-hub
-git clone <你的私有仓库 URL> .
-git checkout main
+git clone https://gitee.com/oralemon/personal-hub.git .
+git checkout develop
 pnpm install
 ```
 
@@ -808,6 +850,7 @@ flowchart LR
 
 ## 9. 相关文档
 
+- [deployment-plan.md](./deployment-plan.md) — 完整部署总览（Gitee、目录、NestJS 演进）
 - [pm2-deployment.md](./pm2-deployment.md) — **PM2 部署权威**（阶段 A 命令与排障）
 - [deployment.md](./deployment.md) — 长期 Docker / CI/CD
 - [server-deployment-guide.md](./server-deployment-guide.md) — 一页速查
