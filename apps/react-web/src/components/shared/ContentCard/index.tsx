@@ -5,13 +5,14 @@ import { Button, Card, message, Tag } from 'antd';
 import React, { useState } from 'react';
 import { favoriteContent, unfavoriteContent } from '@/services/content';
 import ContentTypeTag from '../ContentTypeTag';
+import EllipsisTooltip from '../EllipsisTooltip';
 import MotionSurface from '../MotionSurface';
 
 interface ContentCardProps {
   item: ContentItem;
 }
 
-/** 内容卡片：列表项统一展示 */
+/** 内容卡片：固定布局，标题/描述溢出省略并 Tooltip */
 const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
   const { initialState } = useModel('@@initialState');
   const [favorited, setFavorited] = useState(false);
@@ -47,8 +48,9 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
   };
 
   return (
-    <MotionSurface variant="soft">
+    <MotionSurface variant="soft" style={{ width: '100%' }}>
       <Card
+        className="ph-content-card"
         hoverable
         cover={
           <div className="ph-content-card-cover">
@@ -62,17 +64,24 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
           </div>
         }
         onClick={() => history.push(href)}
-        style={{ marginBottom: 16 }}
       >
         <Card.Meta
-          title={<Link to={href}>{item.title}</Link>}
+          title={
+            <Link to={href} onClick={(e) => e.stopPropagation()}>
+              <EllipsisTooltip title={item.title} lines={1} />
+            </Link>
+          }
           description={
-            <>
-              <div style={{ marginBottom: 8 }}>
+            <div className="ph-content-card-body">
+              <div className="ph-content-card-tags">
                 <ContentTypeTag type={item.type} />
                 {item.categorySlug && <Tag>{item.categorySlug}</Tag>}
               </div>
-              <div className="ph-content-card-summary">{item.summary}</div>
+              <EllipsisTooltip
+                className="ph-content-card-summary"
+                title={item.summary || '暂无描述'}
+                lines={2}
+              />
               <div className="ph-content-card-meta">
                 <span>
                   {item.author} · 阅读 {item.viewCount} · 收藏 {favoriteCount}
@@ -93,7 +102,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
                   收藏
                 </Button>
               </div>
-            </>
+            </div>
           }
         />
       </Card>

@@ -29,7 +29,8 @@
     "test:ui": "vitest --ui",
     "doctor": "react-doctor .",
     "tsc": "tsc --noEmit",
-    "sync:booklets": "tsx src/scripts/sync-local-booklets.ts"
+    "sync:booklets": "tsx src/scripts/sync-local-booklets.ts",
+    "import:agent-booklets": "python3 src/scripts/import-external-agent-booklets.py"
   },
   "browserslist": [
     "defaults"

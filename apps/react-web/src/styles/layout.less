@@ -95,6 +95,7 @@
   aspect-ratio: 16 / 9;
   overflow: hidden;
   background: rgba(22, 119, 255, 0.06);
+  flex-shrink: 0;
 
   img {
     width: 100%;
@@ -109,6 +110,57 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/** 内容中心卡片：等高布局，描述区固定两行 */
+.ph-content-card {
+  height: 100%;
+
+  .ant-card-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 196px;
+    padding: 16px;
+  }
+
+  .ant-card-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .ant-card-meta-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .ant-card-meta-title {
+    min-width: 0;
+    margin-bottom: 8px !important;
+
+    a {
+      display: block;
+      color: inherit;
+    }
+  }
+}
+
+.ph-content-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ph-content-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .ph-inline-list {

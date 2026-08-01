@@ -2,6 +2,7 @@
  * 共享基础组件统一出口
  */
 
+export { default as EllipsisTooltip } from './EllipsisTooltip';
 export { default as ContentCard } from './ContentCard';
 export { default as ContentTypeTag } from './ContentTypeTag';
 export { default as AnimatedList } from './AnimatedList';

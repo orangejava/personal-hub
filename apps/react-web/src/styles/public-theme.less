@@ -110,16 +110,27 @@
 
 .ph-content-card-summary {
   color: var(--ph-text-secondary);
-  min-height: 44px;
+  flex: 1;
+  min-height: 0;
+  margin-bottom: 8px;
 }
 
 .ph-content-card-meta {
-  margin-top: 8px;
+  margin-top: auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   color: var(--ph-text-tertiary);
   font-size: 12px;
+  flex-shrink: 0;
+
+  > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .ph-detail-meta {

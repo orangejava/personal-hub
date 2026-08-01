@@ -16,6 +16,7 @@
     "typecheck": "turbo typecheck",
     "format": "prettier --write .",
     "sync:booklets": "pnpm --filter react-web sync:booklets",
+    "import:agent-booklets": "python3 apps/react-web/src/scripts/import-external-agent-booklets.py && pnpm sync:booklets",
     "deploy:server": "bash scripts/deploy-server.sh"
   },
   "devDependencies": {

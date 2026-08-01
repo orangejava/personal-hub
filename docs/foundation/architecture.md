@@ -1,7 +1,7 @@
 # 项目架构图与链路说明
 
 > 目标：把“系统有哪些部分、它们如何协作、请求是怎么走的”讲清楚，方便从前端视角转向全栈视角。
-> 最后更新：2026-06-27
+> 最后更新：2026-07-27
 
 ---
 
@@ -312,3 +312,9 @@ flowchart TD
 5. 部署拓扑图：上线后服务放在哪里
 
 > 画图不是为了“好看”，而是为了让你不再只盯着页面和接口，而是能看到整个系统。
+
+---
+
+## 14. NestJS 后端落地
+
+React-first 阶段 0–5 完成后，后端工程见 **[nest-backend-architecture.md](./nest-backend-architecture.md)**：目录 **`apps/server`**、Prisma 在 server 内、PostgreSQL、Redis、JWT Access 8h + Refresh 返前端、Docker Compose、小册分块上传。

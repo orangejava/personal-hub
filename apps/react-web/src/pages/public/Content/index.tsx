@@ -124,7 +124,13 @@ const Content: React.FC = () => {
         <>
           <Row gutter={[16, 16]}>
             {result.list.map((item) => (
-              <Col xs={24} md={12} lg={8} key={item.id}>
+              <Col
+                xs={24}
+                md={12}
+                lg={8}
+                key={item.id}
+                style={{ display: 'flex' }}
+              >
                 <ContentCard item={item} />
               </Col>
             ))}

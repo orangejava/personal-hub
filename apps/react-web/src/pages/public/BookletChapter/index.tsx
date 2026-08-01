@@ -7,6 +7,7 @@ import { usePublicTheme } from '@/hooks/usePublicTheme';
 import PublicLayout from '@/layouts/PublicLayout';
 import {
   BookletChapterFooter,
+  EllipsisTooltip,
   ErrorState,
   MarkdownViewer,
   ScrollBackTop,
@@ -104,7 +105,10 @@ const BookletListSidebar = React.memo<BookletListSidebarProps>(
           theme={menuTheme}
           mode="inline"
           selectedKeys={[bookletId]}
-          items={bookletList.map((b) => ({ key: b.id, label: b.title }))}
+          items={bookletList.map((b) => ({
+            key: b.id,
+            label: <EllipsisTooltip title={b.title} lines={1} />,
+          }))}
           onClick={(e) => onBookletClick(e.key)}
         />
       }
@@ -149,10 +153,13 @@ const ChapterListSidebar = React.memo<ChapterListSidebarProps>(
           theme={menuTheme}
           mode="inline"
           selectedKeys={[chapterId]}
-          items={chapters.map((c) => ({
-            key: c.id,
-            label: `${c.order}. ${c.title}`,
-          }))}
+          items={chapters.map((c) => {
+            const label = `${c.order}. ${c.title}`;
+            return {
+              key: c.id,
+              label: <EllipsisTooltip title={label} lines={1} />,
+            };
+          })}
           onClick={(e) => onChapterClick(e.key)}
         />
       }

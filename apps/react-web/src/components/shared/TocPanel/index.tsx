@@ -9,6 +9,7 @@ import {
 import { Button } from 'antd';
 import clsx from 'clsx';
 import React, { useEffect, useMemo, useState } from 'react';
+import EllipsisTooltip from '@/components/shared/EllipsisTooltip';
 import { slugifyHeading, stripMarkdownInline } from '@/utils/markdown';
 
 export interface TocItem {
@@ -209,7 +210,7 @@ const TocPanel: React.FC<TocPanelProps> = ({ items }) => {
                 scrollTo(node);
               }}
             >
-              {node.text}
+              <EllipsisTooltip title={node.text} lines={1} />
             </a>
           </div>
           {hasChildren && expanded ? (

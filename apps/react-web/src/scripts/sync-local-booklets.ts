@@ -36,6 +36,9 @@ const isExternalContentDir =
   !!process.env.CONTENT_LOCAL_DIR &&
   resolve(process.env.CONTENT_LOCAL_DIR) !== resolve(REPO_ROOT, 'content-local');
 
+/** 同步时跳过的 md 文件名（维护索引，不作为章节） */
+const SKIP_MD_FILES = new Set(['README.md']);
+
 /** 非小册目录，扫描时跳过 */
 const SKIP_DIR_NAMES = new Set([
   'booklets',
@@ -238,6 +241,7 @@ function main() {
     // md 文件，按数字前缀排序
     const mdFiles = fg
       .sync([`${dir}/*.md`])
+      .filter((file) => !SKIP_MD_FILES.has(basename(file)))
       .sort((a, b) =>
         basename(a).localeCompare(basename(b), 'en', { numeric: true }),
       );

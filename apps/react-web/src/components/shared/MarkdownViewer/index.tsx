@@ -15,8 +15,8 @@ import 'highlight.js/styles/github.min.css';
 
 export { normalizeImageUrl, resolveMarkdownImageSrc } from '@/utils/markdownImage';
 
-/** 正文图片统一固定展示高度（px） */
-const PROSE_IMAGE_HEIGHT = 400;
+/** 正文图片最大展示高度（px），原图更矮时不拉伸 */
+const PROSE_IMAGE_MAX_HEIGHT = 400;
 
 interface MarkdownViewerProps {
   source: string;
@@ -70,8 +70,8 @@ function MarkdownImage({
       <Image
         src={resolved}
         alt={alt ?? ''}
-        height={PROSE_IMAGE_HEIGHT}
         className="ph-prose-img"
+        style={{ maxHeight: PROSE_IMAGE_MAX_HEIGHT }}
         referrerPolicy="no-referrer"
         // antd v6：mask 已弃用，hover 遮罩实际是 cover 层
         preview={{ mask: false, cover: false }}

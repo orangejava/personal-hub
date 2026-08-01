@@ -1,0 +1,20 @@
+/** 溢出省略 + Tooltip 基础样式（配合 EllipsisTooltip 组件） */
+.ph-ellipsis-tooltip {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ph-ellipsis-1 {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ph-ellipsis-2 {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}

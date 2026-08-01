@@ -55,6 +55,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | --- | --- | --- |
 | [foundation/tech-stack.md](./foundation/tech-stack.md) | 技术栈选型与架构决策 | ✅ 已确定 |
 | [foundation/architecture.md](./foundation/architecture.md) | 项目架构图与请求链路说明 | ✅ 已完成 |
+| [foundation/nest-backend-architecture.md](./foundation/nest-backend-architecture.md) | Nest 后端架构确认稿（`apps/server`、Postgres、Docker、Redis、JWT 8h） | ✅ 架构确认 |
 | [foundation/framework-recommendations.md](./foundation/framework-recommendations.md) | 项目框架推荐与取舍分析 | ✅ 已完成 |
 
 ### React-first 阶段实施路线
