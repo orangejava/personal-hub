@@ -1,13 +1,13 @@
 # 后台管理台
 
-> 状态：🟢 已完成细化；React-first 阶段路线已补充
-> 最后更新：2026-07-04
+> 状态：🟢 产品与 UI 说明；后台治理、接口与数据以 [Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md) 和长期 Admin PRD 为准
+> 最后更新：2026-08-02
 
 ---
 
 ## 定位
 
-后台管理台负责整个平台的配置与数据管理，仅限 `admin` 角色访问。
+后台管理台负责整个平台的配置与数据管理。React mock 仍可按 `admin` 展示页面，但未来 Nest 由 Canonical 动作权限和 `OWN/ALL` 范围强制授权；`admin` 与 `super_admin` 的治理边界不可由前端角色判断替代。
 
 长期规划中，后台管理台会与公开前台共用 Web 体系并使用**独立布局**，路由前缀为 `/admin`。
 
@@ -66,24 +66,24 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 ## 各模块详细设计
 
-后台内容、文件、首页、菜单、系统配置与日志的详细 PRD 见 [admin-content-config-prd.md](../prd/long-term/admin-content-config-prd.md)。
+后台内容、文件、首页、菜单、系统配置与日志的历史 UI/字段决策见 [admin-content-config-prd.md](../history/admin-content-config-prd.md)；后端契约以 Canonical 文档为准。
 
 ### 1. 用户管理 `/admin/users`
 
 **列表页**
 
-- **列**：头像、昵称、邮箱、角色标签、状态徽章（激活/禁用）、Token 余额、注册时间、操作
+- **列**：头像、昵称、邮箱、单角色标签、状态徽章（待验证/激活/禁用）、可运营额度余额、注册时间、操作
 - **筛选**：角色、状态（激活/禁用）、关键字（邮箱/昵称）
 - **操作**：查看详情、启用/禁用账号
 
 **用户详情页 `/admin/users/:id`**
 
 - 基本信息展示（头像、昵称、邮箱、Bio、注册时间）
-- 角色分配：多选下拉，实时保存
-- Token 配额操作：
-  - 展示当前余额和累计消耗
+- 角色分配：**单选**角色；首版用户只有 `users.role_id`，不做多角色或用户直接权限。
+- AI 额度操作：
+  - 展示账户可用余额、预占与累计使用
   - [增加配额] 输入框（输入正数增加，负数扣减，需备注原因）
-  - 操作记录列表（时间 / 变更量 / 操作人 / 原因）
+  - 操作记录列表来自不可变 `ai_quota_transactions`（时间 / 变更量 / 操作人 / 原因）
 - 该用户最近 20 条 AI 使用日志
 
 ---
@@ -91,11 +91,13 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 ### 2. 角色管理 `/admin/roles`
 
 - **列表**：角色名、标识符（name）、权限数量、是否系统内置、创建时间、操作
-- 系统内置角色（`admin`/`editor`/`member`）标注"内置"，**不可删除，可编辑权限**
+- 系统角色包含 `super_admin`、`admin`、`editor`、`member`。`super_admin` 受保护：至少保留一名 `ACTIVE` 所有者，普通 admin 不可降级、禁用、撤销其会话或管理其高风险配置。
 - **编辑角色弹窗**：
-  - 权限点按 group 分组展示（内容 / AI / 收藏 / 系统管理）
+  - 权限点按 Canonical group 分组展示（内容、文件、用户会话、角色系统、AI 管理）
   - 每组支持"全选"，单独 checkbox 选择
-  - 实时显示已选权限数
+  - 每个权限独立配置 `OWN` / `ALL` 范围；`TEAM` 仅预留，不可授予
+
+权限码是受控 seed（如 `content:update`、`booklet:import`、`user:status:update`、`role:permission:manage`），不能通过后台随意输入字符串。菜单可见性不等同于 API 权限。
 
 ---
 
@@ -151,17 +153,17 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 **厂商管理（Providers）**
 
-表格列：厂商名称 / Base URL / API Key（脱敏显示 `sk-***xxx`）/ 启用状态 / 操作
+表格列：厂商名称 / Base URL / API Key 是否已配置 / 启用状态 / 操作
 
 新增/编辑弹窗字段：
 
-| 字段     | 说明                                                       |
-| -------- | ---------------------------------------------------------- |
-| 厂商标识 | 唯一英文标识（如 `aliyun_bailian`）                        |
-| 展示名称 | 如"阿里云百炼"                                             |
-| Base URL | API 基础地址（如 `https://dashscope.aliyuncs.com`）        |
-| API Key  | 明文输入，后端加密存储；编辑时显示 `***`，需重新输入才覆盖 |
-| 启用状态 | 禁用后该厂商所有模型不可用                                 |
+| 字段     | 说明                                                                 |
+| -------- | -------------------------------------------------------------------- |
+| 厂商标识 | 唯一英文标识（如 `aliyun_bailian`）                                  |
+| 展示名称 | 如"阿里云百炼"                                                       |
+| Base URL | API 基础地址（如 `https://dashscope.aliyuncs.com`）                  |
+| API Key  | 仅写入环境变量或密钥管理；后台只显示是否已配置，永不回显明文或脱敏值 |
+| 启用状态 | 禁用后该厂商所有模型不可用                                           |
 
 **模型管理（Models）**
 
@@ -214,16 +216,17 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 ---
 
-### 7. Token 配额管理
+### 7. AI 额度账本管理
 
 **首版方案（无自助充值）**：
 
-- 管理员在用户详情页手动为用户增减配额，填写原因
-- 系统配置项 `user.initial_token_quota` 控制新注册用户的初始配额（默认 10,000）
+- 管理员通过需幂等键的额度调整接口增减额度并填写原因；余额不能小于零。
+- 邮箱验证成功后由服务端账本一次性授予默认 `10,000` 可运营额度；不在注册阶段、前端或 `users` 字段中直接加数。
+- AI 发起时服务端原子预占，完成后按实际用量结算并释放多余预占；失败释放未使用额度，中断按实际用量结算。
 
 **数据结构预留（后续充值功能用）**：
 
-- `token_transactions` 表：记录每次配额变更（手动调整 / 系统赠送 / 充值）
+- `ai_quota_transactions`：不可变账户账本，记录授予、预占、结算、释放和人工调整及余额快照
 - 后续支持套餐配置 + 支付宝/微信支付对接
 
 ---
@@ -243,10 +246,10 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 ### 9. 菜单管理 `/admin/menus`
 
-- 分三套菜单：前台导航 / 工作区侧边栏 / 后台侧边栏
+- 分四类菜单 scope：`public` 前台导航、`workspace` 工作区侧边栏、`admin` 后台侧边栏、`ai` AI 工作台。
 - 树形展示，支持同级拖拽排序
-- 每个菜单项可配置：名称、图标、路由路径（只读展示）、显隐、关联权限点
-- **路由路径在代码中硬编码**，菜单管理只控制展示配置和权限绑定
+- 每个菜单项可配置：scope、目录/内部/外链类型、名称、图标、显隐、启用状态和关联权限点。
+- 内部菜单只能从受控 `routeKey` 注册表选择；外链仅允许 HTTPS；菜单管理不创建页面、不授予接口权限。
 
 ---
 
@@ -254,13 +257,13 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 用于配置前台主题色、导航栏显示位置和部分未来预留的页面布局开关。
 
-| 配置组 | 可配置项 |
-| ------ | -------- |
-| 站点信息 | 站点名、描述、Logo、favicon、站长姓名、头像 |
-| 主题颜色 | 主色、辅助色、强调色、背景色、文字色、全局圆角 |
+| 配置组   | 可配置项                                                          |
+| -------- | ----------------------------------------------------------------- |
+| 站点信息 | 站点名、描述、Logo、favicon、站长姓名、头像                       |
+| 主题颜色 | 主色、辅助色、强调色、背景色、文字色、全局圆角                    |
 | 导航布局 | 前台导航位置（上 / 左 / 右）、是否固定、是否毛玻璃、是否展示 Logo |
-| 功能开关 | AI 入口、项目入口、主题切换器 |
-| 预览区 | 模拟首页卡片和导航布局预览 |
+| 功能开关 | AI 入口、项目入口、主题切换器                                     |
+| 预览区   | 模拟首页卡片和导航布局预览                                        |
 
 详细 PRD 见 [theme-navigation-config-prd.md](../prd/react-first/theme-navigation-config-prd.md)。
 
@@ -270,24 +273,25 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 分组展示 Key-Value 配置：
 
-| Key                         | 说明                       | 默认值         |
-| --------------------------- | -------------------------- | -------------- |
-| `site.name`                 | 站点名称                   | "个人知识中台" |
-| `site.description`          | 站点 SEO 描述              | —              |
-| `site.keywords`             | SEO 关键词                 | —              |
-| `site.owner_name`           | 站长姓名                   | —              |
-| `site.avatar_url`           | 全局头像 URL               | —              |
-| `site.github_url`           | GitHub 主页链接            | —              |
-| `site.email`                | 联系邮箱                   | —              |
-| `site.resume_url`           | 简历 PDF 下载链接          | —              |
-| `theme.primary_color`       | 主题主色                   | `#2563EB`      |
-| `theme.secondary_color`     | 主题辅助色                 | `#14B8A6`      |
-| `theme.accent_color`        | 主题强调色                 | `#F97316`      |
-| `theme.mode`                | 明暗主题模式               | `system`       |
-| `navigation.public_position`| 前台导航位置               | `top`          |
-| `user.initial_token_quota`  | 新用户初始 Token 配额      | `10000`        |
-| `ai.trial_chat_daily_limit` | 未登录每日试用对话次数     | `3`            |
-| `ai.trial_text_daily_limit` | 未登录每日试用文本生成次数 | `3`            |
+| Key                          | 说明                                | 默认值         |
+| ---------------------------- | ----------------------------------- | -------------- |
+| `site.name`                  | 站点名称                            | "个人知识中台" |
+| `site.description`           | 站点 SEO 描述                       | —              |
+| `site.keywords`              | SEO 关键词                          | —              |
+| `site.owner_name`            | 站长姓名                            | —              |
+| `site.avatar_url`            | 全局头像 URL                        | —              |
+| `site.github_url`            | GitHub 主页链接                     | —              |
+| `site.email`                 | 联系邮箱                            | —              |
+| `site.resume_url`            | 简历 PDF 下载链接                   | —              |
+| `theme.primary_color`        | 主题主色                            | `#2563EB`      |
+| `theme.secondary_color`      | 主题辅助色                          | `#14B8A6`      |
+| `theme.accent_color`         | 主题强调色                          | `#F97316`      |
+| `theme.mode`                 | 明暗主题模式                        | `system`       |
+| `navigation.public_position` | 前台导航位置                        | `top`          |
+| `ai.entitlement`             | 角色/套餐可用模型、工具和额度规则   | 受 DTO 校验    |
+| `ai.anonymous_policy`        | 匿名 Chat/Text 频率、并发和输入限制 | 受 DTO 校验    |
+
+> 额度赠送在邮箱验证成功时由服务端账本处理；登录安全阈值、密钥、数据库地址等安全/运行配置属于环境变量或密钥管理，禁止通过系统配置页面编辑。
 
 ---
 
@@ -296,4 +300,5 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 - **列**：时间、操作用户、操作类型（如 `content:publish`）、操作对象（类型 + ID）、IP、结果（成功/失败）、详情
 - **筛选**：操作类型、操作用户、时间范围、结果
 - 点击"详情"展开弹窗，显示完整 `detail` JSON
-- **保留策略**：最近 90 天，超期自动清理
+- **分级保留**：安全、权限、会话、额度日志保留 365 天；后台运营和一般业务审计保留 90 天。
+- 审计详情使用严格白名单，不记录密码、JWT/Refresh Token、Cookie、AI Key、完整 AI 正文或文件二进制。磁盘 80% 告警；90% 紧急状态下仅 `super_admin` 可按时间/类别、填写原因并二次确认后提前清理。

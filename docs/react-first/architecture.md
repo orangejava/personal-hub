@@ -1,7 +1,7 @@
 # React-first 工程架构
 
 > 状态：✅ React-first 当前架构已落地；后端与 Next.js 部分为后续边界
-> 最后更新：2026-06-27
+> 最后更新：2026-08-02
 > 目标：定义 React-first 阶段的 Monorepo 结构、应用边界、共享包和未来与 NestJS / Next.js 的协作关系。
 
 ---
@@ -13,7 +13,7 @@ personal-hub/
 ├── apps/
 │   ├── react-web/          ← React + Umi + Ant Design Pro 首版 Web
 │   ├── next-web/           ← 后续 Next.js 15 公开前台 / 内容页重构
-│   └── api/                ← 后续 NestJS 统一后端 API
+│   └── server/             ← 后续 NestJS 统一后端 API（`/api/v1`）
 ├── packages/
 │   ├── shared-types/       ← 共享类型、枚举、接口响应结构、Zod Schema
 │   ├── api-client/         ← 后续可选：统一请求 SDK
@@ -33,17 +33,17 @@ personal-hub/
 - `packages/shared-types`
 - 根目录 Monorepo 配置
 
-`apps/next-web` 和 `apps/api` 可以后续按阶段创建，但目录命名和共享边界先在文档中固定。
+`apps/next-web` 和 `apps/server` 可以后续按阶段创建，但目录命名和共享边界先在文档中固定。不得新增 `apps/api`。
 
 ---
 
 ## 2. 应用职责边界
 
-| 应用 | 阶段 | 职责 |
-|---|---|---|
-| `apps/react-web` | 立即开始 | 用 React/Umi/Ant Design Pro 完成首版全量 Web 功能 |
-| `apps/next-web` | 后续 | 承担 SEO 友好的公开前台、内容列表、内容阅读、项目页、关于页 |
-| `apps/api` | 后续 | NestJS 统一 API，承载认证、内容、AI、系统配置、后台管理能力 |
+| 应用             | 阶段     | 职责                                                                        |
+| ---------------- | -------- | --------------------------------------------------------------------------- |
+| `apps/react-web` | 立即开始 | 用 React/Umi/Ant Design Pro 完成首版全量 Web 功能                           |
+| `apps/next-web`  | 后续     | 承担 SEO 友好的公开前台、内容列表、内容阅读、项目页、关于页                 |
+| `apps/server`    | 后续     | NestJS 统一 API，统一 `/api/v1`，承载认证、内容、AI、系统配置、后台管理能力 |
 
 ---
 
@@ -61,7 +61,7 @@ flowchart LR
 - 页面不直接写死数据。
 - 页面调用 service 层。
 - service 层当前请求 mock，未来切到真实 API。
-- mock 响应结构尽量贴近后续 NestJS API。
+- 阶段 A mock 保持可用；其旧 `/api/*` 路径仅用于迁移定位，真实 Nest 契约固定为 `/api/v1`，见 [Canonical API](../backend/canonical-api.md)。
 
 ---
 
@@ -71,7 +71,7 @@ flowchart LR
 flowchart LR
     User["用户"] --> ReactWeb["apps/react-web"]
     User --> NextWeb["apps/next-web"]
-    ReactWeb --> Api["apps/api<br/>NestJS"]
+    ReactWeb --> Api["apps/server<br/>NestJS /api/v1"]
     NextWeb --> Api
     Api --> Db[("PostgreSQL")]
     Api --> Redis[("Redis")]
@@ -83,9 +83,10 @@ flowchart LR
 
 说明：
 
-- React 和 Next 共用同一套 NestJS API。
+- React 和 Next 共用同一套 NestJS API；后端认证为 JWT-only，密码使用 Argon2id。
 - Flutter 后续也接同一套 API。
 - 前端不会直接访问数据库、Redis 或 AI 厂商。
+- 文件通过后端签发预签名 URL：本地开发对应 MinIO，生产唯一业务对象存储为腾讯 COS（AWS SDK v3 S3 兼容 Provider）。
 
 ---
 
@@ -115,9 +116,6 @@ packages/shared-types/
 
 建议首批沉淀：
 
-- `ApiResponse<T>`
-- `PaginationQuery`
-- `PaginationResult<T>`
 - `ContentType`
 - `ContentStatus`
 - `ContentVisibility`
@@ -135,10 +133,10 @@ packages/shared-types/
 
 适合在真实 NestJS API 开始稳定后创建，用来放：
 
-- axios/fetch 封装。
-- 模块级请求函数。
-- OpenAPI 生成客户端。
-- 统一错误处理类型。
+- OpenAPI 生成客户端及其模块级请求函数。
+- 前端适配层与统一错误处理类型。
+
+HTTP DTO、OpenAPI 源及运行时校验仍属于 `apps/server`；`packages/shared-types` 不再定义第二份 `ApiResponse`、分页 DTO 或 Zod HTTP Schema。
 
 ### 5.3 `packages/config`
 
@@ -194,10 +192,10 @@ React-first 工程创建后建议补：
 - `apps/react-web/AGENT.md`
 - `packages/shared-types/AGENT.md`
 
-如果后续创建 Next 和 API，再补：
+如果后续创建 Next 和 Server，再补：
 
 - `apps/next-web/AGENT.md`
-- `apps/api/AGENT.md`
+- `apps/server/AGENT.md`
 
 `apps/react-web/AGENT.md` 至少说明：
 

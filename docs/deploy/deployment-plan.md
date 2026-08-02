@@ -1,18 +1,39 @@
 # personal-hub 完整部署计划
 
-> 状态：权威总览（阶段 A 已落地；阶段 B/C 为规划）  
-> 最后更新：2026-07-26  
+> 状态：🟢 阶段 A 权威；Nest 生产路线已收口至 Compose
+> 最后更新：2026-08-02
 > 适用：Ubuntu 24.04 / 2 核 4G / 个人远程阅读 → 后续 NestJS 全栈
+
+> **Nest 阶段请勿使用本文 B/C 命令**：`apps/api`、PM2 API、`/api/*`、生产 MinIO 与 COS 数据库备份已过期。以 [Nest Compose 策略](./nest-compose-strategy.md) 和 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为准。
 
 **与其它文档关系：**
 
-| 文档 | 角色 |
-| --- | --- |
-| **本文** | 总路线图、目录约定、Git 策略、阶段划分、迁移说明 |
-| [pm2-deployment.md](./pm2-deployment.md) | 阶段 A PM2 实操与排障 |
-| [server-deployment-guide.md](./server-deployment-guide.md) | 一页命令速查 |
-| [personal-remote-reading.md](./personal-remote-reading.md) | 阶段 A/B 细节（mock、COS、缓存、API 改造） |
-| [deployment.md](./deployment.md) | 长期生产（Docker Compose、Nginx、备份、CI/CD 模板） |
+| 文档                                                       | 角色                                                |
+| ---------------------------------------------------------- | --------------------------------------------------- |
+| **本文**                                                   | 总路线图、目录约定、Git 策略、阶段划分、迁移说明    |
+| [pm2-deployment.md](./pm2-deployment.md)                   | 阶段 A PM2 实操与排障                               |
+| [server-deployment-guide.md](./server-deployment-guide.md) | 一页命令速查                                        |
+| [personal-remote-reading.md](./personal-remote-reading.md) | 阶段 A/B 细节（mock、COS、缓存、API 改造）          |
+| [deployment.md](./deployment.md)                           | 长期生产（Docker Compose、Nginx、备份、CI/CD 模板） |
+
+---
+
+## Nest 生产路线（当前）
+
+阶段 A 的 `react-web dev + mock + PM2` 操作仍保持有效；它不等同于 Nest 生产部署。进入后端阶段后，废弃本文旧 B/C 的 `apps/api`、PM2 API、`/api/*`、生产 MinIO 与旧备份命令，统一执行 [Nest Compose 策略](./nest-compose-strategy.md)：
+
+```text
+Nginx → /、/admin、/api/v1 → Compose server
+                              ├── PostgreSQL
+                              ├── Redis
+                              └── 腾讯 COS（外部私有对象存储）
+Compose server-worker → Outbox dispatcher + BullMQ worker
+```
+
+- 后端目录为 `apps/server`；认证为 JWT-only，密码使用 Argon2id。
+- 本地用 MinIO 模拟 S3，生产通过 AWS SDK v3 Provider 使用腾讯 COS；生产不运行 MinIO 作为业务源数据。
+- PostgreSQL 每日逻辑备份保留 14 天；发布/迁移前额外备份，且上线前和重大迁移前必须完成隔离恢复演练。
+- 最低告警、渠道占位、阈值、巡检与恢复责任以 [Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为准。
 
 ---
 
@@ -20,15 +41,15 @@
 
 ```mermaid
 flowchart LR
-    A["阶段 A<br/>react-web dev + mock<br/>:8000 直连"] --> B["阶段 B<br/>apps/api NestJS<br/>PG + Redis + build"]
-    B --> C["阶段 C<br/>Nginx + HTTPS<br/>next-web + CI/CD"]
+    A["阶段 A<br/>react-web dev + mock<br/>:8000 直连"] --> B["Nest 阶段<br/>apps/server + Compose<br/>PG + Redis + COS"]
+    B --> C["长期演进<br/>Nginx + HTTPS<br/>next-web + 发布自动化"]
 ```
 
-| 阶段 | 运行形态 | 后端 | 小册数据 | 你现在在哪 |
-| --- | --- | --- | --- | --- |
-| **A** | PM2 跑 `pnpm dev:react`（mock） | Umi mock | rsync → `/data/.../content-local` + `sync:booklets` | **已部署第一版** |
-| **B** | PM2 API + Nginx 静态 `dist` | `apps/api` NestJS | COS 或继续本地目录 + API 按需读 | 未开始 |
-| **C** | 多应用 + 域名 + 自动化发布 | NestJS 全模块 | COS 为主 | 长期 |
+| 阶段  | 运行形态                                   | 后端                            | 小册数据                                            | 你现在在哪       |
+| ----- | ------------------------------------------ | ------------------------------- | --------------------------------------------------- | ---------------- |
+| **A** | PM2 跑 `pnpm dev:react`（mock）            | Umi mock                        | rsync → `/data/.../content-local` + `sync:booklets` | **已部署第一版** |
+| **B** | Compose `server` + `server-worker` + Nginx | `apps/server` NestJS，`/api/v1` | 腾讯 COS 为唯一生产对象存储                         | 未开始           |
+| **C** | 多应用 + 域名 + 自动化发布                 | NestJS 全模块                   | COS 为主                                            | 长期             |
 
 **原则：** 阶段 A 与 B/C **共用同一套服务器目录规范**；只增服务、不换盘位，避免以后迁 NestJS 时再搬数据。
 
@@ -38,24 +59,24 @@ flowchart LR
 
 ### 结论：**分开目录，代码里用软链接入（推荐，保持现状）**
 
-| 类型 | 服务器路径 | 是否进 Git | 说明 |
-| --- | --- | --- | --- |
-| **代码** | `/opt/personal-hub/` | ✅ Gitee 管理 | Monorepo：`apps/react-web`、`packages/`；后续 `apps/api` |
-| **小册源文件** | `/data/personal-hub/content-local/` | ❌ | 体积大、更新频；不进仓库 |
-| **软链** | `/opt/personal-hub/content-local` → 上项 | — | 让 `sync:booklets` 脚本路径与本地一致 |
-| **环境变量** | `/etc/personal-hub/.env` | ❌ | 密钥；软链到仓库根或 API 目录 |
-| **运行时缓存** | `/var/cache/personal-hub/` | ❌ | 阶段 B 章节 LRU |
-| **数据库/Redis 数据** | `/data/personal-hub/postgres/`、`redis/` | ❌ | 阶段 B Docker 卷 |
-| **上传与备份** | `/data/personal-hub/uploads/`、`backups/` | ❌ | 阶段 B 起 |
+| 类型                  | 服务器路径                                | 是否进 Git    | 说明                                                        |
+| --------------------- | ----------------------------------------- | ------------- | ----------------------------------------------------------- |
+| **代码**              | `/opt/personal-hub/`                      | ✅ Gitee 管理 | Monorepo：`apps/react-web`、`packages/`；后续 `apps/server` |
+| **小册源文件**        | `/data/personal-hub/content-local/`       | ❌            | 体积大、更新频；不进仓库                                    |
+| **软链**              | `/opt/personal-hub/content-local` → 上项  | —             | 让 `sync:booklets` 脚本路径与本地一致                       |
+| **环境变量**          | `/etc/personal-hub/.env`                  | ❌            | 密钥；软链到仓库根或 API 目录                               |
+| **运行时缓存**        | `/var/cache/personal-hub/`                | ❌            | 阶段 B 章节 LRU                                             |
+| **数据库/Redis 数据** | `/data/personal-hub/postgres/`、`redis/`  | ❌            | 阶段 B Docker 卷                                            |
+| **上传与备份**        | `/data/personal-hub/uploads/`、`backups/` | ❌            | 阶段 B 起                                                   |
 
 ### 为什么不把 data 塞进 `/opt/personal-hub/` 一个文件夹？
 
-| 分开（当前） | 全塞进项目目录 |
-| --- | --- |
-| `git pull` / 重装代码盘不影响小册与数据库 | 容易误删、误提交、与 `node_modules` 混排 |
-| 数据盘可单独扩容、快照、迁移实例 | 71 本小册与代码同盘，60GB 很快紧张 |
-| 备份策略分离：代码=Git，数据=rsync/COS | 重装系统时要手工挑目录 |
-| 与 Docker 卷、COS 长期方案一致 | 不符合 Linux FHS 常见实践（`/opt` 装软件，`/data` 存数据） |
+| 分开（当前）                              | 全塞进项目目录                                             |
+| ----------------------------------------- | ---------------------------------------------------------- |
+| `git pull` / 重装代码盘不影响小册与数据库 | 容易误删、误提交、与 `node_modules` 混排                   |
+| 数据盘可单独扩容、快照、迁移实例          | 71 本小册与代码同盘，60GB 很快紧张                         |
+| 备份策略分离：代码=Git，数据=rsync/COS    | 重装系统时要手工挑目录                                     |
+| 与 Docker 卷、COS 长期方案一致            | 不符合 Linux FHS 常见实践（`/opt` 装软件，`/data` 存数据） |
 
 **不要**在 `/opt/personal-hub/content-local/` 放实体小册目录；**只要软链**。
 
@@ -65,7 +86,7 @@ flowchart LR
 /opt/personal-hub/                    # Git 仓库（仅代码与配置脚本）
 ├── apps/
 │   ├── react-web/                  # 阶段 A：Umi dev / 阶段 B：dist 静态
-│   └── api/                        # 阶段 B 新增：NestJS
+│   └── server/                     # Nest 阶段新增：NestJS
 ├── packages/shared-types/
 ├── ecosystem.config.js             # 阶段 A PM2 标准配置
 ├── ecosystem.prod.cjs              # 阶段 B 规划：api + 可选 web
@@ -90,11 +111,11 @@ flowchart LR
 
 服务器无法稳定访问 GitHub 时，采用 **双远程、分工明确**：
 
-| 环境 | 远程 | 用途 |
-| --- | --- | --- |
-| **本地开发机** | `origin` → GitHub | 日常开发、PR、备份 |
-| **本地开发机** | `gitee` → Gitee | 推送到国内镜像 |
-| **服务器** | 仅 Gitee | `git clone` / `git pull` |
+| 环境           | 远程              | 用途                     |
+| -------------- | ----------------- | ------------------------ |
+| **本地开发机** | `origin` → GitHub | 日常开发、PR、备份       |
+| **本地开发机** | `gitee` → Gitee   | 推送到国内镜像           |
+| **服务器**     | 仅 Gitee          | `git clone` / `git pull` |
 
 当前仓库远程示例：
 
@@ -133,8 +154,8 @@ pm2 restart personal-hub-dev
 
 ### Gitee 认证
 
-- **HTTPS**：Gitee 私人令牌（Settings → 私人令牌），`git pull` 密码处填令牌  
-- **SSH**（推荐）：服务器生成 SSH 公钥，添加到 Gitee 仓库部署公钥或账户 SSH 公钥  
+- **HTTPS**：Gitee 私人令牌（Settings → 私人令牌），`git pull` 密码处填令牌
+- **SSH**（推荐）：服务器生成 SSH 公钥，添加到 Gitee 仓库部署公钥或账户 SSH 公钥
 
 ```bash
 # 服务器一次性
@@ -147,16 +168,16 @@ git remote set-url origin git@gitee.com:oralemon/personal-hub.git
 
 ## 4. 当前 Monorepo 与部署相关代码
 
-| 路径 | 阶段 A | 阶段 B（NestJS） |
-| --- | --- | --- |
-| `apps/react-web/` | Umi dev + mock，端口 **8000** | `pnpm build:react` → `dist/`，Nginx 托管 |
-| `packages/shared-types/` | 前后端共享类型 | API DTO 与前端 service 契约 |
-| `apps/api/` | **尚未创建** | NestJS + Prisma + PostgreSQL |
-| `apps/next-web/` | 未创建 | 阶段 C SEO 页 |
-| `ecosystem.config.js` | PM2 进程 `personal-hub-dev`；显式监听 `0.0.0.0:8000` | 阶段 A 继续使用或下线 |
-| `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描 `content-local/` 生成 mock | 本地开发保留；生产改 API |
-| `apps/react-web/src/scripts/sync-allowlist.json` | 白名单小册（约 12 本） | 上传 COS 时沿用目录名 |
-| `content-local/`（本地） | gitignore，rsync 到服务器 | 本地 `booklet:push` → COS（规划） |
+| 路径                                                | 阶段 A                                               | 阶段 B（NestJS）                         |
+| --------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------- |
+| `apps/react-web/`                                   | Umi dev + mock，端口 **8000**                        | `pnpm build:react` → `dist/`，Nginx 托管 |
+| `packages/shared-types/`                            | 前后端共享类型                                       | API DTO 与前端 service 契约              |
+| `apps/server/`                                      | **尚未创建**                                         | NestJS + Prisma + PostgreSQL             |
+| `apps/next-web/`                                    | 未创建                                               | 阶段 C SEO 页                            |
+| `ecosystem.config.js`                               | PM2 进程 `personal-hub-dev`；显式监听 `0.0.0.0:8000` | 阶段 A 继续使用或下线                    |
+| `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描 `content-local/` 生成 mock                      | 本地开发保留；生产改 API                 |
+| `apps/react-web/src/scripts/sync-allowlist.json`    | 白名单小册（约 12 本）                               | 上传 COS 时沿用目录名                    |
+| `content-local/`（本地）                            | gitignore，rsync 到服务器                            | 本地 `booklet:push` → COS（规划）        |
 
 **阶段 A 限制（已知）：** Umi mock **仅 dev 生效**；`pnpm build` 后无 `/api/*`。个人阅读期用 dev 模式可接受；上 NestJS 前不要对公网宣传 build 版。
 
@@ -237,15 +258,15 @@ cd /opt/personal-hub && pnpm sync:booklets && pm2 restart personal-hub-dev
 
 ### 5.4 验证清单（阶段 A）
 
-| 检查 | 命令 / 地址 |
-| --- | --- |
-| 进程 | `pm2 status` → `personal-hub-dev` **online** |
-| 端口 | `ss -lntp \| grep 8000` |
-| HTTP | `curl -I http://127.0.0.1:8000` |
-| 服务器路由 | `curl -I http://127.0.0.1:8000/content`、`/workspace/booklets` |
-| 公网 | 安全组 TCP 8000 来源为客户端真实公网 IP `/32`；浏览器访问 `http://<公网 IP>:8000/content` |
-| 小册 | 浏览器 `/content`、`/workspace/booklets` |
-| 日志 | `pm2 logs personal-hub-dev --lines 50` |
+| 检查       | 命令 / 地址                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| 进程       | `pm2 status` → `personal-hub-dev` **online**                                              |
+| 端口       | `ss -lntp \| grep 8000`                                                                   |
+| HTTP       | `curl -I http://127.0.0.1:8000`                                                           |
+| 服务器路由 | `curl -I http://127.0.0.1:8000/content`、`/workspace/booklets`                            |
+| 公网       | 安全组 TCP 8000 来源为客户端真实公网 IP `/32`；浏览器访问 `http://<公网 IP>:8000/content` |
+| 小册       | 浏览器 `/content`、`/workspace/booklets`                                                  |
+| 日志       | `pm2 logs personal-hub-dev --lines 50`                                                    |
 
 ### 5.5 阶段 A 公网访问边界
 
@@ -267,19 +288,21 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 ---
 
-## 6. 阶段 B：接入 `apps/api`（NestJS）时的部署变化
+## 6. 阶段 B：接入 NestJS 的历史部署草案
+
+> **已过期，禁止按本节操作**：下文 `apps/api`、PM2 API、`/api/*`、COS 数据库备份与生产 MinIO 的约定已经被替代。Nest 阶段的唯一部署依据是 [Nest Compose 策略](./nest-compose-strategy.md)，应用目录为 `apps/server`，API 前缀为 `/api/v1`。
 
 > 代码尚未创建；以下为目录与服务 **增量**，不要求搬迁阶段 A 数据。
 
 ### 6.1 新增组件
 
-| 组件 | 部署方式 | 端口 / 路径 |
-| --- | --- | --- |
-| `apps/api` | PM2 `personal-hub-api` | `127.0.0.1:3001` |
-| PostgreSQL 16 | Docker，`/data/personal-hub/postgres` | `5432` 仅本机 |
-| Redis 7 | Docker，`/data/personal-hub/redis` | `6379` 仅本机 |
-| react-web | `pnpm build:react` + Nginx 静态 | `/` |
-| Nginx | 反代 `/api` → NestJS | `80/443` |
+| 组件          | 部署方式                              | 端口 / 路径      |
+| ------------- | ------------------------------------- | ---------------- |
+| `apps/api`    | PM2 `personal-hub-api`                | `127.0.0.1:3001` |
+| PostgreSQL 16 | Docker，`/data/personal-hub/postgres` | `5432` 仅本机    |
+| Redis 7       | Docker，`/data/personal-hub/redis`    | `6379` 仅本机    |
+| react-web     | `pnpm build:react` + Nginx 静态       | `/`              |
+| Nginx         | 反代 `/api` → NestJS                  | `80/443`         |
 
 ### 6.2 请求链路（目标）
 
@@ -305,12 +328,12 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 ### 6.5 阶段 A → B 切换注意
 
-| 项 | 处理 |
-| --- | --- |
-| `personal-hub-dev`（dev mock） | 切 B 后停止，改 Nginx 托管 dist |
+| 项                                 | 处理                              |
+| ---------------------------------- | --------------------------------- |
+| `personal-hub-dev`（dev mock）     | 切 B 后停止，改 Nginx 托管 dist   |
 | `/data/personal-hub/content-local` | 可保留作备份；生产正文以 COS 为准 |
-| mock 账号 | 换 NestJS JWT / 登录 |
-| 安全组 | 关闭公网 8000，只开 80/443 |
+| mock 账号                          | 换 NestJS JWT / 登录              |
+| 安全组                             | 关闭公网 8000，只开 80/443        |
 
 ---
 
@@ -320,28 +343,28 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 - `apps/next-web` SEO 页逐步上线
 - 域名 + Let's Encrypt
-- 可选 Gitee Webhook / Gitee Go → SSH 执行 `git pull && build && pm2 reload`
-- PostgreSQL / 文件备份到 COS
-- Flutter App 共用同一 `apps/api`
+- 可选发布自动化仅在实际镜像构建与受控部署配置确定后实施；仍遵循 Compose 发布窗口，不以 PM2 重载 API
+- PostgreSQL 本地逻辑备份保留 14 天；COS 只保存业务对象，不作为日常数据库备份
+- Flutter App 共用同一 `apps/server` `/api/v1`
 
 ---
 
 ## 8. 日常运维速查
 
-| 场景 | 操作 |
-| --- | --- |
+| 场景          | 操作                                                                                |
+| ------------- | ----------------------------------------------------------------------------------- |
 | 只改前端/脚本 | 本地 push Gitee → 服务器 `git pull && pnpm install && pm2 restart personal-hub-dev` |
-| 只改小册 | 本地 rsync → 服务器 `pnpm sync:booklets && pm2 restart personal-hub-dev` |
-| 阶段 B 改 API | `git pull` → migrate → `pnpm --filter api build` → `pm2 restart personal-hub-api` |
-| 看日志 | `pm2 logs` |
-| 磁盘 | `du -sh /data/personal-hub/* /var/cache/personal-hub` |
+| 只改小册      | 本地 rsync → 服务器 `pnpm sync:booklets && pm2 restart personal-hub-dev`            |
+| 阶段 B 改 API | `git pull` → migrate → `pnpm --filter api build` → `pm2 restart personal-hub-api`   |
+| 看日志        | `pm2 logs`                                                                          |
+| 磁盘          | `du -sh /data/personal-hub/* /var/cache/personal-hub`                               |
 
 ---
 
 ## 9. 相关文档
 
-- [server-deployment-guide.md](./server-deployment-guide.md) — 命令一页纸  
-- [personal-remote-reading.md](./personal-remote-reading.md) — mock/COS/缓存/API 改造细节  
-- [deployment.md](./deployment.md) — Docker、Nginx、备份、CI/CD 模板  
-- [../foundation/architecture.md](../foundation/architecture.md) — 多应用架构  
-- [../backend/api.md](../backend/api.md) — NestJS 接口契约  
+- [server-deployment-guide.md](./server-deployment-guide.md) — 命令一页纸
+- [personal-remote-reading.md](./personal-remote-reading.md) — mock/COS/缓存/API 改造细节
+- [deployment.md](./deployment.md) — Docker、Nginx、备份、CI/CD 模板
+- [../foundation/architecture.md](../foundation/architecture.md) — 多应用架构
+- [../backend/canonical-api.md](../backend/canonical-api.md) — Canonical Nest API 契约

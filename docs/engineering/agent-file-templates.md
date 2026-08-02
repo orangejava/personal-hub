@@ -6,7 +6,7 @@
 >
 > ⚠️ **当前阶段已按 React-first 落地**：实际目录级规范见
 > `apps/react-web/AGENT.md`（含 `.agent/` 分模块细则）与 `packages/shared-types/AGENT.md`。
-> 下方模板最初按 Next.js（`apps/web`）路径编写，保留作为 Next.js 阶段（`apps/next-web`）与后端（`apps/api`）的参考。
+> 下方前端模板最初按 Next.js（`apps/web`）路径编写，仅保留为未来 `apps/next-web` 参考；后端模板适用于下一阶段的 `apps/server`。
 > React-first 阶段请以上述实际 AGENT.md 为准。
 
 ---
@@ -15,11 +15,11 @@
 
 工程骨架创建后，应新增：
 
-| 文件 | 适用范围 |
-|---|---|
-| `apps/web/AGENT.md` | 公开前台 + 工作区 + Web 通用规范 |
-| `apps/web/app/admin/AGENT.md` | 运营端 / 后台管理台专用规范 |
-| `apps/api/AGENT.md` | 后端 NestJS API 专用规范 |
+| 文件                          | 适用范围                         |
+| ----------------------------- | -------------------------------- |
+| `apps/web/AGENT.md`           | 公开前台 + 工作区 + Web 通用规范 |
+| `apps/web/app/admin/AGENT.md` | 运营端 / 后台管理台专用规范      |
+| `apps/server/AGENT.md`        | 后端 NestJS 专用规范             |
 
 说明：
 
@@ -153,14 +153,14 @@
 
 ---
 
-## 4. `apps/api/AGENT.md` 模板
+## 4. `apps/server/AGENT.md` 模板
 
 ```md
 # 后端 API 开发规范
 
 ## 适用范围
 
-本文件适用于 `apps/api` 下所有 NestJS 后端代码。
+本文件适用于 `apps/server` 下所有 NestJS 后端代码。
 
 ## 技术栈
 

@@ -1,9 +1,11 @@
 # 个人远程阅读部署方案（COS 小册 + 生产级架构适配）
 
-> 状态：方案评审稿  
-> 最后更新：2026-07-27  
-> 目标：Ubuntu 24.04 / 2 核 4G / 60GB 服务器上部署 react-first，小册存腾讯 COS，架构对齐后续 React + Next.js + NestJS 生产形态  
+> 状态：🟢 阶段 A 远程阅读可参考；Nest 生产段落已归档
+> 最后更新：2026-08-02
+> 目标：Ubuntu 24.04 / 2 核 4G / 60GB 服务器上部署 react-first，小册存腾讯 COS，架构对齐后续 React + Next.js + NestJS 生产形态
 > **总览**：[deployment-plan.md](./deployment-plan.md) · **速查**：[server-deployment-guide.md](./server-deployment-guide.md)
+
+> **历史提示**：本文涉及 `apps/api`、`/api/**`、PM2 API、旧 API / 数据模型草案的 Nest 规划不可执行。Nest 目录、API 与 Compose 以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)、[Canonical API](../backend/canonical-api.md) 和 [Nest Compose 策略](./nest-compose-strategy.md) 为准。
 
 ---
 
@@ -11,14 +13,14 @@
 
 本文包含**两条并行路径**，服务于不同阶段，**互不否定**：
 
-| 维度 | **阶段 A：当前立即可用** | **阶段 B：目标生产架构** |
-| --- | --- | --- |
-| 目的 | 你个人远程看小册学习 | 正式对外、React + Next + NestJS |
-| 启动方式 | **`pnpm dev:react`（dev + mock）** | `pnpm build:react` + NestJS API |
-| 访问方式 | **`http://服务器IP:8000` 直连**，不配 Nginx | Nginx :443 + HTTPS |
-| 小册数据 | rsync 到服务器 `content-local/` + `sync:booklets`（COS 可后置） | 腾讯 COS + NestJS 按需读 + 缓存 |
-| 后端 | Umi mock（现有代码零改造） | `apps/api` NestJS + PostgreSQL + Redis |
-| 安全 | 云安全组限制 8000 仅你的 IP；可选 SSH 隧道 | 域名 + HTTPS + 登录/RBAC |
+| 维度     | **阶段 A：当前立即可用**                                        | **阶段 B：目标生产架构**                                            |
+| -------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 目的     | 你个人远程看小册学习                                            | 正式对外、React + Next + NestJS                                     |
+| 启动方式 | **`pnpm dev:react`（dev + mock）**                              | `pnpm build:react` + NestJS API                                     |
+| 访问方式 | **`http://服务器IP:8000` 直连**，不配 Nginx                     | Nginx :443 + HTTPS                                                  |
+| 小册数据 | rsync 到服务器 `content-local/` + `sync:booklets`（COS 可后置） | 腾讯 COS + NestJS 按需读 + 缓存                                     |
+| 后端     | Umi mock（现有代码零改造）                                      | `apps/server` NestJS + PostgreSQL + Redis + Compose `server-worker` |
+| 安全     | 云安全组限制 8000 仅你的 IP；可选 SSH 隧道                      | 域名 + HTTPS + 登录/RBAC                                            |
 
 ```mermaid
 flowchart TB
@@ -43,23 +45,33 @@ flowchart TB
 
 1. 阶段 A 仍用 Monorepo 里的 `apps/react-web`，Git 工作流不变。
 2. 小册目录（`meta.json` + 章节 md）与阶段 B 的 COS 布局一致，以后 rsync 可换成 `booklet:push`。
-3. 前端 `services/booklet.ts` 已是 `/api/contents/.../chapters`，阶段 B 只换数据源。
-4. 阶段 A **刻意不引入** NestJS / Docker / Nginx；阶段 B（下文第 3～6 节）原样保留。
+3. 前端现有 mock service 的 `/api/*` 路径只是迁移线索；阶段 B 以 `/api/v1` Canonical 契约替换数据源。
+4. 阶段 A **刻意不引入** NestJS / Docker / Nginx；阶段 B 仅遵循 [Nest Compose 策略](./nest-compose-strategy.md)，下文历史草案不再可执行。
 
 **阶段 A 操作：见 [§ A 当前部署步骤](#a-当前部署步骤dev--直连-8000)**。
 
 ---
 
+## Nest 生产接入摘要（当前）
+
+当远程阅读从阶段 A mock 切到正式后端时，使用 `apps/server` 的 `/api/v1` 接口，生产以 Compose 部署 Nginx、`server`、`server-worker`、PostgreSQL 与 Redis；对象正文和文件使用腾讯 COS，开发环境才用 MinIO。业务变更与 outbox 同事务写入，独立 worker 负责 dispatcher / BullMQ 消费。
+
+- 认证为 JWT-only，密码使用 Argon2id；不沿用本文历史 API、PM2 API 或旧 Token 设想。
+- PostgreSQL 每日逻辑备份保留 14 天，发布/迁移前增加备份；上线前、重大迁移前须在隔离实例完成恢复演练。
+- 告警事件、渠道占位、阈值、巡检和恢复责任以 [Nest Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为唯一依据。
+
+---
+
 ## 1. 背景与约束
 
-| 项 | 说明 |
-| --- | --- |
-| 使用场景 | 个人远程阅读小册学习，暂不对公网开放完整产品能力 |
-| 服务器 | Ubuntu 24.04，2 核 4G，系统盘 60GB |
-| 小册规模 | 约 71 本、1973 章节（本地 `content-local/`） |
-| 存储 | 小册正文不上 Git；**阶段 A** rsync 到服务器；**阶段 B** 统一进腾讯 COS |
+| 项       | 说明                                                                             |
+| -------- | -------------------------------------------------------------------------------- |
+| 使用场景 | 个人远程阅读小册学习，暂不对公网开放完整产品能力                                 |
+| 服务器   | Ubuntu 24.04，2 核 4G，系统盘 60GB                                               |
+| 小册规模 | 约 71 本、1973 章节（本地 `content-local/`）                                     |
+| 存储     | 小册正文不上 Git；**阶段 A** rsync 到服务器；**阶段 B** 统一进腾讯 COS           |
 | 架构要求 | 目录与 API 契约按长期 **react-web + next-web + NestJS** 设计；**运行形态分阶段** |
-| 本期不做 | 完整 RBAC、AI 计费、Meilisearch、Flutter |
+| 本期不做 | 完整 RBAC、AI 计费、Meilisearch、Flutter                                         |
 
 ---
 
@@ -76,36 +88,36 @@ flowchart LR
     Svc --> Page["BookletChapter 页面"]
 ```
 
-| 环节 | 文件 | 现状 | 问题 |
-| --- | --- | --- | --- |
-| 输入 | `content-local/` | gitignore，本地 Markdown + meta.json | 无法直接在服务器读取 |
-| 同步脚本 | `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描目录，**把所有章节 body 打进一个 TS 文件** | 71 本体量巨大；build 产物膨胀；不适合远程 |
-| 生成物 | `mock/data/local-booklets.generated.ts` | gitignore，prepare 时自动生成 | 仅 dev/mock 可用 |
-| Mock API | `mock/content.ts` L106-128 | `GET .../chapters` **返回全部章节含 body** | 一次请求可能数 MB～数十 MB |
-| Mock API | `mock/workspace.ts` L108 | 本地小册列表读 generated 文件 | 依赖本地生成物 |
-| 前端 Service | `src/services/booklet.ts` | 两个接口：章节列表 + 单章 | 接口形态正确，但 mock 返回过重 |
-| 阅读页 | `src/pages/public/BookletChapter/index.tsx` | 先拉列表再拉单章 | **已按「列表 + 单章」拆分请求**，改 API 即可受益 |
-| 共享类型 | `packages/shared-types/src/booklet.ts` | `BookletChapter.body` 必填 | 需增加「列表项不含 body」的类型变体 |
-| 长期 API 契约 | `docs/backend/api.md` L197-208 | 章节列表**本来就不含正文** | mock 与正式契约不一致 |
+| 环节          | 文件                                                | 现状                                           | 问题                                             |
+| ------------- | --------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------ |
+| 输入          | `content-local/`                                    | gitignore，本地 Markdown + meta.json           | 无法直接在服务器读取                             |
+| 同步脚本      | `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描目录，**把所有章节 body 打进一个 TS 文件** | 71 本体量巨大；build 产物膨胀；不适合远程        |
+| 生成物        | `mock/data/local-booklets.generated.ts`             | gitignore，prepare 时自动生成                  | 仅 dev/mock 可用                                 |
+| Mock API      | `mock/content.ts` L106-128                          | `GET .../chapters` **返回全部章节含 body**     | 一次请求可能数 MB～数十 MB                       |
+| Mock API      | `mock/workspace.ts` L108                            | 本地小册列表读 generated 文件                  | 依赖本地生成物                                   |
+| 前端 Service  | `src/services/booklet.ts`                           | 两个接口：章节列表 + 单章                      | 接口形态正确，但 mock 返回过重                   |
+| 阅读页        | `src/pages/public/BookletChapter/index.tsx`         | 先拉列表再拉单章                               | **已按「列表 + 单章」拆分请求**，改 API 即可受益 |
+| 共享类型      | `packages/shared-types/src/booklet.ts`              | `BookletChapter.body` 必填                     | 需增加「列表项不含 body」的类型变体              |
+| 长期 API 契约 | `docs/backend/canonical-api.md`                     | 章节列表**本来就不含正文**                     | mock 与正式契约不一致                            |
 
 ### 2.2 前端其他依赖 mock 的模块（本期可保留 mock 或静态）
 
-| 模块 | Mock 文件 | 个人阅读期策略 |
-| --- | --- | --- |
-| 登录 / 权限 | `mock/auth.ts` | 暂保留 mock 或 Nginx Basic Auth 整站 |
-| 内容中心列表 | `mock/content.ts` | 小册走真实 API；其余 mock 数据可保留 |
-| 工作区 | `mock/workspace.ts` | 非核心，可继续 mock |
-| AI | `mock/ai.ts` | 非核心，继续 mock |
-| 后台 | `mock/admin.ts` | 非核心，继续 mock |
+| 模块         | Mock 文件           | 个人阅读期策略                       |
+| ------------ | ------------------- | ------------------------------------ |
+| 登录 / 权限  | `mock/auth.ts`      | 暂保留 mock 或 Nginx Basic Auth 整站 |
+| 内容中心列表 | `mock/content.ts`   | 小册走真实 API；其余 mock 数据可保留 |
+| 工作区       | `mock/workspace.ts` | 非核心，可继续 mock                  |
+| AI           | `mock/ai.ts`        | 非核心，继续 mock                    |
+| 后台         | `mock/admin.ts`     | 非核心，继续 mock                    |
 
 ### 2.3 生产构建现状
 
-| 项 | 现状 |
-| --- | --- |
-| Umi mock | **仅 dev 生效**，`pnpm build` 后 `/api/*` 无 mock |
-| `config/proxy.ts` | 无生产代理配置 |
-| `apps/api` | **尚未创建** |
-| Docker Compose | 仓库内尚无 |
+| 项                | 现状                                              |
+| ----------------- | ------------------------------------------------- |
+| Umi mock          | **仅 dev 生效**，`pnpm build` 后 `/api/*` 无 mock |
+| `config/proxy.ts` | 无生产代理配置                                    |
+| `apps/api`        | **尚未创建**                                      |
+| Docker Compose    | 仓库内尚无                                        |
 
 **结论（分阶段）：**
 
@@ -144,12 +156,12 @@ flowchart LR
     └── personal-hub/                 # 【预留】阶段 B 放 .env
 ```
 
-| 路径 | 阶段 A | 阶段 B |
-| --- | --- | --- |
-| `/opt/personal-hub` | 必建：代码 + PM2 | 同左 |
-| `/data/personal-hub/content-local` | 必建：小册 | 可改为 COS 同步落盘或仅备份 |
-| `/var/cache/personal-hub` | 可不建 | 章节 LRU 缓存 |
-| `/etc/personal-hub` | 可不建 | 生产环境变量 |
+| 路径                               | 阶段 A           | 阶段 B                      |
+| ---------------------------------- | ---------------- | --------------------------- |
+| `/opt/personal-hub`                | 必建：代码 + PM2 | 同左                        |
+| `/data/personal-hub/content-local` | 必建：小册       | 可改为 COS 同步落盘或仅备份 |
+| `/var/cache/personal-hub`          | 可不建           | 章节 LRU 缓存               |
+| `/etc/personal-hub`                | 可不建           | 生产环境变量                |
 
 **空盘一键建目录（复制执行）：**
 
@@ -334,17 +346,21 @@ pm2 delete personal-hub-dev
 
 ### A.8 阶段 A 的已知限制（接受即可）
 
-| 限制 | 说明 |
-| --- | --- |
-| dev 模式占内存 | 2C4G 够用，建议 `max_memory_restart 1500M` |
-| 首次编译慢 | 启动后等 Umi 编译完成再访问 |
-| mock 列表一次带全章 body | 71 本时首屏略慢；个人阅读可接受；阶段 B 按单章优化 |
-| 无 HTTPS | 公网 IP 直连使用 HTTP；阶段 B 再上 Nginx + 证书 |
-| 不宜公网宣传 | 无正式鉴权且运行 dev + mock；必须限制安全组来源，或增加 Nginx Basic Auth |
+| 限制                     | 说明                                                                     |
+| ------------------------ | ------------------------------------------------------------------------ |
+| dev 模式占内存           | 2C4G 够用，建议 `max_memory_restart 1500M`                               |
+| 首次编译慢               | 启动后等 Umi 编译完成再访问                                              |
+| mock 列表一次带全章 body | 71 本时首屏略慢；个人阅读可接受；阶段 B 按单章优化                       |
+| 无 HTTPS                 | 公网 IP 直连使用 HTTP；阶段 B 再上 Nginx + 证书                          |
+| 不宜公网宣传             | 无正式鉴权且运行 dev + mock；必须限制安全组来源，或增加 Nginx Basic Auth |
 
 ---
 
-## 3. 目标架构（阶段 B：适配 React + Next + NestJS）
+## 已归档的 Nest 目标架构与实施草案（不可执行）
+
+> 本节至文末的 `apps/api`、`/api/**`、PM2 API、生产 MinIO、COS 数据库备份、旧对象模型和示例部署地址/密钥均不可执行。保留它们只为追溯小册迁移思路；实现时仅使用本页“ Nest 生产接入摘要”及其链接的权威文档。
+
+### 3. 目标架构（历史草案）
 
 ### 3.1 系统上下文
 
@@ -352,7 +368,7 @@ pm2 delete personal-hub-dev
 flowchart TB
     User["你（浏览器）"] --> Nginx["Nginx :443"]
     Nginx --> React["react-web 静态资源<br/>dist/"]
-    Nginx --> Api["apps/api NestJS :3001"]
+    Nginx --> Api["apps/server NestJS :3001"]
     Api --> PG[("PostgreSQL<br/>元数据")]
     Api --> Redis[("Redis<br/>热缓存")]
     Api --> Disk["/var/cache/personal-hub<br/>磁盘 LRU"]
@@ -362,7 +378,7 @@ flowchart TB
 
 原则：
 
-1. **所有前端**（react-web、未来 next-web）只调 `/api/**`，契约见 `docs/backend/api.md`。
+1. **所有前端**（react-web、未来 next-web）只调 `/api/**`，契约见 `docs/backend/canonical-api.md`。
 2. **小册正文**以 COS 为 Source of Truth；PostgreSQL 只存元数据与章节索引。
 3. **Redis + 本地磁盘**做分级缓存，**绝不**一次加载整库小册正文。
 4. 本地开发：仍可用 `content-local/` + 上传脚本；服务器不挂载 71 本小册目录。
@@ -401,15 +417,15 @@ flowchart TB
 
 60GB 磁盘预算（建议）：
 
-| 用途 | 预估 |
-| --- | --- |
-| 系统 + Docker 镜像 | ~12GB |
-| 代码 + node_modules + dist | ~4GB |
-| PostgreSQL（仅元数据） | ~1GB |
-| Redis | 512MB～1GB |
-| 章节磁盘缓存 | **8～12GB（可配置上限）** |
-| 日志 + 余量 | ~10GB |
-| **小册正文** | **在 COS，不占本地盘** |
+| 用途                       | 预估                      |
+| -------------------------- | ------------------------- |
+| 系统 + Docker 镜像         | ~12GB                     |
+| 代码 + node_modules + dist | ~4GB                      |
+| PostgreSQL（仅元数据）     | ~1GB                      |
+| Redis                      | 512MB～1GB                |
+| 章节磁盘缓存               | **8～12GB（可配置上限）** |
+| 日志 + 余量                | ~10GB                     |
+| **小册正文**               | **在 COS，不占本地盘**    |
 
 ---
 
@@ -417,17 +433,17 @@ flowchart TB
 
 ### 4.1 请求粒度：整本 vs 单章
 
-与 `docs/backend/api.md` 对齐，并显式禁止列表带正文：
+与 `docs/backend/canonical-api.md` 对齐，并显式禁止列表带正文：
 
-| 接口 | 返回内容 | 认证 | 说明 |
-| --- | --- | --- | --- |
-| `GET /api/contents?type=booklet` | 小册列表（元数据） | 个人期可公开或 Basic Auth | 不含任何章节 body |
-| `GET /api/contents/:id` | 小册详情 | 同上 | 不含章节 body |
-| `GET /api/contents/:id/chapters` | **章节索引列表** | 同上 | 默认 `fields=summary`：id/title/sort/wordCount/toc 摘要，**无 body** |
-| `GET /api/contents/:id/chapters/:chapterId` | **单章正文** | 同上 | 含 `body` + 完整 `toc` |
-| `GET /api/contents/:id/source` | 整本下载 | 登录/管理员 | 302 到 COS 签名 URL（`source.zip`） |
-| `POST /api/admin/booklets/sync` | 触发索引刷新 | 管理员 | 从 COS manifest 同步到 PostgreSQL |
-| `GET /api/contents/:id/chapters?includeBody=true` | 全部正文 | **禁止对前端开放** | 仅 CLI/运维脚本，需 Admin + 分页 |
+| 接口                                              | 返回内容           | 认证                      | 说明                                                                 |
+| ------------------------------------------------- | ------------------ | ------------------------- | -------------------------------------------------------------------- |
+| `GET /api/contents?type=booklet`                  | 小册列表（元数据） | 个人期可公开或 Basic Auth | 不含任何章节 body                                                    |
+| `GET /api/contents/:id`                           | 小册详情           | 同上                      | 不含章节 body                                                        |
+| `GET /api/contents/:id/chapters`                  | **章节索引列表**   | 同上                      | 默认 `fields=summary`：id/title/sort/wordCount/toc 摘要，**无 body** |
+| `GET /api/contents/:id/chapters/:chapterId`       | **单章正文**       | 同上                      | 含 `body` + 完整 `toc`                                               |
+| `GET /api/contents/:id/source`                    | 整本下载           | 登录/管理员               | 302 到 COS 签名 URL（`source.zip`）                                  |
+| `POST /api/admin/booklets/sync`                   | 触发索引刷新       | 管理员                    | 从 COS manifest 同步到 PostgreSQL                                    |
+| `GET /api/contents/:id/chapters?includeBody=true` | 全部正文           | **禁止对前端开放**        | 仅 CLI/运维脚本，需 Admin + 分页                                     |
 
 **前端阅读页现有调用已符合「列表 + 单章」**，只需让列表接口去掉 body，并修正 mock 与未来 NestJS 实现。
 
@@ -464,12 +480,12 @@ flowchart TD
     L1 --> Resp["返回 JSON"]
 ```
 
-| 层级 | 存什么 | 不存什么 | 建议参数 |
-| --- | --- | --- | --- |
-| **L1 Redis** | 最近访问章节 body；manifest 索引 | 全部 1973 章 | `maxmemory 512mb`；章节 key LRU；TTL 7d |
-| **L2 磁盘** | 从 COS 拉下的 `.md` 文件 | 整本 zip 长期缓存 | 上限 **10GB**；LRU 淘汰 |
-| **L3 COS** | 全量源文件 | — | 标准存储；可按需开 CDN |
-| **浏览器** | `Cache-Control: private, max-age=3600` 单章 | 列表接口短缓存 | 由 API 响应头控制 |
+| 层级         | 存什么                                      | 不存什么          | 建议参数                                |
+| ------------ | ------------------------------------------- | ----------------- | --------------------------------------- |
+| **L1 Redis** | 最近访问章节 body；manifest 索引            | 全部 1973 章      | `maxmemory 512mb`；章节 key LRU；TTL 7d |
+| **L2 磁盘**  | 从 COS 拉下的 `.md` 文件                    | 整本 zip 长期缓存 | 上限 **10GB**；LRU 淘汰                 |
+| **L3 COS**   | 全量源文件                                  | —                 | 标准存储；可按需开 CDN                  |
+| **浏览器**   | `Cache-Control: private, max-age=3600` 单章 | 列表接口短缓存    | 由 API 响应头控制                       |
 
 **预取策略**（可选，Phase 2）：
 
@@ -488,61 +504,61 @@ flowchart TD
 
 ### Phase 0：基础设施包（Monorepo 级）
 
-| 序号 | 任务 | 新增/修改文件 | 说明 |
-| --- | --- | --- | --- |
-| 0.1 | 共享类型：章节列表项与详情分离 | `packages/shared-types/src/booklet.ts` | 新增 `BookletChapterSummary`（无 body）；`BookletChapter` 保留 body |
-| 0.2 | COS 存储抽象 | `packages/storage/`（新建） | `StorageProvider` 接口；实现 `CosStorageProvider`（上传/下载/签名 URL/hash 对比） |
-| 0.3 | 小册同步 CLI | `packages/booklet-sync/`（新建） | 从 `content-local` 扫描 → 上传 COS → 写 manifest；供本地 `pnpm booklet:push` 与 CI 使用 |
-| 0.4 | 环境变量约定 | `docs/engineering/env-variables.md`（新建） | `COS_SECRET_ID/KEY/BUCKET/REGION`、`CACHE_MAX_DISK_GB` 等 |
+| 序号 | 任务                           | 新增/修改文件                               | 说明                                                                                    |
+| ---- | ------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 0.1  | 共享类型：章节列表项与详情分离 | `packages/shared-types/src/booklet.ts`      | 新增 `BookletChapterSummary`（无 body）；`BookletChapter` 保留 body                     |
+| 0.2  | COS 存储抽象                   | `packages/storage/`（新建）                 | `StorageProvider` 接口；实现 `CosStorageProvider`（上传/下载/签名 URL/hash 对比）       |
+| 0.3  | 小册同步 CLI                   | `packages/booklet-sync/`（新建）            | 从 `content-local` 扫描 → 上传 COS → 写 manifest；供本地 `pnpm booklet:push` 与 CI 使用 |
+| 0.4  | 环境变量约定                   | `docs/engineering/env-variables.md`（新建） | `COS_SECRET_ID/KEY/BUCKET/REGION`、`CACHE_MAX_DISK_GB` 等                               |
 
-### Phase 1：最小 NestJS API（`apps/api`）
+### Phase 1：最小 NestJS API（`apps/server`）
 
-| 序号 | 任务 | 新增/修改文件 | 说明 |
-| --- | --- | --- | --- |
-| 1.1 | 工程骨架 | `apps/api/` | NestJS + Fastify + Prisma；对齐 `docs/backend/database.md` 最小表：`contents`、`content_chapters`、`file_assets` |
-| 1.2 | 存储模块 | `apps/api/src/storage/` | 封装 `packages/storage` |
-| 1.3 | 小册模块 | `apps/api/src/booklets/` | 读 COS manifest；写 PG 元数据；实现 4.1 各接口 |
-| 1.4 | 缓存模块 | `apps/api/src/cache/` | Redis + 磁盘 LRU；统一 `BookletContentCacheService` |
-| 1.5 | 内容模块 | `apps/api/src/contents/` | 列表/详情；小册 type 走 booklet 分支 |
-| 1.6 | 管理同步 | `apps/api/src/admin/booklets/` | `POST /admin/booklets/sync`：扫描 COS `booklets/*/manifest.json` → upsert DB |
-| 1.7 | Docker Compose | `docker-compose.yml`（仓库根） | 仅 `postgres` + `redis`；API 先 PM2 跑在宿主机（便于调试） |
+| 序号 | 任务           | 新增/修改文件                     | 说明                                                                         |
+| ---- | -------------- | --------------------------------- | ---------------------------------------------------------------------------- |
+| 1.1  | 工程骨架       | `apps/server/`                    | NestJS + Fastify + Prisma；按 Canonical 数据模型落地内容与文件表             |
+| 1.2  | 存储模块       | `apps/server/src/storage/`        | 封装 `packages/storage`                                                      |
+| 1.3  | 小册模块       | `apps/server/src/booklets/`       | 读 COS manifest；写 PG 元数据；实现 4.1 各接口                               |
+| 1.4  | 缓存模块       | `apps/server/src/cache/`          | Redis + 磁盘 LRU；统一 `BookletContentCacheService`                          |
+| 1.5  | 内容模块       | `apps/server/src/contents/`       | 列表/详情；小册 type 走 booklet 分支                                         |
+| 1.6  | 管理同步       | `apps/server/src/admin/booklets/` | `POST /admin/booklets/sync`：扫描 COS `booklets/*/manifest.json` → upsert DB |
+| 1.7  | Docker Compose | `docker-compose.yml`（仓库根）    | 仅 `postgres` + `redis`；API 先 PM2 跑在宿主机（便于调试）                   |
 
 ### Phase 2：react-web 切真实 API
 
-| 序号 | 任务 | 修改文件 | 说明 |
-| --- | --- | --- | --- |
-| 2.1 | 生产 API 地址 | `apps/react-web/config/config.ts`、`config/proxy.ts` | 增加 `UMI_ENV=prod` 时 `define PUBLIC_API_URL`；dev 仍 mock |
-| 2.2 | Service 层 | `src/services/booklet.ts` | 章节列表返回类型改为 `BookletChapterSummary[]` |
-| 2.3 | 阅读页 | `BookletChapter/index.tsx` | 确认目录 Menu 不依赖 `body`（当前已满足） |
-| 2.4 | Mock 对齐契约 | `mock/content.ts` | `GET .../chapters` 去掉 body，与 NestJS 一致；本地无 API 时可继续 mock |
-| 2.5 | 构建 | `package.json` | `build:react` 前不再依赖全量 generated；可选保留 `sync:booklets` 仅用于本地 mock 开发 |
-| 2.6 | 工作区小册页 | `workspace/Booklets/index.tsx` | 列表改调真实 API 或 `/workspace/booklets/local` 指向 COS 索引 |
+| 序号 | 任务          | 修改文件                                             | 说明                                                                                  |
+| ---- | ------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 2.1  | 生产 API 地址 | `apps/react-web/config/config.ts`、`config/proxy.ts` | 增加 `UMI_ENV=prod` 时 `define PUBLIC_API_URL`；dev 仍 mock                           |
+| 2.2  | Service 层    | `src/services/booklet.ts`                            | 章节列表返回类型改为 `BookletChapterSummary[]`                                        |
+| 2.3  | 阅读页        | `BookletChapter/index.tsx`                           | 确认目录 Menu 不依赖 `body`（当前已满足）                                             |
+| 2.4  | Mock 对齐契约 | `mock/content.ts`                                    | `GET .../chapters` 去掉 body，与 NestJS 一致；本地无 API 时可继续 mock                |
+| 2.5  | 构建          | `package.json`                                       | `build:react` 前不再依赖全量 generated；可选保留 `sync:booklets` 仅用于本地 mock 开发 |
+| 2.6  | 工作区小册页  | `workspace/Booklets/index.tsx`                       | 列表改调真实 API 或 `/workspace/booklets/local` 指向 COS 索引                         |
 
 ### Phase 3：本地 → COS 上传链路
 
-| 序号 | 任务 | 说明 |
-| --- | --- | --- |
-| 3.1 | `pnpm booklet:push` | 根目录脚本：扫描 → 增量上传 COS（ETag/MD5）→ 更新 manifest |
-| 3.2 | `pnpm booklet:sync-remote` | 可选：SSH 到服务器触发 `POST /admin/booklets/sync` |
-| 3.3 | 废弃路径 | `local-booklets.generated.ts` 仅保留「纯本地 mock 开发」模式，文档标明生产不用 |
+| 序号 | 任务                       | 说明                                                                           |
+| ---- | -------------------------- | ------------------------------------------------------------------------------ |
+| 3.1  | `pnpm booklet:push`        | 根目录脚本：扫描 → 增量上传 COS（ETag/MD5）→ 更新 manifest                     |
+| 3.2  | `pnpm booklet:sync-remote` | 可选：SSH 到服务器触发 `POST /admin/booklets/sync`                             |
+| 3.3  | 废弃路径                   | `local-booklets.generated.ts` 仅保留「纯本地 mock 开发」模式，文档标明生产不用 |
 
 ### Phase 4：为 next-web 预留（后续，本期只留接口）
 
-| 项 | 做法 |
-| --- | --- |
-| API 路径 | 保持 `/api/contents/**`，next-web 与 react-web 共用 |
-| 类型 | 全部在 `packages/shared-types` |
-| 阅读页 | next-web 后续实现 SEO 版 `/content/booklets/[id]/chapters/[chapterId]`，复用同一 service 契约 |
-| 认证 | NestJS Guard 统一；next-web 通过 cookie / JWT 透传 |
+| 项       | 做法                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------- |
+| API 路径 | 保持 `/api/contents/**`，next-web 与 react-web 共用                                           |
+| 类型     | 全部在 `packages/shared-types`                                                                |
+| 阅读页   | next-web 后续实现 SEO 版 `/content/booklets/[id]/chapters/[chapterId]`，复用同一 service 契约 |
+| 认证     | NestJS Guard 统一；next-web 通过 cookie / JWT 透传                                            |
 
 ### 5.1 改造影响面
 
-| 功能 | 影响 |
-| --- | --- |
-| 小册阅读 | **核心改造** |
-| 内容中心小册卡片 | 改走 API 列表 |
-| 工作区小册管理 | 列表数据源变更 |
-| 登录/AI/后台 | 本期可不动 |
+| 功能             | 影响                 |
+| ---------------- | -------------------- |
+| 小册阅读         | **核心改造**         |
+| 内容中心小册卡片 | 改走 API 列表        |
+| 工作区小册管理   | 列表数据源变更       |
+| 登录/AI/后台     | 本期可不动           |
 | 本地纯 mock 开发 | 保留，与生产路径并行 |
 
 ---
@@ -706,14 +722,16 @@ pm2 startup
 
 ```javascript
 module.exports = {
-  apps: [{
-    name: 'personal-hub-api',
-    cwd: '/opt/personal-hub/apps/api',
-    script: 'dist/main.js',
-    env_file: '/etc/personal-hub/.env',
-    instances: 1,
-    max_memory_restart: '600M',
-  }],
+  apps: [
+    {
+      name: 'personal-hub-api',
+      cwd: '/opt/personal-hub/apps/api',
+      script: 'dist/main.js',
+      env_file: '/etc/personal-hub/.env',
+      instances: 1,
+      max_memory_restart: '600M',
+    },
+  ],
 };
 ```
 
@@ -826,25 +844,25 @@ flowchart LR
     B1 --> B2["Phase 2<br/>build + Nginx"]
 ```
 
-| 顺序 | 内容 | 何时做 |
-| --- | --- | --- |
-| **现在** | 阶段 A：§A 部署步骤，dev + 直连 8000 | 立刻，零代码改造 |
-| 以后 1 | Phase 0：COS SDK + `booklet:push` + 类型拆分 | 小册改走 COS、或要上 build 前 |
-| 以后 2 | Phase 1：NestJS 小册 API + Redis/磁盘缓存 | 需要 build / 对外发布前 |
-| 以后 3 | Phase 2：react-web 生产构建 + Nginx + HTTPS | 正式生产 |
-| 后续 | next-web、完整 RBAC | 长期路线 |
+| 顺序     | 内容                                         | 何时做                        |
+| -------- | -------------------------------------------- | ----------------------------- |
+| **现在** | 阶段 A：§A 部署步骤，dev + 直连 8000         | 立刻，零代码改造              |
+| 以后 1   | Phase 0：COS SDK + `booklet:push` + 类型拆分 | 小册改走 COS、或要上 build 前 |
+| 以后 2   | Phase 1：NestJS 小册 API + Redis/磁盘缓存    | 需要 build / 对外发布前       |
+| 以后 3   | Phase 2：react-web 生产构建 + Nginx + HTTPS  | 正式生产                      |
+| 后续     | next-web、完整 RBAC                          | 长期路线                      |
 
 ---
 
 ## 8. 风险与取舍
 
-| 风险 | 缓解 |
-| --- | --- |
-| 阶段 A dev 占内存 | 2C4G 可跑；PM2 内存上限；仅个人访问 |
-| 8000 端口暴露 | 安全组仅你的 IP，或 SSH 隧道、不开放公网 |
-| 阶段 B：2C4G 内存紧张 | API 单实例；Redis 512MB |
-| 阶段 B：60GB 盘不够缓存 | 磁盘缓存上限 10GB + LRU；正文在 COS |
-| mock 与 API 双轨 | 阶段 A 用 mock；阶段 B 切 API；契约对齐 `api.md` |
+| 风险                    | 缓解                                             |
+| ----------------------- | ------------------------------------------------ |
+| 阶段 A dev 占内存       | 2C4G 可跑；PM2 内存上限；仅个人访问              |
+| 8000 端口暴露           | 安全组仅你的 IP，或 SSH 隧道、不开放公网         |
+| 阶段 B：2C4G 内存紧张   | API 单实例；Redis 512MB                          |
+| 阶段 B：60GB 盘不够缓存 | 磁盘缓存上限 10GB + LRU；正文在 COS              |
+| mock 与 API 双轨        | 阶段 A 用 mock；阶段 B 切 API；契约对齐 `api.md` |
 
 ---
 
@@ -854,8 +872,8 @@ flowchart LR
 - [pm2-deployment.md](./pm2-deployment.md) — **PM2 部署权威**（阶段 A 命令与排障）
 - [deployment.md](./deployment.md) — 长期 Docker / CI/CD
 - [server-deployment-guide.md](./server-deployment-guide.md) — 一页速查
-- [../backend/api.md](../backend/api.md) — 正式 API 契约
-- [../backend/database.md](../backend/database.md) — `content_chapters` 表结构
+- [../backend/canonical-api.md](../backend/canonical-api.md) — Canonical API 契约
+- [../backend/canonical-data-model.md](../backend/canonical-data-model.md) — 内容与章节数据模型
 - [../prd/react-first/phase-5-5-next-api-bridge-prd.md](../prd/react-first/phase-5-5-next-api-bridge-prd.md) — 本文选择直接最小 NestJS，跳过 Next API Bridge
 - [../foundation/architecture.md](../foundation/architecture.md) — 多应用架构总览
 - [../README.md](../README.md) — docs 目录放置规范

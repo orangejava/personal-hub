@@ -1,8 +1,11 @@
-# 总执行手册（按 PRD 落地开发）
+# 总执行手册（React-first 历史路线）
 
-> 适用对象：已经具备前端基础，准备按当前项目文档逐步搭建 Next.js + NestJS + Prisma + PostgreSQL 工程的人。
-> 目标：把“学习路线、开发顺序、阶段产物、文档同步要求”统一成一份可执行手册。
-> 最后更新：2026-06-09
+> 状态：🟡 React-first 阶段记录可参考；不得作为 NestJS 脚手架或领域开发的实现依据
+> 最后更新：2026-08-02
+> 当前 Nest 入口：[Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) → [后端需求总览](../prd/long-term/nest-backend-requirements.md)
+> 后端权威契约：[Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md)、[实现约定](../backend/conventions.md)、[Compose 策略](../deploy/nest-compose-strategy.md)
+
+> **历史提示**：本文后续 `apps/web`、`apps/api`、`/api/*`、旧 API 与数据模型草案 与“认证在 Phase 6”的描述仅代表早期路线，禁止用于当前 Nest 实现。当前 React 应用是 `apps/react-web`，后端固定为 `apps/server`，认证是脚手架后的首个领域模块。
 
 ---
 
@@ -31,11 +34,11 @@
 
 ### 第二层：进入某个阶段前补对应 PRD
 
-1. 工程骨架： [project-bootstrap-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/project-bootstrap-prd.md)
+1. 工程骨架： [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)
 2. 主题与导航： [theme-navigation-config-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/theme-navigation-config-prd.md)
 3. 内容阅读： [content-reading-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-reading-prd.md)
 4. 内容工作区： [content-workspace-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-workspace-prd.md)
-5. 后台运营： [admin-content-config-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/admin-content-config-prd.md)
+5. 后台运营： [后台内容与配置历史 PRD](./admin-content-config-prd.md)
 6. AI 工具： [ai-tools-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/ai-tools-prd.md)
 
 ### 第三层：开始实作前补学习手册
@@ -48,7 +51,7 @@
 
 ---
 
-## 3. 当前推荐实施顺序
+## 3. 当前推荐实施顺序（历史）
 
 ```text
 Phase 0 工程骨架
@@ -81,6 +84,18 @@ Phase 0 工程骨架
 4. 开发完成后，同步更新 `docs/backend/`、`docs/product/`、`docs/engineering/` 中受影响的文档。
 5. 产出功能实现文档到 `docs/implementation/`。
 6. 产出学习沉淀到 `study/features/`。
+
+当前 Nest 开发顺序替换为：
+
+```text
+Nest 脚手架
+→ Auth / User / RBAC / Session
+→ SystemConfig / Menu
+→ Content / Category / Tag / Favorite / Reading
+→ Storage / Upload / BookletImport
+→ AI
+→ Admin / Audit
+```
 
 固定归档位置：
 
@@ -122,7 +137,7 @@ pnpm build
 
 ### 先读文档
 
-- [project-bootstrap-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/project-bootstrap-prd.md)
+- [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)
 - [agent-file-templates.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/agent-file-templates.md)
 - [engineering-guide.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/engineering-guide.md)
 
@@ -153,7 +168,7 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/engineering/project-bootstrap-prd.md`
+- `docs/prd/long-term/nest-server-bootstrap-prd.md`
 - `docs/engineering/engineering-guide.md`
 - `docs/implementation/foundation/project-bootstrap.md`
 - `study/features/project-bootstrap.md`
@@ -173,8 +188,8 @@ pnpm build
 - [product/frontend-public.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/frontend-public.md)
 - [product/workspace.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/workspace.md)
 - [product/admin.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/admin.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -194,8 +209,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/product/frontend-public.md`
 - `docs/product/admin.md`
 - `docs/implementation/foundation/theme-and-layout.md`
@@ -215,8 +230,8 @@ pnpm build
 - [content-reading-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-reading-prd.md)
 - [product/content-system.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/content-system.md)
 - [product/frontend-public.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/frontend-public.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -238,8 +253,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/product/content-system.md`
 - `docs/product/frontend-public.md`
 - `docs/implementation/content/reading-flow.md`
@@ -257,8 +272,8 @@ pnpm build
 
 - [content-workspace-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-workspace-prd.md)
 - [product/workspace.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/workspace.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -278,8 +293,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/product/workspace.md`
 - `docs/implementation/content/content-workspace.md`
 - `study/features/content-workspace.md`
@@ -294,10 +309,10 @@ pnpm build
 
 ### 先读文档
 
-- [admin-content-config-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/admin-content-config-prd.md)
+- [后台内容与配置历史 PRD](./admin-content-config-prd.md)
 - [product/admin.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/admin.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -317,8 +332,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/product/admin.md`
 - `docs/implementation/admin/admin-operations.md`
 - `study/features/admin-content-config.md`
@@ -335,8 +350,8 @@ pnpm build
 
 - [ai-tools-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/ai-tools-prd.md)
 - [product/ai-tools.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/ai-tools.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -357,8 +372,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/product/ai-tools.md`
 - `docs/implementation/ai/ai-platform.md`
 - `study/features/ai-platform.md`
@@ -374,8 +389,8 @@ pnpm build
 ### 先读文档
 
 - [product/auth-rbac.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/auth-rbac.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 子任务
 
@@ -394,8 +409,8 @@ pnpm build
 ### 完成后同步文档
 
 - `docs/product/auth-rbac.md`
-- `docs/backend/api.md`
-- `docs/backend/database.md`
+- `docs/backend/canonical-api.md`
+- `docs/backend/canonical-data-model.md`
 - `docs/implementation/auth/auth-rbac.md`
 - `study/features/auth-rbac.md`
 

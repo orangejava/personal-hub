@@ -46,9 +46,9 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 ### 参考文档
 
-- [project-bootstrap-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/project-bootstrap-prd.md)
+- [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)
 - [agent-file-templates.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/agent-file-templates.md)
-- [development-plan.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/development-plan.md)
+- [历史执行手册](./development-plan.md)
 
 ### 阶段完成标记
 
@@ -74,8 +74,8 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 ### 参考文档
 
 - [theme-navigation-config-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/theme-navigation-config-prd.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 阶段完成标记
 
@@ -101,7 +101,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 - [content-reading-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-reading-prd.md)
 - [product/content-system.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/content-system.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
+- [Canonical API](../backend/canonical-api.md)
 
 ### 阶段完成标记
 
@@ -128,7 +128,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 - [content-workspace-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/react-first/content-workspace-prd.md)
 - [product/workspace.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/workspace.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 阶段完成标记
 
@@ -154,9 +154,9 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 ### 参考文档
 
-- [admin-content-config-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/admin-content-config-prd.md)
+- [后台内容与配置历史 PRD](./admin-content-config-prd.md)
 - [product/admin.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/admin.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
+- [Canonical API](../backend/canonical-api.md)
 
 ### 阶段完成标记
 
@@ -183,7 +183,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 - [ai-tools-prd.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/prd/long-term/ai-tools-prd.md)
 - [product/ai-tools.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/ai-tools.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
+- [Canonical API](../backend/canonical-api.md)
 
 ### 阶段完成标记
 
@@ -207,8 +207,8 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 ### 参考文档
 
 - [auth-rbac.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/auth-rbac.md)
-- [backend/api.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/api.md)
-- [backend/database.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/backend/database.md)
+- [Canonical API](../backend/canonical-api.md)
+- [Canonical 数据模型](../backend/canonical-data-model.md)
 
 ### 阶段完成标记
 
@@ -233,7 +233,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 ### 参考文档
 
 - [deployment.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/deploy/deployment.md)
-- [development-plan.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/development-plan.md)
+- [历史执行手册](./development-plan.md)
 
 ### 阶段完成标记
 
@@ -256,7 +256,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 ### 参考文档
 
 - [flutter.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/product/flutter.md)
-- [development-plan.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/development-plan.md)
+- [历史执行手册](./development-plan.md)
 
 ### 阶段完成标记
 

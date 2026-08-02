@@ -1,7 +1,10 @@
 # 部署方案
 
-> 状态：长期生产架构（NestJS / Docker / Nginx）
-> 最后更新：2026-07-26
+> 状态：🟢 长期 Nest 生产入口；文末旧草案仅供追溯
+> 最后更新：2026-08-02
+> 当前依据：[Nest Compose 策略](./nest-compose-strategy.md)
+
+> **权威提示**：Nest 生产部署唯一依据是 [Nest Compose 策略](./nest-compose-strategy.md)。当前后端为 `apps/server`，生产 API 位于 `/api/v1`，认证为 JWT-only + Argon2id，生产对象存储唯一使用腾讯 COS。
 >
 > **完整路线图（阶段 A/B/C、Gitee、目录约定）** → [deployment-plan.md](./deployment-plan.md)
 > **个人远程阅读 + COS** → [personal-remote-reading.md](./personal-remote-reading.md)
@@ -13,17 +16,37 @@
 
 在 **阶段 6 接入 NestJS 之前**，日常开发以 `apps/react-web` 为主：
 
-| 项 | 方式 |
-|---|---|
-| 启动 | 仓库根目录 `pnpm dev:react`（或 `pnpm --filter react-web dev`） |
-| 数据 | Umi mock，无需 PostgreSQL |
-| Docker | **可选**；仅当提前演练文件/搜索时再启 MinIO、Meilisearch |
+| 项     | 方式                                                                                    |
+| ------ | --------------------------------------------------------------------------------------- |
+| 启动   | 仓库根目录 `pnpm dev:react`（或 `pnpm --filter react-web dev`）                         |
+| 数据   | Umi mock，无需 PostgreSQL                                                               |
+| Docker | 不需要；后续 Nest 本地开发才按 `compose.dev.yml` 启动 PostgreSQL、Redis、MinIO、Mailpit |
 
-长期生产结构（Next.js + NestJS + Docker）见下文；**当前不必按生产拓扑搭建本地环境**。
+长期生产结构（Next.js + Nest + Compose）见 [Nest Compose 策略](./nest-compose-strategy.md)；**当前不必按生产拓扑搭建本地环境**。
 
 ---
 
-## 本地开发（Docker Compose，长期全栈）
+## Nest 生产收口
+
+| 项目         | 当前约定                                                                                                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 服务         | Compose 编排 Nginx、`server`、`server-worker`、PostgreSQL、Redis；Nginx 是唯一公网入口                                                                                     |
+| 应用职责     | `server` 提供 `/api/v1` HTTP；`server-worker` 独立运行 Outbox dispatcher 与 BullMQ worker                                                                                  |
+| 存储         | 本地 Compose 用 MinIO；生产业务对象仅腾讯 COS，统一 AWS SDK v3 S3 Provider                                                                                                 |
+| Redis / 队列 | `ioredis` 封装；通用限流通过项目自定义 `ThrottlerStorage`；关键异步使用 Outbox + BullMQ                                                                                    |
+| 备份         | PostgreSQL 每日逻辑备份保留 14 天；部署、迁移前额外备份；上线前和重大迁移前进行隔离恢复演练                                                                                |
+| 发布         | 构建并推送目标镜像后，短维护窗口内停止 `server` / `server-worker`、备份、`prisma migrate deploy`、启动与 readiness/关键 API/队列检查；应用镜像可回滚，数据库迁移默认只前进 |
+| 告警         | 最低事件、渠道占位、阈值与恢复责任见 [Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位)                                                       |
+
+不得在本文或实施配置中猜测服务器地址、镜像仓库、域名或密钥；这些只在实际部署时由受控运维配置提供。
+
+---
+
+## 已归档的早期 Docker / Nginx / CI 草案（不可执行）
+
+> 本节及其后续示例中出现的 `apps/web`、`apps/api`、`/api`、PM2 API、生产 MinIO、7 天备份、对象存储备份数据库和示例镜像名均已废弃，**不得复制执行**。保留文字仅用于理解历史迁移背景；当前实现请回到上方“ Nest 生产收口”及 [Nest Compose 策略](./nest-compose-strategy.md)。
+
+### 本地开发（Docker Compose，历史草案）
 
 ```yaml
 # docker-compose.yml（开发环境）
@@ -34,12 +57,12 @@ services:
       POSTGRES_DB: personal_hub
       POSTGRES_USER: dev
       POSTGRES_PASSWORD: dev123
-    ports: ["5432:5432"]
-    volumes: ["postgres_data:/var/lib/postgresql/data"]
+    ports: ['5432:5432']
+    volumes: ['postgres_data:/var/lib/postgresql/data']
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports: ['6379:6379']
 
   minio:
     image: minio/minio
@@ -47,15 +70,15 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-    ports: ["9000:9000", "9001:9001"]
-    volumes: ["minio_data:/data"]
+    ports: ['9000:9000', '9001:9001']
+    volumes: ['minio_data:/data']
 
   meilisearch:
     image: getmeili/meilisearch:v1.7
-    ports: ["7700:7700"]
+    ports: ['7700:7700']
     environment:
       MEILI_MASTER_KEY: devmasterkey
-    volumes: ["meili_data:/meili_data"]
+    volumes: ['meili_data:/meili_data']
 ```
 
 - **React-first 阶段**：`react-web` 在宿主机运行（`pnpm dev:react`），不进 Docker
@@ -111,7 +134,7 @@ services:
     build: ./apps/web
     environment:
       - NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-    ports: ["3000:3000"]
+    ports: ['3000:3000']
     restart: unless-stopped
 
   api:
@@ -120,23 +143,23 @@ services:
     environment:
       - DATABASE_URL=postgresql://...
       - REDIS_URL=redis://redis:6379
-    ports: ["3001:3001"]
+    ports: ['3001:3001']
     depends_on: [postgres, redis]
     restart: unless-stopped
 
   postgres:
     image: postgres:16
-    volumes: ["/data/postgres:/var/lib/postgresql/data"]
+    volumes: ['/data/postgres:/var/lib/postgresql/data']
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
-    volumes: ["/data/redis:/data"]
+    volumes: ['/data/redis:/data']
     restart: unless-stopped
 
   minio:
     image: minio/minio
-    volumes: ["/data/minio:/data"]
+    volumes: ['/data/minio:/data']
     restart: unless-stopped
 ```
 

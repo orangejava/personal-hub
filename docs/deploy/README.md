@@ -3,13 +3,14 @@
 > 本目录由原 `docs/operations/` 更名为 `docs/deploy/`。
 > 文档放置规则见 [../README.md](../README.md)。
 
-| 文档 | 用途 | 何时读 |
-| --- | --- | --- |
-| [deployment-plan.md](./deployment-plan.md) | **完整部署总览**（阶段 A/B/C、目录约定、Gitee、NestJS 演进、手动上传迁移） | 首次规划或升级部署方式时先读 |
-| [pm2-deployment.md](./pm2-deployment.md) | **PM2 部署权威**（阶段 A：dev + mock + :8000，排障对照） | 服务器 PM2 启动失败 / 首次上线 |
-| [server-deployment-guide.md](./server-deployment-guide.md) | **一页速查** | 已熟悉流程，只想复制命令 |
-| [personal-remote-reading.md](./personal-remote-reading.md) | **阶段 A/B 细节**（mock、COS、缓存、API 改造清单） | 小册/COS/缓存/NestJS 改造 |
-| [deployment.md](./deployment.md) | 长期生产：Docker / Nginx / CI/CD / 备份 | NestJS 正式对外之后 |
+| 文档                                                       | 用途                                                                       | 何时读                         |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------ |
+| [deployment-plan.md](./deployment-plan.md)                 | **完整部署总览**（阶段 A/B/C、目录约定、Gitee、NestJS 演进、手动上传迁移） | 首次规划或升级部署方式时先读   |
+| [pm2-deployment.md](./pm2-deployment.md)                   | **PM2 部署权威**（阶段 A：dev + mock + :8000，排障对照）                   | 服务器 PM2 启动失败 / 首次上线 |
+| [server-deployment-guide.md](./server-deployment-guide.md) | **一页速查**                                                               | 已熟悉流程，只想复制命令       |
+| [personal-remote-reading.md](./personal-remote-reading.md) | **阶段 A/B 细节**（mock、COS、缓存、API 改造清单）                         | 小册/COS/缓存/NestJS 改造      |
+| [deployment.md](./deployment.md)                           | 长期生产：Docker / Nginx / CI/CD / 备份                                    | NestJS 正式对外之后            |
+| [nest-compose-strategy.md](./nest-compose-strategy.md)     | Nest 本地依赖 Compose、生产全栈 Compose、COS 对象存储、备份与发布原则      | 创建 Nest 脚手架或生产部署前   |
 
 **推荐阅读顺序：**
 

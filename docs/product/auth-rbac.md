@@ -1,155 +1,78 @@
 # 用户、登录与权限体系
 
-> 状态：🟢 当前 React-first mock 权限契约已对齐；后端细粒度权限待 NestJS 阶段确认
-> 最后更新：2026-07-10
+> 状态：🟢 产品与 UI 说明；Nest 后端事实以 [Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md) 和 [Auth/RBAC PRD](../prd/long-term/auth-rbac-session-prd.md) 为准
+> 最后更新：2026-08-02
 
 ---
 
-## 登录方式
+## 当前 Mock 与未来 Nest 的关系
 
-| 方式 | 优先级 | 说明 |
-|---|---|---|
-| 邮箱 + 密码注册/登录 | 首版必须 | — |
-| GitHub OAuth | 后续 | 预留接口 |
-| 微信 OAuth | 后续 | 需微信开放平台资质 |
-| 手机号验证码 | 后续 | 需短信服务商接入 |
+`apps/react-web` 当前通过 mock 验证登录页面、菜单、路由守卫和按钮显隐；它不是认证或授权的事实来源。mock token、粗粒度权限和本地存储仅用于过渡体验，接入 Nest 时必须由 `/api/v1/auth/*` 和服务端 Guard/Service 替换。
 
----
+长期 Web 请求只在内存保存 Access Token，并以 Bearer Header 调用受保护 API；Refresh Token 仅通过 Cookie 用于 Auth 接口。前端菜单、路由和按钮只能改善体验，不能构成权限边界。
 
-## 注册流程
+## 首版认证
 
-```
-用户填写表单
-  · 邮箱（必填，格式校验）
-  · 密码（必填，见密码策略）
-  · 昵称（必填，最多 20 字）
-      ↓
-前端发送注册请求
-      ↓
-后端发送邮箱验证码（6 位数字，10 分钟有效）
-      ↓
-用户填写验证码
-      ↓
-验证通过 → 创建账号 → 自动登录（返回 Token）
-         → 赠送初始 Token 配额 10,000
-```
+首版只支持邮箱密码，不实现 GitHub、微信或手机号登录的表、回调和备用路径。
 
-**首版简化选项**：若邮件服务未就绪，可跳过邮箱验证，注册即激活，后续补充邮件验证。
+1. 注册创建 `PENDING_VERIFICATION` 的 `MEMBER`，发送 24 小时一次性邮箱验证 Token；注册成功返回 `202`，不自动登录、不签发 Token。
+2. 消费验证 Token 后账号成为 `ACTIVE`。未验证账号登录返回 `403 AUTH_EMAIL_NOT_VERIFIED`；重发验证统一响应，避免枚举邮箱。
+3. 邮箱验证成功后，服务端在 AI 额度账本中一次性赠送默认 `10,000` 可运营额度；这不是前端显示值或 `users` 上可直接改写的余额。
+4. 密码至少 8 位，必须包含大写、小写、数字和特殊字符；密码使用 **Argon2id** 哈希。找回密码 Token 30 分钟一次性有效，邮箱变更需要当前密码并重新验证新邮箱。
 
----
+## Token、会话与刷新
 
-## 密码策略
+| 项目          | Canonical 规则                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| Access Token  | 8 小时 JWT；仅含 `sub`、`sid`、`authVersion`、`permissionVersion`，不含完整权限                       |
+| Refresh Token | 7 天高熵随机值；数据库只保存加 pepper 的哈希，刷新时轮换                                              |
+| Web 存储/传输 | Access Token 仅内存 + `Authorization: Bearer`；Refresh 为 `Secure`、`HttpOnly`、`SameSite=Lax` Cookie |
+| Cookie 防护   | 不设置宽泛 `Domain`；Cookie 鉴权 Auth 路由严格校验 `Origin` / `Referer` 同源白名单                    |
+| 会话失效      | 登出撤销当前会话；密码、禁用、全量撤销递增认证版本；角色/权限变更递增权限版本                         |
 
-- 长度：8～64 位
-- 复杂度：包含字母 + 数字（不强制特殊字符，降低注册摩擦）
-- 存储：bcrypt 哈希，cost factor = 12
-- 重置方式：发送重置链接到注册邮箱（链接 30 分钟有效，一次性）
-- 登录失败：连续失败 5 次后，锁定账号 15 分钟
+检测到已轮换 Refresh Token 重放时，只撤销该设备会话及其 Token 链，不影响其他设备。`member` 最多 5 个活跃会话，新登录会撤销最久未活跃的非当前会话；管理角色首版不设上限。
 
----
+Flutter 将使用独立 `/auth/mobile/*` 传输契约和系统安全存储，复用同一 SessionService，不削弱 Web Cookie 策略。
 
-## Token 认证
+## 登录风险控制与 TOTP
 
-- **Access Token**：JWT，有效期 15 分钟
-- **Refresh Token**：随机字符串，存数据库，有效期 7 天（滑动续期）
-- Web 端：Access Token 存内存，Refresh Token 存 HttpOnly Cookie
-- Flutter 端：两个 Token 均存安全存储（flutter_secure_storage）
-- 后端 NestJS 守卫：`JwtAuthGuard` + `RolesGuard` + `PermissionsGuard` 三层
+- 同一规范化邮箱 + IP 最多 5 次/15 分钟，单 IP 总计最多 20 次/15 分钟；错误账号和密码统一返回 `401 AUTH_INVALID_CREDENTIALS`。
+- 连续 3 次失败后，下一次登录须提交自建 SVG/算术验证码。挑战 5 分钟一次性有效，答案及账号/IP 绑定仅以 Redis 哈希保存。
+- `admin`、`super_admin` 可自愿绑定 TOTP，首版不强制。已绑定时，密码校验只返回一次性短期 MFA challenge；TOTP 或恢复码验证成功后才创建会话。
+- 恢复码只在绑定确认时显示一次，数据库仅保存哈希；绑定、停用、使用和管理员重置均必须审计。
 
----
+## RBAC 与数据范围
 
-## 权限模型（RBAC）
+### 单角色模型
 
-```
-用户（User）
-  └── 属于多个角色（Role）
-        └── 拥有多个权限点（Permission）
-              ├── 菜单可见（menu:xxx）
-              ├── 页面可见（page:xxx）
-              └── 操作权限（action:xxx）
-```
+首版每个用户只有一个 `users.role_id`：`member`、`editor`、`admin` 或受保护的 `super_admin`。不建立 `user_role_assignments`、用户直接权限或多角色权限并集；未来有明确语义后再迁移。
 
-### 预设角色
+`super_admin` 只能由受控 bootstrap CLI 创建/提升，事务中始终至少保留一名 `ACTIVE` 的系统所有者。普通 `admin` 不得降级、禁用、撤销 `super_admin` 会话或管理其高风险配置。
 
-| 角色 | 标识 | 说明 |
-|---|---|---|
-| 管理员 | `admin` | 全部权限，系统内置不可删除 |
-| 编辑者 | `editor` | 内容创作 + 工作区完整能力 |
-| 普通会员 | `member` | 注册后默认角色，阅读 + AI 基础使用 |
+### Canonical 权限码
 
-> 角色可在后台自由新增，以上三个为系统内置预设。
+真实权限为受控 seed，格式为“资源:动作”，例如 `content:create`、`content:update`、`booklet:import`、`user:status:update`、`role:permission:manage`、`ai:quota:adjust`、`system:config:manage`。不再使用 `content:write`、`admin:access`、`ai:use` 等 mock 粗粒度码作为后端授权。
 
----
+权限码不携带范围。`role_permissions.data_scope` 独立保存：
 
-## 当前权限契约
+| 范围   | 首版语义                                 |
+| ------ | ---------------------------------------- |
+| `OWN`  | 服务端按资源所有者过滤                   |
+| `ALL`  | 不按所有者过滤，仍遵从资源状态与业务规则 |
+| `TEAM` | 仅枚举预留，首版不可配置或授予           |
 
-> `packages/shared-types/src/permission.ts` 是当前 mock 和 React 前端的唯一代码来源。它采用模块级粗粒度权限，目的是先验证路由、菜单、按钮三级体验；后端接入前再根据接口和数据归属细化为“本人/全部/单工具”等权限点。
+Guard 校验动作权限；Service/Repository 必须在列表、详情和写操作中强制 `OWN/ALL`。客户端不得提交 `ownerId` 或范围绕过校验。
 
-| 权限标识 | 当前用途 |
-|---|---|
-| `content:read` | 阅读内容与小册 |
-| `content:write` | 创建、编辑内容 |
-| `content:publish` | 发布、归档内容 |
-| `content:delete` | 删除内容 |
-| `booklet:read` | 阅读本地小册 |
-| `booklet:write` | 导入、管理小册 |
-| `workspace:access` | 访问登录后工作区 |
-| `admin:access` | 访问后台运营台 |
-| `user:manage` | 管理用户 |
-| `role:manage` | 管理角色与菜单权限 |
-| `ai:use` | 使用当前启用的 AI 工具 |
-| `ai:manage` | 管理 AI 厂商、模型与工具配置 |
-| `system:config` | 修改系统级配置 |
+### React mock 权限兼容
 
-未登录试用是系统策略，不属于 `PermissionCode`。后续若要把 AI 工具、内容所有权或后台资源拆得更细，必须先更新共享类型、API 文档、NestJS Guard 和角色迁移方案，不能只改前端显隐。
+`packages/shared-types/src/permission.ts` 仍是当前 React mock 的 UI 显隐来源。接 Nest 时应建立适配层或一次性迁移为 Canonical 权限目录，而不是让 mock code 直接成为 API 合约。
 
-### 预设角色权限分配
+## 身份与授权接口
 
-| 权限 | member | editor | admin |
-|---|:---:|:---:|:---:|
-| `content:read` | ✅ | ✅ | ✅ |
-| `content:write` | ❌ | ✅ | ✅ |
-| `content:publish` | ❌ | ✅ | ✅ |
-| `content:delete` | ❌ | ❌ | ✅ |
-| `booklet:read` | ✅ | ✅ | ✅ |
-| `booklet:write` | ❌ | ✅ | ✅ |
-| `workspace:access` | ❌ | ✅ | ✅ |
-| `admin:access` | ❌ | ❌ | ✅ |
-| `ai:use` | ✅ | ✅ | ✅ |
-| `ai:manage` | ❌ | ❌ | ✅ |
-| `user:manage` | ❌ | ❌ | ✅ |
-| `role:manage` | ❌ | ❌ | ✅ |
-| `system:config` | ❌ | ❌ | ✅ |
+固定前缀为 `/api/v1`。主要接口包括注册/验证/重发验证、验证码挑战、登录/MFA、刷新/登出、`/auth/me`、`/auth/permissions`、会话列表与撤销、邮箱变更及 TOTP 管理。精确路径、状态码、错误码和响应格式以 [Canonical API](../backend/canonical-api.md#2-auth) 为准。
 
----
+## 后续扩展
 
-## 数据模型
-
-```sql
-users           -- id, email, password_hash, nickname, avatar, bio,
-                --  status(active/disabled), token_quota, created_at, updated_at
-
-roles           -- id, name, label, is_system(bool), created_at
-
-permissions     -- id, code(唯一), label, group
-
-menus           -- id, name, path, icon, parent_id, sort, is_visible
-
-user_roles      -- user_id, role_id          （多对多）
-role_permissions-- role_id, permission_id    （多对多）
-menu_permissions-- menu_id, permission_id   （菜单访问需要哪个权限点）
-```
-
----
-
-## 第三方登录扩展方案（后续）
-
-使用 Passport.js（NestJS 集成）：
-- `passport-github2`：GitHub OAuth
-- `passport-wechat`：微信 OAuth
-
-统一入口：`GET /auth/{provider}`，回调统一处理：
-- 若邮箱已注册 → 关联账号并登录
-- 若首次登录 → 创建账号（自动生成昵称），跳转完善资料页
+OAuth、手机号、团队范围和多角色均为后续独立设计项。它们不得通过新增前端入口、模拟角色或绕过上述会话/权限模型提前落地。
 
 ---

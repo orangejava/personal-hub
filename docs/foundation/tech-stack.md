@@ -1,7 +1,7 @@
 # 技术栈选型
 
 > 状态：✅ 长期选型已确定；React-first 阶段实施路线已补充
-> 最后更新：2026-06-27
+> 最后更新：2026-08-02
 >
 > ⚠️ **当前阶段以 React-first 为准**：本文件下方"前端完整依赖选型"描述的是 Next.js 长期目标栈。
 > 当前 `apps/react-web` 实际使用 React 19 + Umi Max + Ant Design Pro v6 + antd v6 + pro-components v3 + Biome，
@@ -18,26 +18,26 @@
 
 ### 基础架构
 
-| 层                | 技术                                        | 说明                              |
-| ----------------- | ------------------------------------------- | --------------------------------- |
-| Web 前台 + 工作区 | **Next.js 15 + Tailwind CSS v4**            | App Router，兼顾 SSR 与内容展示   |
-| 后台管理          | **Ant Design + @ant-design/pro-components** | 在 Next.js 内嵌使用，不单独起工程 |
-| 后端 API          | **NestJS + Prisma + Swagger**               | TypeScript 全栈统一               |
-| 数据库            | **PostgreSQL 16**                           | JSON 字段能力强，支持全文搜索     |
-| 缓存              | **Redis 7**                                 | Session、对话历史、热数据缓存     |
-| 文件存储          | 本地磁盘 → **MinIO**                        | 先本地，后续迁移 MinIO            |
-| 搜索              | PostgreSQL 全文搜索 → **Meilisearch**       | 先内置，后续独立搜索引擎          |
-| Flutter App       | **Dio + Riverpod + go_router**              | 复用后端 API                      |
-| Monorepo          | **Turborepo**                               | 统一构建，共享类型定义            |
+| 层                | 技术                                                    | 说明                                                  |
+| ----------------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| Web 前台 + 工作区 | **Next.js 15 + Tailwind CSS v4**                        | App Router，兼顾 SSR 与内容展示                       |
+| 后台管理          | **Ant Design + @ant-design/pro-components**             | 在 Next.js 内嵌使用，不单独起工程                     |
+| 后端 API          | **NestJS（`apps/server`）+ Fastify + Prisma + Swagger** | TypeScript 全栈统一；统一 `/api/v1`                   |
+| 数据库            | **PostgreSQL 16**                                       | JSON 字段能力强，支持全文搜索                         |
+| 缓存与异步        | **Redis 7 + ioredis + BullMQ / Outbox**                 | 会话、缓存、限流、队列；可靠异步投递                  |
+| 文件存储          | **AWS SDK v3 S3 Provider**                              | 本地 Compose 用 MinIO；生产唯一业务对象存储为腾讯 COS |
+| 搜索              | PostgreSQL 全文搜索 → **Meilisearch**                   | 先内置，后续独立搜索引擎                              |
+| Flutter App       | **Dio + Riverpod + go_router**                          | 复用后端 API                                          |
+| Monorepo          | **Turborepo**                                           | 统一构建，共享类型定义                                |
 
 ### 当前阶段补充：React-first 前端
 
-| 层 | 技术 | 说明 |
-| --- | --- | --- |
-| 首版 Web | **React + Umi Max + Ant Design Pro** | 位于 `apps/react-web`，用于快速完成完整 Web 功能 |
-| UI | **Ant Design + @ant-design/pro-components** | 公开前台做轻量品牌化封装，工作区和后台优先使用 Pro 体系 |
-| 数据 | **Umi mock + service 层** | 后端未完成前模拟 NestJS API 契约 |
-| 后续迁移 | **Next.js 15** | 首页、内容中心、阅读页、项目页、关于我优先迁移 |
+| 层       | 技术                                        | 说明                                                    |
+| -------- | ------------------------------------------- | ------------------------------------------------------- |
+| 首版 Web | **React + Umi Max + Ant Design Pro**        | 位于 `apps/react-web`，用于快速完成完整 Web 功能        |
+| UI       | **Ant Design + @ant-design/pro-components** | 公开前台做轻量品牌化封装，工作区和后台优先使用 Pro 体系 |
+| 数据     | **Umi mock + service 层**                   | 后端未完成前模拟 NestJS API 契约                        |
+| 后续迁移 | **Next.js 15**                              | 首页、内容中心、阅读页、项目页、关于我优先迁移          |
 
 React-first 详细路线见 [../react-first/README.md](../react-first/README.md)。
 
@@ -106,41 +106,59 @@ React-first 详细路线见 [../react-first/README.md](../react-first/README.md)
 
 ## 后端完整依赖选型（NestJS）
 
-### 核心框架
+### 当前 Nest 权威基线
+
+> 完整包目录、组合边界与版本锁定以 [NestJS 依赖目录](../engineering/nest-dependency-catalog.md) 为准；工程、接口、安全、Redis 和队列约定以 [后端实现约定](../backend/conventions.md) 为准。本节不再维护会造成分叉的第二份依赖清单。
+
+| 范畴        | 已确认决策                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 应用与 HTTP | `apps/server`、Nest 11 + Fastify、全局 `/api/v1`；HTTP DTO/运行时校验留在 server                                                |
+| 认证        | JWT-only：`@nestjs/jwt`，密码使用 Argon2id；当前不引入 Passport                                                                 |
+| Redis       | `ioredis` 由项目 `RedisService` / `CacheService` 封装；通用限流接入项目自定义 `ThrottlerStorage`，不锁定第三方 Redis storage 包 |
+| 异步        | `@nestjs/bullmq + BullMQ`；业务写入与 `outbox_events` 同事务，dispatcher 投递队列，worker 幂等消费                              |
+| 对象存储    | `@aws-sdk/client-s3` 与 presigner；本地 MinIO、生产腾讯 COS，业务不直接依赖厂商 SDK                                             |
+| 生产运行    | Docker Compose：Nginx、`server`、`server-worker`、PostgreSQL、Redis；生产不使用 MinIO 作为业务源数据                            |
+| 备份与恢复  | PostgreSQL 每日逻辑备份保留 14 天；上线前和重大迁移前在隔离实例恢复演练                                                         |
+
+### 已降级的早期依赖草案
+
+下列段落仅为早期选型记录，**不得据此创建或安装 Nest 依赖**：Passport、bcrypt、`cache-manager-redis-store`、`multer` / `minio` SDK、进程内定时任务作为关键任务调度、`apps/api`。创建后端时只遵循上述权威基线及其链接。
+
+### 核心框架（历史草案，非实现依据）
 
 | 库                           | 用途            | 说明                                                 |
 | ---------------------------- | --------------- | ---------------------------------------------------- |
 | **@nestjs/core + common**    | NestJS 框架核心 | —                                                    |
 | **@nestjs/platform-fastify** | HTTP 适配器     | Fastify 替代 Express，性能更好；SSE 流式输出支持更好 |
-| **@nestjs/jwt + passport**   | JWT 认证        | AccessToken 签发与校验                               |
+| **@nestjs/jwt + passport**   | 早期 JWT 设想   | 已由 JWT-only + `@nestjs/jwt` 替代；不安装 Passport  |
 | **@nestjs/throttler**        | 限流            | 防止接口滥用（登录/注册/AI 试用）                    |
 | **@nestjs/swagger**          | API 文档        | 自动生成 Swagger UI，开发环境可访问 `/api/docs`      |
-| **@nestjs/schedule**         | 定时任务        | 操作日志清理、Token 过期清理等                       |
-| **@nestjs/event-emitter**    | 事件总线        | 解耦模块间通信（如内容发布后触发缓存清除）           |
+| **@nestjs/schedule**         | 轻量进程内维护  | 关键任务改用 BullMQ 持久化重复任务                   |
+| **@nestjs/event-emitter**    | 早期事件设想    | 跨进程可靠投递改用 Outbox + BullMQ                   |
 
 ### 数据层
 
-| 库                                                    | 用途         | 说明                    |
-| ----------------------------------------------------- | ------------ | ----------------------- |
-| **prisma + @prisma/client**                           | ORM          | 类型安全的数据库访问    |
-| **ioredis**                                           | Redis 客户端 | Session、缓存、限流计数 |
-| **@nestjs/cache-manager + cache-manager-redis-store** | 缓存封装     | 统一缓存注解            |
+| 库                                                    | 用途         | 说明                                      |
+| ----------------------------------------------------- | ------------ | ----------------------------------------- |
+| **prisma + @prisma/client**                           | ORM          | 类型安全的数据库访问                      |
+| **ioredis**                                           | Redis 客户端 | Session、缓存、限流计数                   |
+| **@nestjs/cache-manager + cache-manager-redis-store** | 早期缓存设想 | 当前统一使用 ioredis 封装，不作为实现依据 |
 
 ### 安全
 
-| 库                                      | 用途        | 说明                                  |
-| --------------------------------------- | ----------- | ------------------------------------- |
-| **bcrypt**                              | 密码哈希    | cost factor = 12                      |
-| **helmet**                              | HTTP 安全头 | 防止常见 Web 攻击                     |
-| **class-validator + class-transformer** | DTO 校验    | 请求参数校验，与 `@Body()` 装饰器配合 |
+| 库                                      | 用途         | 说明                                  |
+| --------------------------------------- | ------------ | ------------------------------------- |
+| **bcrypt**                              | 早期密码哈希 | 当前使用 Argon2id，不作为实现依据     |
+| **helmet**                              | HTTP 安全头  | 防止常见 Web 攻击                     |
+| **class-validator + class-transformer** | DTO 校验     | 请求参数校验，与 `@Body()` 装饰器配合 |
 
 ### 文件与存储
 
-| 库         | 用途         | 说明                                                  |
-| ---------- | ------------ | ----------------------------------------------------- |
-| **multer** | 文件上传     | `@nestjs/platform-fastify` 下使用 `fastify-multipart` |
-| **minio**  | MinIO 客户端 | 后续迁移到对象存储时使用                              |
-| **sharp**  | 图片处理     | 头像上传后压缩、裁剪                                  |
+| 库         | 用途             | 说明                                                     |
+| ---------- | ---------------- | -------------------------------------------------------- |
+| **multer** | 早期文件上传设想 | 默认预签名直传；确需服务端接收时再评估 Fastify multipart |
+| **minio**  | 早期 MinIO SDK   | 统一改用 AWS SDK v3；生产使用 COS                        |
+| **sharp**  | 图片处理         | 头像上传后压缩、裁剪                                     |
 
 ### 邮件与通知
 
@@ -165,12 +183,12 @@ monorepo（Turborepo 管理）
 ├── apps/
 │   ├── react-web/    ← React-first 首版 Web（React + Umi + Ant Design Pro）
 │   ├── next-web/     ← 后续 Next.js（公开前台 + 内容阅读等 SEO 页面）
-│   └── api/          ← NestJS（统一后端 API，后续接入）
+│   └── server/       ← NestJS（统一后端 API，后续接入）
 └── packages/
     └── shared-types/ ← 前后端共享 TypeScript 类型与 zod Schema
 ```
 
-> 当前阶段先创建 `apps/react-web` 与 `packages/shared-types`。`apps/next-web` 和 `apps/api` 按后续阶段创建，但后端目标和共享类型边界保持不变。
+> 当前阶段先创建 `apps/react-web` 与 `packages/shared-types`。后续创建 `apps/next-web` 与 `apps/server`；React mock 保持阶段 A 可用，但它的旧 `/api/*` 路径不是 Nest API 规范。
 
 ---
 
@@ -205,7 +223,7 @@ AI 厂商（OpenAI / Anthropic / 阿里云百炼 / Gemini 等）
 ## 后端核心模块划分
 
 ```
-apps/api/src/
+apps/server/src/
   modules/
     auth/         ← 登录、Token 签发、密码重置、邮箱验证
     user/         ← 用户信息 CRUD、头像上传

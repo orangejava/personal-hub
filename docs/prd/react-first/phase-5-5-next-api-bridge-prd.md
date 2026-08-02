@@ -26,17 +26,17 @@ apps/
 
 ## 2. Next API 与 NestJS 的区别
 
-| 维度 | Next API Bridge | NestJS API |
-|---|---|---|
-| 定位 | 前端同栈的轻量接口层 | 长期业务后端 |
-| 开发速度 | 快，适合快速接数据库和第三方 API | 稍重，但结构更稳定 |
-| 路由 | 文件路由 `app/api/**/route.ts` | Controller / Module / Service |
-| 架构约束 | 容易写散，需要人为约束 | 模块化、依赖注入、Guard、Pipe 完整 |
-| 权限 | 需要自行封装中间件和 helper | Guard / Decorator / RBAC 更自然 |
-| Swagger | 需要额外工具或手写 | `@nestjs/swagger` 成熟 |
-| SSE / AI 代理 | 能做，但复杂场景要谨慎 | 更适合长期 AI 代理、日志、限流 |
-| 定时任务 | 不适合复杂任务 | `@nestjs/schedule` |
-| 后续 Flutter API | 可以用，但长期契约治理弱 | 更适合作为多端统一 API |
+| 维度             | Next API Bridge                  | NestJS API                         |
+| ---------------- | -------------------------------- | ---------------------------------- |
+| 定位             | 前端同栈的轻量接口层             | 长期业务后端                       |
+| 开发速度         | 快，适合快速接数据库和第三方 API | 稍重，但结构更稳定                 |
+| 路由             | 文件路由 `app/api/**/route.ts`   | Controller / Module / Service      |
+| 架构约束         | 容易写散，需要人为约束           | 模块化、依赖注入、Guard、Pipe 完整 |
+| 权限             | 需要自行封装中间件和 helper      | Guard / Decorator / RBAC 更自然    |
+| Swagger          | 需要额外工具或手写               | `@nestjs/swagger` 成熟             |
+| SSE / AI 代理    | 能做，但复杂场景要谨慎           | 更适合长期 AI 代理、日志、限流     |
+| 定时任务         | 不适合复杂任务                   | `@nestjs/schedule`                 |
+| 后续 Flutter API | 可以用，但长期契约治理弱         | 更适合作为多端统一 API             |
 
 ---
 
@@ -65,7 +65,7 @@ apps/
 2. `apps/next-web`：只放 SEO 前台页面，不直接写业务 API。
 3. `apps/react-web`：继续作为后台、工作区、React-first 前端。
 4. `packages/shared-types`：所有请求/响应类型先放这里，不让 Next API 私自定义一套。
-5. API 路径仍保持 `/api/**`，和 `docs/backend/api.md` 对齐。
+5. API 路径仍保持 `/api/v1/**`，与 Canonical API 对齐。
 6. service 方法名保持稳定，未来从 Next API 切 NestJS 时前端改 `baseURL` 为主。
 
 ---
@@ -76,9 +76,9 @@ apps/
 
 - 业务逻辑不要写在 route handler 里，抽到 `modules/*/service.ts`。
 - DTO / 响应类型使用 `packages/shared-types`。
-- Prisma schema 按 `docs/backend/database.md` 维护。
+- 数据模型按 `docs/backend/canonical-data-model.md` 维护。
 - 权限判断集中在 `auth/requirePermission.ts`，不要散落页面。
-- 错误响应统一 `{ code, message, data }`。
+- 错误响应遵循 Canonical API 的 HTTP 状态码与 `{ data, requestId }` / `{ error, requestId }` 响应格式。
 - AI Provider 调用封装到独立 adapter，后续可搬到 Nest Service。
 
 建议结构：
@@ -114,7 +114,7 @@ apps/next-api/src/
 4. 实现内容列表/详情/工作区内容 CRUD。
 5. 实现后台系统配置、菜单、日志。
 6. 实现 AI 代理最小链路。
-7. 当 API 稳定后，再迁移到 `apps/api` NestJS。
+7. 当 API 稳定后，再迁移到 `apps/server` NestJS。
 
 ---
 

@@ -13,12 +13,12 @@
 
 实施范围来自 [../../react-first/roadmap.md](../../react-first/roadmap.md) 阶段 4，并吸收阶段 2–3 遗留项：
 
-| 来源 | 内容 |
-|---|---|
-| 阶段 4 主线 | 后台用户/角色/内容/分类/标签/文件/首页/菜单/系统/日志 |
-| 阶段 2 遗留 | PDF、Word 在线预览（阶段 0–3 仅占位） |
-| 阶段 3 遗留 | 富文本阅读占位 → 本阶段评估 Textbus 只读渲染 |
-| 阅读体验 | 目录锚点、代码块工具栏、章节切换滚顶（阶段 3 后补丁，本阶段验收固化） |
+| 来源        | 内容                                                                  |
+| ----------- | --------------------------------------------------------------------- |
+| 阶段 4 主线 | 后台用户/角色/内容/分类/标签/文件/首页/菜单/系统/日志                 |
+| 阶段 2 遗留 | PDF、Word 在线预览（阶段 0–3 仅占位）                                 |
+| 阶段 3 遗留 | 富文本阅读占位 → 本阶段评估 Textbus 只读渲染                          |
+| 阅读体验    | 目录锚点、代码块工具栏、章节切换滚顶（阶段 3 后补丁，本阶段验收固化） |
 
 **明确不包含**：
 
@@ -32,22 +32,22 @@
 
 ## 2. 已确认决策
 
-| 事项 | 结论 |
-|---|---|
-| 工程 | 仍在 `apps/react-web`，不新建 admin 工程 |
-| 后台 UI | Ant Design Pro Layout + ProTable + ProForm |
-| 数据 | mock 为主；`services/admin/*` 与 future NestJS 路径对齐 |
-| PDF 预览 | **react-pdf**（见 `apps/react-web/src/config/documentViewers.ts`） |
-| Word 预览 | **docx-preview**（浏览器端 docx → HTML） |
-| 富文本阅读 | **方案 A**：本阶段集成 Textbus 只读 View；编辑仍占位 |
-| 小册上传权限 | 仅 `editor` / `admin`（`booklet:write`）；`member` 不可上传 |
-| AI 导航 | 阶段 4 仅顶栏 `/ai` 占位；完整功能阶段 5 |
-| 站点访问 | 域名未定前开发用 `http://localhost:8000` |
-| 视觉规范 | 见 [frontend-visual-spec.md](./frontend-visual-spec.md) |
-| Mock 账号 | 见 [../../engineering/dev-credentials.md](../../engineering/dev-credentials.md) |
-| 权限 | 沿用 `access.ts` + mock 角色；`/admin/*` 仅 admin |
-| 主题 | 根级 `ThemeProvider` + 工作区 `SettingDrawer`；公开/工作区主题分离 |
-| 本地小册 | 继续 `pnpm sync:booklets`；TOC anchor 与 MarkdownViewer slug 一致 |
+| 事项         | 结论                                                                            |
+| ------------ | ------------------------------------------------------------------------------- |
+| 工程         | 仍在 `apps/react-web`，不新建 admin 工程                                        |
+| 后台 UI      | Ant Design Pro Layout + ProTable + ProForm                                      |
+| 数据         | mock 为主；`services/admin/*` 与 future NestJS 路径对齐                         |
+| PDF 预览     | **react-pdf**（见 `apps/react-web/src/config/documentViewers.ts`）              |
+| Word 预览    | **docx-preview**（浏览器端 docx → HTML）                                        |
+| 富文本阅读   | **方案 A**：本阶段集成 Textbus 只读 View；编辑仍占位                            |
+| 小册上传权限 | 仅 `editor` / `admin`（`booklet:write`）；`member` 不可上传                     |
+| AI 导航      | 阶段 4 仅顶栏 `/ai` 占位；完整功能阶段 5                                        |
+| 站点访问     | 域名未定前开发用 `http://localhost:8000`                                        |
+| 视觉规范     | 见 [frontend-visual-spec.md](./frontend-visual-spec.md)                         |
+| Mock 账号    | 见 [../../engineering/dev-credentials.md](../../engineering/dev-credentials.md) |
+| 权限         | 沿用 `access.ts` + mock 角色；`/admin/*` 仅 admin                               |
+| 主题         | 根级 `ThemeProvider` + 工作区 `SettingDrawer`；公开/工作区主题分离              |
+| 本地小册     | 继续 `pnpm sync:booklets`；TOC anchor 与 MarkdownViewer slug 一致               |
 
 ---
 
@@ -71,21 +71,21 @@
 
 参考产品范围：[../../product/admin.md](../../product/admin.md)、PRD 细化：[../long-term/admin-content-config-prd.md](../long-term/admin-content-config-prd.md)。
 
-| 路由 | 页面 | 首版能力 |
-|---|---|---|
-| `/admin/dashboard` | 运营概览 | 内容/用户/访问量 mock 统计卡片 |
-| `/admin/users` | 用户管理 | 列表、禁用/启用、角色分配 |
-| `/admin/roles` | 角色管理 | 列表、权限点勾选（mock） |
-| `/admin/content/list` | 文档列表 | 筛选、发布/归档、删除、跳转编辑 |
-| `/admin/content/booklets` | 小册管理 | 小册列表、章节数、删除 |
-| `/admin/content/categories` | 分类管理 | 树形 CRUD |
-| `/admin/content/tags` | 标签管理 | 列表 CRUD |
-| `/admin/files` | 文件管理 | 上传 mock、预览链接、删除 |
-| `/admin/homepage` | 首页配置 | 模块显隐、排序 |
-| `/admin/menus` | 菜单管理 | 公开/工作区/后台菜单 mock 编辑 |
-| `/admin/system` | 系统配置 | Key-Value、站点名、SEO 占位 |
-| `/admin/system/theme` | 主题配置 | 与工作区 SettingDrawer 字段对齐说明 |
-| `/admin/logs` | 操作日志 | 只读列表、筛选 |
+| 路由                        | 页面     | 首版能力                            |
+| --------------------------- | -------- | ----------------------------------- |
+| `/admin/dashboard`          | 运营概览 | 内容/用户/访问量 mock 统计卡片      |
+| `/admin/users`              | 用户管理 | 列表、禁用/启用、角色分配           |
+| `/admin/roles`              | 角色管理 | 列表、权限点勾选（mock）            |
+| `/admin/content/list`       | 文档列表 | 筛选、发布/归档、删除、跳转编辑     |
+| `/admin/content/booklets`   | 小册管理 | 小册列表、章节数、删除              |
+| `/admin/content/categories` | 分类管理 | 树形 CRUD                           |
+| `/admin/content/tags`       | 标签管理 | 列表 CRUD                           |
+| `/admin/files`              | 文件管理 | 上传 mock、预览链接、删除           |
+| `/admin/homepage`           | 首页配置 | 模块显隐、排序                      |
+| `/admin/menus`              | 菜单管理 | 公开/工作区/后台菜单 mock 编辑      |
+| `/admin/system`             | 系统配置 | Key-Value、站点名、SEO 占位         |
+| `/admin/system/theme`       | 主题配置 | 与工作区 SettingDrawer 字段对齐说明 |
+| `/admin/logs`               | 操作日志 | 只读列表、筛选                      |
 
 **验收要点**：
 
@@ -95,10 +95,10 @@
 
 ### 4.2 PDF / Word 在线预览（公开区 + 工作区）
 
-| 类型 | 组件 | 公开阅读路由 | 工作区 |
-|---|---|---|---|
-| PDF | react-pdf | `/content/:id` | 文档详情预览 Tab |
-| Word | docx-preview | 同上 | 同上 |
+| 类型 | 组件         | 公开阅读路由   | 工作区           |
+| ---- | ------------ | -------------- | ---------------- |
+| PDF  | react-pdf    | `/content/:id` | 文档详情预览 Tab |
+| Word | docx-preview | 同上           | 同上             |
 
 **接口/mock 约定**：
 
@@ -117,12 +117,12 @@
 
 ### 4.4 阅读体验固化（阶段 3 后补丁验收）
 
-| 项 | 标准 |
-|---|---|
-| 章节切换 | 上一章/下一章 / 菜单切换后滚到内容顶部 |
-| 目录 | `stripMarkdownInline` + `slugifyHeading`；mock TOC 与 DOM id 一致 |
-| 代码块 | 折叠、语言标签、复制（`copyToClipboard` 通用方法） |
-| 主题 | 公开深色顶栏导航可读；工作区深色无「壳亮表暗」混合 |
+| 项       | 标准                                                              |
+| -------- | ----------------------------------------------------------------- |
+| 章节切换 | 上一章/下一章 / 菜单切换后滚到内容顶部                            |
+| 目录     | `stripMarkdownInline` + `slugifyHeading`；mock TOC 与 DOM id 一致 |
+| 代码块   | 折叠、语言标签、复制（`copyToClipboard` 通用方法）                |
+| 主题     | 公开深色顶栏导航可读；工作区深色无「壳亮表暗」混合                |
 
 ---
 
@@ -144,16 +144,16 @@ apps/react-web/
 
 ### 5.2 依赖（阶段 4 新增）
 
-| 包 | 用途 |
-|---|---|
-| `react-pdf` | PDF 预览 |
-| `docx-preview` | Word 预览 |
+| 包                 | 用途                     |
+| ------------------ | ------------------------ |
+| `react-pdf`        | PDF 预览                 |
+| `docx-preview`     | Word 预览                |
 | `@textbus/core` 等 | 富文本只读（若选方案 A） |
 
 ### 5.3 与 NestJS 对齐
 
-- service 返回 `{ code, data, message }` 不变。
-- admin 列表分页参数：`current`, `pageSize`, 筛选字段与 [../backend/api.md](../backend/api.md) 管理端章节一致。
+- mock service 维持现有兼容结构；真实接口接入时遵循 Canonical API。
+- admin 列表分页参数在真实接口接入时以 [Canonical API](../../backend/canonical-api.md) 为准。
 - 共享类型扩展放 `packages/shared-types`，先改类型再改 mock。
 
 ---
@@ -189,16 +189,16 @@ apps/react-web/
 
 判断如下：
 
-| 维度 | 当前判断 | 是否阻塞阶段 5 |
-|---|---|---|
-| 后台页面骨架 | 已基本可访问 | 不阻塞 |
-| PDF / Word / 富文本阅读 | 已可体验，PDF 已修复开发态兼容问题 | 不阻塞 |
-| 首页配置联动 | 已补齐 mock 配置源与保存入口 | 不阻塞 |
-| 菜单配置联动 | 已补齐公开/工作区/后台/AI 预留菜单配置 | 不阻塞 |
-| 内容状态 mock 持久更新 | 已写回共享 contents | 不阻塞 |
-| 分类树、文件引用校验 | 已补齐树形 CRUD、引用校验和批量删除 | 不阻塞 |
-| 操作日志 | 关键后台操作已写入 mock 日志，支持 action/resource 筛选 | 不阻塞 |
-| 权限契约统一 | 未统一 | 若开放多人使用或做角色配置，建议阶段 4 收尾单独做 |
+| 维度                    | 当前判断                                                | 是否阻塞阶段 5                                    |
+| ----------------------- | ------------------------------------------------------- | ------------------------------------------------- |
+| 后台页面骨架            | 已基本可访问                                            | 不阻塞                                            |
+| PDF / Word / 富文本阅读 | 已可体验，PDF 已修复开发态兼容问题                      | 不阻塞                                            |
+| 首页配置联动            | 已补齐 mock 配置源与保存入口                            | 不阻塞                                            |
+| 菜单配置联动            | 已补齐公开/工作区/后台/AI 预留菜单配置                  | 不阻塞                                            |
+| 内容状态 mock 持久更新  | 已写回共享 contents                                     | 不阻塞                                            |
+| 分类树、文件引用校验    | 已补齐树形 CRUD、引用校验和批量删除                     | 不阻塞                                            |
+| 操作日志                | 关键后台操作已写入 mock 日志，支持 action/resource 筛选 | 不阻塞                                            |
+| 权限契约统一            | 未统一                                                  | 若开放多人使用或做角色配置，建议阶段 4 收尾单独做 |
 
 结论：
 
@@ -208,44 +208,44 @@ apps/react-web/
 
 ### 7.1 已基本完成
 
-| 模块 | 当前状态 | 后续动作 |
-|---|---|---|
-| 用户管理 | ProTable 列表、启用/禁用、角色切换已接 mock | 补 Token 配额和用户详情可放到 NestJS 接入前 |
-| 角色管理 | 权限勾选已接 mock | 权限点命名需与长期 RBAC 收口 |
-| 文档列表 | 筛选、发布/归档、删除已接 mock | mock 需真正更新内容状态，避免刷新后丢失 |
-| 分类 / 标签 | 新增、删除已接 mock | 分类需补树形展示、编辑、父子校验 |
-| 文件管理 | 列表、删除、预览链接已接 mock | 补 Word 文件和引用占用校验 |
-| 系统配置 / 主题配置 | 可保存并刷新 `@@initialState` | 补更多字段和公开页配置映射 |
-| PDF / Word 预览 | `react-pdf`、`docx-preview` 已接入样例文件 | PDF 补响应式宽度和分页策略 |
-| 富文本只读 | Textbus readonly 已跑通 | 补学习文档和复杂 HTML 样例 |
+| 模块                | 当前状态                                    | 后续动作                                    |
+| ------------------- | ------------------------------------------- | ------------------------------------------- |
+| 用户管理            | ProTable 列表、启用/禁用、角色切换已接 mock | 补 Token 配额和用户详情可放到 NestJS 接入前 |
+| 角色管理            | 权限勾选已接 mock                           | 权限点命名需与长期 RBAC 收口                |
+| 文档列表            | 筛选、发布/归档、删除已接 mock              | mock 需真正更新内容状态，避免刷新后丢失     |
+| 分类 / 标签         | 新增、删除已接 mock                         | 分类需补树形展示、编辑、父子校验            |
+| 文件管理            | 列表、删除、预览链接已接 mock               | 补 Word 文件和引用占用校验                  |
+| 系统配置 / 主题配置 | 可保存并刷新 `@@initialState`               | 补更多字段和公开页配置映射                  |
+| PDF / Word 预览     | `react-pdf`、`docx-preview` 已接入样例文件  | PDF 补响应式宽度和分页策略                  |
+| 富文本只读          | Textbus readonly 已跑通                     | 补学习文档和复杂 HTML 样例                  |
 
 ### 7.2 未完成且阶段 4 应补齐
 
-| 优先级 | 模块 | 需要补什么 | Mock 数据要求 |
-|---|---|---|---|
-| P0 | 首页配置 `/admin/homepage` | 已完成：Hero、内容推荐、AI 工具、技术栈模块显隐、排序、保存 | 4 个首页模块、精选内容 6 条、技术栈 8 条 |
-| P0 | 菜单管理 `/admin/menus` | 已完成：公开/工作区/后台/AI 预留菜单树展示、编辑、保存并刷新 `@@initialState.menu` | 三套既有菜单树 + AI 侧栏预留菜单 |
-| P0 | 内容状态 mock | 已完成：后台发布/归档写回共享 mock 数据，刷新列表后状态仍正确 | 内容列表已补 `status`、`visibility`、`createdAt`、`updatedAt` |
-| P1 | 分类树形 CRUD | 已完成：树形展示、新增子分类、编辑、删除前检查子级和内容引用 | 已准备二级分类和关联内容数 |
-| P1 | 文件管理增强 | 已完成：Word/PDF/图片样例、引用占用提示、批量删除 mock | 已准备图片、PDF、Word、未引用、被引用文件 |
-| P1 | 操作日志 | 已完成：关键后台操作写入日志，日志支持 action/resource 筛选 | 覆盖登录、更新用户、角色权限、内容、文件、首页/菜单/系统配置 |
-| P2 | 用户详情 | 角色、Token 配额、最近 AI 使用日志 | 准备 token 交易记录和 AI 使用日志 |
+| 优先级 | 模块                       | 需要补什么                                                                         | Mock 数据要求                                                 |
+| ------ | -------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| P0     | 首页配置 `/admin/homepage` | 已完成：Hero、内容推荐、AI 工具、技术栈模块显隐、排序、保存                        | 4 个首页模块、精选内容 6 条、技术栈 8 条                      |
+| P0     | 菜单管理 `/admin/menus`    | 已完成：公开/工作区/后台/AI 预留菜单树展示、编辑、保存并刷新 `@@initialState.menu` | 三套既有菜单树 + AI 侧栏预留菜单                              |
+| P0     | 内容状态 mock              | 已完成：后台发布/归档写回共享 mock 数据，刷新列表后状态仍正确                      | 内容列表已补 `status`、`visibility`、`createdAt`、`updatedAt` |
+| P1     | 分类树形 CRUD              | 已完成：树形展示、新增子分类、编辑、删除前检查子级和内容引用                       | 已准备二级分类和关联内容数                                    |
+| P1     | 文件管理增强               | 已完成：Word/PDF/图片样例、引用占用提示、批量删除 mock                             | 已准备图片、PDF、Word、未引用、被引用文件                     |
+| P1     | 操作日志                   | 已完成：关键后台操作写入日志，日志支持 action/resource 筛选                        | 覆盖登录、更新用户、角色权限、内容、文件、首页/菜单/系统配置  |
+| P2     | 用户详情                   | 角色、Token 配额、最近 AI 使用日志                                                 | 准备 token 交易记录和 AI 使用日志                             |
 
 ### 7.2.1 后台管理还需要补哪些配置
 
 当前项目后续还需要补充以下后台配置，才能支撑“内容平台 + AI 平台 + 工作区”的长期形态：
 
-| 分组 | 配置项 | 为什么需要 | 建议阶段 |
-|---|---|---|---|
-| 站点配置 | 站点名、Logo、favicon、SEO、站长信息、社交链接 | 公开前台和后续 Next.js SEO 需要统一来源 | 阶段 4 P0 |
-| 首页配置 | Hero、精选内容、AI 工具推荐、技术栈、项目推荐 | 让后台配置影响公开首页，不再写死 mock 文案 | 阶段 4 P0 |
-| 菜单配置 | 公开导航、工作区菜单、后台菜单、AI 侧边栏 | 阶段 5 AI 工作台会新增大量入口，需要统一管理 | 阶段 4 P0 / 阶段 5 |
-| 内容配置 | 分类、标签、内容类型、可见性、精选规则 | 内容中心和 AI 引用素材都依赖稳定内容元数据 | 阶段 4 P1 |
-| 文件配置 | 存储位置、本地/MinIO、引用占用、文件类型白名单 | PDF/Word/图片资产都需要统一文件规则 | 阶段 4 P1 |
-| AI 配置 | 厂商、模型、工具启用、默认模型、单价、上下文长度 | 阶段 5 用户端模型选择和后台统计依赖 | 阶段 5 |
-| 会员与配额 | 初始 Token、套餐、用量限制、访客试用次数 | AI 平台商业化入口需要先有 mock 口径 | 阶段 5 |
-| 通知配置 | 邮件、站内通知、邀请奖励提示 | 后续注册、会员、邀请有礼会用到 | 阶段 6+ |
-| 审计配置 | 操作日志保留天数、敏感操作二次确认 | 后台管理安全与排查需要 | 阶段 4 P1 |
+| 分组       | 配置项                                           | 为什么需要                                   | 建议阶段           |
+| ---------- | ------------------------------------------------ | -------------------------------------------- | ------------------ |
+| 站点配置   | 站点名、Logo、favicon、SEO、站长信息、社交链接   | 公开前台和后续 Next.js SEO 需要统一来源      | 阶段 4 P0          |
+| 首页配置   | Hero、精选内容、AI 工具推荐、技术栈、项目推荐    | 让后台配置影响公开首页，不再写死 mock 文案   | 阶段 4 P0          |
+| 菜单配置   | 公开导航、工作区菜单、后台菜单、AI 侧边栏        | 阶段 5 AI 工作台会新增大量入口，需要统一管理 | 阶段 4 P0 / 阶段 5 |
+| 内容配置   | 分类、标签、内容类型、可见性、精选规则           | 内容中心和 AI 引用素材都依赖稳定内容元数据   | 阶段 4 P1          |
+| 文件配置   | 存储位置、本地/MinIO、引用占用、文件类型白名单   | PDF/Word/图片资产都需要统一文件规则          | 阶段 4 P1          |
+| AI 配置    | 厂商、模型、工具启用、默认模型、单价、上下文长度 | 阶段 5 用户端模型选择和后台统计依赖          | 阶段 5             |
+| 会员与配额 | 初始 Token、套餐、用量限制、访客试用次数         | AI 平台商业化入口需要先有 mock 口径          | 阶段 5             |
+| 通知配置   | 邮件、站内通知、邀请奖励提示                     | 后续注册、会员、邀请有礼会用到               | 阶段 6+            |
+| 审计配置   | 操作日志保留天数、敏感操作二次确认               | 后台管理安全与排查需要                       | 阶段 4 P1          |
 
 后台菜单分组建议同步调整为：
 
@@ -275,38 +275,38 @@ apps/react-web/
 
 ### 8.1 现在应该做
 
-| 能力 | 目标 | 覆盖范围 |
-|---|---|---|
-| 统一 loading | 页面级、区块级、按钮级 loading 规范 | 公开页、工作区、后台 |
-| 骨架屏 | 列表、详情、阅读页、表格使用统一骨架 | 内容中心、详情页、ProTable 外的自定义区块 |
-| 空状态 / 错误态 | 统一标题、说明、重试按钮、返回按钮 | 所有 service 请求页面 |
-| 页面切换反馈 | 路由切换时避免白屏和布局跳动 | 全站 |
-| 基础动效 | hover、卡片进入、抽屉打开、流式输出光标 | 公开页 + AI 阶段 |
-| 图片 / 文档占位 | PDF、Word、封面图加载前后稳定尺寸 | 内容详情和文件管理 |
+| 能力            | 目标                                    | 覆盖范围                                  |
+| --------------- | --------------------------------------- | ----------------------------------------- |
+| 统一 loading    | 页面级、区块级、按钮级 loading 规范     | 公开页、工作区、后台                      |
+| 骨架屏          | 列表、详情、阅读页、表格使用统一骨架    | 内容中心、详情页、ProTable 外的自定义区块 |
+| 空状态 / 错误态 | 统一标题、说明、重试按钮、返回按钮      | 所有 service 请求页面                     |
+| 页面切换反馈    | 路由切换时避免白屏和布局跳动            | 全站                                      |
+| 基础动效        | hover、卡片进入、抽屉打开、流式输出光标 | 公开页 + AI 阶段                          |
+| 图片 / 文档占位 | PDF、Word、封面图加载前后稳定尺寸       | 内容详情和文件管理                        |
 
 ### 8.1.1 已启动落地（2026-07-05）
 
-| 能力 | 当前实现 | 位置 |
-|---|---|---|
-| 页面级 loading | `PageLoading` 统一整页等待态 | `src/components/shared/PageLoading` |
-| 区块级骨架 | `SectionSkeleton` 支持 card/list/table/article | `src/components/shared/SectionSkeleton` |
-| 结果态 | `ResultState` 统一 empty/error/success/warning/info，旧 `EmptyState`/`ErrorState` 已收敛 | `src/components/shared/ResultState` |
-| 页面切换动画 | `PageTransition` 在 ProLayout 与 PublicLayout 统一接入 | `src/components/shared/PageTransition`、`src/app.tsx`、`src/layouts/PublicLayout.tsx` |
-| 动效 token | duration/easing/distance 与 reduced motion | `src/styles/tokens.less`、`src/styles/motion.less` |
-| 首批页面接入 | 首页、内容中心、内容详情、小册阅读、工作台、后台概览、首页配置、菜单管理 | 对应页面目录 |
+| 能力           | 当前实现                                                                                 | 位置                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 页面级 loading | `PageLoading` 统一整页等待态                                                             | `src/components/shared/PageLoading`                                                   |
+| 区块级骨架     | `SectionSkeleton` 支持 card/list/table/article                                           | `src/components/shared/SectionSkeleton`                                               |
+| 结果态         | `ResultState` 统一 empty/error/success/warning/info，旧 `EmptyState`/`ErrorState` 已收敛 | `src/components/shared/ResultState`                                                   |
+| 页面切换动画   | `PageTransition` 在 ProLayout 与 PublicLayout 统一接入                                   | `src/components/shared/PageTransition`、`src/app.tsx`、`src/layouts/PublicLayout.tsx` |
+| 动效 token     | duration/easing/distance 与 reduced motion                                               | `src/styles/tokens.less`、`src/styles/motion.less`                                    |
+| 首批页面接入   | 首页、内容中心、内容详情、小册阅读、工作台、后台概览、首页配置、菜单管理                 | 对应页面目录                                                                          |
 
 ### 8.1.2 深化落地（2026-07-05）
 
-| 能力 | 当前实现 | 位置 |
-|---|---|---|
-| 动效分层 | 页面、内容、hover/stagger 拆分 token，页面切换位移更轻 | `tokens.less`、`motion.less` |
-| 局部动效 | `MotionSurface`、`AnimatedList` 统一卡片/列表进入动画 | `src/components/shared` |
-| 骨架变体 | `stats`、`form`、`media`、`dashboard` 等变体 | `SectionSkeleton` |
-| 文档预览 | PDF/Word/RichText 接入统一骨架和结果态，固定预览高度 | `PdfViewer`、`WordViewer`、`RichTextViewer` |
-| 页面覆盖 | 项目、关于、AI 占位、工作区小册/收藏/用量/个人设置、后台用户/角色/内容/分类/标签/文件/系统/日志等 | 对应页面目录 |
-| 操作反馈 | 发布、归档、删除、批量删除、保存配置、角色权限、用户状态等操作补 loading/error | 工作区与后台页面 |
-| 滚动策略 | 阅读详情和小册章节使用统一滚顶工具，后台表格不强制滚顶 | `utils/scroll.ts` |
-| 验收修复 | 清理 MFSU 生成缓存恢复开发态渲染；富文本只读页去除编辑器工具栏；mock 业务失败不再打印 AxiosError | dev server、`RichTextViewer`、`mock/utils.ts` |
+| 能力     | 当前实现                                                                                          | 位置                                          |
+| -------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| 动效分层 | 页面、内容、hover/stagger 拆分 token，页面切换位移更轻                                            | `tokens.less`、`motion.less`                  |
+| 局部动效 | `MotionSurface`、`AnimatedList` 统一卡片/列表进入动画                                             | `src/components/shared`                       |
+| 骨架变体 | `stats`、`form`、`media`、`dashboard` 等变体                                                      | `SectionSkeleton`                             |
+| 文档预览 | PDF/Word/RichText 接入统一骨架和结果态，固定预览高度                                              | `PdfViewer`、`WordViewer`、`RichTextViewer`   |
+| 页面覆盖 | 项目、关于、AI 占位、工作区小册/收藏/用量/个人设置、后台用户/角色/内容/分类/标签/文件/系统/日志等 | 对应页面目录                                  |
+| 操作反馈 | 发布、归档、删除、批量删除、保存配置、角色权限、用户状态等操作补 loading/error                    | 工作区与后台页面                              |
+| 滚动策略 | 阅读详情和小册章节使用统一滚顶工具，后台表格不强制滚顶                                            | `utils/scroll.ts`                             |
+| 验收修复 | 清理 MFSU 生成缓存恢复开发态渲染；富文本只读页去除编辑器工具栏；mock 业务失败不再打印 AxiosError  | dev server、`RichTextViewer`、`mock/utils.ts` |
 
 ### 8.2 暂时不做
 
@@ -368,7 +368,7 @@ apps/react-web/
 
 1. 本轮先不改权限代码，避免打断后台补齐。
 2. 在阶段 4 收尾或阶段 5 启动前，新开一次“权限契约统一”任务。
-3. 统一时以 `docs/product/auth-rbac.md` 和 `docs/backend/api.md` 为准，同步更新 React-first 文档。
+3. 统一时以 `docs/product/auth-rbac.md` 和 `docs/backend/canonical-api.md` 为准，同步更新 React-first 文档。
 
 ## 10. 内容类型补全决策
 
@@ -399,13 +399,13 @@ apps/react-web/
 
 ## 12. 相关文档
 
-| 文档 | 关系 |
-|---|---|
-| [../../react-first/roadmap.md](../../react-first/roadmap.md) | 阶段总览 |
-| [phase-0-3-foundation-prd.md](./phase-0-3-foundation-prd.md) | 上一阶段 PRD |
-| [../long-term/admin-content-config-prd.md](../long-term/admin-content-config-prd.md) | 后台字段级细化 |
-| [content-reading-prd.md](./content-reading-prd.md) | 阅读交互来源 |
-| [../../implementation/react-first/phase-0-3.md](../../implementation/react-first/phase-0-3.md) | 已实现说明 |
+| 文档                                                                                           | 关系           |
+| ---------------------------------------------------------------------------------------------- | -------------- |
+| [../../react-first/roadmap.md](../../react-first/roadmap.md)                                   | 阶段总览       |
+| [phase-0-3-foundation-prd.md](./phase-0-3-foundation-prd.md)                                   | 上一阶段 PRD   |
+| [../long-term/admin-content-config-prd.md](../long-term/admin-content-config-prd.md)           | 后台字段级细化 |
+| [content-reading-prd.md](./content-reading-prd.md)                                             | 阅读交互来源   |
+| [../../implementation/react-first/phase-0-3.md](../../implementation/react-first/phase-0-3.md) | 已实现说明     |
 
 ---
 

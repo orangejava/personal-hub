@@ -34,19 +34,29 @@ pnpm dev:react
 
 - React Web（公开前台、工作区、后台和 AI mock）：http://localhost:8000
 
-当前阶段不需要 `apps/web`、`apps/api`、数据库、Docker 或环境变量文件；这些目录尚未创建。
+当前阶段不需要 `apps/next-web`、`apps/server`、数据库、Docker 或环境变量文件；这些目录尚未创建。
 
 ---
 
-## 长期全栈启动参考（尚未实施）
+## 后续 Nest 开发入口
 
-以下内容描述未来 `apps/next-web` + `apps/api` 落地后的目标流程，不可直接在当前仓库执行。
+> `apps/server` 尚未创建时，不能把本节当作当前启动步骤。创建后端时，以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为 Build 依据，并遵循 [后端实现约定](../backend/conventions.md)、[依赖目录](./nest-dependency-catalog.md) 与 [Compose 策略](../deploy/nest-compose-strategy.md)。
+
+- 目录固定为 `apps/server`，本地使用 `pnpm --filter server dev` 在宿主机热更新。
+- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；测试使用 Testcontainers，不复用开发卷。
+- 全局 API 前缀为 `/api/v1`；旧 React mock `/api/*` 仅作迁移线索。
+- 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
+- MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。
 
 ---
 
-## 环境变量说明
+## Nest 环境变量原则
 
-### apps/api/.env.example
+`apps/server/.env.example` 只列变量名、格式、必填性与安全说明，不能放真实密钥、服务器地址、镜像仓库或默认生产账号。`@nestjs/config + Zod` 必须在启动时校验环境变量，缺失或格式错误即阻止启动。基础设施地址、JWT、COS、SMTP 与厂商 Key 由本地私有环境文件或生产密钥管理注入；可运营配置保存在 PostgreSQL 配置表。
+
+### 已降级的环境变量样例
+
+以下 `apps/api`、本地磁盘上传与演示密钥样例只用于解释早期设想，**禁止复制到新工程或生产环境**：
 
 ```env
 # ── 数据库 ──────────────────────────────────────
@@ -106,7 +116,7 @@ NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 NEXT_PUBLIC_SITE_NAME="Personal Hub"
 ```
 
-> 生产环境变量通过服务器 `/etc/personal-hub/.env` 注入，不提交到 Git。
+> 生产环境变量通过受控密钥文件或密钥管理注入，不提交到 Git；具体服务器路径在实际部署运维文档确认前不预设。
 
 ---
 
@@ -161,13 +171,14 @@ apps/next-web/
 └── public/                     ← 静态资源
 ```
 
-### apps/api（NestJS，未来）
+### apps/server（NestJS，未来）
 
 ```
-apps/api/
+apps/server/
 ├── src/
 │   ├── main.ts                 ← 应用入口，Fastify 适配器配置
 │   ├── app.module.ts           ← 根模块
+│   ├── infrastructure/         ← Prisma、Redis、Storage、Queue、日志实现
 │   ├── modules/                ← 业务模块（每模块独立目录）
 │   │   └── auth/
 │   │       ├── auth.module.ts
@@ -182,9 +193,9 @@ apps/api/
 │   │   ├── filters/
 │   │   ├── interceptors/
 │   │   └── pipes/
-│   └── prisma/
-│       ├── prisma.module.ts
-│       └── prisma.service.ts
+│   └── common/
+│       ├── guards/
+│       └── filters/
 ├── prisma/
 │   ├── schema.prisma
 │   ├── migrations/
@@ -223,7 +234,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 }
 
 // components/public/ContentDetail.tsx — Client Component
-("use client");
+('use client');
 // 处理收藏、目录跳转等交互
 ```
 
@@ -253,7 +264,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 | 常量                 | `UPPER_SNAKE_CASE`              | `MAX_FILE_SIZE`             |
 | TypeScript 类型/接口 | `PascalCase`                    | `ContentDto`, `UserRole`    |
 | CSS 类名（Tailwind） | 直接使用工具类，组合放 `cn()`   | —                           |
-| API 路径             | `kebab-case`                    | `/api/ai-sessions`          |
+| API 路径             | `kebab-case`                    | `/api/v1/app/ai-sessions`   |
 | 数据库字段           | `snake_case`（Prisma 自动映射） | `created_at` → `createdAt`  |
 
 ---
@@ -271,7 +282,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 
 - `accessToken`：存内存（Zustand store），不写 localStorage / cookie
 - `refreshToken`：由后端写入 `HttpOnly Cookie`，前端不直接读取
-- `accessToken` 过期（401）→ 自动调用 `/auth/refresh` 换新 token → 重试原请求
+- `accessToken` 过期（401）→ 自动调用 `/api/v1/auth/refresh` 换新 token → 重试原请求
 - 刷新失败 → 清空 Zustand 认证状态 → 跳转 `/auth/login`
 
 ### SSE 规范（AI 对话流式输出）
@@ -290,12 +301,11 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 - 统一由 `GlobalExceptionFilter` 捕获，返回格式：
   ```json
   {
-    "code": 40001,
-    "message": "用户名或密码错误",
-    "timestamp": "2025-01-01T00:00:00Z"
+    "error": { "code": "AUTH_INVALID_CREDENTIALS", "message": "用户名或密码错误", "details": [] },
+    "requestId": "uuid"
   }
   ```
-- 业务错误抛 `BusinessException(code, message)`
+- 业务错误使用全大写领域错误码；`requestId` 同时写入响应、日志、审计、outbox 与队列上下文
 - 参数校验错误 → `class-validator` 自动返回 400
 
 ### 权限校验规范（后端）
@@ -324,10 +334,10 @@ pnpm --filter react-web sync:booklets  # 同步本地小册 mock
 
 ---
 
-## Prisma 常用命令（未来 apps/api 创建后启用）
+## Prisma 常用命令（未来 apps/server 创建后启用）
 
 ```bash
-cd apps/api
+cd apps/server
 
 # 创建迁移（开发时，修改 schema 后执行）
 pnpm prisma migrate dev --name add_xxx_field

@@ -1,7 +1,8 @@
 # 项目架构图与链路说明
 
 > 目标：把“系统有哪些部分、它们如何协作、请求是怎么走的”讲清楚，方便从前端视角转向全栈视角。
-> 最后更新：2026-07-27
+> 最后更新：2026-08-02
+> Nest 实现基线：[后端实现约定](../backend/conventions.md) · [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) · [Compose 策略](../deploy/nest-compose-strategy.md)
 
 ---
 
@@ -11,10 +12,10 @@
 
 - 当前阶段 `apps/react-web` 先用 React / Umi / Ant Design Pro 负责首版公开前台、登录后工作区、后台管理台
 - 后续 `apps/next-web` 承担首页、内容中心、阅读页、项目页、关于我等适合 SEO 的页面
-- 后续 `apps/api` 负责认证、内容、AI、管理能力
+- 后续 `apps/server` 负责认证、内容、AI、管理能力，统一暴露 `/api/v1`
 - `PostgreSQL` 负责核心业务数据
 - `Redis` 负责缓存、限流、会话辅助
-- `Local Storage / MinIO` 负责文件
+- 本地 Compose 的 `MinIO` 用于开发模拟；生产由腾讯 COS 负责业务对象
 - `AI 厂商` 负责模型推理能力
 
 ---
@@ -26,12 +27,12 @@ flowchart LR
     Visitor["访客 / 注册用户"] --> ReactWeb["apps/react-web<br/>React + Umi"]
     Admin["管理员"] --> ReactWeb
     Visitor --> NextWeb["apps/next-web<br/>Next.js 15（后续）"]
-    Mobile["Flutter App"] --> Api["apps/api<br/>NestJS + Fastify"]
+    Mobile["Flutter App"] --> Api["apps/server<br/>NestJS + Fastify<br/>/api/v1"]
     ReactWeb --> Api
     NextWeb --> Api
     Api --> Db[("PostgreSQL 16")]
     Api --> Redis[("Redis 7")]
-    Api --> Storage["Local Storage / MinIO"]
+    Api --> Storage["本地 MinIO / 生产腾讯 COS"]
     Api --> AI["阿里云百炼 / OpenAI / 其他模型厂商"]
     ReactWeb --> Shared["packages/shared-types<br/>共享类型 / Zod Schema"]
     NextWeb --> Shared
@@ -55,7 +56,7 @@ flowchart TD
 
     Apps --> ReactWeb["react-web<br/>React + Umi + Ant Design Pro"]
     Apps --> NextWeb["next-web<br/>Next.js（后续）"]
-    Apps --> Api["api<br/>NestJS（后续）"]
+    Apps --> Server["server<br/>NestJS（后续）"]
     Apps --> Mobile["mobile<br/>Flutter（后置）"]
 
     Packages --> SharedTypes["shared-types<br/>共享类型 / Schema"]
@@ -101,7 +102,7 @@ flowchart TD
 
 ---
 
-## 5. API 模块关系图
+## 5. Nest 领域模块与基础设施
 
 ```mermaid
 flowchart TD
@@ -123,28 +124,29 @@ flowchart TD
     App --> Homepage["HomepageModule"]
     App --> Admin["AdminModule"]
     App --> Log["LogModule"]
-    App --> Prisma["PrismaModule"]
+    App --> Infrastructure["infrastructure<br/>Prisma / Redis / Storage / Queue / Log"]
 
-    Auth --> Prisma
-    User --> Prisma
-    Role --> Prisma
-    Permission --> Prisma
-    Content --> Prisma
-    Category --> Prisma
-    Tag --> Prisma
-    Favorite --> Prisma
-    Reading --> Prisma
-    AI --> Prisma
-    AISession --> Prisma
-    AIUsage --> Prisma
-    Admin --> Prisma
+    Auth --> Infrastructure
+    User --> Infrastructure
+    Role --> Infrastructure
+    Permission --> Infrastructure
+    Content --> Infrastructure
+    Category --> Infrastructure
+    Tag --> Infrastructure
+    Favorite --> Infrastructure
+    Reading --> Infrastructure
+    AI --> Infrastructure
+    AISession --> Infrastructure
+    AIUsage --> Infrastructure
+    Admin --> Infrastructure
 ```
 
 说明：
 
-- `PrismaModule` 是大多数业务模块的底层数据访问依赖
+- 各领域 Repository 是本领域唯一直接使用 Prisma 的位置；跨领域原子用例由 Service 开启事务
 - `AuthModule` 是权限体系入口
 - `AiModule` 负责对外模型代理，不直接暴露厂商 Key 给前端
+- 业务状态和 outbox 事件同事务写入；dispatcher 投递 BullMQ，独立 worker 以幂等键消费
 
 ---
 
@@ -182,16 +184,16 @@ sequenceDiagram
     participant D as PostgreSQL
 
     U->>W: 提交邮箱和密码
-    W->>A: POST /auth/login
+    W->>A: POST /api/v1/auth/login
     A->>D: 查询用户、角色、权限
     D-->>A: 返回用户数据
-    A-->>W: Access Token + Refresh Token
+    A-->>W: Access Token + HttpOnly Refresh Cookie
     W-->>U: 进入工作区
 ```
 
 说明：
 
-- Access Token 负责短时访问
+- 认证采用 JWT-only：Access Token 从 Authorization Header 读取，JWT 仅携带必要会话版本信息
 - Refresh Token 负责续期
 - 真正的权限校验在后端 Guard，不在前端按钮显隐
 
@@ -230,10 +232,11 @@ sequenceDiagram
 ```mermaid
 flowchart LR
     Editor["编辑者 / 管理员"] --> Workspace["工作区创建内容"]
-    Workspace --> Api["POST /contents"]
-    Api --> Db[("PostgreSQL")]
-    Api --> Storage["文件存储"]
-    Api --> Revalidate["触发页面 revalidate"]
+    Workspace --> Api["POST /api/v1/app/..."]
+    Api --> Db[("PostgreSQL + outbox")]
+    Api --> Storage["本地 MinIO / 生产腾讯 COS"]
+    Api --> Queue["BullMQ dispatcher → worker"]
+    Queue --> Revalidate["异步触发页面 revalidate"]
     Revalidate --> Public["前台内容页刷新缓存"]
 ```
 
@@ -270,10 +273,11 @@ flowchart TD
     Internet["Internet"]
     Internet --> Nginx["Nginx / HTTPS"]
     Nginx --> Web["Next.js Container"]
-    Nginx --> Api["NestJS Container"]
+    Nginx --> Api["Nest server Compose 服务<br/>/api/v1"]
     Api --> Db[("PostgreSQL")]
     Api --> Redis[("Redis")]
-    Api --> Uploads["Uploads / MinIO"]
+    Api --> Worker["Nest server-worker Compose 服务"]
+    Api --> Uploads["腾讯 COS（生产）"]
 ```
 
 ---
@@ -317,4 +321,4 @@ flowchart TD
 
 ## 14. NestJS 后端落地
 
-React-first 阶段 0–5 完成后，后端工程见 **[nest-backend-architecture.md](./nest-backend-architecture.md)**：目录 **`apps/server`**、Prisma 在 server 内、PostgreSQL、Redis、JWT Access 8h + Refresh 返前端、Docker Compose、小册分块上传。
+React-first 阶段 0–5 完成后，后端工程以 **[Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)**、[后端实现约定](../backend/conventions.md) 和 [Compose 策略](../deploy/nest-compose-strategy.md) 为准。阶段 A 仍可使用 React mock；其 mock 路径只作迁移线索，不是 Nest API 契约。早期取舍见 [历史 Nest 架构决策](../history/nest-backend-architecture.md)。

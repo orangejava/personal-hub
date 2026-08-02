@@ -1,8 +1,10 @@
-# 大模块 PRD 细化索引
+# 大模块 PRD 细化索引（历史与补充入口）
 
-> 状态：规划中
-> 最后更新：2026-06-28
-> 目标：把现有“大模块说明文档”继续拆成可直接指导开发的 PRD 级细节。
+> 状态：🟡 React-first 历史拆分计划与长期 PRD 补充索引
+> 最后更新：2026-08-02
+> 当前长期后端入口：[长期 PRD](./long-term/README.md)、[Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md)
+
+> 本文中的 React-first 历史描述不构成 Nest 实现依据；`apps/server` 脚手架以 [Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md) 为准。
 
 ---
 
@@ -10,10 +12,10 @@
 
 PRD 按实施路线分为两组，**不要混读**：
 
-| 分区 | 入口 | 适用场景 |
-|---|---|---|
+| 分区                    | 入口                                                                        | 适用场景                         |
+| ----------------------- | --------------------------------------------------------------------------- | -------------------------------- |
 | **React-first（当前）** | [README.md](./README.md) · [react-first/README.md](./react-first/README.md) | `apps/react-web`、mock、阶段 0–7 |
-| **长期全栈** | [long-term/README.md](./long-term/README.md) | Next.js、NestJS、生产部署 |
+| **长期全栈**            | [long-term/README.md](./long-term/README.md)                                | Next.js、NestJS、生产部署        |
 
 当前开发顺序以 React-first 为主；长期 PRD 提供字段与 API 契约，供阶段 6 接入时对齐。
 
@@ -38,19 +40,19 @@ PRD 按实施路线分为两组，**不要混读**：
 
 每个功能模块 PRD 至少包含：
 
-| 章节 | 内容 |
-|---|---|
-| 模块目标 | 这个模块解决什么问题，首版做到哪里 |
-| 用户角色 | 访客、会员、编辑者、管理员分别能做什么 |
-| 页面清单 | 路由、页面名称、访问权限、入口来源 |
-| 页面结构 | 页面区域、组件布局、核心交互 |
-| 字段设计 | 字段名、类型、是否必填、默认值、校验规则 |
-| 功能逻辑 | 按钮、筛选、提交、跳转、权限判断、异常处理 |
-| 接口草案 | 请求方法、路径、参数、响应重点、错误码 |
-| 数据模型影响 | 涉及哪些表、字段、索引、预留扩展点 |
-| 状态说明 | loading、empty、error、forbidden、unauthorized |
-| 验收标准 | 开发完成后如何判断功能可用 |
-| 后续预留 | 哪些能力暂不做，但字段或架构上预留 |
+| 章节         | 内容                                           |
+| ------------ | ---------------------------------------------- |
+| 模块目标     | 这个模块解决什么问题，首版做到哪里             |
+| 用户角色     | 访客、会员、编辑者、管理员分别能做什么         |
+| 页面清单     | 路由、页面名称、访问权限、入口来源             |
+| 页面结构     | 页面区域、组件布局、核心交互                   |
+| 字段设计     | 字段名、类型、是否必填、默认值、校验规则       |
+| 功能逻辑     | 按钮、筛选、提交、跳转、权限判断、异常处理     |
+| 接口草案     | 请求方法、路径、参数、响应重点、错误码         |
+| 数据模型影响 | 涉及哪些表、字段、索引、预留扩展点             |
+| 状态说明     | loading、empty、error、forbidden、unauthorized |
+| 验收标准     | 开发完成后如何判断功能可用                     |
+| 后续预留     | 哪些能力暂不做，但字段或架构上预留             |
 
 ---
 
@@ -58,13 +60,13 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.1 工程底座
 
-| 文档 | 状态 | 说明 |
-|---|---|---|
-| [project-bootstrap-prd.md](../engineering/project-bootstrap-prd.md) | ✅ 已补充 | Monorepo、Next.js、NestJS、Prisma、Docker、AGENT 文件落地规则 |
-| [bootstrap-prd.md](./react-first/bootstrap-prd.md) | 🟡 已补充 | React-first 工程初始化：`apps/react-web`、Ant Design Pro、mock、共享类型 |
-| [phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md) | ✅ 已实施 | React-first 阶段 0-3 一次性实施计划 |
-| [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充 | React-first 阶段 4：后台运营、PDF/Word 预览 |
-| [agent-file-templates.md](../engineering/agent-file-templates.md) | ✅ 已补充 | 未来 `apps/web`、`apps/api` 等目录的 AGENT 模板 |
+| 文档                                                                       | 状态      | 说明                                                                     |
+| -------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------ |
+| [nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | ✅ 已确认 | `apps/server`、本地依赖 Compose、Prisma、Redis、Health、Swagger          |
+| [bootstrap-prd.md](./react-first/bootstrap-prd.md)                         | 🟡 已补充 | React-first 工程初始化：`apps/react-web`、Ant Design Pro、mock、共享类型 |
+| [phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md)   | ✅ 已实施 | React-first 阶段 0-3 一次性实施计划                                      |
+| [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充 | React-first 阶段 4：后台运营、PDF/Word 预览                              |
+| [agent-file-templates.md](../engineering/agent-file-templates.md)          | ✅ 已补充 | 目录级 AGENT 模板；创建 `apps/server` 时按实际结构补充                   |
 
 优先级：P0。
 
@@ -74,8 +76,8 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.2 主题与导航配置
 
-| 文档 | 状态 | 说明 |
-|---|---|---|
+| 文档                                                                           | 状态      | 说明                                     |
+| ------------------------------------------------------------------------------ | --------- | ---------------------------------------- |
 | [theme-navigation-config-prd.md](./react-first/theme-navigation-config-prd.md) | ✅ 已补充 | 主题色、导航位置、页面布局、未来配置预留 |
 
 优先级：P0。
@@ -86,8 +88,8 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.3 内容阅读：Markdown + 掘金小册
 
-| 文档 | 状态 | 说明 |
-|---|---|---|
+| 文档                                                           | 状态      | 说明                                                |
+| -------------------------------------------------------------- | --------- | --------------------------------------------------- |
 | [content-reading-prd.md](./react-first/content-reading-prd.md) | ✅ 已补充 | Markdown 阅读、掘金小册阅读、章节、进度、收藏、目录 |
 
 优先级：P0。
@@ -98,8 +100,8 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.4 内容工作区：上传、导入、编辑
 
-| 计划文档 | 状态 | 说明 |
-|---|---|---|
+| 计划文档                                                           | 状态      | 说明                                                    |
+| ------------------------------------------------------------------ | --------- | ------------------------------------------------------- |
 | [content-workspace-prd.md](./react-first/content-workspace-prd.md) | ✅ 已补充 | 工作区文档列表、Markdown 创建/编辑、小册导入、草稿/发布 |
 
 优先级：P1。
@@ -117,10 +119,10 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.5 后台运营端：内容与配置
 
-| 计划文档 | 状态 | 说明 |
-|---|---|---|
-| [admin-content-config-prd.md](./long-term/admin-content-config-prd.md) | ✅ 已补充 | 内容管理、分类、标签、菜单、主题配置、系统配置（长期字段契约） |
-| [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充 | **React-first 阶段 4 实施范围**：admin 页面落地 + PDF/Word 预览 |
+| 计划文档                                                                   | 状态        | 说明                                                            |
+| -------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------- |
+| [admin-content-config-prd.md](../history/admin-content-config-prd.md)      | 📚 历史资料 | 页面字段决策参考；API、状态与数据模型以 Canonical 为准          |
+| [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充   | **React-first 阶段 4 实施范围**：admin 页面落地 + PDF/Word 预览 |
 
 优先级：P0（React-first 阶段 4）。
 
@@ -138,9 +140,9 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.6 认证与 RBAC
 
-| 计划文档 | 状态 | 说明 |
-|---|---|---|
-| `auth-rbac-prd.md` | 暂缓 | 现有 `product/auth-rbac.md` 与 `backend/api.md` 可支撑首版，进入认证开发前再补 |
+| 计划文档                                                         | 状态      | 说明                                              |
+| ---------------------------------------------------------------- | --------- | ------------------------------------------------- |
+| [auth-rbac-session-prd.md](./long-term/auth-rbac-session-prd.md) | ✅ 已确认 | JWT 会话、RBAC、权限 seed、数据范围与管理员初始化 |
 
 优先级：P1。
 
@@ -156,8 +158,8 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.7 AI 工具平台
 
-| 计划文档 | 状态 | 说明 |
-|---|---|---|
+| 计划文档                                       | 状态      | 说明                                           |
+| ---------------------------------------------- | --------- | ---------------------------------------------- |
 | [ai-tools-prd.md](./long-term/ai-tools-prd.md) | ✅ 已补充 | Chat、文本生成、图片生成、模型配置、Token 消耗 |
 
 优先级：P2。
@@ -171,8 +173,8 @@ PRD 按实施路线分为两组，**不要混读**：
 
 ### 3.8 Flutter App
 
-| 计划文档 | 状态 | 说明 |
-|---|---|---|
+| 计划文档             | 状态   | 说明                                          |
+| -------------------- | ------ | --------------------------------------------- |
 | `flutter-app-prd.md` | 待补充 | 移动端内容阅读、登录、收藏、AI Chat、离线缓存 |
 
 优先级：P3。
@@ -194,7 +196,7 @@ PRD 按实施路线分为两组，**不要混读**：
 参考：
 
 - [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md)
-- [admin-content-config-prd.md](./long-term/admin-content-config-prd.md)
+- [admin-content-config-prd.md](../history/admin-content-config-prd.md)
 - [../react-first/roadmap.md](../react-first/roadmap.md)
 
 ### 已完成：React-first 阶段 0–3
@@ -208,14 +210,14 @@ PRD 按实施路线分为两组，**不要混读**：
 
 目标：
 
-- `apps/api` 可打开 Swagger。
+- `apps/server` 可打开 Swagger。
 - PostgreSQL 和 Redis 可启动。
 - `packages/shared-types` 能被前后端引用。
-- `apps/api/AGENT.md` 落地。
+- `apps/server/AGENT.md` 落地。
 
 参考：
 
-- [project-bootstrap-prd.md](../engineering/project-bootstrap-prd.md)
+- [nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)
 - [agent-file-templates.md](../engineering/agent-file-templates.md)
 
 ### 第三步：主题与导航配置底座
@@ -253,7 +255,7 @@ PRD 按实施路线分为两组，**不要混读**：
 参考：
 
 - [content-workspace-prd.md](./react-first/content-workspace-prd.md)
-- [admin-content-config-prd.md](./long-term/admin-content-config-prd.md)
+- [admin-content-config-prd.md](../history/admin-content-config-prd.md)
 
 ### 第五步：AI 工具平台
 
