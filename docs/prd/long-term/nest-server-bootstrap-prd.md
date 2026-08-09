@@ -1,9 +1,9 @@
 # Nest Server 脚手架 PRD
 
-> 状态：🟢 已确认；下一阶段 `apps/server` 工程骨架的唯一 Build 依据
-> 最后更新：2026-08-02
+> 状态：✅ 阶段 0 基础实现已落地；后续维护与验收仍以本文为准
+> 最后更新：2026-08-08
 > 优先级：P0
-> 关联：[后端实现约定](../../backend/conventions.md)、[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)、[依赖目录](../../engineering/nest-dependency-catalog.md)、[Compose 策略](../../deploy/nest-compose-strategy.md)
+> 关联：[实现记录](../../implementation/foundation/nest-server-bootstrap.md)、[后端实现约定](../../backend/conventions.md)、[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)、[依赖目录](../../engineering/nest-dependency-catalog.md)、[Compose 策略](../../deploy/nest-compose-strategy.md)
 
 ---
 
@@ -82,13 +82,19 @@ flowchart LR
 | `.env.example`    | 只列变量名、格式、是否必填和安全说明，不含真实密钥               |
 | 自动化测试        | 使用 Testcontainers 临时 PostgreSQL/Redis，禁止复用开发卷        |
 
+本地端口和环境变量约定：
+
+- Nest 默认监听 `3001`，开发 CORS 只允许 `http://localhost:8000`；生产环境不注册业务 CORS。
+- PostgreSQL、Redis、MinIO API/Console、Mailpit SMTP/UI 分别映射到 `5432`、`6379`、`9000/9001`、`1025/8025`。
+- `DATABASE_URL`、`REDIS_URL`、`REDIS_KEY_PREFIX`、`JWT_ACCESS_SECRET`、`JWT_REFRESH_SECRET`、本地 MinIO 连接变量为启动必填项。JWT 与存储变量在阶段 0 仅校验配置，尚不启用领域能力。
+
 生产环境将由单独实施计划落实：Nginx、Nest、PostgreSQL、Redis 使用 Compose，COS 是唯一业务对象存储；本阶段不创建生产 Compose。
 
 ## 5. 首批基础能力与验收
 
 | 能力       | 本阶段要求                                                 | 验收方式                             |
 | ---------- | ---------------------------------------------------------- | ------------------------------------ |
-| HTTP       | Fastify、全局 `/api/v1` 前缀、ValidationPipe、统一异常格式 | 非法 DTO 返回 `{ error, requestId }` |
+| HTTP       | Express、全局 `/api/v1` 前缀、ValidationPipe、统一异常格式 | 阶段 0 验证 health/404 信封；非法 DTO 在 Auth 首个写接口补验收 |
 | OpenAPI    | `@nestjs/swagger` 从 DTO/Controller 生成                   | 开发环境可打开 Swagger               |
 | 配置       | `@nestjs/config + Zod`；缺失必填变量阻止启动               | 移除必填变量后启动失败               |
 | PostgreSQL | PrismaClient 生命周期管理；空 Schema 可迁移                | 本地 migration 成功                  |
@@ -99,9 +105,22 @@ flowchart LR
 
 首版健康路由仅用于基础设施验证；业务健康和权限端点在领域模块开发时补充。
 
+### 5.1 固定验证路径与首迁边界
+
+| 路由 | 规则 |
+| --- | --- |
+| `GET /api/v1/health/live` | 仅确认 HTTP 进程可运行，成功使用 `{ data, requestId }`。 |
+| `GET /api/v1/health/ready` | 检查 PostgreSQL 与 Redis；任一不可用时返回 `503` 和 `{ error, requestId }`。 |
+| `GET /api/docs` | 仅开发/预发布环境开放的 Swagger UI，不受 `/api/v1` 全局 API 前缀约束。 |
+
+- 每次请求都必须由服务端生成 UUID `requestId`，同时写入响应体、`X-Request-Id` 和结构化日志。
+- 首个 Prisma migration 仅创建 `pgcrypto` 扩展，作为后续 UUID 相关数据库能力的初始化前置条件；Schema 不声明任何业务模型。Auth 阶段才创建用户、角色等首批领域表。
+- 阶段 0 不提供 DTO 写端点；全局 `ValidationPipe` 已配置，非法 DTO 的 HTTP 验收在 Auth 阶段的首个写接口连同 DTO 一起补充。
+- 本阶段已具备 mock Prisma/Redis 的 HTTP 集成测试。Testcontainers 的真实 PostgreSQL/Redis 集成测试与 server CI 是 Auth 开始前的质量收口项；不得将其误记为已完成。
+
 ## 6. 依赖和脚本
 
-精确版本在创建当天根据 Node 22、Nest 11 和 Fastify 实际兼容性由包管理器锁定，包名与职责必须遵守依赖目录。
+精确版本在创建当天根据 Node 22、Nest 11 和 Express 实际兼容性由包管理器锁定，包名与职责必须遵守依赖目录。
 
 `apps/server/package.json` 至少提供：
 
@@ -122,14 +141,14 @@ prisma:*   # generate / migrate / studio 等明确子命令
 1. 创建 `apps/server`、独立 TypeScript/Nest 配置和依赖清单。
 2. 创建 `compose.dev.yml`、环境模板及本地基础设施连接配置。
 3. 接入 Config、Pino、Prisma、Redis、Terminus、全局异常和 Swagger。
-4. 初始化 Prisma Schema 和首个 migration；只包含基础所需模型，不抢先实现业务领域。
+4. 初始化 Prisma Schema 和首个仅含 `pgcrypto` 扩展的 migration；不创建业务模型或业务领域表。
 5. 补齐脚本、README/AGENT、单元与基础 HTTP 验收。
 6. 验收后才进入 Auth → System/Menu → Content → File/Booklet → AI → Admin 的领域实施顺序。
 
 ## 8. 完成标准
 
 - `docker compose -f compose.dev.yml up -d` 成功启动四类本地依赖。
-- `pnpm --filter server dev` 能启动，且 `/api/v1` 下健康与 Swagger 路由可访问。
+- `pnpm --filter server dev` 能启动，且 `/api/v1/health/live`、`/api/v1/health/ready` 与开发 Swagger `/api/docs` 可访问。
 - Prisma migration、Redis readiness、格式检查、类型检查、测试和生产构建均通过。
 - 本地环境不需要真实 COS、SMTP、AI Key；Fake Provider 与 Mailpit 不泄露到生产配置。
 - 工程目录、脚本、环境变量、Compose 文件与本 PRD不一致时，必须先更新本 PRD及关联实施文档，再继续业务开发。

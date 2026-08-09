@@ -1,6 +1,6 @@
 # PRD 文档索引
 
-> 最后更新：2026-08-02
+> 最后更新：2026-08-08
 > 说明：本目录存放**可直接指导开发**的 PRD。文档已按 **React-first（当前）** 与 **长期全栈（未来 Next + React Admin + NestJS）** 分子目录存放。
 
 ---
@@ -35,7 +35,7 @@
 | [react-first/content-reading-prd.md](./react-first/content-reading-prd.md)                     | 阶段 2+         | ✅ 已完成         |
 | [react-first/content-workspace-prd.md](./react-first/content-workspace-prd.md)                 | 阶段 3+         | ✅ 已完成         |
 
-**阶段 6+ 入口**：NestJS 接入先读 [长期 Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md) 与 Canonical 文档；Next 抽离仍在启动对应阶段前另行补 PRD。
+**后端下一阶段入口**：Nest 阶段 0 基础实现已实施；开始 Auth 前须先收口 Testcontainers、readiness 故障自动化与 server CI，再读 [长期 Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md)、[Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档；Next 抽离仍在启动对应阶段前另行补 PRD。
 
 ---
 
@@ -45,7 +45,7 @@
 
 | 文档                                                                                 | 说明                                                                | 状态                           |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------ |
-| [long-term/nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | ✅ 已确认，下一阶段 Build 依据 |
+| [long-term/nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | 🟡 基础已实施；自动化质量收口待完成 |
 | [long-term/auth-rbac-session-prd.md](./long-term/auth-rbac-session-prd.md)           | 认证、会话、强制下线、RBAC 与数据范围                               | ✅ 已确认                      |
 | [long-term/system-config-menu-prd.md](./long-term/system-config-menu-prd.md)         | 公开配置、运营菜单与路由注册表                                      | ✅ 已确认                      |
 | [long-term/content-reading-domain-prd.md](./long-term/content-reading-domain-prd.md) | 内容生命周期、阅读、收藏、进度与版本快照                            | ✅ 已确认                      |
@@ -62,5 +62,5 @@
 ## 维护规则
 
 1. React-first 新 PRD 放入 `react-first/`；Next/Nest 相关放入 `long-term/`。
-2. 阶段 PRD 实施完成后，在 [../implementation/react-first/](../implementation/react-first/) 补实现说明。
+2. React-first 阶段 PRD 实施完成后，在 [../implementation/react-first/](../implementation/react-first/) 补实现说明；Nest 阶段在 [../implementation/foundation/](../implementation/foundation/) 或对应领域目录补实现说明。
 3. 决策变更时同步更新 [../react-first/roadmap.md](../react-first/roadmap.md) 与 product 文档。

@@ -11,10 +11,12 @@
 │   ├── docs-placement.md
 │   └── dev-workflow.md
 └── skills/
-    └── git-commit/
-        ├── SKILL.md          # 提交权威规范 + 执行流程
-        └── references/
-            └── examples.md
+    ├── git-commit/
+    │   ├── SKILL.md          # 提交权威规范 + 执行流程
+    │   └── references/
+    │       └── examples.md
+    └── task-quality-review/
+        └── SKILL.md          # 手动触发的 AI 开发任务质量评分
 ```
 
 ## 与其它目录的关系
@@ -31,5 +33,5 @@
 ## Agent 使用方式
 
 1. 打开任务时先读 `AGENTS.md` 与 `.agents/rules/*`
-2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`
+2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`；要求“执行任务质量评审”时，加载 `skills/task-quality-review/SKILL.md`
 3. 涉及 commit / push 时，**必须**加载 `skills/git-commit/SKILL.md`

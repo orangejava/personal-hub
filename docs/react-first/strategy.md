@@ -33,7 +33,7 @@ React-first 不改变这些长期结论：
 
 | 维度 | 长期结论 |
 |---|---|
-| 后端 API | NestJS + Fastify + Swagger |
+| 后端 API | NestJS + Express + Swagger |
 | 数据库 | PostgreSQL 16 |
 | 缓存 | Redis 7 |
 | ORM | Prisma |

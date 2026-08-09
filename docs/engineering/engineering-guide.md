@@ -2,7 +2,7 @@
 
 > 面向开发者的环境搭建、目录规范、命名约定、核心决策规则。开始编码前必读。
 >
-> **阅读提示**：当前可运行应用是 `apps/react-web`。文中 Next.js / NestJS / Docker 内容属于长期目标，不能作为当前环境的启动步骤。
+> **阅读提示**：当前可运行应用是 `apps/react-web` 与阶段 0 `apps/server`。Next.js 仍是长期目标；Nest 本地依赖通过 Compose 启动，服务在宿主机热更新。
 
 ---
 
@@ -12,7 +12,7 @@
 | ----------------------- | -------- | ---------------------------------------- |
 | Node.js                 | ≥ 22 LTS | 使用 `.nvmrc` 锁定，建议 `nvm use`       |
 | pnpm                    | ≥ 9      | 包管理器，`npm i -g pnpm`                |
-| Docker + Docker Compose | 可选     | 进入 NestJS 阶段后用于 PostgreSQL、Redis |
+| Docker + Docker Compose | Nest 开发必需 | 运行 PostgreSQL、Redis、MinIO 与 Mailpit；仅 React mock 开发可不安装 |
 | Git                     | 任意     | —                                        |
 
 ---
@@ -34,16 +34,17 @@ pnpm dev:react
 
 - React Web（公开前台、工作区、后台和 AI mock）：http://localhost:8000
 
-当前阶段不需要 `apps/next-web`、`apps/server`、数据库、Docker 或环境变量文件；这些目录尚未创建。
+React mock 开发不需要 `apps/next-web`、数据库、Docker 或 server 环境变量；`apps/server` 已完成阶段 0，按下一节单独启动。
 
 ---
 
-## 后续 Nest 开发入口
+## Nest 阶段 0 本地开发入口
 
-> `apps/server` 尚未创建时，不能把本节当作当前启动步骤。创建后端时，以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为 Build 依据，并遵循 [后端实现约定](../backend/conventions.md)、[依赖目录](./nest-dependency-catalog.md) 与 [Compose 策略](../deploy/nest-compose-strategy.md)。
+> 阶段 0 已落地。实现细节见 [Nest Server 实现记录](../implementation/foundation/nest-server-bootstrap.md)；需求与验收边界仍以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为准。
 
+- 复制 `apps/server/.env.example` 为 `apps/server/.env.local` 后，执行 `docker compose -f compose.dev.yml up -d`、`pnpm --filter server prisma:generate`、`pnpm --filter server prisma:deploy` 与 `pnpm dev:server`。
 - 目录固定为 `apps/server`，本地使用 `pnpm --filter server dev` 在宿主机热更新。
-- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；测试使用 Testcontainers，不复用开发卷。
+- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷，但真实基础设施测试、readiness 故障自动化和 server CI 仍是 Auth 开始前的质量收口项。
 - 全局 API 前缀为 `/api/v1`；旧 React mock `/api/*` 仅作迁移线索。
 - 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
 - MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。
@@ -97,7 +98,7 @@ SMTP_FROM="noreply@yourdomain.com"
 # ── 服务配置 ─────────────────────────────────────
 PORT=3001
 NODE_ENV=development
-CORS_ORIGIN="http://localhost:3000"
+CORS_ORIGIN="http://localhost:8000"
 
 # ── 后台管理默认账号（seed 用，生产另行生成）────
 # React mock 环境见 docs/engineering/dev-credentials.md
@@ -171,16 +172,17 @@ apps/next-web/
 └── public/                     ← 静态资源
 ```
 
-### apps/server（NestJS，未来）
+### apps/server（NestJS，阶段 0 已落地）
 
 ```
 apps/server/
 ├── src/
-│   ├── main.ts                 ← 应用入口，Fastify 适配器配置
+│   ├── main.ts                 ← 创建应用、读取配置并监听端口
+│   ├── bootstrap.ts            ← Express middleware、全局管道、Swagger 与 HTTP 横切配置
 │   ├── app.module.ts           ← 根模块
 │   ├── infrastructure/         ← Prisma、Redis、Storage、Queue、日志实现
 │   ├── modules/                ← 业务模块（每模块独立目录）
-│   │   └── auth/
+│   │   └── auth/               ← Auth 阶段按需新增的领域模块示例
 │   │       ├── auth.module.ts
 │   │       ├── auth.controller.ts
 │   │       ├── auth.service.ts
@@ -200,7 +202,7 @@ apps/server/
 │   ├── schema.prisma
 │   ├── migrations/
 │   └── seed.ts
-└── .env
+└── .env.local                  ← 本机私有环境文件，不提交
 ```
 
 ---
@@ -334,22 +336,20 @@ pnpm --filter react-web sync:booklets  # 同步本地小册 mock
 
 ---
 
-## Prisma 常用命令（未来 apps/server 创建后启用）
+## Prisma 常用命令（当前 apps/server）
 
 ```bash
-cd apps/server
-
 # 创建迁移（开发时，修改 schema 后执行）
-pnpm prisma migrate dev --name add_xxx_field
+pnpm --filter server prisma:migrate -- --name add_xxx_field
 
 # 应用迁移（生产）
-pnpm prisma migrate deploy
+pnpm --filter server prisma:deploy
 
 # 重置数据库（开发）
-pnpm prisma migrate reset
+pnpm --filter server exec dotenv -e .env.local -- prisma migrate reset
 
 # 打开 Prisma Studio（图形化查看数据）
-pnpm prisma studio
+pnpm --filter server prisma:studio
 
 # 重新生成 Prisma Client（修改 schema 后）
 pnpm prisma generate

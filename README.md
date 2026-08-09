@@ -4,7 +4,7 @@
 
 ## 当前阶段
 
-React-first：`apps/react-web`（Umi + Ant Design Pro + mock）。
+React-first：`apps/react-web`（Umi + Ant Design Pro + mock）；Nest 阶段 0：`apps/server`（Express + Prisma + Redis）。
 
 ## 本地启动
 
@@ -14,6 +14,18 @@ pnpm sync:booklets   # 需本地 content-local/（不进 Git）
 pnpm dev:react
 ```
 
+### Nest 阶段 0（本地）
+
+```bash
+cp apps/server/.env.example apps/server/.env.local
+docker compose -f compose.dev.yml up -d
+pnpm --filter server prisma:generate
+pnpm --filter server prisma:deploy
+pnpm dev:server
+```
+
+详细说明见 [apps/server/README.md](apps/server/README.md)。
+
 ## 文档
 
 - [项目总纲](docs/overview.md)
@@ -22,4 +34,4 @@ pnpm dev:react
 - [Git 提交 skill](.agents/skills/git-commit/SKILL.md)
 - [部署文档入口](docs/deploy/README.md)
 - [个人远程阅读方案](docs/deploy/personal-remote-reading.md)
-- [部署一页速查](docs/deploy/server-deployment-guide.md)
+- [React 远程部署速查](docs/deploy/server-deployment-guide.md)

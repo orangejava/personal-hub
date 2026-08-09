@@ -9,7 +9,7 @@
 ## 1. 版本治理
 
 - 设计阶段固定“包名、职责、组合边界”，不凭空锁定未来精确版本。
-- 创建 `apps/server` 当天，根据 Node 22、Nest 11、Prisma、Fastify 的实际兼容性选择稳定版本。
+- 创建 `apps/server` 当天，根据 Node 22、Nest 11、Prisma、Express 的实际兼容性选择稳定版本。
 - 精确版本以 `apps/server/package.json` 和根 `pnpm-lock.yaml` 为唯一事实来源。
 - `apps/server` 使用独立 Node tsconfig；不得继承 React 的 DOM/JSX/Bundler tsconfig。
 - Nest CLI 使用 SWC 构建，CI 额外执行 `tsc --noEmit`。
@@ -18,7 +18,7 @@
 
 | 类别       | 首选包                                                       | 用途                                | 禁止/避免                                           |
 | ---------- | ------------------------------------------------------------ | ----------------------------------- | --------------------------------------------------- |
-| 框架       | `@nestjs/core`、`@nestjs/common`、`@nestjs/platform-fastify` | Nest 11 + Fastify                   | 不引入 Express 适配器                               |
+| 框架       | `@nestjs/core`、`@nestjs/common`、`@nestjs/platform-express` | Nest 11 + Express                   | 不混入 Fastify 适配器                               |
 | 配置       | `@nestjs/config`、`zod`                                      | 环境加载和启动时校验                | 不手写分散 env 判断                                 |
 | API        | `@nestjs/swagger`                                            | DTO/Controller 生成 OpenAPI         | 不手工维护第二份 API 类型                           |
 | DTO        | `class-validator`、`class-transformer`                       | HTTP DTO 与 ValidationPipe          | 不在 HTTP DTO 混用 Zod                              |
@@ -28,8 +28,8 @@
 | 队列       | `@nestjs/bullmq`、`bullmq`                                   | 重试、延迟、重复任务、Worker        | 不用旧 Bull 或自研 Redis 队列                       |
 | JWT        | `@nestjs/jwt`                                                | JWT 签发/验签                       | 不为当前 JWT-only 模型引入 Passport                 |
 | 密码       | `argon2`                                                     | Argon2id 哈希                       | 不降级保存明文/可逆密码                             |
-| Cookie     | `@fastify/cookie`                                            | Refresh Cookie                      | 不使用前端 localStorage 存 Refresh                  |
-| 安全       | `@fastify/helmet`、`@fastify/cors`                           | Header、明确来源 CORS               | 不设 `Access-Control-Allow-Origin: *` + credentials |
+| Cookie     | `cookie-parser`                                               | Refresh Cookie                      | 不使用前端 localStorage 存 Refresh                  |
+| 安全       | `helmet`、`cors`                                              | Header、明确来源 CORS               | 不设 `Access-Control-Allow-Origin: *` + credentials |
 | 认证验证码 | `svg-captcha`                                                | 服务端生成一次性 SVG/算术登录验证码 | 不把答案或可复用校验状态交给前端                    |
 | TOTP       | `otplib`                                                     | 认证器动态码校验与绑定 URI          | 不保存明文 TOTP 密钥或恢复码                        |
 | 日志       | `nestjs-pino`、`pino`、开发期 `pino-pretty`                  | JSON 日志、requestId、脱敏          | Docker 生产不写应用日志文件                         |
@@ -42,7 +42,7 @@
 
 ### 3.1 HTTP 与 OpenAPI
 
-- Fastify 与 `@nestjs/swagger` 是唯一 HTTP/文档组合。
+- Express 与 `@nestjs/swagger` 是当前唯一 HTTP/文档组合。
 - Swagger 仅在开发和预发布环境开放；生产默认关闭或置于受保护入口。
 - Nest DTO 是 OpenAPI 来源；生成的独立 API Client/类型供 React、Next、Flutter 使用。
 - `packages/shared-types` 只保留非 HTTP 的领域常量/类型，`apps/server` 不把它当运行时 DTO 依赖。
@@ -60,7 +60,7 @@
 
 - 基础 S3 Provider 统一通过 AWS SDK v3 访问 MinIO/COS。
 - 上传是预签名直传，首版通常不需要服务端 multipart body，因此不要无目的引入重型上传中间件。
-- 当确实需要服务端接收小型表单文件时再评估 `@fastify/multipart`。
+- 当确实需要服务端接收小型表单文件时再评估 Multer 与 Nest 文件上传模块。
 - `sharp` 仅在头像/封面缩略图真实需求进入实现批次后引入；不提前安装。
 
 ### 3.4 AI 与外部服务
@@ -95,7 +95,7 @@
 
 | 依赖/能力            | 引入条件                                 |
 | -------------------- | ---------------------------------------- |
-| `@fastify/multipart` | 需要 Nest 代理接收小型 multipart 文件    |
+| `multer`             | 需要 Nest 代理接收小型 multipart 文件    |
 | `sharp`              | 实现头像/封面裁剪和缩略图                |
 | 全文搜索引擎         | PostgreSQL FTS 确认不足后                |
 | 邮件模板引擎         | 纯文本/简单 HTML 模板无法满足运营需求后  |

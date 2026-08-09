@@ -4,6 +4,7 @@
 > 最后更新：2026-08-02
 > 已过期：Refresh Token 响应体/localStorage、生产 MinIO、AI 仅 Mock、`ApiResponse.code`、服务端直接依赖 shared-types。
 > 当前实现基线：[后端实现约定](../backend/conventions.md)、[Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md)。
+> **当前项目已迁移至 NestJS + Express；本文内 Fastify 内容仅记录历史，不作为后续开发依据。**
 
 > **命名**：后端应用目录为 **`apps/server`**（全端共用，不用 `apps/api`）。HTTP 仅使用 [Canonical API](../backend/canonical-api.md) 定义的 `/api/v1` 前缀；下文旧路径仅保留历史背景。
 

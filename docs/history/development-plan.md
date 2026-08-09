@@ -143,6 +143,8 @@ pnpm build
 
 ### 子任务
 
+> **历史说明**：本节的 `apps/api` 与 Fastify 描述已被当前 `apps/server` + Express 实现取代，仅用于追溯原计划。
+
 1. 初始化根目录工程配置：`pnpm-workspace`、`turbo`、TS、ESLint、Prettier。
 2. 创建 `apps/web`，完成 Next.js App Router 基础工程。
 3. 创建 `apps/api`，完成 NestJS + Fastify 基础工程。

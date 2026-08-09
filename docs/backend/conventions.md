@@ -19,6 +19,12 @@ Nest 是所有客户端共用的后端，不依赖当前 React 路由：
 apps/server
 ```
 
+### 1.1 HTTP 适配器与启动层边界
+
+- 当前 HTTP 组合固定为 **Nest 11 + `@nestjs/platform-express`**；包版本与 middleware 组合以 [Nest 依赖目录](../engineering/nest-dependency-catalog.md) 为准。
+- `requestId`、Cookie、Helmet、CORS、Swagger 和 Express `req/res` 只允许存在于启动层或基础设施层；Controller、Service、Repository 不得依赖适配器对象。
+- 生产与开发的 CORS、Cookie 及安全边界遵循本文件与对应领域 PRD；历史 Fastify 资料仅用于追溯，不构成实现输入。
+
 统一路径前缀为 `/api/v1`：
 
 | 分区   | 路径        | 适用客户端 | 含义                            |

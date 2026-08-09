@@ -172,7 +172,7 @@ git remote set-url origin git@gitee.com:oralemon/personal-hub.git
 | --------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------- |
 | `apps/react-web/`                                   | Umi dev + mock，端口 **8000**                        | `pnpm build:react` → `dist/`，Nginx 托管 |
 | `packages/shared-types/`                            | 前后端共享类型                                       | API DTO 与前端 service 契约              |
-| `apps/server/`                                      | **尚未创建**                                         | NestJS + Prisma + PostgreSQL             |
+| `apps/server/`                                      | 阶段 0 已创建；本地 Express + Prisma + Redis 可运行 | 后续 Auth 与领域 API                     |
 | `apps/next-web/`                                    | 未创建                                               | 阶段 C SEO 页                            |
 | `ecosystem.config.js`                               | PM2 进程 `personal-hub-dev`；显式监听 `0.0.0.0:8000` | 阶段 A 继续使用或下线                    |
 | `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描 `content-local/` 生成 mock                      | 本地开发保留；生产改 API                 |
@@ -292,7 +292,7 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 > **已过期，禁止按本节操作**：下文 `apps/api`、PM2 API、`/api/*`、COS 数据库备份与生产 MinIO 的约定已经被替代。Nest 阶段的唯一部署依据是 [Nest Compose 策略](./nest-compose-strategy.md)，应用目录为 `apps/server`，API 前缀为 `/api/v1`。
 
-> 代码尚未创建；以下为目录与服务 **增量**，不要求搬迁阶段 A 数据。
+> `apps/server` 阶段 0 已创建；以下仍是**已过期**的目录与服务增量草案，不要求搬迁阶段 A 数据。
 
 ### 6.1 新增组件
 

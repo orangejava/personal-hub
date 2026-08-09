@@ -37,7 +37,7 @@
 | Web 服务端数据   | Next.js Server Component + fetch           | ✅ SEO 页面优先                         |
 | Web 客户端数据   | TanStack Query v5                          | ✅ 交互页面优先                         |
 | Web 客户端状态   | Zustand                                    | ✅ 轻量全局状态                         |
-| 后端 API         | NestJS + Fastify Adapter                   | ✅ 主后端框架                           |
+| 后端 API         | NestJS + Express Adapter                   | ✅ 主后端框架                           |
 | ORM              | Prisma                                     | ✅ 主数据访问层                         |
 | API 文档         | Swagger / OpenAPI                          | ✅ 必选                                 |
 | 数据库           | PostgreSQL 16                              | ✅ 主数据库                             |
@@ -374,7 +374,7 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ---
 
-### 4.2 HTTP 适配器：Fastify
+### 4.2 HTTP 适配器：Express
 
 **使用范围**：
 
@@ -384,14 +384,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **推荐理由**：
 
-- 性能优于 Express。
-- 对流式响应和高并发接口更友好。
-- 与 NestJS 的 `@nestjs/platform-fastify` 可稳定集成。
+- middleware 生态成熟，Cookie、安全头、第三方 SDK 的示例和接入方式更普遍。
+- 与 NestJS 的 `@nestjs/platform-express` 稳定集成，适合当前阶段维护与学习。
+- AI 流式能力由 Nest SSE、取消处理、代理超时和并发策略共同保障，不把 HTTP 框架基准吞吐当作首要优化点。
 
 **使用边界**：
 
-- 文件上传需要注意 Fastify 生态下的 multipart 方案，不直接照搬 Express + multer 示例。
-- 中间件和插件接入时优先查 NestJS + Fastify 的组合写法。
+- 文件上传默认使用预签名直传；需要服务端接收文件时再评估 Nest + Multer 的边界。
+- middleware 接入遵循 NestJS + Express 的组合写法，避免 Controller 直接耦合原生响应对象。
 
 ---
 
@@ -646,7 +646,7 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 | 工作区     | Client Component + TanStack Query + Zustand + shadcn/ui | 用 Zustand 缓存所有服务端数据     |
 | AI 工具页  | Client Component + SSE + TanStack Query                 | 每个 token 都做复杂 Markdown 高亮 |
 | 后台管理台 | Ant Design + Pro Components                             | 单独起 Ant Design Pro 工程        |
-| 后端 API   | NestJS + Fastify + Prisma                               | Next.js API Routes 承载核心业务   |
+| 后端 API   | NestJS + Express + Prisma                               | Next.js API Routes 承载核心业务   |
 | 权限控制   | NestJS Guard + RBAC                                     | 只靠前端按钮隐藏                  |
 | 移动端     | Flutter + Dio + Riverpod                                | 单独建移动端专用 API              |
 | 工程组织   | Turborepo + pnpm workspace                              | 多仓库过早拆分                    |
@@ -756,16 +756,16 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 | ------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------- | ------ | ------------------- |
 | NestJS             | 模块化、依赖注入、Guard、Pipe、Interceptor、Swagger 集成完善，适合中大型后端 | 学习成本高于 Express / Fastify 纯框架                | 高     | ✅ 选择             |
 | Express            | 简单自由，资料多                                                             | 缺少结构约束，模块多后容易散，权限和校验需要自行组织 | 中     | 不作为主选          |
-| Fastify            | 性能好，插件体系成熟                                                         | 单独使用时仍需自己组织模块、DI、Swagger、权限结构    | 中     | 作为 NestJS Adapter |
+| Fastify            | 性能好，插件体系成熟                                                         | 单独使用时仍需自己组织模块、DI、Swagger、权限结构    | 中     | 后续压测出现明确瓶颈时再评估 |
 | Hono               | 轻量、现代、适合边缘运行                                                     | 对复杂 RBAC、后台、AI、文件、日志等完整系统约束不足  | 中     | 不作为主选          |
 | Next.js API Routes | 前后端一体，轻量接口方便                                                     | Flutter 复用、后台复杂接口、模块化扩展不占优         | 低     | 不承载核心业务      |
 | tRPC               | 类型体验极佳                                                                 | Flutter 不直接受益，OpenAPI 通用性弱于 REST          | 中     | 不作为主 API 方案   |
 
-最终选择 NestJS + Fastify Adapter 的原因：
+最终选择 NestJS + Express Adapter 的原因：
 
 - 后端模块多，用户也希望预留更多扩展性。
 - 认证、RBAC、内容、AI、文件、日志都适合 NestJS 模块化。
-- Fastify Adapter 兼顾性能和 SSE 流式响应。
+- 当前尚未出现 HTTP 层高并发瓶颈，优先选择成熟 middleware 生态和较低的适配成本。
 
 ---
 
@@ -887,7 +887,7 @@ Flutter 配套选择：
 | CSS        | Tailwind CSS                 | 与 shadcn/ui 和主题变量匹配           |
 | 服务端状态 | RSC + fetch / TanStack Query | SEO 页面和交互页面分工清晰            |
 | 客户端状态 | Zustand                      | 简单轻量，足够支撑全局状态            |
-| 后端       | NestJS + Fastify             | 模块化、扩展性、Swagger、SSE 兼顾     |
+| 后端       | NestJS + Express             | 模块化、扩展性、Swagger 与成熟 middleware 生态 |
 | ORM        | Prisma                       | 类型安全，适合学习和快速建模          |
 | 数据库     | PostgreSQL                   | 内容系统、JSONB、全文搜索适配度高     |
 | 缓存       | Redis                        | 限流、缓存、阅读数去重、会话辅助      |
@@ -906,7 +906,7 @@ Flutter 配套选择：
 
 - Turborepo + pnpm workspace
 - Next.js 15
-- NestJS + Fastify
+- NestJS + Express
 - Prisma
 - PostgreSQL + Redis Docker Compose
 - shared-types

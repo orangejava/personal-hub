@@ -69,9 +69,9 @@
 常用命令：
 
 ```bash
-pnpm --filter api prisma migrate dev
-pnpm --filter api prisma generate
-pnpm --filter api prisma studio
+pnpm --filter server prisma:migrate
+pnpm --filter server prisma:generate
+pnpm --filter server prisma:studio
 ```
 
 ---

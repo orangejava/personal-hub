@@ -1,7 +1,7 @@
 # NestJS Docker Compose 开发与生产策略
 
-> 状态：🟢 已确认，待 `apps/server` 脚手架阶段落地 Compose/Dockerfile
-> 最后更新：2026-08-02
+> 状态：🟡 本地 `compose.dev.yml` 已随阶段 0 落地；生产 Dockerfile / 全栈 Compose 待后续部署阶段实施
+> 最后更新：2026-08-08
 > 关联：[后端实现约定](../backend/conventions.md)、[小册与文件 PRD](../prd/long-term/content-booklet-file-prd.md)
 
 ---
@@ -18,7 +18,7 @@
 
 ## 2. 本地开发
 
-计划中的 `compose.dev.yml`：
+已落地的 `compose.dev.yml`：
 
 | 服务           | 作用                                |
 | -------------- | ----------------------------------- |

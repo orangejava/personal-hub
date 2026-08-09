@@ -22,7 +22,7 @@
 | ----------------- | ------------------------------------------------------- | ----------------------------------------------------- |
 | Web 前台 + 工作区 | **Next.js 15 + Tailwind CSS v4**                        | App Router，兼顾 SSR 与内容展示                       |
 | 后台管理          | **Ant Design + @ant-design/pro-components**             | 在 Next.js 内嵌使用，不单独起工程                     |
-| 后端 API          | **NestJS（`apps/server`）+ Fastify + Prisma + Swagger** | TypeScript 全栈统一；统一 `/api/v1`                   |
+| 后端 API          | **NestJS（`apps/server`）+ Express + Prisma + Swagger** | TypeScript 全栈统一；统一 `/api/v1`                   |
 | 数据库            | **PostgreSQL 16**                                       | JSON 字段能力强，支持全文搜索                         |
 | 缓存与异步        | **Redis 7 + ioredis + BullMQ / Outbox**                 | 会话、缓存、限流、队列；可靠异步投递                  |
 | 文件存储          | **AWS SDK v3 S3 Provider**                              | 本地 Compose 用 MinIO；生产唯一业务对象存储为腾讯 COS |
@@ -112,7 +112,7 @@ React-first 详细路线见 [../react-first/README.md](../react-first/README.md)
 
 | 范畴        | 已确认决策                                                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 应用与 HTTP | `apps/server`、Nest 11 + Fastify、全局 `/api/v1`；HTTP DTO/运行时校验留在 server                                                |
+| 应用与 HTTP | `apps/server`、Nest 11 + Express、全局 `/api/v1`；HTTP DTO/运行时校验留在 server                                                |
 | 认证        | JWT-only：`@nestjs/jwt`，密码使用 Argon2id；当前不引入 Passport                                                                 |
 | Redis       | `ioredis` 由项目 `RedisService` / `CacheService` 封装；通用限流接入项目自定义 `ThrottlerStorage`，不锁定第三方 Redis storage 包 |
 | 异步        | `@nestjs/bullmq + BullMQ`；业务写入与 `outbox_events` 同事务，dispatcher 投递队列，worker 幂等消费                              |
@@ -129,7 +129,7 @@ React-first 详细路线见 [../react-first/README.md](../react-first/README.md)
 | 库                           | 用途            | 说明                                                 |
 | ---------------------------- | --------------- | ---------------------------------------------------- |
 | **@nestjs/core + common**    | NestJS 框架核心 | —                                                    |
-| **@nestjs/platform-fastify** | HTTP 适配器     | Fastify 替代 Express，性能更好；SSE 流式输出支持更好 |
+| **@nestjs/platform-express** | HTTP 适配器     | 使用成熟 middleware 生态；当前规模下优先降低接入与维护复杂度 |
 | **@nestjs/jwt + passport**   | 早期 JWT 设想   | 已由 JWT-only + `@nestjs/jwt` 替代；不安装 Passport  |
 | **@nestjs/throttler**        | 限流            | 防止接口滥用（登录/注册/AI 试用）                    |
 | **@nestjs/swagger**          | API 文档        | 自动生成 Swagger UI，开发环境可访问 `/api/docs`      |
@@ -156,7 +156,7 @@ React-first 详细路线见 [../react-first/README.md](../react-first/README.md)
 
 | 库         | 用途             | 说明                                                     |
 | ---------- | ---------------- | -------------------------------------------------------- |
-| **multer** | 早期文件上传设想 | 默认预签名直传；确需服务端接收时再评估 Fastify multipart |
+| **multer** | 早期文件上传设想 | 默认预签名直传；确需服务端接收时再评估 Express 文件上传边界 |
 | **minio**  | 早期 MinIO SDK   | 统一改用 AWS SDK v3；生产使用 COS                        |
 | **sharp**  | 图片处理         | 头像上传后压缩、裁剪                                     |
 
@@ -183,12 +183,12 @@ monorepo（Turborepo 管理）
 ├── apps/
 │   ├── react-web/    ← React-first 首版 Web（React + Umi + Ant Design Pro）
 │   ├── next-web/     ← 后续 Next.js（公开前台 + 内容阅读等 SEO 页面）
-│   └── server/       ← NestJS（统一后端 API，后续接入）
+│   └── server/       ← NestJS + Express（阶段 0 已落地，后续接入领域模块）
 └── packages/
     └── shared-types/ ← 前后端共享 TypeScript 类型与 zod Schema
 ```
 
-> 当前阶段先创建 `apps/react-web` 与 `packages/shared-types`。后续创建 `apps/next-web` 与 `apps/server`；React mock 保持阶段 A 可用，但它的旧 `/api/*` 路径不是 Nest API 规范。
+> 当前已创建 `apps/react-web`、`packages/shared-types` 与 `apps/server`；后续创建 `apps/next-web` 并在 server 中接入领域模块。React mock 保持阶段 A 可用，但它的旧 `/api/*` 路径不是 Nest API 规范。
 
 ---
 
@@ -199,7 +199,7 @@ monorepo（Turborepo 管理）
 - **两套 UI 库共存**：公开前台 + 工作区用 shadcn/ui（Tailwind 定制），后台用 Ant Design（表格/表单效率优先），按路由前缀区分，无冲突
 - **TanStack Query + Zustand 搭配**：Query 管服务端数据，Zustand 管客户端状态，职责清晰不混用
 - Next.js RSC 策略：SEO 重要页面（首页、内容阅读、关于我）用 Server Component；交互密集页面（AI 工具、工作区）用 Client Component + TanStack Query
-- NestJS 优先 Fastify 适配器：SSE 流式输出（AI 对话）对 HTTP 层性能敏感
+- NestJS 使用 Express 适配器：当前优先采用成熟 middleware 生态；AI 流式的主要瓶颈仍是上游模型与网络，后续依据压测决定优化路径
 - PostgreSQL 优先于 MySQL：JSON 字段支持更好、全文搜索更强、适合内容管理系统半结构化数据
 
 ---

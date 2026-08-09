@@ -20,6 +20,7 @@
 | `docs/deploy/` | **部署 / 上线 / 备份 / 服务器目录** | 产品需求、页面交互 PRD |
 | `docs/implementation/` | **已落地**实现说明、调用链 | 未实施的方案稿、纯 PRD |
 | `docs/completed/` | 进度台账（只做索引） | 长实现文（链到 implementation） |
+| `docs/history/` | 已被替代的完整决策、方案与复盘 | 当前开发依据、可执行部署命令 |
 | `.agents/` | 跨工具 rules / skills | 产品长文 |
 | `study/`（仓库根） | 可复用学习笔记 / 手册 | 项目契约的唯一真相源 |
 
@@ -35,6 +36,7 @@
 | 未做完的方案写成 `implementation/` | 先放 `prd/` 或 `deploy/` 方案稿 |
 | 同一主题复制两份长文 | 一份权威 + 别处短链 |
 | 新增文档不更新索引 | 必须更新本目录 README 或 `overview.md` |
+| 将过期方案保留在当前目录 | 移至 `docs/history/`，并在文首注明替代依据 |
 
 ---
 

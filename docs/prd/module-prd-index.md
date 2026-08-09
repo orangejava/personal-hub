@@ -62,15 +62,15 @@ PRD 按实施路线分为两组，**不要混读**：
 
 | 文档                                                                       | 状态      | 说明                                                                     |
 | -------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------ |
-| [nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | ✅ 已确认 | `apps/server`、本地依赖 Compose、Prisma、Redis、Health、Swagger          |
+| [nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | ✅ 阶段 0 已实施 | `apps/server`、本地依赖 Compose、Prisma、Redis、Health、Swagger          |
 | [bootstrap-prd.md](./react-first/bootstrap-prd.md)                         | 🟡 已补充 | React-first 工程初始化：`apps/react-web`、Ant Design Pro、mock、共享类型 |
 | [phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md)   | ✅ 已实施 | React-first 阶段 0-3 一次性实施计划                                      |
 | [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充 | React-first 阶段 4：后台运营、PDF/Word 预览                              |
-| [agent-file-templates.md](../engineering/agent-file-templates.md)          | ✅ 已补充 | 目录级 AGENT 模板；创建 `apps/server` 时按实际结构补充                   |
+| [agent-file-templates.md](../engineering/agent-file-templates.md)          | ✅ 已补充 | 目录级 AGENT 模板；后续领域模块按实际结构补充                            |
 
 优先级：P0。
 
-原因：当前项目还没有工程骨架，后续所有功能都依赖它。当前实施顺序优先按 React-first 初始化推进，长期 Next.js + NestJS 工程骨架仍保留为后续目标。
+原因：React-first 与 Nest 阶段 0 骨架均已落地；后续所有真实后端模块依赖现有 Express、Prisma、Redis、Health 与质量入口。Next.js 工程仍保留为后续目标。
 
 ---
 

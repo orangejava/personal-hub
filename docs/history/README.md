@@ -14,6 +14,7 @@
 | 文档                                                           | 原用途                     | 当前替代依据                                        |
 | -------------------------------------------------------------- | -------------------------- | --------------------------------------------------- |
 | [nest-backend-architecture.md](./nest-backend-architecture.md) | Nest 早期架构与技术取舍    | Nest Server 脚手架 PRD、Canonical 后端文档          |
+| [nest-fastify-stage0-retrospective.md](./nest-fastify-stage0-retrospective.md) | Fastify 阶段 0 排障与迁移背景 | Express 技术栈、依赖目录、阶段 0 实现记录 |
 | [development-plan.md](./development-plan.md)                   | React-first 阶段执行手册   | React-first 路线图；Nest 开发顺序以长期 PRD 为准    |
 | [mvp-roadmap.md](./mvp-roadmap.md)                             | MVP 阶段排期               | 已完成台账与当前长期 PRD                            |
 | [admin-content-config-prd.md](./admin-content-config-prd.md)   | 后台 UI 字段和运营交互参考 | Canonical API、数据模型、后台治理与系统配置菜单 PRD |

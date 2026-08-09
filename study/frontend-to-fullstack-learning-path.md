@@ -231,7 +231,7 @@ Ant Design Pro / Dockerfile / CI/CD / Nginx
 ### 目标
 
 - 本机环境可用
-- `apps/web`、`apps/api`、`packages/shared-types` 结构清楚
+- `apps/react-web`、`apps/server`、`packages/shared-types` 结构清楚
 - 可以同时跑起 Web / API / PostgreSQL / Redis
 
 ### 重点学习
@@ -263,8 +263,8 @@ Ant Design Pro / Dockerfile / CI/CD / Nginx
 
 1. 跑通本地环境校验
 2. 初始化根目录工程
-3. 初始化 `apps/web`
-4. 初始化 `apps/api`
+3. 熟悉已存在的 `apps/react-web`
+4. 熟悉已存在的 `apps/server`
 5. 初始化 `packages/shared-types`
 6. 跑起 PostgreSQL 和 Redis
 7. 跑起 `pnpm dev`
@@ -276,16 +276,16 @@ pnpm init
 pnpm install
 pnpm dev
 pnpm --filter web dev
-pnpm --filter api start:dev
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
-docker compose -f docker-compose.dev.yml logs
+pnpm --filter server dev
+docker compose -f compose.dev.yml up -d
+docker compose -f compose.dev.yml ps
+docker compose -f compose.dev.yml logs
 ```
 
 ### 这一阶段做到什么程度就够
 
 - 能解释 Monorepo 基本结构
-- 能看懂 `apps/web` 和 `apps/api` 的分工
+- 能看懂 `apps/react-web` 和 `apps/server` 的分工
 - 能自己启动和关闭本地依赖服务
 - 不需要现在就深入研究 Turborepo 缓存细节
 
@@ -330,8 +330,8 @@ docker compose -f docker-compose.dev.yml logs
 ### 常用命令
 
 ```bash
-pnpm --filter web dev
-pnpm --filter api start:dev
+pnpm dev:react
+pnpm --filter server dev
 ```
 
 ### 这一阶段做到什么程度就够
@@ -384,10 +384,10 @@ pnpm --filter api start:dev
 ### 常用命令
 
 ```bash
-pnpm --filter api prisma migrate dev --name init_auth
-pnpm --filter api prisma generate
-pnpm --filter api prisma studio
-pnpm --filter api start:dev
+pnpm --filter server prisma:migrate -- --name init_auth
+pnpm --filter server prisma:generate
+pnpm --filter server prisma:studio
+pnpm --filter server dev
 ```
 
 ### 这一阶段做到什么程度就够
@@ -439,9 +439,9 @@ pnpm --filter api start:dev
 ### 常用命令
 
 ```bash
-pnpm --filter web dev
-pnpm --filter api start:dev
-pnpm --filter api prisma migrate dev --name add_content_system
+pnpm dev:react
+pnpm --filter server dev
+pnpm --filter server prisma:migrate -- --name add_content_system
 ```
 
 ### 这一阶段做到什么程度就够
@@ -490,9 +490,9 @@ pnpm --filter api prisma migrate dev --name add_content_system
 
 ```bash
 redis-cli ping
-docker compose -f docker-compose.dev.yml logs -f
-pnpm --filter api start:dev
-pnpm --filter web dev
+docker compose -f compose.dev.yml logs -f
+pnpm --filter server dev
+pnpm dev:react
 ```
 
 ### 这一阶段做到什么程度就够
@@ -709,8 +709,8 @@ pnpm --filter web build
 ### 常用命令
 
 ```bash
-pnpm --filter api start:dev
-pnpm --filter api test
+pnpm --filter server dev
+pnpm --filter server test
 ```
 
 ---
@@ -749,9 +749,9 @@ pnpm --filter api test
 ### 常用命令
 
 ```bash
-pnpm --filter api prisma migrate dev
-pnpm --filter api prisma generate
-pnpm --filter api prisma studio
+pnpm --filter server prisma:migrate
+pnpm --filter server prisma:generate
+pnpm --filter server prisma:studio
 psql --version
 ```
 
@@ -826,10 +826,10 @@ redis-cli
 
 ```bash
 docker run hello-world
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
-docker compose -f docker-compose.dev.yml logs
-docker compose -f docker-compose.dev.yml down
+docker compose -f compose.dev.yml up -d
+docker compose -f compose.dev.yml ps
+docker compose -f compose.dev.yml logs
+docker compose -f compose.dev.yml down
 ```
 
 ---

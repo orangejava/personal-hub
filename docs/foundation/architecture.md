@@ -27,7 +27,7 @@ flowchart LR
     Visitor["访客 / 注册用户"] --> ReactWeb["apps/react-web<br/>React + Umi"]
     Admin["管理员"] --> ReactWeb
     Visitor --> NextWeb["apps/next-web<br/>Next.js 15（后续）"]
-    Mobile["Flutter App"] --> Api["apps/server<br/>NestJS + Fastify<br/>/api/v1"]
+    Mobile["Flutter App"] --> Api["apps/server<br/>NestJS + Express<br/>/api/v1"]
     ReactWeb --> Api
     NextWeb --> Api
     Api --> Db[("PostgreSQL 16")]

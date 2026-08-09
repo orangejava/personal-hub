@@ -40,6 +40,9 @@
 
 ## 4. 已有文档
 
+- [nest-http-adapter-comparison.md](./nest-http-adapter-comparison.md)：Nest Fastify/Express 技术比较、AI 流式/并发 API 边界与已完成迁移记录。
+- [nest-stage0-retrospective.md](./nest-stage0-retrospective.md)：Nest 阶段 0 问题复盘与排障过程；面试题见 [`../interview/`](../interview/README.md)。
+- [nest-server-bootstrap.md](./nest-server-bootstrap.md)：NestJS + Express 阶段 0、配置校验、基础设施和健康检查。
 - [umi-mock-and-dataflow.md](./umi-mock-and-dataflow.md)：Umi Max mock 数据流与 `useRequest` 自动解包（阶段 1）。
 - [markdown-booklet-reading.md](./markdown-booklet-reading.md)：Markdown 渲染、目录、小册阅读、本地同步（阶段 2）。
 - [react-first-phase-0-3.md](./react-first-phase-0-3.md)：阶段 0–3 合并复盘（阶段 0–3 收尾与补强）。

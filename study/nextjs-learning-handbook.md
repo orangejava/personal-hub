@@ -155,15 +155,15 @@
 ## 9. 常用命令
 
 ```bash
-pnpm --filter web dev
-pnpm --filter web build
-pnpm --filter web lint
+pnpm --filter next-web dev
+pnpm --filter next-web build
+pnpm --filter next-web lint
 ```
 
 如果还没初始化工程，则先执行：
 
 ```bash
-pnpm dlx create-next-app@latest apps/web --ts --app --eslint --src-dir=false --use-pnpm --tailwind
+pnpm dlx create-next-app@latest apps/next-web --ts --app --eslint --src-dir=false --use-pnpm --tailwind
 ```
 
 ---

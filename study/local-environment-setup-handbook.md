@@ -253,8 +253,8 @@ pnpm lint
 Monorepo 常用：
 
 ```bash
-pnpm --filter web dev
-pnpm --filter api start:dev
+pnpm dev:react
+pnpm --filter server dev
 ```
 
 ---
@@ -464,43 +464,43 @@ docker run hello-world
 #### 启动服务
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f compose.dev.yml up -d
 ```
 
 解释：
 
-- `-f docker-compose.dev.yml`：指定配置文件
+- `-f compose.dev.yml`：指定配置文件
 - `up`：启动服务
 - `-d`：后台运行
 
 #### 查看服务状态
 
 ```bash
-docker compose -f docker-compose.dev.yml ps
+docker compose -f compose.dev.yml ps
 ```
 
 #### 查看日志
 
 ```bash
-docker compose -f docker-compose.dev.yml logs
+docker compose -f compose.dev.yml logs
 ```
 
 持续跟踪日志：
 
 ```bash
-docker compose -f docker-compose.dev.yml logs -f
+docker compose -f compose.dev.yml logs -f
 ```
 
 #### 停止并移除服务
 
 ```bash
-docker compose -f docker-compose.dev.yml down
+docker compose -f compose.dev.yml down
 ```
 
 #### 重新构建并启动
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d --build
+docker compose -f compose.dev.yml up -d --build
 ```
 
 ### 8.10 Docker Desktop 图形界面怎么用
@@ -534,8 +534,8 @@ docker compose -f docker-compose.dev.yml up -d --build
 先看：
 
 ```bash
-docker compose -f docker-compose.dev.yml ps
-docker compose -f docker-compose.dev.yml logs
+docker compose -f compose.dev.yml ps
+docker compose -f compose.dev.yml logs
 ```
 
 ---

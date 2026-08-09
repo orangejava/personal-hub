@@ -16,6 +16,18 @@
 | 阶段 4.5 全站体验底座 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-5-experience-deepening.md](../implementation/react-first/phase-4-5-experience-deepening.md) | [react-experience-system.md](../../study/features/react-experience-system.md) |
 | 阶段 5 AI 平台 mock 闭环 | ✅ 已完成本轮收尾 | 2026-07-06 | [phase-5-ai-shell.md](../implementation/react-first/phase-5-ai-shell.md) | [ai-platform-mock-workbench.md](../../study/features/ai-platform-mock-workbench.md) |
 
+## Nest 后端阶段
+
+| 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
+|---|---|---|---|---|
+| 阶段 0 Express 运行底座 | 🟡 基础实现已完成；Testcontainers/readiness 故障自动化与 CI 待收口 | 2026-08-08 | [nest-server-bootstrap.md](../implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
+
+### Nest 阶段 0 Express 运行底座
+
+- 已可通过 `compose.dev.yml` 启动 PostgreSQL、Redis、MinIO 与 Mailpit，并用 `pnpm dev:server` 启动服务。
+- 已可人工验证 `/api/v1/health/live`、`/api/v1/health/ready`、`/api/docs`、`requestId` 与 Redis 断连时的 readiness `503`。
+- Auth 开始前仍须补齐 Testcontainers 真实依赖测试、readiness 故障自动化和 server CI；详见 [Bootstrap PRD §5.1](../prd/long-term/nest-server-bootstrap-prd.md#51-自动化测试)。
+
 ## 验收速览
 
 ### 阶段 0 工程骨架

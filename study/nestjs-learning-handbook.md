@@ -122,15 +122,15 @@ health
 ## 7. 常用命令
 
 ```bash
-pnpm --filter api start:dev
-pnpm --filter api test
-pnpm --filter api lint
+pnpm --filter server dev
+pnpm --filter server test
+pnpm --filter server lint
 ```
 
 如果项目还没初始化：
 
 ```bash
-pnpm dlx @nestjs/cli new apps/api --package-manager pnpm
+pnpm dlx @nestjs/cli new apps/server --package-manager pnpm
 ```
 
 ---

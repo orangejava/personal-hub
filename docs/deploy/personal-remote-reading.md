@@ -116,8 +116,8 @@ flowchart LR
 | ----------------- | ------------------------------------------------- |
 | Umi mock          | **仅 dev 生效**，`pnpm build` 后 `/api/*` 无 mock |
 | `config/proxy.ts` | 无生产代理配置                                    |
-| `apps/api`        | **尚未创建**                                      |
-| Docker Compose    | 仓库内尚无                                        |
+| `apps/server`     | 已完成本地阶段 0；尚未部署到远程服务器             |
+| Docker Compose    | 已有本地依赖 `compose.dev.yml`；尚无生产全栈编排 |
 
 **结论（分阶段）：**
 
@@ -515,7 +515,7 @@ flowchart TD
 
 | 序号 | 任务           | 新增/修改文件                     | 说明                                                                         |
 | ---- | -------------- | --------------------------------- | ---------------------------------------------------------------------------- |
-| 1.1  | 工程骨架       | `apps/server/`                    | NestJS + Fastify + Prisma；按 Canonical 数据模型落地内容与文件表             |
+| 1.1  | 工程骨架       | `apps/server/`                    | NestJS + Express + Prisma；按 Canonical 数据模型落地内容与文件表             |
 | 1.2  | 存储模块       | `apps/server/src/storage/`        | 封装 `packages/storage`                                                      |
 | 1.3  | 小册模块       | `apps/server/src/booklets/`       | 读 COS manifest；写 PG 元数据；实现 4.1 各接口                               |
 | 1.4  | 缓存模块       | `apps/server/src/cache/`          | Redis + 磁盘 LRU；统一 `BookletContentCacheService`                          |

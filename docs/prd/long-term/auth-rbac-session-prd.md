@@ -2,7 +2,7 @@
 
 > 状态：🟢 已确认；端点、响应与数据模型以 Canonical 文档为准
 > 最后更新：2026-08-02
-> 适用：`apps/server`（NestJS + Fastify）、`apps/react-web` 与未来 Flutter / 其它业务服务
+> 适用：`apps/server`（NestJS + Express）、`apps/react-web` 与未来 Flutter / 其它业务服务
 > 关联：[用户、登录与权限体系](../../product/auth-rbac.md)、[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)
 
 ---
