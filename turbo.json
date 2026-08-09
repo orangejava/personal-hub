@@ -17,6 +17,10 @@
       "dependsOn": ["^build"],
       "outputs": []
     },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
     "sync:booklets": {
       "cache": false,
       "outputs": ["mock/data/local-booklets.generated.ts"]

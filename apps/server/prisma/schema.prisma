@@ -1,0 +1,10 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 阶段 0 不声明业务模型。Auth 阶段会在此处开始建立 users、roles 等真实领域 Schema。
