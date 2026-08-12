@@ -10,5 +10,5 @@ declare global {
 }
 
 export type RequestWithId = Request & {
-    requestId: string;
+  requestId: string;
 };

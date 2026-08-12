@@ -42,11 +42,7 @@ describe('Express HTTP application', () => {
       .compile();
 
     app = moduleRef.createNestApplication<NestExpressApplication>();
-    configureHttpApp(
-      app,
-      app.get(ConfigService),
-      app.get(Logger),
-    );
+    configureHttpApp(app, app.get(ConfigService), app.get(Logger));
     await app.listen(0);
 
     const address = app.getHttpServer().address();
@@ -65,7 +61,7 @@ describe('Express HTTP application', () => {
     const response = await fetch(`${baseUrl}/api/v1/health/live`, {
       headers: { Origin: 'http://localhost:8000' },
     });
-    const body = await response.json() as { data: unknown; requestId: string };
+    const body = (await response.json()) as { data: unknown; requestId: string };
 
     expect(response.status).toBe(200);
     expect(response.headers.get('x-request-id')).toBe(body.requestId);
@@ -75,7 +71,7 @@ describe('Express HTTP application', () => {
 
   it('returns a standard envelope for an unmatched Express route', async () => {
     const response = await fetch(`${baseUrl}/api/v1/does-not-exist`);
-    const body = await response.json() as {
+    const body = (await response.json()) as {
       error: { code: string };
       requestId: string;
     };
@@ -83,5 +79,42 @@ describe('Express HTTP application', () => {
     expect(response.status).toBe(404);
     expect(response.headers.get('x-request-id')).toBe(body.requestId);
     expect(body.error.code).toBe('HTTP_REQUEST_FAILED');
+  });
+
+  it('returns 503 when Redis is unavailable during readiness', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(PrismaService)
+      .useValue({
+        $queryRaw: vi.fn().mockResolvedValue([{ result: 1 }]),
+      })
+      .overrideProvider(RedisService)
+      .useValue({
+        ping: vi.fn().mockRejectedValue(new Error('Redis unavailable')),
+      })
+      .compile();
+    const failingApp = moduleRef.createNestApplication<NestExpressApplication>();
+    configureHttpApp(failingApp, failingApp.get(ConfigService), failingApp.get(Logger));
+    await failingApp.listen(0);
+
+    try {
+      const address = failingApp.getHttpServer().address();
+      if (address === null || typeof address === 'string') {
+        throw new Error('readiness 故障测试服务未能监听随机端口');
+      }
+
+      const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/health/ready`);
+      const body = (await response.json()) as {
+        error: { code: string };
+        requestId: string;
+      };
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get('x-request-id')).toBe(body.requestId);
+      expect(body.error.code).toBe('INFRASTRUCTURE_UNAVAILABLE');
+    } finally {
+      await failingApp.close();
+    }
   });
 });

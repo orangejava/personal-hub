@@ -1,7 +1,7 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 Express 底座基础实现已落地，自动化质量收口待完成
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 Express 运行底座已完成
 > 最后更新：2026-08-08
 
 ---
@@ -113,7 +113,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | --------- |
 | [completed/README.md](./completed/README.md)                                                                   | 已完成功能进度台账（阶段状态与验收入口） | ✅ 已完成 |
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
-| [implementation/foundation/nest-server-bootstrap.md](./implementation/foundation/nest-server-bootstrap.md)     | NestJS + Express 阶段 0 后端运行底座；自动化质量收口待完成 | 🟡 基础实现已完成 |
+| [implementation/foundation/nest-server-bootstrap.md](./implementation/foundation/nest-server-bootstrap.md)     | NestJS + Express 阶段 0 后端运行底座 | ✅ 已完成 |
 | [implementation/react-first/phase-0-3.md](./implementation/react-first/phase-0-3.md)                           | 阶段 0–3 合并实现说明                    | ✅ 已完成 |
 | [implementation/react-first/phase-0-structure.md](./implementation/react-first/phase-0-structure.md)           | 阶段 0 工程骨架实现说明                  | ✅ 已完成 |
 | [implementation/react-first/phase-1-foundation.md](./implementation/react-first/phase-1-foundation.md)         | 阶段 1 基础底座实现说明                  | ✅ 已完成 |
@@ -129,7 +129,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（React-first / 长期全栈）                       | ✅ 已完成                              |
 | [prd/module-prd-index.md](./prd/module-prd-index.md)                                                   | 大模块 PRD 细化索引                                        | ✅ 已完成                              |
 | [prd/react-first/README.md](./prd/react-first/README.md)                                               | React-first 阶段 PRD 子索引                                | ✅ 已完成                              |
-| [prd/long-term/nest-server-bootstrap-prd.md](./prd/long-term/nest-server-bootstrap-prd.md)             | `apps/server` 脚手架、Compose、Prisma/Redis/Health/Swagger | 🟡 基础已实施；Testcontainers、readiness 故障自动化与 CI 待收口 |
+| [prd/long-term/nest-server-bootstrap-prd.md](./prd/long-term/nest-server-bootstrap-prd.md)             | `apps/server` 脚手架、Compose、Prisma/Redis/Health/Swagger | ✅ 已完成 |
 | [prd/long-term/README.md](./prd/long-term/README.md)                                                   | Auth、内容、文件、AI、治理等长期后端 PRD 完整索引           | ✅ 当前权威入口                         |
 | [prd/long-term/nest-backend-requirements.md](./prd/long-term/nest-backend-requirements.md)             | React 功能到 Canonical Nest 后端需求总览                   | ✅ 已确定                              |
 | [prd/react-first/bootstrap-prd.md](./prd/react-first/bootstrap-prd.md)                                 | 工程初始化 PRD                                             | ✅ 已实施                              |
@@ -197,5 +197,5 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] 主题与导航配置 PRD（见 `prd/react-first/theme-navigation-config-prd.md` → 主题色、导航位置、预留配置）
 - [x] 前台视觉设计细节（见 `prd/react-first/frontend-visual-spec.md` → 首版沿用 Ant Design + tokens）
 - [x] 管理员初始账号密码约定（见 `engineering/dev-credentials.md` → mock 环境；生产 seed 另行设置）
-- [ ] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
+- [x] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
 - [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`，站点名暂用 mock 默认）

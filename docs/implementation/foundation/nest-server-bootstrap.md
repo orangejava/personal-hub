@@ -1,7 +1,7 @@
 # Nest Server 阶段 0 脚手架
 
-> 状态：🟡 基础实现已完成；Testcontainers、readiness 故障自动化与 server CI 待收口  
-> 最后更新：2026-08-08  
+> 状态：✅ 已完成
+> 最后更新：2026-08-09
 > 对应 PRD：[Nest Server 脚手架](../../prd/long-term/nest-server-bootstrap-prd.md)
 
 ## 目标与范围
@@ -40,7 +40,7 @@ readiness
 3. 访问 `/api/v1/health/live`、`/api/v1/health/ready` 和 `/api/docs`；停止 Redis 或 PostgreSQL 时，readiness 应返回不可用。
 4. 开发服务启动后，终端只输出 API/health 与 Swagger 两条访问摘要；error 日志应与普通日志使用不同颜色。
 
-> 质量收口状态：mock Prisma/Redis 的 HTTP 集成测试已覆盖成功与 404 信封；真实 Testcontainers 依赖测试、readiness 故障自动化和 server CI 在 Auth 开始前补齐。
+> 质量收口状态：mock HTTP 测试覆盖成功、404 信封与 Redis 故障；Testcontainers 使用临时 PostgreSQL/Redis 执行正式 migration 并验证 readiness；根目录 `.github/workflows/server-ci.yml` 在 CI 执行格式、Lint、类型、测试和构建检查。
 
 ## 后续扩展
 

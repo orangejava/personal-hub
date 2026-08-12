@@ -20,13 +20,13 @@
 
 | 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
 |---|---|---|---|---|
-| 阶段 0 Express 运行底座 | 🟡 基础实现已完成；Testcontainers/readiness 故障自动化与 CI 待收口 | 2026-08-08 | [nest-server-bootstrap.md](../implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
+| 阶段 0 Express 运行底座 | ✅ 已完成 | 2026-08-09 | [nest-server-bootstrap.md](../implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
 
 ### Nest 阶段 0 Express 运行底座
 
 - 已可通过 `compose.dev.yml` 启动 PostgreSQL、Redis、MinIO 与 Mailpit，并用 `pnpm dev:server` 启动服务。
 - 已可人工验证 `/api/v1/health/live`、`/api/v1/health/ready`、`/api/docs`、`requestId` 与 Redis 断连时的 readiness `503`。
-- Auth 开始前仍须补齐 Testcontainers 真实依赖测试、readiness 故障自动化和 server CI；详见 [Bootstrap PRD §5.1](../prd/long-term/nest-server-bootstrap-prd.md#51-自动化测试)。
+- Testcontainers 已使用临时 PostgreSQL/Redis 执行 migration 与 readiness；Redis 故障时的 readiness `503` 和 server CI 已自动化验证。
 
 ## 验收速览
 

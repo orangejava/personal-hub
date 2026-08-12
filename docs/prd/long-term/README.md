@@ -10,7 +10,7 @@
 
 | 文档                                                                                         | 说明                                                                | 状态                   |
 | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ---------------------- |
-| [nest-server-bootstrap-prd.md](./nest-server-bootstrap-prd.md)                               | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | 🟡 基础已实施；§5.1 自动化质量收口待完成 |
+| [nest-server-bootstrap-prd.md](./nest-server-bootstrap-prd.md)                               | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | ✅ 已完成 |
 | [../../engineering/nest-dependency-catalog.md](../../engineering/nest-dependency-catalog.md) | Nest 核心依赖、组合边界与版本锁定流程                               | ✅ 已确定              |
 
 ## 业务 PRD

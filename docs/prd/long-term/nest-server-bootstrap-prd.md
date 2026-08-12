@@ -1,6 +1,6 @@
 # Nest Server 脚手架 PRD
 
-> 状态：✅ 阶段 0 基础实现已落地；后续维护与验收仍以本文为准
+> 状态：✅ 已完成；后续维护与验收仍以本文为准
 > 最后更新：2026-08-08
 > 优先级：P0
 > 关联：[实现记录](../../implementation/foundation/nest-server-bootstrap.md)、[后端实现约定](../../backend/conventions.md)、[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)、[依赖目录](../../engineering/nest-dependency-catalog.md)、[Compose 策略](../../deploy/nest-compose-strategy.md)
@@ -116,7 +116,7 @@ flowchart LR
 - 每次请求都必须由服务端生成 UUID `requestId`，同时写入响应体、`X-Request-Id` 和结构化日志。
 - 首个 Prisma migration 仅创建 `pgcrypto` 扩展，作为后续 UUID 相关数据库能力的初始化前置条件；Schema 不声明任何业务模型。Auth 阶段才创建用户、角色等首批领域表。
 - 阶段 0 不提供 DTO 写端点；全局 `ValidationPipe` 已配置，非法 DTO 的 HTTP 验收在 Auth 阶段的首个写接口连同 DTO 一起补充。
-- 本阶段已具备 mock Prisma/Redis 的 HTTP 集成测试。Testcontainers 的真实 PostgreSQL/Redis 集成测试与 server CI 是 Auth 开始前的质量收口项；不得将其误记为已完成。
+- 本阶段具备 mock Prisma/Redis HTTP 集成测试，以及使用 Testcontainers 临时 PostgreSQL/Redis 的真实 readiness 集成测试；测试会执行正式 migration，且不复用开发卷。Redis 故障时的 readiness `503` 与 server CI 同样已自动化验证。
 
 ## 6. 依赖和脚本
 

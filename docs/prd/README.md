@@ -35,7 +35,7 @@
 | [react-first/content-reading-prd.md](./react-first/content-reading-prd.md)                     | 阶段 2+         | ✅ 已完成         |
 | [react-first/content-workspace-prd.md](./react-first/content-workspace-prd.md)                 | 阶段 3+         | ✅ 已完成         |
 
-**后端下一阶段入口**：Nest 阶段 0 基础实现已实施；开始 Auth 前须先收口 Testcontainers、readiness 故障自动化与 server CI，再读 [长期 Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md)、[Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档；Next 抽离仍在启动对应阶段前另行补 PRD。
+**后端下一阶段入口**：Nest 阶段 0 已完成 Testcontainers、readiness 故障自动化与 server CI 收口；Auth 开始前阅读 [长期 Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md)、[Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档；Next 抽离仍在启动对应阶段前另行补 PRD。
 
 ---
 
@@ -45,7 +45,7 @@
 
 | 文档                                                                                 | 说明                                                                | 状态                           |
 | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------ |
-| [long-term/nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | 🟡 基础已实施；自动化质量收口待完成 |
+| [long-term/nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | `apps/server`、本地依赖 Compose、Prisma/Redis/Health/Swagger 脚手架 | ✅ 已完成 |
 | [long-term/auth-rbac-session-prd.md](./long-term/auth-rbac-session-prd.md)           | 认证、会话、强制下线、RBAC 与数据范围                               | ✅ 已确认                      |
 | [long-term/system-config-menu-prd.md](./long-term/system-config-menu-prd.md)         | 公开配置、运营菜单与路由注册表                                      | ✅ 已确认                      |
 | [long-term/content-reading-domain-prd.md](./long-term/content-reading-domain-prd.md) | 内容生命周期、阅读、收藏、进度与版本快照                            | ✅ 已确认                      |

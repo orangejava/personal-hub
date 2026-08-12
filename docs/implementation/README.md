@@ -7,6 +7,7 @@
 ## 已归档文档
 
 - `foundation/nest-server-bootstrap.md` — NestJS + Express 阶段 0 后端运行底座
+- `auth/auth-rbac-menu-baseline.md` — Nest M1 身份、RBAC、菜单数据模型与受控初始化
 - `react-first/phase-0-structure.md` — 阶段 0 工程骨架
 - `react-first/phase-1-foundation.md` — 阶段 1 基础底座
 - `react-first/phase-2-public-reading.md` — 阶段 2 公开前台与内容阅读

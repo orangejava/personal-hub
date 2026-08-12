@@ -56,10 +56,7 @@ describe('HttpExceptionFilter', () => {
       }),
     } as ArgumentsHost;
 
-    new HttpExceptionFilter().catch(
-      new HttpException('资源状态不允许', HttpStatus.CONFLICT),
-      host,
-    );
+    new HttpExceptionFilter().catch(new HttpException('资源状态不允许', HttpStatus.CONFLICT), host);
 
     expect(response.statusCode).toBe(409);
     expect(response.body).toMatchObject({

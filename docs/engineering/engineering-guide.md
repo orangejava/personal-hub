@@ -44,7 +44,7 @@ React mock 开发不需要 `apps/next-web`、数据库、Docker 或 server 环�
 
 - 复制 `apps/server/.env.example` 为 `apps/server/.env.local` 后，执行 `docker compose -f compose.dev.yml up -d`、`pnpm --filter server prisma:generate`、`pnpm --filter server prisma:deploy` 与 `pnpm dev:server`。
 - 目录固定为 `apps/server`，本地使用 `pnpm --filter server dev` 在宿主机热更新。
-- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷，但真实基础设施测试、readiness 故障自动化和 server CI 仍是 Auth 开始前的质量收口项。
+- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷。真实基础设施测试、readiness 故障自动化和 server CI 已在阶段 0 收口，后续 Auth 测试继续沿用此质量基线。
 - 全局 API 前缀为 `/api/v1`；旧 React mock `/api/*` 仅作迁移线索。
 - 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
 - MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。

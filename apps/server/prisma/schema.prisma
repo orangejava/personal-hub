@@ -7,4 +7,338 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 阶段 0 不声明业务模型。Auth 阶段会在此处开始建立 users、roles 等真实领域 Schema。
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  DISABLED
+}
+
+enum RoleCode {
+  MEMBER
+  EDITOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum DataScope {
+  OWN
+  ALL
+}
+
+enum MenuScope {
+  PUBLIC
+  WORKSPACE
+  ADMIN
+  AI
+}
+
+enum MenuType {
+  DIRECTORY
+  INTERNAL
+  EXTERNAL
+}
+
+enum AuditCategory {
+  AUTH
+  RBAC
+  SECURITY
+  QUOTA
+  SYSTEM
+}
+
+enum AuditResult {
+  SUCCEEDED
+  FAILED
+}
+
+enum AiQuotaTransactionType {
+  GRANT
+  RESERVE
+  SETTLE
+  RELEASE
+  ADJUSTMENT
+}
+
+/// 身份账号的唯一来源。首版通过 roleId 建立单角色关联，未来多角色再引入关联表。
+model User {
+  id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// 始终保存小写规范化邮箱；迁移中的 CHECK 约束保证数据库不会接受未规范化值。
+  email                   String                   @unique @map("email_normalized") @db.VarChar(320)
+  passwordHash            String                   @map("password_hash")
+  status                  UserStatus               @default(PENDING_VERIFICATION)
+  roleId                  String                   @map("role_id") @db.Uuid
+  authVersion             Int                      @default(1) @map("auth_version")
+  permissionVersion       Int                      @default(1) @map("permission_version")
+  emailVerifiedAt         DateTime?                @map("email_verified_at") @db.Timestamptz(6)
+  emailChangedAt          DateTime?                @map("email_changed_at") @db.Timestamptz(6)
+  /// Bootstrap 创建的临时密码必须在后续 Auth 登录流程中强制修改。
+  mustChangePassword      Boolean                  @default(false) @map("must_change_password")
+  nickname                String?                  @db.VarChar(80)
+  avatarFileId            String?                  @map("avatar_file_id") @db.Uuid
+  bio                     String?                  @db.VarChar(500)
+  links                   Json?
+  createdAt               DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  role                    Role                     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions                AuthSession[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  emailChangeRequests     EmailChangeRequest[]
+  totpFactor              TotpFactor?
+  auditLogs               AuditLog[]               @relation("AuditActor")
+  quotaAccount            AiQuotaAccount?
+
+  @@index([roleId, status])
+  @@map("users")
+}
+
+/// 系统角色可由 seed 重放；受保护角色的最后一个 active 用户约束由事务用例执行。
+model Role {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          RoleCode         @unique
+  label         String           @db.VarChar(80)
+  isSystem      Boolean          @default(true) @map("is_system")
+  isProtected   Boolean          @default(false) @map("is_protected")
+  version       Int              @default(1)
+  createdAt     DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  users         User[]
+  permissions   RolePermission[]
+  aiEntitlement AiEntitlement?
+
+  @@map("roles")
+}
+
+/// 权限目录由受控 seed 写入；数据库 CHECK 约束禁止自由权限码。
+model Permission {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code        String           @unique @db.VarChar(80)
+  group       String           @db.VarChar(80)
+  label       String           @db.VarChar(120)
+  description String?          @db.VarChar(500)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  roles       RolePermission[]
+  menus       MenuPermission[]
+
+  @@map("permissions")
+}
+
+/// 动作权限和数据范围分离，首版只允许 OWN / ALL。
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  dataScope    DataScope  @map("data_scope")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model AuthSession {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String         @map("user_id") @db.Uuid
+  deviceName        String?        @map("device_name") @db.VarChar(160)
+  userAgent         String?        @map("user_agent") @db.VarChar(512)
+  ipHash            String?        @map("ip_hash") @db.VarChar(128)
+  lastActiveAt      DateTime       @default(now()) @map("last_active_at") @db.Timestamptz(6)
+  expiresAt         DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt         DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  revokedReason     String?        @map("revoked_reason") @db.VarChar(120)
+  authVersion       Int            @map("auth_version")
+  permissionVersion Int            @map("permission_version")
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens     RefreshToken[]
+
+  @@index([userId, revokedAt, expiresAt])
+  @@map("auth_sessions")
+}
+
+model RefreshToken {
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId         String         @map("session_id") @db.Uuid
+  tokenHash         String         @unique @map("token_hash") @db.VarChar(128)
+  expiresAt         DateTime       @map("expires_at") @db.Timestamptz(6)
+  rotatedAt         DateTime?      @map("rotated_at") @db.Timestamptz(6)
+  revokedAt         DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  replacedByTokenId String?        @unique @map("replaced_by_token_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  session           AuthSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  replacedBy        RefreshToken?  @relation("RefreshRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replaces          RefreshToken[] @relation("RefreshRotation")
+
+  @@index([sessionId, revokedAt, expiresAt])
+  @@map("refresh_tokens")
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt, expiresAt])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt, expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model EmailChangeRequest {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  newEmail   String    @map("new_email_normalized") @db.VarChar(320)
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(128)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, consumedAt, expiresAt])
+  @@map("email_change_requests")
+}
+
+model TotpFactor {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String             @unique @map("user_id") @db.Uuid
+  secretCiphertext String             @map("secret_ciphertext")
+  enabledAt        DateTime?          @map("enabled_at") @db.Timestamptz(6)
+  lastUsedAt       DateTime?          @map("last_used_at") @db.Timestamptz(6)
+  disabledAt       DateTime?          @map("disabled_at") @db.Timestamptz(6)
+  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recoveryCodes    TotpRecoveryCode[]
+
+  @@map("totp_factors")
+}
+
+model TotpRecoveryCode {
+  id         String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  factorId   String     @map("factor_id") @db.Uuid
+  codeHash   String     @unique @map("code_hash") @db.VarChar(128)
+  consumedAt DateTime?  @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  factor     TotpFactor @relation(fields: [factorId], references: [id], onDelete: Cascade)
+
+  @@index([factorId, consumedAt])
+  @@map("totp_recovery_codes")
+}
+
+/// 菜单仅控制导航展示；实际接口仍必须由 Guard 和数据范围校验保护。
+model Menu {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope       MenuScope
+  type        MenuType
+  name        String           @db.VarChar(120)
+  parentId    String?          @map("parent_id") @db.Uuid
+  routeKey    String?          @unique @map("route_key") @db.VarChar(160)
+  externalUrl String?          @map("external_url") @db.VarChar(2048)
+  sortOrder   Int              @default(0) @map("sort_order")
+  visible     Boolean          @default(true)
+  enabled     Boolean          @default(true)
+  isSystem    Boolean          @default(true) @map("is_system")
+  version     Int              @default(1)
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  parent      Menu?            @relation("MenuTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children    Menu[]           @relation("MenuTree")
+  permissions MenuPermission[]
+
+  @@index([scope, parentId, sortOrder])
+  @@map("menus")
+}
+
+model MenuPermission {
+  menuId       String     @map("menu_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([menuId, permissionId])
+  @@map("menu_permissions")
+}
+
+/// 安全、权限和额度等事实记录仅追加；detail 仅允许写入经过白名单筛选的 JSON。
+model AuditLog {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  category   AuditCategory
+  action     String        @db.VarChar(120)
+  actorId    String?       @map("actor_id") @db.Uuid
+  targetType String?       @map("target_type") @db.VarChar(80)
+  targetId   String?       @map("target_id") @db.Uuid
+  requestId  String?       @map("request_id") @db.Uuid
+  ipHash     String?       @map("ip_hash") @db.VarChar(128)
+  result     AuditResult   @default(SUCCEEDED)
+  detail     Json?
+  expiresAt  DateTime?     @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  actor      User?         @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([category, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+/// M1 只落地角色权益和验证赠额金额，模型/工具授权细节由后续 AI 模块扩展。
+model AiEntitlement {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roleId                  String   @unique @map("role_id") @db.Uuid
+  verificationGrantAmount BigInt   @default(10000) @map("verification_grant_amount")
+  rules                   Json?    @map("rules")
+  createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  role                    Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@map("ai_entitlements")
+}
+
+/// 用户额度余额由账本派生；后续预占/结算必须使用条件原子更新而非进程内锁。
+model AiQuotaAccount {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String               @unique @map("user_id") @db.Uuid
+  availableAmount BigInt               @default(0) @map("available_amount")
+  reservedAmount  BigInt               @default(0) @map("reserved_amount")
+  version         Int                  @default(1)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    AiQuotaTransaction[]
+
+  @@map("ai_quota_accounts")
+}
+
+model AiQuotaTransaction {
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String                 @map("account_id") @db.Uuid
+  type                  AiQuotaTransactionType
+  amount                BigInt
+  availableBalanceAfter BigInt                 @map("available_balance_after")
+  reservedBalanceAfter  BigInt                 @map("reserved_balance_after")
+  source                String                 @db.VarChar(80)
+  idempotencyKey        String?                @unique @map("idempotency_key") @db.VarChar(128)
+  requestId             String?                @map("request_id") @db.Uuid
+  detail                Json?
+  createdAt             DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  account               AiQuotaAccount         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, createdAt])
+  @@map("ai_quota_transactions")
+}
