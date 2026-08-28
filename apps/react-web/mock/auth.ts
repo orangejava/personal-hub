@@ -43,6 +43,21 @@ export default {
     ok(res, { permissions: user?.permissions ?? [], menu: buildMenu(user?.role ?? null) });
   },
 
+  'POST /api/auth/register': async (_req: Request, res: Response) => {
+    await waitTime();
+    ok(res, { accepted: true });
+  },
+
+  'POST /api/auth/verify-email': async (_req: Request, res: Response) => {
+    await waitTime();
+    fail(res, 400, 'Mock 模式不支持邮箱验证，请关闭 UMI_APP_NEST_AUTH=0');
+  },
+
+  'POST /api/auth/resend-verification': async (_req: Request, res: Response) => {
+    await waitTime();
+    ok(res, { accepted: true });
+  },
+
   /** 调试用：快速切换角色 */
   'POST /api/auth/switch-role': (req: Request, res: Response) => {
     const { role } = req.body || {};

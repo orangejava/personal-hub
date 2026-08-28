@@ -62,7 +62,7 @@ export default defineConfig({
   },
   exportStatic: {},
   define: {
-    'process.env.CI': process.env.CI,
+    'process.env.UMI_APP_NEST_AUTH': process.env.UMI_APP_NEST_AUTH ?? '1',
     'process.env.COMMIT_HASH': process.env.COMMIT_HASH || '',
     __APP_VERSION__: require('./../package.json').version,
     __UMI_VERSION__: require('@umijs/max/package.json').version,

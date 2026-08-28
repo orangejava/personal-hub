@@ -1,13 +1,22 @@
 # 功能开发文档归档规范
 
 > 状态：进行中
-> 最后更新：2026-06-27
+> 最后更新：2026-08-22
 > 目标：把“功能已经开发了什么、为什么这样实现、涉及哪些文件和接口”固定沉淀到统一位置，避免散落在聊天记录里。
 
 ## 已归档文档
 
 - `foundation/nest-server-bootstrap.md` — NestJS + Express 阶段 0 后端运行底座
+- `auth/README.md` — Nest M2 Auth 切片划分（第 1–6 刀已落地）
 - `auth/auth-rbac-menu-baseline.md` — Nest M1 身份、RBAC、菜单数据模型与受控初始化
+- `auth/auth-login-slice.md` — Nest M2 第 1 刀：登录 / me / refresh / logout 与 React 联调
+- `auth/auth-permissions-slice.md` — Nest M2 第 2 刀：权限快照、过滤菜单与 React 适配
+- `auth/auth-register-slice.md` — Nest M2 第 3 刀：注册、Mailpit 邮箱验证与验证赠额
+- `auth/auth-captcha-slice.md` — Nest M2 第 4 刀：登录 SVG/算术验证码
+- `auth/auth-sessions-slice.md` — Nest M2 第 5 刀：设备会话与工作区登录设备页
+- `auth/auth-change-password-slice.md` — Nest M2 第 6 刀：临时密码首次强制改密
+- `auth/auth-forgot-password-slice.md` — Nest M2 第 7 刀：忘记密码与邮件链接重置
+- `auth/auth-admin-sessions-slice.md` — Nest M2 第 8 刀：后台只读用户与踢全部设备
 - `react-first/phase-0-structure.md` — 阶段 0 工程骨架
 - `react-first/phase-1-foundation.md` — 阶段 1 基础底座
 - `react-first/phase-2-public-reading.md` — 阶段 2 公开前台与内容阅读

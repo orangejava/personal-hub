@@ -103,6 +103,77 @@
   border-color: var(--ph-border-color) !important;
 }
 
+/* 登录/注册/验证：跟公开区同一套语义色。LoginForm 标题写了未编译的 @heading-color，必须用变量覆盖。 */
+.ph-auth-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: auto;
+  background: var(--ph-hero-gradient);
+  color: var(--ph-text-primary);
+
+  .ant-pro-form-login-title {
+    color: var(--ph-text-primary);
+  }
+
+  .ant-pro-form-login-desc {
+    color: var(--ph-text-secondary);
+  }
+
+  .ph-auth-captcha-row {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 24px;
+
+    .ph-auth-captcha-image {
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      line-height: 0;
+      overflow: hidden;
+
+      img {
+        display: block;
+        height: 40px;
+        width: auto;
+      }
+    }
+
+    .ph-auth-captcha-input {
+      flex: 1;
+      min-width: 0;
+      margin-bottom: 0 !important;
+    }
+  }
+
+  .ph-auth-login-extra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    a {
+      color: var(--ph-text-secondary);
+      white-space: nowrap;
+
+      &:hover {
+        color: var(--ph-color-primary);
+      }
+    }
+
+    .ph-auth-login-extra-links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+  }
+}
+
 .ph-category-count {
   color: var(--ph-text-tertiary);
   margin-top: 4px;

@@ -6,7 +6,6 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from '../src/app.module';
 import { configureHttpApp } from '../src/bootstrap';
 
 const serverDirectory = resolve(__dirname, '..');
@@ -37,7 +36,6 @@ describe('真实基础设施集成', () => {
     const databaseUrl = `postgresql://personal_hub_test:personal_hub_test_password@${postgres.getHost()}:${postgres.getMappedPort(5432)}/personal_hub_test?schema=public`;
     Object.assign(process.env, {
       NODE_ENV: 'test',
-      PORT: '0',
       DATABASE_URL: databaseUrl,
       REDIS_URL: `redis://${redis.getHost()}:${redis.getMappedPort(6379)}`,
       REDIS_KEY_PREFIX: 'ph:test',
@@ -61,6 +59,7 @@ describe('真实基础设施集成', () => {
       },
     );
 
+    const { AppModule } = await import('../src/app.module');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();

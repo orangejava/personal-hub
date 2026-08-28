@@ -1,7 +1,7 @@
 # Auth、会话与 RBAC 后端需求确认稿
 
 > 状态：🟢 已确认；端点、响应与数据模型以 Canonical 文档为准
-> 最后更新：2026-08-02
+> 最后更新：2026-08-22
 > 适用：`apps/server`（NestJS + Express）、`apps/react-web` 与未来 Flutter / 其它业务服务
 > 关联：[用户、登录与权限体系](../../product/auth-rbac.md)、[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)
 
@@ -158,7 +158,9 @@ Refresh Token 绝不明文入库。存储 `SHA-256(token + serverPepper)` 或等
 | `auth:permissions:{userId}:{pv}`       | 权限码与数据范围快照                    | 短 TTL + 主动删除 | 角色或权限更新           |
 | `auth:login-fail:{emailHash}:{ipHash}` | 同账号/IP 登录失败计数                  | 15 分钟           | 成功登录或窗口结束       |
 | `auth:login-ip:{ipHash}`               | 单 IP 登录请求计数                      | 15 分钟           | 固定窗口结束             |
-| `auth:captcha:{challengeId}`           | 验证码答案哈希、关联账号/IP、已使用标记 | 5 分钟            | 验证成功、过期或主动销毁 |
+| `auth:captcha:{challengeId}`           | 验证码答案哈希、关联账号/IP             | 5 分钟            | 验证成功、过期、刷新替换 |
+| `auth:captcha-active:{emailHash}:{ipHash}` | 当前有效 `challengeId`              | 5 分钟            | 刷新、消费或过期         |
+| `auth:forgot:{emailHash}:{ipHash}`     | 忘记密码请求计数                        | 15 分钟           | 固定窗口结束             |
 
 `JwtAuthGuard` 的最小校验顺序：
 
@@ -184,7 +186,7 @@ Refresh Token 绝不明文入库。存储 `SHA-256(token + serverPepper)` 或等
 
 - CLI 从部署环境变量读取邮箱与临时密码；不得存在代码默认账号或公开 HTTP 初始化端点。
 - 命令在事务中完成用户、受保护角色、版本字段和审计记录写入；成功后拒绝重复执行。
-- 临时密码首次登录必须修改。公开注册用户只能获得 `MEMBER` 角色。
+- 临时密码首次登录必须修改。公开注册用户只能获得 `MEMBER` 角色。M2 第 6 刀已落地：`POST /auth/change-password` + JWT Guard 白名单 + 前端拦截（含 `/ai`），见 [改密切片](../../implementation/auth/auth-change-password-slice.md)。
 
 ---
 
@@ -281,7 +283,7 @@ Guard 只检查动作权限；Service/Repository 对 `OWN` / `ALL` 追加查询�
 
 - 密码：Argon2id；至少 8 位，必须含大写、小写、数字和特殊字符。
 - 登录失败采用双层固定窗口：同账号规范化值 + IP 最多 5 次/15 分钟，IP 总计最多 20 次/15 分钟。失败连续达到 3 次后，下一次登录必须提交有效验证码；超限返回 `429` 与 `Retry-After`，账号密码错误始终统一返回 `401 AUTH_INVALID_CREDENTIALS`，避免枚举账号。
-- 自建验证码使用服务端生成的 SVG/算术挑战；答案只以哈希写 Redis，关联账号哈希和 IP 哈希，5 分钟有效、一次使用、验证成功立即删除。验证码只是限流补充，不替代限流；不接入腾讯云或其他第三方验证码。
+- 自建验证码使用服务端生成的 SVG/算术挑战；答案只以哈希写 Redis，关联账号哈希和 IP 哈希，5 分钟有效、一次使用、验证成功立即删除。验证码只是限流补充，不替代限流；不接入腾讯云或其他第三方验证码。**这是第一阶段必须项，不是产品后置**；M2 第 1 刀为尽快联调登录页曾暂缓，现为第 4 刀，见 [M2 切片划分](../../implementation/auth/README.md)。
 - `admin` / `super_admin` 可在安全设置中自愿启用 TOTP。绑定确认后必须使用认证器动态码或一次性恢复码登录；恢复码只展示一次、仅保存哈希。绑定、停用、恢复码使用与管理员重置均写审计日志，默认不强制角色启用。
 - 输入：全局 ValidationPipe，白名单字段、禁止未知字段、DTO 明确长度和格式。
 - 响应：2xx 返回 `{ data, requestId }`，4xx/5xx 返回 `{ error, requestId }`；错误不得返回密码哈希、Refresh Token、内部异常栈或 AI 密钥。
@@ -312,9 +314,12 @@ Guard 只检查动作权限；Service/Repository 对 `OWN` / `ALL` 追加查询�
 | POST   | `/api/v1/auth/login`               | 公开                     | 校验密码与风险验证码；必要时返回 MFA challenge，完成后创建会话   |
 | POST   | `/api/v1/auth/login/mfa`           | MFA challenge            | 校验 TOTP/恢复码后创建会话、写 Refresh Cookie、返回 Access Token |
 | POST   | `/api/v1/auth/refresh`             | Refresh Cookie           | 轮换 Refresh Token 并返回新的 Access Token                       |
-| POST   | `/api/v1/auth/logout`              | 当前会话                 | 撤销当前会话并清 Cookie                                          |
+| POST   | `/api/v1/auth/logout`              | Refresh Cookie / Access Token | 撤销当前会话并清 Cookie；Cookie 优先                         |
+| POST   | `/api/v1/auth/forgot-password`     | 公开                     | 发送一次性重置邮件，统一 `202`                                   |
+| POST   | `/api/v1/auth/reset-password`      | 公开                     | 消费重置 Token，改密并撤销全部会话                               |
 | GET    | `/api/v1/auth/me`                  | 登录                     | 当前用户、角色、权限版本与摘要                                   |
 | GET    | `/api/v1/auth/permissions`         | 登录                     | 当前生效权限及按权限过滤后的菜单                                 |
+| POST   | `/api/v1/auth/change-password`     | 登录                     | 当前密码 + 新密码；成功后清强制改密、递增 `authVersion`、撤销全部会话 |
 | GET    | `/api/v1/auth/sessions`            | 登录                     | 当前账号的设备会话                                               |
 | DELETE | `/api/v1/auth/sessions/:sessionId` | own / all                | 撤销指定会话                                                     |
 | POST   | `/api/v1/auth/sessions/revoke-all` | 登录                     | 撤销本人全部会话                                                 |

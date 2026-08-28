@@ -3,7 +3,6 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Logger } from 'nestjs-pino';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { AppModule } from '../src/app.module';
 import { configureHttpApp } from '../src/bootstrap';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { RedisService } from '../src/infrastructure/redis/redis.service';
@@ -15,7 +14,6 @@ describe('Express HTTP application', () => {
   beforeAll(async () => {
     Object.assign(process.env, {
       NODE_ENV: 'test',
-      PORT: '0',
       DATABASE_URL: 'postgresql://test:test@localhost:5432/test',
       REDIS_URL: 'redis://localhost:6379',
       REDIS_KEY_PREFIX: 'ph:test',
@@ -28,6 +26,7 @@ describe('Express HTTP application', () => {
       MINIO_BUCKET: 'test-bucket',
     });
 
+    const { AppModule } = await import('../src/app.module');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -54,7 +53,7 @@ describe('Express HTTP application', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    await app?.close();
   });
 
   it('keeps the health response envelope and request ID header consistent', async () => {
@@ -82,6 +81,7 @@ describe('Express HTTP application', () => {
   });
 
   it('returns 503 when Redis is unavailable during readiness', async () => {
+    const { AppModule } = await import('../src/app.module');
     const moduleRef = await Test.createTestingModule({
       imports: [AppModule],
     })

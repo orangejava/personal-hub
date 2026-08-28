@@ -3,30 +3,40 @@ import { SettingDrawer } from '@ant-design/pro-components';
 import type { MenuItem } from '@personal-hub/shared-types';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link } from '@umijs/max';
-import { Button } from 'antd';
+import { Button, message } from 'antd';
 import React from 'react';
 import { ErrorBoundary, Footer } from '@/components';
-import { PageTransition } from '@/components/shared';
-import ThemeProvider from '@/components/ThemeProvider';
 import { AvatarDropdown } from '@/components/RightContent/AvatarDropdown';
 import { LangDropdown } from '@/components/RightContent/LangDropdown';
 import { ThemeSettingButton } from '@/components/RightContent/ThemeSettingButton';
-import { publicMenu } from '@/config/publicMenu';
-import { fetchCurrentUser, fetchPermissions } from '@/services/auth';
-import { fetchPublicConfig } from '@/services/system';
-import type { InitialState } from '@/types/app';
-import { withMenuIcons } from '@/utils/menuIcons';
-import { localizeMenu } from '@/utils/localizeMenu';
-import { resolveMenuSelectedKey } from '@/utils/menuSelection';
+import { PageTransition } from '@/components/shared';
+import ThemeProvider from '@/components/ThemeProvider';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
-import defaultSettings from '../config/defaultSettings';
+import { publicMenu } from '@/config/publicMenu';
+import { fetchCurrentUser, fetchPermissions, nestHttpStatus } from '@/services/auth';
+import { fetchPublicConfig } from '@/services/system';
+import type { InitialState } from '@/types/app';
 import { getThemePreference } from '@/utils/clientPreferences';
+import { localizeMenu } from '@/utils/localizeMenu';
+import { withMenuIcons } from '@/utils/menuIcons';
+import { resolveMenuSelectedKey } from '@/utils/menuSelection';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
+import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
 const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
+const changePasswordPath = '/user/change-password';
+const authPublicPaths = [
+  loginPath,
+  '/user/register',
+  '/user/register-result',
+  '/user/verify-email',
+  '/user/forgot-password',
+  '/user/reset-password',
+  changePasswordPath,
+];
 
 /** 根据当前路径判断所处布局区域 */
 function getRegion(pathname: string): 'public' | 'workspace' | 'admin' {
@@ -59,12 +69,18 @@ function pickMenu(
  * 启动期拉取当前用户、权限菜单、系统配置，写入 @@initialState 供全应用共享
  */
 export async function getInitialState(): Promise<InitialState> {
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = async (): Promise<{
+    user: InitialState['currentUser'];
+    restoreFailed: boolean;
+  }> => {
     try {
       const res = await fetchCurrentUser({ skipErrorHandler: true });
-      return res?.data;
-    } catch (_error) {
-      return undefined;
+      return { user: res?.data, restoreFailed: false };
+    } catch (error: unknown) {
+      if (nestHttpStatus(error) === 401) {
+        return { user: undefined, restoreFailed: false };
+      }
+      return { user: undefined, restoreFailed: true };
     }
   };
 
@@ -111,26 +127,44 @@ export async function getInitialState(): Promise<InitialState> {
   bootstrapThemeRuntime(state);
 
   const { location } = history;
-  // 登录相关页面不拉用户信息
+  // 登录 / 注册 / 验证页不拉用户信息；改密页需要恢复会话才能提交
   if (
-    [loginPath, '/user/register', '/user/register-result'].includes(
-      location.pathname,
-    )
+    [
+      loginPath,
+      '/user/register',
+      '/user/register-result',
+      '/user/verify-email',
+      '/user/forgot-password',
+      '/user/reset-password',
+    ].includes(location.pathname)
   ) {
     return state;
   }
 
-  const currentUser = await fetchUserInfo();
+  const { user: currentUser, restoreFailed } = await fetchUserInfo();
+  if (restoreFailed) {
+    state.sessionRestoreFailed = true;
+    message.error('无法恢复登录态，当前登录可能仍有效，请稍后刷新');
+  }
   if (currentUser) {
     state.currentUser = currentUser;
     try {
       const perm = await fetchPermissions();
       if (perm?.code === 0) {
         state.permissions = perm.data.permissions;
+        state.permissionGrants = perm.data.permissionGrants;
         state.menu = perm.data.menu;
+        state.currentUser = {
+          ...currentUser,
+          permissions: perm.data.permissions,
+        };
       }
     } catch (_e) {
       // 权限拉取失败不阻塞
+    }
+    // /ai 使用 layout: false，ProLayout.onPageChange 不会跑；启动态统一拦到改密页。
+    if (currentUser.mustChangePassword && location.pathname !== changePasswordPath) {
+      history.replace(changePasswordPath);
     }
   }
   return state;
@@ -142,15 +176,20 @@ export const layout: RunTimeLayoutConfig = ({
   setInitialState,
 }) => {
   const region = getRegion(history.location.pathname);
-  const menuData = localizeMenu(withMenuIcons(pickMenu(initialState?.menu, region)));
+  const menuData = localizeMenu(
+    withMenuIcons(pickMenu(initialState?.menu, region)),
+  );
 
   // 工作区/后台用 mix 布局保留顶栏；关闭 splitMenus，避免一级菜单跑到顶部
   const layoutMode: 'side' | 'top' | 'mix' =
     region === 'public' ? 'top' : 'mix';
 
   // settings 里自带 layout: 'mix'，这里剔除后再用 layoutMode 覆盖，避免被还原
-  const { layout: _omitLayout, navTheme, ...restSettings } = (initialState?.settings ??
-    {}) as Record<string, unknown>;
+  const {
+    layout: _omitLayout,
+    navTheme,
+    ...restSettings
+  } = (initialState?.settings ?? {}) as Record<string, unknown>;
 
   const workspaceNavTheme =
     (navTheme as 'light' | 'realDark' | undefined) ?? 'light';
@@ -200,10 +239,20 @@ export const layout: RunTimeLayoutConfig = ({
     footerRender: () => <Footer />,
     onPageChange: () => {
       const { location } = history;
-      if (!initialState?.currentUser && location.pathname !== loginPath) {
+      if (authPublicPaths.includes(location.pathname)) {
+        return;
+      }
+      if (!initialState?.currentUser) {
+        if (initialState?.sessionRestoreFailed) {
+          return;
+        }
         history.replace(
           `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
         );
+        return;
+      }
+      if (initialState.currentUser.mustChangePassword) {
+        history.replace(changePasswordPath);
       }
     },
     ErrorBoundary,

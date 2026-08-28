@@ -1,7 +1,7 @@
 # React-first 开发路线图
 
-> 状态：阶段 0-5 已完成；**阶段 5 AI 平台 mock 闭环已完成本轮收尾**
-> 最后更新：2026-07-06
+> 状态：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**；下一阶段为接入 NestJS（从 Auth 登录切片开始）
+> 最后更新：2026-08-13
 > 目标：把 React-first 阶段拆成可执行的开发顺序，先交付完整体验，再逐步接入后端和 Next.js。
 
 > 说明：阶段 0-5 的最终完成状态以 [../completed/README.md](../completed/README.md) 与 `docs/implementation/react-first/` 为准。本文早期任务清单中的未勾选项保留为历史拆解，不代表当前未完成。
@@ -18,8 +18,8 @@
 → 阶段 4：后台运营台
 → 阶段 4.5：全站体验底座
 → 阶段 5：AI 平台独立工作台
-→ 阶段 5.5：Next API Bridge（可选）
-→ 阶段 6：接入 NestJS API
+→ ~~阶段 5.5：Next API Bridge~~（已跳过）
+→ 阶段 6：接入 NestJS API（从 Auth 登录切片开始，边做边联调）
 → 阶段 7：抽离 Next.js 公开页面
 ```
 
@@ -261,7 +261,11 @@
 
 ---
 
-## 阶段 5.5：Next API Bridge（可选）
+## 阶段 5.5：Next API Bridge（已跳过）
+
+> 2026-08-13 确认：Nest 阶段 0 + M1 已落地，不再建设 `apps/next-api`。详见 [../prd/react-first/phase-5-5-next-api-bridge-prd.md](../prd/react-first/phase-5-5-next-api-bridge-prd.md)。
+
+---
 
 > 详细 PRD：[../prd/react-first/phase-5-5-next-api-bridge-prd.md](../prd/react-first/phase-5-5-next-api-bridge-prd.md)
 
@@ -292,10 +296,11 @@
 ### 目标
 
 - 将稳定模块从 mock 逐步切到真实后端。
+- **联调不是独立阶段**：M2 起每个可调用切片完成后，立刻改 React service / 登录态，用浏览器验收。
 
 ### 建议顺序
 
-1. 认证与当前用户。
+1. 认证与当前用户（login / me / logout / refresh，先接 React 登录页）。
 2. 系统配置与菜单。
 3. 内容列表与详情。
 4. 工作区内容生产。

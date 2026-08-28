@@ -1,9 +1,9 @@
-import argon2 from 'argon2';
 import { PrismaClient, RoleCode, UserStatus } from '@prisma/client';
+import { normalizeEmail } from '../modules/auth/email';
+import { assertPasswordPolicy, hashPassword } from '../modules/auth/password';
 
 const prisma = new PrismaClient();
 const BOOTSTRAP_LOCK_KEY = 20_260_809_001n;
-const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
 
 export interface SuperAdminBootstrapInput {
   email: string;
@@ -26,13 +26,8 @@ export async function bootstrapSuperAdmin(
   input: SuperAdminBootstrapInput,
 ): Promise<SuperAdminBootstrapResult> {
   const email = normalizeEmail(input.email);
-  assertTemporaryPassword(input.temporaryPassword);
-  const passwordHash = await argon2.hash(input.temporaryPassword, {
-    type: argon2.argon2id,
-    memoryCost: 19_456,
-    timeCost: 2,
-    parallelism: 1,
-  });
+  assertPasswordPolicy(input.temporaryPassword, 'SUPER_ADMIN_TEMP_PASSWORD');
+  const passwordHash = await hashPassword(input.temporaryPassword);
 
   return client.$transaction(async (tx) => {
     // 会话级应用锁无法跨多进程保护“先检查再创建”；事务级 advisory lock 可以。
@@ -105,23 +100,6 @@ export async function bootstrapSuperAdmin(
 
     return { userId: user.id, created: existingUser === null };
   });
-}
-
-/**
- * 统一邮箱大小写策略：只接受已去除首尾空白后的有效邮箱，并以小写值写入受保护数据库列。
- */
-export function normalizeEmail(value: string): string {
-  const email = value.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 320) {
-    throw new Error('SUPER_ADMIN_EMAIL 必须是长度不超过 320 的有效邮箱。');
-  }
-  return email;
-}
-
-function assertTemporaryPassword(password: string): void {
-  if (!PASSWORD_POLICY.test(password)) {
-    throw new Error('SUPER_ADMIN_TEMP_PASSWORD 必须至少 8 位且含大小写字母、数字和特殊字符。');
-  }
 }
 
 async function main(): Promise<void> {

@@ -59,7 +59,9 @@ const PublicLayout: React.FC<{
         : [{ key: 'login', label: <Link to="/user/login">登录</Link> }]),
     ],
     onClick: ({ key }) => {
-      if (key === 'logout') loginOut();
+      if (key === 'logout') {
+        void loginOut(setInitialState);
+      }
     },
   };
 

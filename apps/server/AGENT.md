@@ -25,5 +25,6 @@
 ## 质量
 
 - 运行 `pnpm --filter server lint`、`typecheck`、`test`、`build` 后再交付。
+- 本地登录账号用 `pnpm --filter server seed:local-users` 写入，密码见 `docs/engineering/dev-credentials.md`。
 - 业务数据库变更必须新增 Prisma migration；共享或生产环境禁止 `prisma db push`。
 - 事务、权限判断与外部 Provider 边界等复杂逻辑必须写中文注释说明原因。

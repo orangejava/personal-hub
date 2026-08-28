@@ -41,6 +41,7 @@ const iconMap: Record<string, React.ReactNode> = {
   pieChart: <PieChartOutlined />,
   setting: <SettingOutlined />,
   desktop: <DesktopOutlined />,
+  laptop: <DesktopOutlined />,
   crown: <CrownOutlined />,
   team: <TeamOutlined />,
   folder: <FolderOutlined />,

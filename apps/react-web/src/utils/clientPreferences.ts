@@ -21,6 +21,8 @@ export interface LocalReadingProgress {
 export interface ClientPreferences {
   theme?: PublicThemeSettings;
   reading?: Record<string, LocalReadingProgress>;
+  /** 登录页勾选「记住用户名」后保存的邮箱 */
+  rememberedLoginEmail?: string;
 }
 
 function readAll(): ClientPreferences {
@@ -86,6 +88,25 @@ export function setReadingProgress(
 /**
  * 根据文档高度与当前 scrollY 估算阅读百分比。
  */
+/** 读取登录页记住的邮箱；未勾选或无效时返回 undefined */
+export function getRememberedLoginEmail(): string | undefined {
+  const email = readAll().rememberedLoginEmail?.trim().toLowerCase();
+  if (!email?.includes('@')) return undefined;
+  return email;
+}
+
+/** 勾选记住用户名且已输入邮箱时写入；取消勾选时清空 */
+export function setRememberedLoginEmail(email: string | undefined) {
+  const all = readAll();
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    const { rememberedLoginEmail: _omit, ...rest } = all;
+    writeAll(rest);
+    return;
+  }
+  writeAll({ ...all, rememberedLoginEmail: normalized });
+}
+
 export function calcScrollPercent(scrollY: number): number {
   if (typeof window === 'undefined') return 0;
   const max =

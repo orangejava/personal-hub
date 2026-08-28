@@ -19,6 +19,7 @@ export const envSchema = z.object({
   MINIO_BUCKET: z.string().min(3),
   MAILPIT_HOST: z.string().min(1).default('localhost'),
   MAILPIT_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  MAIL_FROM: z.string().min(1).default('Personal Hub <noreply@localhost>'),
 });
 
 export type Env = z.infer<typeof envSchema>;

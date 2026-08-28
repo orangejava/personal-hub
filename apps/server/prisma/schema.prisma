@@ -143,6 +143,7 @@ model AuthSession {
   deviceName        String?        @map("device_name") @db.VarChar(160)
   userAgent         String?        @map("user_agent") @db.VarChar(512)
   ipHash            String?        @map("ip_hash") @db.VarChar(128)
+  ipMasked          String?        @map("ip_masked") @db.VarChar(64)
   lastActiveAt      DateTime       @default(now()) @map("last_active_at") @db.Timestamptz(6)
   expiresAt         DateTime       @map("expires_at") @db.Timestamptz(6)
   revokedAt         DateTime?      @map("revoked_at") @db.Timestamptz(6)

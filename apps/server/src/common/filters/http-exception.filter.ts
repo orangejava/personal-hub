@@ -7,6 +7,7 @@ import {
   type ExceptionFilter,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { DomainHttpException } from '../errors/domain-http.exception';
 import type { RequestWithId } from '../types/request-id';
 
 interface ErrorBody {
@@ -38,6 +39,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       error,
       requestId: request.requestId,
     };
+
+    // Canonical：429 AUTH_RATE_LIMITED 必须带 Retry-After（秒），前端才能提示冷却时间。
+    if (exception instanceof DomainHttpException && exception.retryAfterSeconds) {
+      response.setHeader('Retry-After', String(exception.retryAfterSeconds));
+    }
 
     response.status(status).json(body);
   }

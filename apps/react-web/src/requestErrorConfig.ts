@@ -3,6 +3,11 @@ import type { ApiResponse } from '@personal-hub/shared-types';
 import type { RequestConfig } from '@umijs/max';
 import { history } from '@umijs/max';
 import { message, notification } from 'antd';
+import {
+  getAccessToken,
+  getMockBridgeToken,
+  isNestAuthEnabled,
+} from '@/auth/session';
 
 /**
  * 请求错误处理
@@ -66,15 +71,29 @@ export const errorConfig: RequestConfig = {
 
   requestInterceptors: [
     (config: RequestOptions) => {
-      // 附加 token（mock 阶段非必须，保留供后续接入真实 API）
-      const token = localStorage.getItem('ph-token');
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
+      const headers: Record<string, string> = {
+        ...((config.headers ?? {}) as Record<string, string>),
+      };
+      if (isNestAuthEnabled()) {
+        const url = `${config.url ?? ''}`;
+        const nestToken = getAccessToken();
+        const mockToken = getMockBridgeToken();
+        if (url.includes('/api/v1/') && nestToken) {
+          headers.Authorization = `Bearer ${nestToken}`;
+        } else if (!url.includes('/api/v1/') && mockToken) {
+          headers.Authorization = `Bearer ${mockToken}`;
+        }
+      } else {
+        const token = localStorage.getItem('ph-token');
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
       }
-      return config;
+      return {
+        ...config,
+        headers,
+        credentials: 'include',
+      };
     },
   ],
 

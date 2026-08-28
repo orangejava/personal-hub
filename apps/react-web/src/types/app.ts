@@ -26,10 +26,17 @@ export interface InitialState {
   publicSettings?: PublicThemeSettings;
   currentUser?: User;
   permissions?: PermissionCode[];
+  /** Nest 动作权限与 OWN/ALL 范围；mock 模式下为空 */
+  permissionGrants?: Array<{ code: string; dataScope: 'OWN' | 'ALL' }>;
   menu?: MenuItem[];
   systemConfig?: SystemPublicConfig;
   /** 工作区 SettingDrawer 开关 */
   workspaceSettingDrawerOpen?: boolean;
   /** 公开前台主题抽屉开关 */
   publicSettingDrawerOpen?: boolean;
+  /**
+   * 启动时 refresh/me 因 403/5xx/断网失败，会话未必失效。
+   * 为 true 时不要当成未登录踢回登录页。
+   */
+  sessionRestoreFailed?: boolean;
 }

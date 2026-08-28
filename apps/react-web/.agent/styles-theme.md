@@ -31,6 +31,8 @@
 
 暗色：在 `.ph-public-dark` 下覆写上述变量，**不要**在组件里写 `isDark ? '#fff' : '#000'`。
 
+登录 / 注册 / 验证页没有 `PublicLayout`，但仍走公开区主题：根节点使用 `ph-public-layout` + 可选 `ph-public-dark` + `ph-auth-page`，背景用 `--ph-hero-gradient`。
+
 ## 工作区主题
 
 - `initialState.settings` + Pro `SettingDrawer`

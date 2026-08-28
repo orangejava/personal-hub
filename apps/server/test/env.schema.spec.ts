@@ -19,6 +19,9 @@ describe('validateEnv', () => {
     expect(env.PORT).toBe(3001);
     expect(env.NODE_ENV).toBe('development');
     expect(env.CORS_ORIGIN).toBe('http://localhost:8000');
+    expect(env.MAILPIT_HOST).toBe('localhost');
+    expect(env.MAILPIT_PORT).toBe(1025);
+    expect(env.MAIL_FROM).toBe('Personal Hub <noreply@localhost>');
   });
 
   it('rejects incomplete secrets before the application starts', () => {

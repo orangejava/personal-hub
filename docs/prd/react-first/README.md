@@ -14,9 +14,9 @@
 | 4 | [phase-4-admin-preview-prd.md](./phase-4-admin-preview-prd.md) | ✅ 已完成本轮收尾 |
 | 5 | [phase-5-ai-platform-prd.md](./phase-5-ai-platform-prd.md) | ✅ 已完成本轮收尾 |
 | 5 体验增强 | [ai-composer-layout-prd.md](./ai-composer-layout-prd.md) | 🟡 待实施 |
-| 6 | NestJS 接入（待写） | — |
+| 6 | NestJS 接入（随 M2 登录切片开始） | 🟡 进行中 |
 | 7 | Next.js 抽离（待写） | — |
-| 5.5 可选 | [phase-5-5-next-api-bridge-prd.md](./phase-5-5-next-api-bridge-prd.md) | 🟡 待确认 |
+| 5.5 可选 | [phase-5-5-next-api-bridge-prd.md](./phase-5-5-next-api-bridge-prd.md) | ⏭️ 已跳过 |
 
 ## 跨阶段功能 PRD
 

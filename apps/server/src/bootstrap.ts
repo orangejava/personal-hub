@@ -48,6 +48,7 @@ export function configureHttpApp(
       .setTitle('Personal Hub API')
       .setDescription('Personal Hub NestJS API')
       .setVersion('1.0.0')
+      .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, swaggerConfig);
     SwaggerModule.setup('api/docs', app, document);

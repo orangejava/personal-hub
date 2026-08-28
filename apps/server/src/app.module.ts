@@ -4,6 +4,8 @@ import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { HealthModule } from './modules/health/health.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -44,6 +46,8 @@ import { HealthModule } from './modules/health/health.module';
     PrismaModule,
     RedisModule,
     HealthModule,
+    AuthModule,
+    AdminModule,
   ],
 })
 export class AppModule {}

@@ -37,4 +37,35 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async ping(): Promise<string> {
     return this.client.ping();
   }
+
+  async get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  async getJson<T>(key: string): Promise<T | null> {
+    const raw = await this.client.get(key);
+    if (raw === null) {
+      return null;
+    }
+    return JSON.parse(raw) as T;
+  }
+
+  async setJson(key: string, value: unknown, ttlSeconds: number): Promise<void> {
+    await this.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+  }
+
+  async del(key: string): Promise<void> {
+    await this.client.del(key);
+  }
+
+  /**
+   * 固定窗口计数。第一次写入时设置 TTL，避免窗口被无限拉长。
+   */
+  async incrWithTtl(key: string, ttlSeconds: number): Promise<number> {
+    const count = await this.client.incr(key);
+    if (count === 1) {
+      await this.client.expire(key, ttlSeconds);
+    }
+    return count;
+  }
 }

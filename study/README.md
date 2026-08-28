@@ -18,6 +18,10 @@
 - [features/react-first-phase-0-3.md](./features/react-first-phase-0-3.md)：React-first 阶段 0–3 合并复盘（权限、主题分离、菜单 i18n、文档预览选型）。
 - [features/react-experience-system.md](./features/react-experience-system.md)：阶段 4.5 体验系统（动效、骨架屏、结果态、操作反馈）。
 - [features/ai-composer-layout.md](./features/ai-composer-layout.md)：AI 三页统一布局、可配置输入框、配置弹窗和多类型消息渲染。
+- [features/nest-auth-login-slice.md](./features/nest-auth-login-slice.md)：Nest 登录切片、内存 Access Token 与 Refresh Cookie。
+- [features/nest-auth-permissions.md](./features/nest-auth-permissions.md)：权限快照、菜单过滤与前端 routeKey 注册表。
+- [features/nest-auth-register.md](./features/nest-auth-register.md)：公开注册、Mailpit 邮件链接验证与验证赠额。
+- [features/nest-auth-captcha-sessions-password.md](./features/nest-auth-captcha-sessions-password.md)：登录验证码、设备会话、强制改密、忘记密码与后台踢人。
 - [frontend-to-fullstack-learning-path.md](./frontend-to-fullstack-learning-path.md)：面向 Vue 3 / React 前端开发者的全栈转型路径。
 - [local-environment-setup-handbook.md](./local-environment-setup-handbook.md)：本地开发环境准备手册，包含 Docker、PostgreSQL、Redis、GUI/CLI 工具建议。
 - [nextjs-learning-handbook.md](./nextjs-learning-handbook.md)：Next.js 学习手册，重点是 App Router、RSC、SSR、ISR、路由组织。

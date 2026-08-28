@@ -21,6 +21,8 @@
 | 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
 |---|---|---|---|---|
 | 阶段 0 Express 运行底座 | ✅ 已完成 | 2026-08-09 | [nest-server-bootstrap.md](../implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
+| M1 身份/RBAC/菜单数据基线 | ✅ 已完成 | 2026-08-09 | [auth-rbac-menu-baseline.md](../implementation/auth/auth-rbac-menu-baseline.md) | — |
+| M2 Auth HTTP + React 登录切片 | ✅ 第 1–8 刀已落地 | 2026-08-22 | [切片划分](../implementation/auth/README.md) · [登录](../implementation/auth/auth-login-slice.md) · [权限](../implementation/auth/auth-permissions-slice.md) · [注册](../implementation/auth/auth-register-slice.md) · [验证码](../implementation/auth/auth-captcha-slice.md) · [会话](../implementation/auth/auth-sessions-slice.md) · [改密](../implementation/auth/auth-change-password-slice.md) · [忘记密码](../implementation/auth/auth-forgot-password-slice.md) · [后台踢人](../implementation/auth/auth-admin-sessions-slice.md) | [登录](../../study/features/nest-auth-login-slice.md) · [权限菜单](../../study/features/nest-auth-permissions.md) · [注册验证](../../study/features/nest-auth-register.md) · [验证码/会话/改密](../../study/features/nest-auth-captcha-sessions-password.md) |
 
 ### Nest 阶段 0 Express 运行底座
 

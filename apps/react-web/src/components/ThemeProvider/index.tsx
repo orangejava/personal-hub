@@ -8,12 +8,12 @@ import {
   subscribeThemeRuntime,
 } from '@/utils/themeRuntime';
 
-type Region = 'public' | 'workspace' | 'admin' | 'auth';
+type Region = 'public' | 'workspace' | 'admin';
 
 function getRegion(pathname: string): Region {
   if (pathname.startsWith('/workspace')) return 'workspace';
   if (pathname.startsWith('/admin')) return 'admin';
-  if (pathname.startsWith('/user')) return 'auth';
+  // /user 登录注册与公开前台共用主题，不跟工作区
   return 'public';
 }
 
@@ -42,7 +42,10 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const [pathname, setPathname] = useState(() => history.location.pathname);
   const [, bump] = useState(0);
 
-  useEffect(() => history.listen(({ location }) => setPathname(location.pathname)), []);
+  useEffect(
+    () => history.listen(({ location }) => setPathname(location.pathname)),
+    [],
+  );
 
   useEffect(() => subscribeThemeRuntime(() => bump((n) => n + 1)), []);
 
@@ -52,7 +55,9 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     <ConfigProvider
       theme={{
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-        token: { colorPrimary: colorPrimary ?? publicDefaultSettings.colorPrimary },
+        token: {
+          colorPrimary: colorPrimary ?? publicDefaultSettings.colorPrimary,
+        },
       }}
     >
       {children}

@@ -7,7 +7,7 @@ import {
 import { history, Link, useModel } from '@umijs/max';
 import type { MenuProps } from 'antd';
 import { Avatar, Button, Spin } from 'antd';
-import React, { startTransition } from 'react';
+import React from 'react';
 import { loginOut } from '@/utils/loginOut';
 import useHeaderActionStyles from './style';
 import HeaderDropdown from '../HeaderDropdown';
@@ -39,10 +39,7 @@ export const AvatarDropdown: React.FC<AvatarDropdownProps> = ({ children }) => {
   const onMenuClick: MenuProps['onClick'] = (event) => {
     const { key } = event;
     if (key === 'logout') {
-      startTransition(() =>
-        setInitialState((s) => ({ ...s, currentUser: undefined })),
-      );
-      loginOut();
+      void loginOut(setInitialState);
       return;
     }
     if (key === 'profile') {

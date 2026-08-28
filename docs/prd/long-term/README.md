@@ -17,7 +17,7 @@
 
 | 文档                                                             | 说明                                                             |
 | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [auth-rbac-session-prd.md](./auth-rbac-session-prd.md)           | 认证、8 小时 JWT、多设备会话、强制下线、RBAC 与 OWN/ALL 数据范围 | ✅ 已确认 |
+| [auth-rbac-session-prd.md](./auth-rbac-session-prd.md)           | 认证、会话、RBAC；M2 刀序见 [切片划分](../../implementation/auth/README.md) |
 | [system-config-menu-prd.md](./system-config-menu-prd.md)         | 公开系统配置、运营菜单、路由注册表与权限可见性                   | ✅ 已确认 |
 | [content-reading-domain-prd.md](./content-reading-domain-prd.md) | 内容生命周期、可见性、阅读、收藏、进度、软删除与版本快照         | ✅ 已确认 |
 | [content-booklet-file-prd.md](./content-booklet-file-prd.md)     | COS/MinIO、ZIP 异步导入、章节按需读取与存量小册 CLI 迁移         | ✅ 已确认 |
@@ -29,7 +29,7 @@
 
 | 文档                 | 触发时机         |
 | -------------------- | ---------------- |
-| `flutter-app-prd.md` | Web 主链路稳定后 |
+| `flutter-app-prd.md` | Web 主链路稳定后（已后置） |
 
 ## 相关长期文档
 

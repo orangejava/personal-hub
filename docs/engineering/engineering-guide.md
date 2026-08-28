@@ -49,6 +49,66 @@ React mock 开发不需要 `apps/next-web`、数据库、Docker 或 server 环�
 - 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
 - MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。
 
+### 查看 Docker 里的 Postgres / Redis
+
+Compose 已经把端口映射到本机，**不要再单独安装一套 PostgreSQL / Redis 服务**（会和 5432、6379 抢端口）。只需用客户端连上去。
+
+| 服务 | 地址 | 账号 / 密码 |
+| --- | --- | --- |
+| PostgreSQL | `localhost:5432`，库名 `personal_hub` | `personal_hub` / `personal_hub_dev_password` |
+| Redis | `localhost:6379` | 密码 `personal_hub_redis_dev_password` |
+| Mailpit | 浏览器 `http://localhost:8025` | 无 |
+
+命令行：
+
+```bash
+# 容器内 psql（不用本机安装）
+docker compose -f compose.dev.yml exec postgres psql -U personal_hub -d personal_hub
+
+# 本机已装 psql 时
+psql "postgresql://personal_hub:personal_hub_dev_password@localhost:5432/personal_hub"
+
+# Redis
+docker compose -f compose.dev.yml exec redis redis-cli -a personal_hub_redis_dev_password
+```
+
+图形工具新建连接即可，**不要再启动本机 PostgreSQL / Redis 服务**。权威账号见 `apps/server/.env.example`。
+
+#### pgAdmin
+
+1. 先确认容器在跑：`docker compose -f compose.dev.yml ps`，`postgres` 应为 healthy。
+2. 打开 pgAdmin → 左侧 **Servers** 右键 → **Register** → **Server**。
+3. **General**：Name 填 `personal-hub-dev`（仅显示名，随便起）。
+4. **Connection** 按下面填：
+
+| 字段 | 值 |
+| --- | --- |
+| Host name/address | `127.0.0.1`（不要用容器名；Docker 已映射到本机） |
+| Port | `5432` |
+| Maintenance database | `personal_hub` |
+| Username | `personal_hub` |
+| Password | `personal_hub_dev_password` |
+| Save password | 可勾选（仅本地） |
+
+5. 保存后展开该服务器 → **Databases** → `personal_hub` → **Schemas** → **public** → **Tables**。用户表看 `users`（邮箱列是 `email_normalized`）。
+
+连不上时：本机若另装过 Postgres 占用了 `5432`，先停掉本机服务，或看 `docker compose ps` 的端口映射。
+
+#### Redis Insight
+
+1. 确认 `redis` 容器 healthy。
+2. 打开 Redis Insight → **Add Redis database**。
+3. 按下面填：
+
+| 字段 | 值 |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `6379` |
+| Username | `default`（Redis 7 用 requirepass 时走默认用户；留空若连不上再填这个） |
+| Password | `personal_hub_redis_dev_password` |
+
+4. 连上后 key 带前缀 `ph:dev:`（例如会话 `ph:dev:auth:session:...`）。用浏览器过滤 `ph:dev:` 即可。
+
 ---
 
 ## Nest 环境变量原则

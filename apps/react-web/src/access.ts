@@ -14,8 +14,13 @@ export default function access(initialState: InitialState | undefined) {
   const can = (code: PermissionCode) => permissions.includes(code);
 
   return {
-    canAdmin: role === 'admin',
-    canWorkspace: can('workspace:access'),
+    canAdmin: role === 'admin' || can('admin:access'),
+    // 工作区对所有已登录角色开放；动作权限仍由各页 access / PermissionGate 约束。
+    canWorkspace:
+      can('workspace:access') ||
+      role === 'admin' ||
+      role === 'editor' ||
+      role === 'member',
     canWrite: can('content:write'),
     canPublish: can('content:publish'),
     canUseAi: can('ai:use'),

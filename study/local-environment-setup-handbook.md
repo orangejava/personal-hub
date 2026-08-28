@@ -503,6 +503,8 @@ docker compose -f compose.dev.yml down
 docker compose -f compose.dev.yml up -d --build
 ```
 
+本项目的 PostgreSQL、Redis 已经跑在这些容器里，端口映射到 `localhost:5432` / `6379`。查看数据时只装 **客户端**（`psql`、TablePlus、Redis Insight），不要再启动本机 Postgres/Redis 服务。连接方式见 [engineering-guide.md](../docs/engineering/engineering-guide.md)「查看 Docker 里的 Postgres / Redis」。
+
 ### 8.10 Docker Desktop 图形界面怎么用
 
 打开 Docker Desktop 后，你主要看这几个区域：

@@ -5,8 +5,9 @@ import { DataScope, PrismaClient, RoleCode, UserStatus } from '@prisma/client';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { bootstrapSuperAdmin } from '../src/cli/bootstrap-super-admin';
+import { LOCAL_DEV_PASSWORD, seedLocalDevUsers } from '../src/cli/seed-local-dev-users';
 import { PERMISSION_CATALOG, SYSTEM_ROLE_PERMISSIONS } from '../src/modules/auth/rbac-catalog';
-import { runBaselineSeed } from '../prisma/seed';
+import { runBaselineSeed, SYSTEM_MENUS } from '../prisma/seed';
 
 const serverDirectory = resolve(__dirname, '..');
 
@@ -69,8 +70,11 @@ describe('Auth/RBAC M1 数据基线', () => {
     ).toBe(true);
 
     const menus = await prisma.menu.findMany({ include: { permissions: true } });
-    expect(menus).toHaveLength(8);
+    expect(menus).toHaveLength(SYSTEM_MENUS.length);
     expect(menus.find((menu) => menu.routeKey === 'admin.users')?.permissions).toHaveLength(1);
+    expect(menus.find((menu) => menu.routeKey === 'workspace.contents')?.parentId).toBe(
+      menus.find((menu) => menu.routeKey === 'workspace.content.group')?.id,
+    );
     await expect(
       prisma.permission.create({
         data: {
@@ -114,5 +118,46 @@ describe('Auth/RBAC M1 数据基线', () => {
         },
       }),
     ).resolves.toBe(1);
+  });
+
+  it('禁止在生产环境写入本地开发账号', async () => {
+    await runBaselineSeed(prisma);
+    await expect(seedLocalDevUsers(prisma, 'production')).rejects.toThrow('禁止在生产环境');
+  });
+
+  it('可把已有 super_admin 重置为文档中的本地开发账号', async () => {
+    await runBaselineSeed(prisma);
+    await prisma.user.deleteMany();
+    await bootstrapSuperAdmin(prisma, {
+      email: 'acceptance-owner@example.com',
+      temporaryPassword: 'OneTimePassword!1',
+    });
+
+    const result = await seedLocalDevUsers(prisma, 'development');
+    expect(result.emails).toEqual([
+      'owner@example.com',
+      'editor@example.com',
+      'member@example.com',
+    ]);
+
+    const owner = await prisma.user.findUniqueOrThrow({
+      where: { email: 'owner@example.com' },
+      include: { role: true },
+    });
+    expect(owner.role.code).toBe(RoleCode.SUPER_ADMIN);
+    expect(owner.mustChangePassword).toBe(false);
+    await expect(argon2.verify(owner.passwordHash, LOCAL_DEV_PASSWORD)).resolves.toBe(true);
+    await expect(
+      prisma.user.count({
+        where: { role: { code: RoleCode.SUPER_ADMIN }, status: UserStatus.ACTIVE },
+      }),
+    ).resolves.toBe(1);
+
+    const editor = await prisma.user.findUniqueOrThrow({
+      where: { email: 'editor@example.com' },
+      include: { role: true },
+    });
+    expect(editor.role.code).toBe(RoleCode.EDITOR);
+    await expect(argon2.verify(editor.passwordHash, LOCAL_DEV_PASSWORD)).resolves.toBe(true);
   });
 });

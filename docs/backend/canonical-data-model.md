@@ -1,7 +1,7 @@
 # Canonical PostgreSQL / Prisma 数据模型
 
 > 状态：🟢 已确认，Nest Prisma Schema 的实现基线
-> 最后更新：2026-08-02
+> 最后更新：2026-08-22
 > 关联：[后端实现约定](./conventions.md)、[Canonical API](./canonical-api.md)
 
 ---
@@ -56,7 +56,7 @@
 
 | 表                          | 核心字段                                                                                                                                    | 说明                                                          |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `auth_sessions`             | `user_id`、设备/浏览器摘要、`ip_hash`、`last_active_at`、`expires_at`、`revoked_at`、`revoked_reason`、`auth_version`、`permission_version` | 一个客户端会话                                                |
+| `auth_sessions`             | `user_id`、设备/浏览器摘要、`ip_hash`、`ip_masked`、`last_active_at`、`expires_at`、`revoked_at`、`revoked_reason`、`auth_version`、`permission_version` | 一个客户端会话                                                |
 | `refresh_tokens`            | `session_id`、`token_hash`、`expires_at`、`rotated_at`、`revoked_at`、`replaced_by_token_id`                                                | 只保存加 pepper 的哈希，并可追踪轮换链                        |
 | `email_verification_tokens` | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                        | 24 小时一次性验证                                             |
 | `password_reset_tokens`     | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                        | 30 分钟一次性重置                                             |
@@ -76,6 +76,7 @@ users(email_normalized) UNIQUE
 
 规则：
 
+- 会话列表只回 `ip_masked` 与设备摘要；`ip_hash` 仅审计，不回前端。
 - `member` 最多同时存在 5 条未撤销且未过期会话；新会话创建前撤销最久未活跃的非当前会话。`admin`、`super_admin` 首版不设上限，后续由角色级配置启用。
 - 检测到已轮换的 Refresh Token 再次被使用时，撤销其 `session_id` 对应会话和整条 Token 链；不撤销该用户其他设备会话。
 - `totp_factors` 不对普通 member 创建记录。停用、管理员重置和恢复码使用均必须写审计日志。

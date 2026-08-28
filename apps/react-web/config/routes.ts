@@ -66,6 +66,11 @@ export default [
     layout: false,
     routes: [
       { path: '/user/login', name: 'login', component: './user/login' },
+      { path: '/user/register', name: 'register', component: './user/register' },
+      { path: '/user/verify-email', name: 'verify-email', component: './user/verify-email' },
+      { path: '/user/forgot-password', name: 'forgot-password', component: './user/forgot-password' },
+      { path: '/user/reset-password', name: 'reset-password', component: './user/reset-password' },
+      { path: '/user/change-password', name: 'change-password', component: './user/change-password' },
       { path: '/user', redirect: '/user/login' },
     ],
   },
@@ -88,6 +93,7 @@ export default [
       { path: '/workspace/ai/history', name: 'AI 历史', component: './workspace/AiHistory' },
       { path: '/workspace/usage', name: '我的用量', component: './workspace/Usage' },
       { path: '/workspace/profile', name: '个人设置', component: './workspace/Profile' },
+      { path: '/workspace/sessions', name: '登录设备', component: './workspace/Sessions' },
     ],
   },
 

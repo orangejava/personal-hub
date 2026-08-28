@@ -1,7 +1,7 @@
 # 用户、登录与权限体系
 
 > 状态：🟢 产品与 UI 说明；Nest 后端事实以 [Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md) 和 [Auth/RBAC PRD](../prd/long-term/auth-rbac-session-prd.md) 为准
-> 最后更新：2026-08-02
+> 最后更新：2026-08-26
 
 ---
 
@@ -28,6 +28,7 @@
 | Refresh Token | 7 天高熵随机值；数据库只保存加 pepper 的哈希，刷新时轮换                                              |
 | Web 存储/传输 | Access Token 仅内存 + `Authorization: Bearer`；Refresh 为 `Secure`、`HttpOnly`、`SameSite=Lax` Cookie |
 | Cookie 防护   | 不设置宽泛 `Domain`；Cookie 鉴权 Auth 路由严格校验 `Origin` / `Referer` 同源白名单                    |
+| 登出          | Web `POST /auth/logout` 优先 Refresh Cookie，没有再用 Access Token；只撤当前会话                      |
 | 会话失效      | 登出撤销当前会话；密码、禁用、全量撤销递增认证版本；角色/权限变更递增权限版本                         |
 
 检测到已轮换 Refresh Token 重放时，只撤销该设备会话及其 Token 链，不影响其他设备。`member` 最多 5 个活跃会话，新登录会撤销最久未活跃的非当前会话；管理角色首版不设上限。
@@ -69,7 +70,7 @@ Guard 校验动作权限；Service/Repository 必须在列表、详情和写操�
 
 ## 身份与授权接口
 
-固定前缀为 `/api/v1`。主要接口包括注册/验证/重发验证、验证码挑战、登录/MFA、刷新/登出、`/auth/me`、`/auth/permissions`、会话列表与撤销、邮箱变更及 TOTP 管理。精确路径、状态码、错误码和响应格式以 [Canonical API](../backend/canonical-api.md#2-auth) 为准。
+固定前缀为 `/api/v1`。主要接口包括注册/验证/重发验证、忘记密码/重置密码、验证码挑战、登录/MFA、刷新/登出、`/auth/me`、`/auth/permissions`、`/auth/change-password`、会话列表与撤销、后台踢全部设备、邮箱变更及 TOTP 管理。精确路径、状态码、错误码和响应格式以 [Canonical API](../backend/canonical-api.md#2-auth) 为准。
 
 ## 后续扩展
 

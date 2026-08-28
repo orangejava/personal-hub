@@ -6,8 +6,10 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
+import { Public } from '../../common/decorators/public.decorator';
 import { InfrastructureHealthIndicator } from './health.indicator';
 
+@Public()
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {

@@ -30,6 +30,7 @@ export default {
   'workspace.usage.total': 'Total Quota',
   'workspace.usage.progress': 'Usage Progress',
   'workspace.profile.title': 'Profile',
+  'workspace.sessions.title': 'Signed-in devices',
   'workspace.common.save': 'Save',
   'workspace.common.cancel': 'Cancel',
   'workspace.common.action': 'Actions',

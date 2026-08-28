@@ -49,3 +49,7 @@
 - [react-experience-system.md](./react-experience-system.md)：React-first 阶段 4.5 动效、骨架屏、结果态与操作反馈体验系统。
 - [ai-platform-mock-workbench.md](./ai-platform-mock-workbench.md)：阶段 5 AI 独立工作台、Ant Design X 本地封装、mock/service 数据流与验收方法。
 - [ai-composer-layout.md](./ai-composer-layout.md)：AI 三页统一布局、可配置输入框、配置弹窗和多类型消息渲染。
+- [nest-auth-login-slice.md](./nest-auth-login-slice.md)：Nest 登录、内存 Access Token、Refresh Cookie 与 mock 桥接。
+- [nest-auth-permissions.md](./nest-auth-permissions.md)：权限快照、菜单过滤、routeKey 注册表与 mock 权限兼容。
+- [nest-auth-register.md](./nest-auth-register.md)：公开注册、Mailpit 邮件链接验证与验证赠额幂等。
+- [nest-auth-captcha-sessions-password.md](./nest-auth-captcha-sessions-password.md)：登录验证码、设备会话、强制改密、忘记密码与后台踢人。

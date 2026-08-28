@@ -19,6 +19,7 @@ export default {
   'menu.workspace.aiHistory': 'AI History',
   'menu.workspace.usage': 'Usage',
   'menu.workspace.profile': 'Profile',
+  'menu.workspace.sessions': 'Devices',
   'menu.admin.dashboard': 'Dashboard',
   'menu.admin.users': 'Users',
   'menu.admin.roles': 'Roles',

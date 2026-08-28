@@ -1,6 +1,6 @@
 # PRD 文档索引
 
-> 最后更新：2026-08-08
+> 最后更新：2026-08-22
 > 说明：本目录存放**可直接指导开发**的 PRD。文档已按 **React-first（当前）** 与 **长期全栈（未来 Next + React Admin + NestJS）** 分子目录存放。
 
 ---
@@ -29,13 +29,13 @@
 | [react-first/phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md)         | 阶段 4          | ✅ 已完成本轮收尾 |
 | [react-first/phase-5-ai-platform-prd.md](./react-first/phase-5-ai-platform-prd.md)             | 阶段 5          | ✅ 已完成本轮收尾 |
 | [react-first/ai-composer-layout-prd.md](./react-first/ai-composer-layout-prd.md)               | 阶段 5 体验增强 | 🟡 待实施         |
-| [react-first/phase-5-5-next-api-bridge-prd.md](./react-first/phase-5-5-next-api-bridge-prd.md) | 阶段 5.5 可选   | 🟡 待确认         |
+| [react-first/phase-5-5-next-api-bridge-prd.md](./react-first/phase-5-5-next-api-bridge-prd.md) | 阶段 5.5 可选   | ⏭️ 已跳过         |
 | [react-first/frontend-visual-spec.md](./react-first/frontend-visual-spec.md)                   | 跨阶段          | ✅ 已确定         |
-| [react-first/theme-navigation-config-prd.md](./react-first/theme-navigation-config-prd.md)     | 跨阶段          | 🟡 部分实现       |
+| [react-first/theme-navigation-config-prd.md](./react-first/theme-navigation-config-prd.md)     | 跨阶段          | 🟡 首版够用，剩余后置 |
 | [react-first/content-reading-prd.md](./react-first/content-reading-prd.md)                     | 阶段 2+         | ✅ 已完成         |
 | [react-first/content-workspace-prd.md](./react-first/content-workspace-prd.md)                 | 阶段 3+         | ✅ 已完成         |
 
-**后端下一阶段入口**：Nest 阶段 0 已完成 Testcontainers、readiness 故障自动化与 server CI 收口；Auth 开始前阅读 [长期 Nest Server 脚手架 PRD](./long-term/nest-server-bootstrap-prd.md)、[Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档；Next 抽离仍在启动对应阶段前另行补 PRD。
+**后端下一阶段入口**：Nest M2 Auth 第 1–8 刀已落地（含忘记密码与管理员踢全部设备）。下一可选为其它 Nest 业务模块或后台禁用/改角色；划分见 [M2 切片](../implementation/auth/README.md)。阅读 [Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档。阶段 5.5 Next API Bridge 已跳过。
 
 ---
 
@@ -55,7 +55,7 @@
 | [long-term/ai-tools-prd.md](./long-term/ai-tools-prd.md)                             | AI 工具平台、SSE、任务、额度与资产                                  | ✅ 已确认                      |
 | [long-term/nest-backend-requirements.md](./long-term/nest-backend-requirements.md)   | React 功能到 Canonical Nest 后端需求总览                            | ✅ 已确认                      |
 
-**待补充**：`long-term/flutter-app-prd.md`（Web 主链路稳定后）；真实 AI 厂商适配在接入时按 `ai-tools-prd.md` 与 Canonical 文档补充，不预建重复 PRD。
+**后置待办**：`long-term/flutter-app-prd.md`（Web 主链路稳定后）；域名与站点名；主题/导航剩余项。真实 AI 厂商适配在接入时按 `ai-tools-prd.md` 与 Canonical 文档补充，不预建重复 PRD。
 
 ---
 

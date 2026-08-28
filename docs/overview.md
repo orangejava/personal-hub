@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 Express 运行底座已完成
-> 最后更新：2026-08-08
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 已完成；M2 Auth 第 1–6 刀已落地
+> 最后更新：2026-08-22
 
 ---
 
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5 AI 平台 mock 闭环已完成本轮收尾**。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest 下一阶段见下方待办。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -69,7 +69,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [react-first/frontend-app.md](./react-first/frontend-app.md) | `apps/react-web` 应用结构与改造规则          | ✅ 已确定                 |
 | [react-first/foundation.md](./react-first/foundation.md)     | 主题、布局、权限、请求、mock、组件等基础设施 | ✅ 已确定                 |
 | [react-first/mock-data.md](./react-first/mock-data.md)       | mock 数据与接口契约                          | ✅ 已确定                 |
-| [react-first/roadmap.md](./react-first/roadmap.md)           | React-first 阶段开发路线图                   | ✅ 阶段 0-5 mock 闭环完成 |
+| [react-first/roadmap.md](./react-first/roadmap.md)           | React-first 阶段开发路线图                   | ✅ 阶段 0-5 完成；5.5 已跳过 |
 
 ### 产品与业务模块
 
@@ -81,7 +81,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [product/auth-rbac.md](./product/auth-rbac.md)             | 用户、登录、角色与权限体系（已与 Canonical 后端契约同步） | ✅ 已完成 |
 | [product/content-system.md](./product/content-system.md)   | 知识内容模型、格式与导入（已与 Canonical 后端契约同步）   | ✅ 已完成 |
 | [product/ai-tools.md](./product/ai-tools.md)               | AI 工具平台功能与接入策略（已与 Canonical 后端契约同步）  | ✅ 已完成 |
-| [product/flutter.md](./product/flutter.md)                 | Flutter App 范围与接入                                    | ✅ 已完成 |
+| [product/flutter.md](./product/flutter.md)                 | Flutter App 范围与接入                                    | 📋 范围已定，实施后置 |
 
 ### 后端接口与数据
 
@@ -101,7 +101,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [engineering/engineering-guide.md](./engineering/engineering-guide.md)             | 工程开发指南（环境/目录/规范）                     | ✅ 已完成   |
 | [engineering/git-commit-convention.md](./engineering/git-commit-convention.md)     | Git 提交入口（stub → `.agents/skills/git-commit`） | ✅ 已迁移   |
 | [../.agents/skills/git-commit/SKILL.md](../.agents/skills/git-commit/SKILL.md)     | Git 提交权威规范（跨工具 skill）                   | ✅ 已完成   |
-| [engineering/dev-credentials.md](./engineering/dev-credentials.md)                 | 本地 mock 账号与密码                               | ✅ 已确定   |
+| [engineering/dev-credentials.md](./engineering/dev-credentials.md)                 | 本地常用信息：账号、端口、Compose、Mailpit         | ✅ 已确定   |
 | [history/development-plan.md](./history/development-plan.md)                       | React-first 历史执行手册                           | 📚 历史资料 |
 | [history/mvp-roadmap.md](./history/mvp-roadmap.md)                                 | MVP 历史排期与阶段目标                             | 📚 历史资料 |
 | [engineering/nest-dependency-catalog.md](./engineering/nest-dependency-catalog.md) | Nest 依赖目录、组合边界与版本锁定                  | ✅ 已确定   |
@@ -114,6 +114,16 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [completed/README.md](./completed/README.md)                                                                   | 已完成功能进度台账（阶段状态与验收入口） | ✅ 已完成 |
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
 | [implementation/foundation/nest-server-bootstrap.md](./implementation/foundation/nest-server-bootstrap.md)     | NestJS + Express 阶段 0 后端运行底座 | ✅ 已完成 |
+| [implementation/auth/auth-rbac-menu-baseline.md](./implementation/auth/auth-rbac-menu-baseline.md)             | Nest M1 身份/RBAC/菜单数据基线       | ✅ 已完成 |
+| [implementation/auth/README.md](./implementation/auth/README.md)                                               | Nest M2 Auth 切片划分（第 1–6 刀已落地） | ✅ 已完成 |
+| [implementation/auth/auth-login-slice.md](./implementation/auth/auth-login-slice.md)                           | Nest M2 第 1 刀登录联调              | ✅ 已完成 |
+| [implementation/auth/auth-permissions-slice.md](./implementation/auth/auth-permissions-slice.md)               | Nest M2 第 2 刀权限与菜单            | ✅ 已完成 |
+| [implementation/auth/auth-register-slice.md](./implementation/auth/auth-register-slice.md)                     | Nest M2 第 3 刀注册与邮箱验证        | ✅ 已完成 |
+| [implementation/auth/auth-captcha-slice.md](./implementation/auth/auth-captcha-slice.md)                       | Nest M2 第 4 刀登录 SVG/算术验证码   | ✅ 已完成 |
+| [implementation/auth/auth-sessions-slice.md](./implementation/auth/auth-sessions-slice.md)                     | Nest M2 第 5 刀设备会话与登录设备页  | ✅ 已完成 |
+| [implementation/auth/auth-change-password-slice.md](./implementation/auth/auth-change-password-slice.md)       | Nest M2 第 6 刀临时密码强制改密      | ✅ 已完成 |
+| [implementation/auth/auth-forgot-password-slice.md](./implementation/auth/auth-forgot-password-slice.md)       | Nest M2 第 7 刀忘记密码与邮件重置    | ✅ 已完成 |
+| [implementation/auth/auth-admin-sessions-slice.md](./implementation/auth/auth-admin-sessions-slice.md)         | Nest M2 第 8 刀后台踢全部设备        | ✅ 已完成 |
 | [implementation/react-first/phase-0-3.md](./implementation/react-first/phase-0-3.md)                           | 阶段 0–3 合并实现说明                    | ✅ 已完成 |
 | [implementation/react-first/phase-0-structure.md](./implementation/react-first/phase-0-structure.md)           | 阶段 0 工程骨架实现说明                  | ✅ 已完成 |
 | [implementation/react-first/phase-1-foundation.md](./implementation/react-first/phase-1-foundation.md)         | 阶段 1 基础底座实现说明                  | ✅ 已完成 |
@@ -136,8 +146,8 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [prd/react-first/phase-0-3-foundation-prd.md](./prd/react-first/phase-0-3-foundation-prd.md)           | 阶段 0-3 基础与首版页面 PRD                                | ✅ 已实施                              |
 | [prd/react-first/phase-4-admin-preview-prd.md](./prd/react-first/phase-4-admin-preview-prd.md)         | 阶段 4：后台运营 + PDF/Word 预览；阶段 4.5 体验底座        | ✅ 阶段 4/4.5 本轮完成                 |
 | [prd/react-first/phase-5-ai-platform-prd.md](./prd/react-first/phase-5-ai-platform-prd.md)             | 阶段 5：AI 独立工作台 + mock                               | ✅ 已完成本轮收尾                      |
-| [prd/react-first/phase-5-5-next-api-bridge-prd.md](./prd/react-first/phase-5-5-next-api-bridge-prd.md) | Next API Bridge 过渡后端方案                               | 🟡 待确认                              |
-| [prd/react-first/theme-navigation-config-prd.md](./prd/react-first/theme-navigation-config-prd.md)     | 主题与导航配置 PRD                                         | 🟡 部分实现（见 frontend-visual-spec） |
+| [prd/react-first/phase-5-5-next-api-bridge-prd.md](./prd/react-first/phase-5-5-next-api-bridge-prd.md) | Next API Bridge 过渡后端方案                               | ⏭️ 已跳过（直接走 Nest）               |
+| [prd/react-first/theme-navigation-config-prd.md](./prd/react-first/theme-navigation-config-prd.md)     | 主题与导航配置 PRD                                         | 🟡 首版已够用；剩余项后置               |
 | [prd/react-first/frontend-visual-spec.md](./prd/react-first/frontend-visual-spec.md)                   | 前台视觉规范（首版决策）                                   | ✅ 已确定                              |
 | [prd/react-first/content-reading-prd.md](./prd/react-first/content-reading-prd.md)                     | Markdown 与掘金小册阅读 PRD                                | ✅ 已完成                              |
 | [prd/react-first/content-workspace-prd.md](./prd/react-first/content-workspace-prd.md)                 | 内容工作区 PRD                                             | ✅ 已完成                              |
@@ -167,7 +177,10 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [../study/README.md](../study/README.md)                                                           | 学习资料总入口               | ✅ 已完成 |
 | [../study/features/README.md](../study/features/README.md)                                         | 功能学习文档固定归档规则     | ✅ 已完成 |
 | [../study/interview/README.md](../study/interview/README.md)                                       | 项目面试题与模块化问答       | ✅ 已完成 |
-| [../study/features/nest-server-bootstrap.md](../study/features/nest-server-bootstrap.md)           | Nest 阶段 0 基础设施学习笔记 | ✅ 已完成 |
+| [../study/features/nest-auth-login-slice.md](../study/features/nest-auth-login-slice.md)           | Nest 登录切片与 Refresh Cookie | ✅ 已完成 |
+| [../study/features/nest-auth-permissions.md](../study/features/nest-auth-permissions.md)           | Nest 权限快照、菜单过滤与 routeKey | ✅ 已完成 |
+| [../study/features/nest-auth-register.md](../study/features/nest-auth-register.md)                 | Nest 注册、邮件链接验证与验证赠额 | ✅ 已完成 |
+| [../study/features/nest-auth-captcha-sessions-password.md](../study/features/nest-auth-captcha-sessions-password.md) | Nest 验证码、设备会话与强制改密 | ✅ 已完成 |
 | [../study/features/nest-http-adapter-comparison.md](../study/features/nest-http-adapter-comparison.md) | Express / Fastify 选型比较 | ✅ 已完成 |
 | [../study/features/nest-stage0-retrospective.md](../study/features/nest-stage0-retrospective.md)   | Nest 阶段 0 问题与排障复盘   | ✅ 已完成 |
 | [../study/interview/nest-phase-0-bootstrap.md](../study/interview/nest-phase-0-bootstrap.md)       | Nest 阶段 0 面试题          | ✅ 已完成 |
@@ -179,6 +192,15 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [../study/monorepo-docker-learning-handbook.md](../study/monorepo-docker-learning-handbook.md)     | Monorepo + Docker 学习手册   | ✅ 已完成 |
 | [../study/system-design-thinking.md](../study/system-design-thinking.md)                           | 系统设计思考清单             | ✅ 已完成 |
 | [../study/technology-learning-map.md](../study/technology-learning-map.md)                         | 项目技术学习地图             | ✅ 已完成 |
+
+---
+
+## 当前开发主线（2026-08-22）
+
+1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀（含忘记密码、后台只读用户与踢全部设备）。切片划分见 [implementation/auth/README.md](./implementation/auth/README.md)。
+2. **接下来（可选，未开刀）**：其它 Nest 业务模块（内容、文件、AI），或后台禁用/改角色。开刀前先对契约与 PRD。
+3. **明确跳过**：阶段 5.5 Next API Bridge。
+4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余项、域名与站点名、Flutter。
 
 ---
 
@@ -196,6 +218,13 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] 工程环境搭建与开发规范（见 `engineering/engineering-guide.md`）
 - [x] 主题与导航配置 PRD（见 `prd/react-first/theme-navigation-config-prd.md` → 主题色、导航位置、预留配置）
 - [x] 前台视觉设计细节（见 `prd/react-first/frontend-visual-spec.md` → 首版沿用 Ant Design + tokens）
-- [x] 管理员初始账号密码约定（见 `engineering/dev-credentials.md` → mock 环境；生产 seed 另行设置）
+- [x] 管理员初始账号密码约定（见 `engineering/dev-credentials.md` → Nest 用 `seed:local-users`；mock 另表；生产 bootstrap 另行设置）
 - [x] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
+- [x] 阶段 5.5 Next API Bridge：已确认跳过，直接走 Nest
+- [x] Nest M2 Auth 第 1–8 刀：登录、权限菜单、注册验证、验证码、设备会话、强制改密、忘记密码、后台踢全部设备（见 [implementation/auth/README.md](./implementation/auth/README.md)）。改邮箱 / TOTP / 真实 SMTP / 禁用改角色仍后置。
+
+### 后置待办（不阻塞 M2）
+
 - [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`，站点名暂用 mock 默认）
+- [ ] 主题与导航剩余项：公开区左/右导航布局、后台主题表单补齐（Logo/SEO/功能开关/预览）、真实 `system_configs` 读写（见 `prd/react-first/theme-navigation-config-prd.md`）
+- [ ] Flutter App（Web 主链路稳定后再补 `prd/long-term/flutter-app-prd.md`）

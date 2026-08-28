@@ -26,9 +26,9 @@ import {
   PlusOutlined,
   CopyOutlined,
 } from '@ant-design/icons';
-import { Link, useLocation, useModel } from '@umijs/max';
+import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Avatar, Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
-import React, { startTransition, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
 import { loginOut } from '@/utils/loginOut';
 import '@/styles/ai-layout.less';
@@ -329,10 +329,7 @@ const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText }) => {
         <button
           type="button"
           onClick={() => {
-            startTransition(() =>
-              setInitialState((state) => ({ ...state, currentUser: undefined })),
-            );
-            loginOut();
+            void loginOut(setInitialState);
           }}
         >
           <LogoutOutlined />
@@ -370,6 +367,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
   children,
 }) => {
   const location = useLocation();
+  const { initialState } = useModel('@@initialState');
   const { runtimeConfig, loadHomeConfig } = useModel('ai');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -378,6 +376,13 @@ const AiLayout: React.FC<AiLayoutProps> = ({
     if (runtimeConfig.quota && runtimeConfig.tools) return;
     loadHomeConfig();
   }, [loadHomeConfig, runtimeConfig.quota, runtimeConfig.tools]);
+
+  // layout: false 时 ProLayout 的 onPageChange 不执行；客户端在 /ai 内跳转也要拦。
+  useEffect(() => {
+    if (initialState?.currentUser?.mustChangePassword) {
+      history.replace('/user/change-password');
+    }
+  }, [initialState?.currentUser?.mustChangePassword]);
 
   const resolvedBrandName = brandName ?? runtimeConfig.brandName;
   const resolvedQuotaText =

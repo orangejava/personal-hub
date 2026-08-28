@@ -1,7 +1,7 @@
 # Canonical Nest API 契约
 
 > 状态：🟢 已确认，后续 NestJS、React 对接与 Next 迁移的唯一 API 来源
-> 最后更新：2026-08-02
+> 最后更新：2026-08-26
 > 基础路径：`/api/v1`
 > 关联：[后端实现约定](./conventions.md)、[数据模型](./canonical-data-model.md)、[React Mock 对照](./react-mock-migration.md)
 
@@ -30,7 +30,7 @@
 | POST   | `/auth/login`                | 公开                | Web 登录；可能要求验证码或返回 MFA challenge                     |
 | POST   | `/auth/login/mfa`            | MFA challenge       | 校验 TOTP/恢复码后创建会话，写 Refresh Cookie，返回 Access Token |
 | POST   | `/auth/refresh`              | Refresh Cookie      | 轮换 Web Refresh Token，返回 Access Token                        |
-| POST   | `/auth/logout`               | 当前会话            | 撤销当前会话并清 Cookie                                          |
+| POST   | `/auth/logout`               | Refresh Cookie / Access Token | 撤销当前会话并清 Cookie；Cookie 优先，没有再用 Bearer            |
 | POST   | `/auth/forgot-password`      | 公开                | 发送一次性重置邮件，统一 `202` 响应                              |
 | POST   | `/auth/reset-password`       | 公开                | 使用重置 Token 更新密码并撤销旧会话                              |
 | GET    | `/auth/me`                   | 登录                | 当前身份、单角色、资料、权益摘要                                 |
@@ -38,6 +38,7 @@
 | GET    | `/auth/sessions`             | 登录                | 当前账号会话列表，含 `isCurrent`                                 |
 | DELETE | `/auth/sessions/:sessionId`  | own / all           | 撤销指定非当前会话                                               |
 | POST   | `/auth/sessions/revoke-all`  | 登录                | 撤销本人全部会话；可选保留当前会话                               |
+| POST   | `/auth/change-password`      | 登录                | 当前密码 + 新密码；成功后撤销全部会话并递增 `authVersion`        |
 | POST   | `/auth/change-email`         | 登录                | 需当前密码；创建新邮箱验证请求                                   |
 | POST   | `/auth/confirm-email-change` | 公开                | 消费新邮箱验证 Token，更新邮箱并撤销其他会话                     |
 | POST   | `/auth/mfa/totp/setup`       | admin / super_admin | 创建待确认的 TOTP 绑定信息                                       |
@@ -53,12 +54,59 @@
 - 密码至少 8 位，必须包含大写、小写、数字和特殊字符。
 - 成功返回 `202`，不签发 Access/Refresh Token。
 - 账号激活前登录返回 `403 AUTH_EMAIL_NOT_VERIFIED`。
+- 已存在邮箱（含已激活、已禁用）同样返回 `202`，避免枚举；仅 `PENDING_VERIFICATION` 会轮换 Token 并重发邮件。
+
+```json
+// 202
+{ "data": { "accepted": true }, "requestId": "uuid" }
+```
+
+`POST /auth/verify-email` 使用邮件链接中的一次性 Token（24 小时，SHA-256 + pepper 入库）：
+
+```json
+{ "token": "opaque-link-token" }
+```
+
+- 首次成功：用户变为 `ACTIVE`，同一事务创建 `ai_quota_accounts` 并按角色 `verification_grant_amount` 写入 `GRANT`（MEMBER 默认 10000）。幂等键 `email-verify-grant:{userId}`，重复点击不二次发放。
+- Token 无效或过期：`400 AUTH_VERIFICATION_TOKEN_INVALID`。
+- 已激活账号重复点击已消费 Token：仍返回成功。
+
+```json
+// 200
+{ "data": { "verified": true }, "requestId": "uuid" }
+```
+
+`POST /auth/resend-verification`：
+
+```json
+{ "email": "user@example.com" }
+```
+
+- 始终 `202` `{ "accepted": true }`。仅未验证账号会真正发信。
+
+`POST /auth/forgot-password`：
+
+```json
+{ "email": "user@example.com" }
+```
+
+- 始终 `202` `{ "accepted": true }`，避免枚举。仅 `ACTIVE` 账号会轮换 30 分钟一次性重置 Token 并发信（本地 Mailpit）。
+- 同一邮箱 + IP 3 次 / 15 分钟，单 IP 10 次 / 15 分钟；超限 `429 AUTH_RATE_LIMITED` 带 `Retry-After`。
+
+`POST /auth/reset-password`：
+
+```json
+{ "token": "opaque-link-token", "newPassword": "HubDev!234" }
+```
+
+- 新密码遵循注册策略。Token 无效、过期、已消费或账号非 ACTIVE：`400 AUTH_RESET_TOKEN_INVALID`。
+- 成功后：更新密码哈希、`mustChangePassword=false`、递增 `authVersion`、撤销全部会话。
 
 ### 2.1 登录反爆破、验证码与 TOTP
 
 - 登录按“账号规范化值 + IP”限制 5 次/15 分钟，IP 总计限制 20 次/15 分钟。密码错误统一返回 `401 AUTH_INVALID_CREDENTIALS`；超过窗口返回 `429 AUTH_RATE_LIMITED` 并带 `Retry-After`。
 - 同一账号 + IP 连续 3 次失败后，下一次 `POST /auth/login` 缺少或提交无效验证码返回 `403 AUTH_CAPTCHA_REQUIRED`。客户端调用 `POST /auth/captcha-challenges` 获取 `{ challengeId, imageSvg, expiresIn: 300 }`，并将 `challengeId` 与 `captchaAnswer` 一并放入下一次登录 body。
-- 验证码答案不在 HTTP 响应或客户端持久化中出现；挑战与账号/IP 的关联仅由服务端 Redis 保存，验证成功、过期或使用后立即失效。
+- 验证码答案不在 HTTP 响应或客户端持久化中出现；挑战与账号/IP 的关联仅由服务端 Redis 保存。同一规范化邮箱 + IP 只保留最新一条挑战，刷新时删除旧键；验证成功、过期或使用后立即失效。
 - 已绑定 TOTP 的 `admin` / `super_admin` 密码校验成功后返回 `202` 和短期 `mfaChallengeToken`，而不是创建会话。客户端随后调用 `/auth/login/mfa`：
 
 ```json
@@ -121,7 +169,70 @@ Web 登录、MFA 登录完成或刷新成功：
 
 未来 Flutter 使用独立 `/auth/mobile/*` 登录/刷新传输契约；Refresh Token 写入 App 系统安全存储，复用同一 SessionService，不削弱 Web Cookie 策略。
 
+`POST /auth/logout`（Web）：
+
+- 必须校验 `Origin` / `Referer` 同源白名单，与 `/auth/refresh` 相同。
+- 优先用 Refresh Cookie 反查当前 `sid` 并撤销；Cookie 缺失或无法识别时，再用未过期 Access Token。
+- 没有有效凭证也返回 `200 { "loggedOut": true }` 并清 Cookie，避免前端无法幂等退出。
+- 只撤销当前这一场会话，不会变成踢全部设备。
+
 首版仅支持邮箱密码认证。GitHub、微信等 OAuth 不提供表、回调或绑定接口；不得把它们作为登录备用路径。
+
+`GET /auth/permissions` 不把权限写入 JWT。响应为当前角色的动作权限、独立数据范围，以及按权限过滤后的菜单树（多权限菜单为 OR；无关联权限的菜单对已登录用户可见）。后端只返回 `routeKey`，前端用路由注册表解析路径。
+
+```json
+{
+  "data": {
+    "permissions": [{ "code": "content:read", "dataScope": "OWN" }],
+    "menus": [
+      {
+        "id": "uuid",
+        "scope": "WORKSPACE",
+        "type": "INTERNAL",
+        "name": "文档管理",
+        "routeKey": "workspace.contents",
+        "externalUrl": null,
+        "sortOrder": 10,
+        "children": []
+      }
+    ]
+  },
+  "requestId": "uuid"
+}
+```
+
+`GET /auth/sessions` 不返回 Token、完整 User-Agent 或精确 IP：
+
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "deviceName": "Mac",
+      "browser": "Chrome",
+      "ipMasked": "127.0.0.0",
+      "lastActiveAt": "2026-08-21T11:00:00.000Z",
+      "createdAt": "2026-08-21T10:00:00.000Z",
+      "isCurrent": true
+    }
+  ],
+  "requestId": "uuid"
+}
+```
+
+- `DELETE /auth/sessions/:sessionId` 不能撤销当前会话，返回 `400 AUTH_CANNOT_REVOKE_CURRENT`。
+- `POST /auth/sessions/revoke-all` body `{ "keepCurrent": true }`；`keepCurrent` 默认 `true`。为 `false` 时撤销全部会话并清 Refresh Cookie。
+
+`POST /auth/change-password`：
+
+```json
+{ "currentPassword": "OneTimePassword!1", "newPassword": "HubDev!234" }
+```
+
+- 新密码遵循与注册相同的策略，且不能与当前密码相同。
+- 当前密码错误返回 `401 AUTH_INVALID_CREDENTIALS`。
+- 成功后：`mustChangePassword=false`，递增 `authVersion`，撤销该用户全部会话，清 Refresh Cookie。客户端必须重新登录。
+- `mustChangePassword === true` 的账号除 `GET /auth/me`、`GET /auth/permissions`、`POST /auth/logout`、`POST /auth/change-password` 外，其它受保护接口返回 `403 AUTH_PASSWORD_CHANGE_REQUIRED`。
 
 ## 3. Public：`/public`
 
@@ -335,6 +446,7 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 
 - 用户首版只有一个角色；`super_admin` 受不可降级/不可禁用/至少保留一名 active 约束。
 - 禁用用户、改角色、改权限必须使现有 Token 下一次受保护请求失效。
+- 约束刀已落地：`GET /admin/users`、`GET /admin/users/:userId/sessions`、`POST /admin/users/:userId/sessions/revoke-all`。`admin` 不能踢 `admin` / `super_admin`，也不能踢自己。禁用/改角色/额度仍后置。
 
 ### 5.2 内容、分类、标签与文件
 
