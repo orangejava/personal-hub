@@ -1,7 +1,7 @@
 # NestJS Docker Compose 开发与生产策略
 
-> 状态：🟡 本地 `compose.dev.yml` 已随阶段 0 落地；生产 Dockerfile / 全栈 Compose 待后续部署阶段实施
-> 最后更新：2026-08-08
+> 状态：🟡 本地 `compose.dev.yml` 已落地；生产骨架 `compose.prod.yml` + Dockerfile 已写入仓库，尚未对真实域名/镜像仓库做过发布
+> 最后更新：2026-08-29
 > 关联：[后端实现约定](../backend/conventions.md)、[小册与文件 PRD](../prd/long-term/content-booklet-file-prd.md)
 
 ---
@@ -36,14 +36,14 @@ Nest 以宿主机 `pnpm --filter server dev` 热更新，并由 `.env.local` 连
 
 ## 3. 生产 Compose
 
-生产单服务器首版服务：
+生产单服务器首版服务（**不要用 PM2 再起一套前端**。PM2 只属于阶段 A 的 Umi mock 远程阅读，见 [pm2-deployment.md](./pm2-deployment.md)）：
 
 ```text
 Internet
   ↓ HTTPS
-Nginx
-  ├─ /          → Next（公开前台、登录后工作区）
-  ├─ /admin     → React Admin
+Nginx（唯一公网入口）
+  ├─ /          → 用户端静态（apps/user-web 构建产物）
+  ├─ /admin     → 管理端静态（apps/admin-web 构建产物，publicPath=/admin/）
   └─ /api/v1    → Nest `server`
        ├─ PostgreSQL volume
        ├─ Redis volume
@@ -51,13 +51,19 @@ Nginx
 Nest `server-worker` → Redis / PostgreSQL / 腾讯 COS
 ```
 
+这里的「双进程」是 Nest 的 **`server`（HTTP）+ `server-worker`（Outbox / BullMQ）**，两者同一镜像、独立 Compose 服务。前端是 Nginx 托管的两份静态资源，不是两个 Node 长驻进程，也不是第二套 PM2。
+
+后续公开页迁到 Next 时，用 Next 替换 `/` 的用户端静态即可；`/admin` 仍由 `apps/admin-web` 承担。
+
 - Nginx 是唯一公网入口；PostgreSQL、Redis、MinIO 管理端不暴露公网。
 - `server` 仅接收 HTTP 流量；Outbox dispatcher 与 BullMQ worker 在独立 Compose `server-worker` 服务运行。两者使用同一镜像/构建产物但可独立扩缩、重启和观测，worker 不作为 server 容器内的附属线程。
 - Nest、PostgreSQL、Redis 使用独立 Compose volume；不把数据库目录挂到任意应用工作目录。
 - 生产不运行 MinIO 作为业务源数据；COS 是 FileAsset 的唯一对象源。
-- Next、React Admin 与 Nest 在同一站点路径下提供服务，生产业务 API 不开放 CORS。开发环境才对明确的本地 Origin 开放凭据请求。
-- `/etc/personal-hub/.env` 存部署密钥，由 Compose `env_file` 注入；绝不提交 Git、写入镜像层或回显日志。
+- 用户端、管理端与 Nest **同站路径分流**（同一 Origin 的 `/`、`/admin`、`/api/v1`）。Refresh Cookie 走宿主 Cookie，生产业务 API **不开放 CORS**。开发环境才对 `localhost:8000` / `localhost:8001` 开放凭据请求。
+- 管理端生产构建必须带 `PUBLIC_PATH=/admin/`，否则 JS/CSS 会落到站点根路径，和用户端静态资源撞车。本地独立 Origin（`:8001`）继续用默认 `/`。
+- `/etc/personal-hub/.env` 存部署密钥，由 `docker compose --env-file` 注入；绝不提交 Git、写入镜像层或回显日志。骨架见仓库根 `compose.prod.yml` 与 `.env.prod.example`。
 - API Key、SMTP、JWT、COS 凭证都仅来自环境变量/密钥管理。
+- 生产 Dockerfile / `compose.prod.yml` 骨架已在仓库根与 `apps/server/Dockerfile`、`deploy/nginx/`；镜像仓库、域名、TLS 证书仍待实际部署时填写，不要把骨架当成已发布。
 
 ## 4. Nginx 与安全
 

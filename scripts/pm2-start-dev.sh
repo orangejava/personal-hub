@@ -16,5 +16,5 @@ echo "[pm2-start-dev] CONTENT_LOCAL_DIR=$CONTENT_LOCAL_DIR"
 echo "[pm2-start-dev] 同步小册 → mock/data/local-booklets.generated.ts"
 pnpm sync:booklets
 
-echo "[pm2-start-dev] 启动 react-web dev (HOST=$HOST PORT=$PORT)"
-exec pnpm --filter react-web dev
+echo "[pm2-start-dev] 启动 user-web dev (HOST=$HOST PORT=$PORT)"
+exec pnpm --filter user-web dev

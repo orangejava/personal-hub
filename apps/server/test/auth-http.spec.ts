@@ -440,7 +440,11 @@ describe('Auth HTTP', () => {
       'AUTH_EMAIL_NOT_VERIFIED',
     );
 
-    const token = readVerifyToken(mailRecorder.messages[0]!.verifyUrl);
+    const verifyUrl = mailRecorder.messages[0]?.verifyUrl;
+    if (verifyUrl === undefined) {
+      throw new Error('注册后应发出验证邮件');
+    }
+    const token = readVerifyToken(verifyUrl);
     const verify = await fetch(`${baseUrl}/api/v1/auth/verify-email`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', origin: ORIGIN },

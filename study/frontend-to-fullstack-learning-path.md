@@ -231,7 +231,7 @@ Ant Design Pro / Dockerfile / CI/CD / Nginx
 ### 目标
 
 - 本机环境可用
-- `apps/react-web`、`apps/server`、`packages/shared-types` 结构清楚
+- `apps/user-web`、`apps/server`、`packages/shared-types` 结构清楚
 - 可以同时跑起 Web / API / PostgreSQL / Redis
 
 ### 重点学习
@@ -263,7 +263,7 @@ Ant Design Pro / Dockerfile / CI/CD / Nginx
 
 1. 跑通本地环境校验
 2. 初始化根目录工程
-3. 熟悉已存在的 `apps/react-web`
+3. 熟悉已存在的 `apps/user-web`
 4. 熟悉已存在的 `apps/server`
 5. 初始化 `packages/shared-types`
 6. 跑起 PostgreSQL 和 Redis
@@ -285,7 +285,7 @@ docker compose -f compose.dev.yml logs
 ### 这一阶段做到什么程度就够
 
 - 能解释 Monorepo 基本结构
-- 能看懂 `apps/react-web` 和 `apps/server` 的分工
+- 能看懂 `apps/user-web` 和 `apps/server` 的分工
 - 能自己启动和关闭本地依赖服务
 - 不需要现在就深入研究 Turborepo 缓存细节
 

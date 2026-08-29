@@ -3,10 +3,11 @@
  *
  * - 启动前自动 sync:booklets，生成 local-booklets.generated.ts
  * - CONTENT_LOCAL_DIR 指向服务器小册目录（默认 /data/personal-hub/content-local）
- * - 必须使用 Umi dev 以保留 mock；接入 NestJS 后改用生产配置
+ * - 必须使用 Umi dev 以保留 mock；接入 Nest 生产后改用 Compose，不要在这里再加 admin-web
  *
  * 用法（仓库根）：pm2 start ecosystem.config.js --only personal-hub-dev
  * 详见 docs/deploy/pm2-deployment.md
+ * Nest / 双前端生产拓扑见 docs/deploy/nest-compose-strategy.md（Nginx 静态 + server + server-worker）
  */
 module.exports = {
   apps: [

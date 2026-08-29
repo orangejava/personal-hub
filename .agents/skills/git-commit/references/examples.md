@@ -37,6 +37,6 @@ wip
 ```
 
 ```text
-feat: 修改了 apps/react-web/src/pages/... 和 mock/... 等等很多文件
+feat: 修改了 apps/user-web/src/pages/... 和 mock/... 等等很多文件
 ```
 （应写意图，而非文件清单。）

@@ -65,7 +65,7 @@ apps/
 
 1. `apps/next-api`：只放 API，不放公开页面。
 2. `apps/next-web`：只放 SEO 前台页面，不直接写业务 API。
-3. `apps/react-web`：继续作为后台、工作区、React-first 前端。
+3. `apps/user-web`：继续作为后台、工作区、React-first 前端。
 4. `packages/shared-types`：所有请求/响应类型先放这里，不让 Next API 私自定义一套。
 5. API 路径仍保持 `/api/v1/**`，与 Canonical API 对齐。
 6. service 方法名保持稳定，未来从 Next API 切 NestJS 时前端改 `baseURL` 为主。

@@ -319,11 +319,10 @@ export class AuthController {
   }
 
   private assertCookieOrigin(request: Request): void {
-    assertSameOrigin(
-      request.get('origin'),
-      request.get('referer'),
-      this.config.getOrThrow('CORS_ORIGIN'),
-    );
+    const allowed = this.config.getOrThrow('CORS_ORIGIN');
+    // 生产同站可把 CORS_ORIGIN 留空：HTTP CORS 本身已关闭，Cookie 只认站点根。
+    const origins = allowed.length > 0 ? allowed : [this.config.getOrThrow('PUBLIC_APP_ORIGIN')];
+    assertSameOrigin(request.get('origin'), request.get('referer'), origins);
   }
 
   private readBearerToken(header: string | undefined): string | undefined {

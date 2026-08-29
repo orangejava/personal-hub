@@ -4,7 +4,7 @@
 > 适用范围：本地 mock 与 Nest 联调。**生产环境禁止使用本组密码。**
 > 其它文档（工程指南、`.env.example`、实现说明）原文不变；日常查账号、端口、邮箱先看这一页。
 
-当前 React 默认走 Nest 真实登录（`UMI_APP_NEST_AUTH` 未设为 `0`）。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。
+当前 React 默认走 Nest 真实登录（`UMI_APP_NEST_AUTH` 未设为 `0`）。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
 
 ---
 
@@ -12,8 +12,9 @@
 
 | 用途 | 地址 |
 | --- | --- |
-| React（浏览器只走这里） | http://localhost:8000 |
-| Nest API（经 React 代理，不要直连登录/刷新） | http://localhost:3001/api/v1 |
+| 用户端 React | http://localhost:8000 |
+| 管理端 React | http://localhost:8001 |
+| Nest API（经前端代理，不要直连登录/刷新） | http://localhost:3001/api/v1 |
 | Nest Swagger | http://localhost:3001/api/docs |
 | Mailpit 收信 | http://localhost:8025 |
 | MinIO S3 API | http://localhost:9000 |
@@ -25,7 +26,8 @@ docker compose -f compose.dev.yml up -d
 pnpm --filter server prisma:deploy
 pnpm --filter server seed:local-users
 pnpm dev:server
-PORT=8000 pnpm dev:react
+pnpm dev:user
+pnpm dev:admin
 ```
 
 ---
@@ -58,8 +60,8 @@ pnpm --filter server seed:local-users
 | 编辑者 | `editor@example.com` | `dev123456` | 可访问工作区、创建/发布内容、上传小册 |
 | 普通会员 | `member@example.com` | `dev123456` | 仅公开区阅读 + AI 入口 |
 
-- 账号定义：`apps/react-web/src/config/devCredentials.ts`
-- mock 校验：`apps/react-web/mock/data/users.ts`
+- 账号定义：`apps/user-web/src/config/devCredentials.ts`
+- mock 校验：`apps/user-web/mock/data/users.ts`
 - 登录页**不展示**账号密码。
 - `dev123456` 不满足 Nest 密码策略，Nest 联调不要用 mock 密码。
 

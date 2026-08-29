@@ -36,7 +36,7 @@
 
 这个项目不是单一前端仓库，而是至少包含：
 
-- `apps/react-web`
+- `apps/user-web`
 - `apps/server`
 - `packages/shared-types`
 
@@ -91,10 +91,10 @@ pnpm add -D turbo typescript eslint prettier @types/node
 - `apps/*`
 - `packages/*`
 
-### Step 3：初始化 `apps/react-web`
+### Step 3：初始化 `apps/user-web`
 
 ```bash
-# 当前仓库已使用 Umi + Ant Design Pro 创建 apps/react-web；
+# 当前仓库已使用 Umi + Ant Design Pro 创建 apps/user-web；
 # 后续 Next.js 公开前台位于 apps/next-web。
 ```
 
@@ -185,7 +185,7 @@ docker compose -f compose.dev.yml down
 
 ## 9. 当前阶段最小实践任务
 
-1. 跑通 `apps/react-web`
+1. 跑通 `apps/user-web`
 2. 跑通 `apps/server`
 3. 跑通 PostgreSQL 容器
 4. 跑通 Redis 容器

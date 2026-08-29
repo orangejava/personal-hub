@@ -5,7 +5,7 @@
 > 目标：在前端、运营端、后端目录分别放置局部开发规范，避免后续实现细节漂移。
 >
 > ⚠️ **当前阶段已按 React-first 落地**：实际目录级规范见
-> `apps/react-web/AGENT.md`（含 `.agent/` 分模块细则）与 `packages/shared-types/AGENT.md`。
+> `apps/user-web/AGENT.md`（含 `.agent/` 分模块细则）与 `packages/shared-types/AGENT.md`。
 > 下方前端模板面向未来 `apps/next-web`；后端模板可在当前 `apps/server` 出现领域模块后按需落地。
 > React-first 阶段请以上述实际 AGENT.md 为准。
 
@@ -23,7 +23,7 @@
 
 说明：
 
-- `apps/react-web/AGENT.md` 与 `packages/shared-types/AGENT.md` 已存在；`apps/server` 当前由仓库根 `AGENT.md` 约束。
+- `apps/user-web/AGENT.md` 与 `packages/shared-types/AGENT.md` 已存在；`apps/server` 当前由仓库根 `AGENT.md` 约束。
 - 真正搭建对应模块时，应把下方模板复制到对应目录。
 - 如果后续目录调整，必须同步更新本文件和实际 `AGENT.md`。
 

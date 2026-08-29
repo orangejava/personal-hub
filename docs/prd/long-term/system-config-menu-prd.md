@@ -2,7 +2,7 @@
 
 > 状态：🟢 已确认；最终端点与模型以 Canonical API/数据模型为准
 > 最后更新：2026-08-02
-> 适用：`apps/server`、`apps/react-web` 与未来前端应用
+> 适用：`apps/server`、`apps/user-web` 与未来前端应用
 > 关联：[Auth、会话与 RBAC 后端需求确认稿](./auth-rbac-session-prd.md)、[公开前台](../../product/frontend-public.md)、[后台管理台](../../product/admin.md)
 
 ---

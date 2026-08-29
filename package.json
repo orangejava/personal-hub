@@ -9,10 +9,15 @@
   },
   "scripts": {
     "dev": "turbo dev",
-    "dev:react": "pnpm --filter react-web dev",
+    "dev:react": "pnpm --filter user-web dev",
+    "dev:user": "pnpm --filter user-web dev",
+    "dev:admin": "pnpm --filter admin-web dev",
+    "dev:web": "turbo dev --filter=user-web --filter=admin-web",
     "dev:server": "pnpm --filter server dev",
     "build": "turbo build",
-    "build:react": "pnpm --filter react-web build",
+    "build:react": "pnpm --filter user-web build",
+    "build:user": "pnpm --filter user-web build",
+    "build:admin": "pnpm --filter admin-web build",
     "build:server": "pnpm --filter server build",
     "lint": "turbo lint",
     "lint:server": "pnpm --filter server lint",
@@ -20,8 +25,8 @@
     "typecheck:server": "pnpm --filter server typecheck",
     "test:server": "pnpm --filter server test",
     "format": "prettier --write .",
-    "sync:booklets": "pnpm --filter react-web sync:booklets",
-    "import:agent-booklets": "python3 apps/react-web/src/scripts/import-external-agent-booklets.py && pnpm sync:booklets",
+    "sync:booklets": "pnpm --filter user-web sync:booklets",
+    "import:agent-booklets": "python3 apps/user-web/src/scripts/import-external-agent-booklets.py && pnpm sync:booklets",
     "deploy:server": "bash scripts/deploy-server.sh"
   },
   "devDependencies": {

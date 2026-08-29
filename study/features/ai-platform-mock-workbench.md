@@ -17,7 +17,7 @@
 1. 先建 AI 壳层：`src/layouts/AiLayout` 负责侧栏、顶部栏、移动端抽屉、品牌名和 Token 余额。
 2. 再建 Ant Design X 封装：`src/components/ai-x` 覆盖 Bubble、Sender、Conversations、Actions、Markdown、Attachments、hooks 等能力。
 3. 补共享类型：`packages/shared-types/src/ai.ts` 定义工具、模型、会话、消息、资产、用量、会员、生成任务。
-4. 补 mock store：`apps/react-web/mock/data/ai-store.ts` 维护会话、资产、额度、模板、最近创作和会员 mock 数据。
+4. 补 mock store：`apps/user-web/mock/data/ai-store.ts` 维护会话、资产、额度、模板、最近创作和会员 mock 数据。
 5. 页面只做编排：`src/pages/ai` 负责 Chat、Text、Image、Video、Assets、Membership 和占位工具页。
 6. 做联动验证：生成结果写入资产，成功后扣 Token，工作区用量和 AI 顶部余额使用同一份 quota。
 
@@ -50,7 +50,7 @@ page
 - `/ai/*` 复用公开前台布局，导致公开导航和 AI 侧栏同时出现。
 - 生成结果只存在页面 state，刷新或跳转到资产页后无法查看。
 - Token 扣减散落在各页面，导致会员中心、工作区用量和 AI 顶部余额不一致。
-- dev server 出现 MFSU/core-js 缓存错误时，误判为业务代码问题。可清理 `apps/react-web/src/.umi` 和 `apps/react-web/node_modules/.cache/mfsu` 后重启。
+- dev server 出现 MFSU/core-js 缓存错误时，误判为业务代码问题。可清理 `apps/user-web/src/.umi` 和 `apps/user-web/node_modules/.cache/mfsu` 后重启。
 
 ## 手动验证
 
@@ -59,4 +59,4 @@ page
 3. 打开 `/ai/text`、`/ai/image`、`/ai/video`，确认生成结果可保存到 `/ai/assets`。
 4. 打开 `/ai/membership` 和 `/workspace/usage`，确认 Token 余额来自同一份 mock quota。
 5. 打开 `/content`、`/workspace/ai/history`、`/admin/ai/config`，确认它们没有被 AI Layout 污染。
-6. 运行 `rg "@ant-design/x" apps/react-web/src -n`，确认第三方 X import 只出现在 `src/components/ai-x`。
+6. 运行 `rg "@ant-design/x" apps/user-web/src -n`，确认第三方 X import 只出现在 `src/components/ai-x`。

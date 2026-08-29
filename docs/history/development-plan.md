@@ -5,7 +5,7 @@
 > 当前 Nest 入口：[Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) → [后端需求总览](../prd/long-term/nest-backend-requirements.md)
 > 后端权威契约：[Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md)、[实现约定](../backend/conventions.md)、[Compose 策略](../deploy/nest-compose-strategy.md)
 
-> **历史提示**：本文后续 `apps/web`、`apps/api`、`/api/*`、旧 API 与数据模型草案 与“认证在 Phase 6”的描述仅代表早期路线，禁止用于当前 Nest 实现。当前 React 应用是 `apps/react-web`，后端固定为 `apps/server`，认证是脚手架后的首个领域模块。
+> **历史提示**：本文后续 `apps/web`、`apps/api`、`/api/*`、旧 API 与数据模型草案 与“认证在 Phase 6”的描述仅代表早期路线，禁止用于当前 Nest 实现。当前 React 应用是 `apps/user-web`，后端固定为 `apps/server`，认证是脚手架后的首个领域模块。
 
 ---
 

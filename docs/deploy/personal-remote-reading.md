@@ -43,7 +43,7 @@ flowchart TB
 
 **为什么不冲突：**
 
-1. 阶段 A 仍用 Monorepo 里的 `apps/react-web`，Git 工作流不变。
+1. 阶段 A 仍用 Monorepo 里的 `apps/user-web`，Git 工作流不变。
 2. 小册目录（`meta.json` + 章节 md）与阶段 B 的 COS 布局一致，以后 rsync 可换成 `booklet:push`。
 3. 前端现有 mock service 的 `/api/*` 路径只是迁移线索；阶段 B 以 `/api/v1` Canonical 契约替换数据源。
 4. 阶段 A **刻意不引入** NestJS / Docker / Nginx；阶段 B 仅遵循 [Nest Compose 策略](./nest-compose-strategy.md)，下文历史草案不再可执行。
@@ -91,7 +91,7 @@ flowchart LR
 | 环节          | 文件                                                | 现状                                           | 问题                                             |
 | ------------- | --------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------ |
 | 输入          | `content-local/`                                    | gitignore，本地 Markdown + meta.json           | 无法直接在服务器读取                             |
-| 同步脚本      | `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描目录，**把所有章节 body 打进一个 TS 文件** | 71 本体量巨大；build 产物膨胀；不适合远程        |
+| 同步脚本      | `apps/user-web/src/scripts/sync-local-booklets.ts` | 扫描目录，**把所有章节 body 打进一个 TS 文件** | 71 本体量巨大；build 产物膨胀；不适合远程        |
 | 生成物        | `mock/data/local-booklets.generated.ts`             | gitignore，prepare 时自动生成                  | 仅 dev/mock 可用                                 |
 | Mock API      | `mock/content.ts` L106-128                          | `GET .../chapters` **返回全部章节含 body**     | 一次请求可能数 MB～数十 MB                       |
 | Mock API      | `mock/workspace.ts` L108                            | 本地小册列表读 generated 文件                  | 依赖本地生成物                                   |
@@ -527,7 +527,7 @@ flowchart TD
 
 | 序号 | 任务          | 修改文件                                             | 说明                                                                                  |
 | ---- | ------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| 2.1  | 生产 API 地址 | `apps/react-web/config/config.ts`、`config/proxy.ts` | 增加 `UMI_ENV=prod` 时 `define PUBLIC_API_URL`；dev 仍 mock                           |
+| 2.1  | 生产 API 地址 | `apps/user-web/config/config.ts`、`config/proxy.ts` | 增加 `UMI_ENV=prod` 时 `define PUBLIC_API_URL`；dev 仍 mock                           |
 | 2.2  | Service 层    | `src/services/booklet.ts`                            | 章节列表返回类型改为 `BookletChapterSummary[]`                                        |
 | 2.3  | 阅读页        | `BookletChapter/index.tsx`                           | 确认目录 Menu 不依赖 `body`（当前已满足）                                             |
 | 2.4  | Mock 对齐契约 | `mock/content.ts`                                    | `GET .../chapters` 去掉 body，与 NestJS 一致；本地无 API 时可继续 mock                |
@@ -738,7 +738,7 @@ module.exports = {
 前端为 Umi 静态构建产物：
 
 ```bash
-ls apps/react-web/dist
+ls apps/user-web/dist
 ```
 
 ### 6.9 Nginx 配置（静态前端 + API 反代）
@@ -755,7 +755,7 @@ server {
     listen 80;
     server_name yourdomain.com;
 
-    root /opt/personal-hub/apps/react-web/dist;
+    root /opt/personal-hub/apps/user-web/dist;
     index index.html;
 
     # 个人期：整站简单认证（可选）

@@ -12,16 +12,19 @@
 | [deployment.md](./deployment.md)                           | 长期生产：Docker / Nginx / CI/CD / 备份                                    | NestJS 正式对外之后            |
 | [nest-compose-strategy.md](./nest-compose-strategy.md)     | Nest 本地依赖 Compose、生产全栈 Compose、COS 对象存储、备份与发布原则      | Nest 生产部署规划前            |
 
+本地开发是两个 Origin（`:8000` / `:8001`）。**生产不要再为管理端加 PM2**：前端由 Nginx 同站托管两份静态资源，Nest 用 Compose 的 `server` + `server-worker`。可执行骨架：仓库根 `compose.prod.yml`（密钥用 `.env.prod.example` 复制为 `.env.prod`）。详见 [nest-compose-strategy.md](./nest-compose-strategy.md)。
+
 **推荐阅读顺序：**
 
 1. [deployment-plan.md](./deployment-plan.md) — 代码/数据目录、Gitee 策略、NestJS 演进
 2. [pm2-deployment.md](./pm2-deployment.md) — PM2 启动与排障（阶段 A 实操）
 3. [server-deployment-guide.md](./server-deployment-guide.md) — 日常 `pnpm deploy:server` 速查
 
-Nest 本地启动不使用上述 PM2 速查：按 [`apps/server/README.md`](../../apps/server/README.md) 运行 `compose.dev.yml` 与 `pnpm dev:server`；生产目前仅有 [Compose 策略](./nest-compose-strategy.md)，尚未形成可执行发布速查。
+Nest 本地启动不使用上述 PM2 速查：按 [`apps/server/README.md`](../../apps/server/README.md) 运行 `compose.dev.yml` 与 `pnpm dev:server`；生产骨架见 [Compose 策略](./nest-compose-strategy.md) 与仓库根 `compose.prod.yml`，发布命令与域名仍待部署时填写。
 
 ## 当前阶段结论
 
-- 阶段 A 必须运行 `react-web` 的 Umi dev 才能保留 mock API，统一使用 `pm2 start ecosystem.config.js --only personal-hub-dev`。
-- 服务器内通过 `127.0.0.1:8000` 验证应用；公网通过 `http://<服务器公网 IPv4>:8000` 访问，并额外受云安全组控制。
+- **阶段 A（个人远程阅读）**：必须跑 `user-web` 的 Umi dev 才能保留 mock，使用 `pm2 start ecosystem.config.js --only personal-hub-dev`。这一套**不包含**管理端，也不适用于 Nest 生产。
+- **Nest / 生产**：Compose 编排 Nginx + 用户端静态 + 管理端静态 + `server` + `server-worker`；不要用 PM2 起第二套前端。策略见 [nest-compose-strategy.md](./nest-compose-strategy.md)，骨架见 `compose.prod.yml`。`server-worker` 目前只是占位进程（Outbox/BullMQ 入口尚未落地）。
+- 阶段 A 服务器内通过 `127.0.0.1:8000` 验证；公网通过 `http://<服务器公网 IPv4>:8000` 访问，并额外受云安全组控制。
 - 安全组来源优先使用客户端真实公网出口 IP `/32`；`0.0.0.0/0` 仅用于短时排障，不能作为 dev + mock 的长期开放策略。

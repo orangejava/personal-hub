@@ -1,7 +1,7 @@
 # 后台管理台
 
 > 状态：🟢 产品与 UI 说明；后台治理、接口与数据以 [Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md) 和长期 Admin PRD 为准
-> 最后更新：2026-08-02
+> 最后更新：2026-08-28
 
 ---
 
@@ -9,9 +9,9 @@
 
 后台管理台负责整个平台的配置与数据管理。React mock 仍可按 `admin` 展示页面，但未来 Nest 由 Canonical 动作权限和 `OWN/ALL` 范围强制授权；`admin` 与 `super_admin` 的治理边界不可由前端角色判断替代。
 
-长期规划中，后台管理台会与公开前台共用 Web 体系并使用**独立布局**，路由前缀为 `/admin`。
+后台已拆为独立应用 `apps/admin-web`（本地 `:8001`），路由前缀仍为 `/admin`，与用户端 `apps/user-web`（`:8000`）共用 Nest API。登录页只在用户端；管理端未登录会整页跳到用户端登录，靠 Refresh Cookie 恢复会话。
 
-React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design Pro 的布局、路由、权限和 mock 能力快速完成。后续如果公开页面迁移到 Next.js，后台管理台可以继续保留在 React/Umi 应用中，只需要共用同一套 NestJS API 与共享类型。
+后续如果公开页面迁移到 Next.js，管理端继续留在 Umi / Ant Design Pro，不必把强交互后台迁到 Next。
 
 ---
 
@@ -21,8 +21,8 @@ React-first 阶段先放在 `apps/react-web` 中实现，使用 Umi / Ant Design
 
 - 使用 `@ant-design/pro-components` 的 `ProTable`、`ProForm`、`ProLayout` 等组件加速开发
 - 与主工程共享 TypeScript 类型、请求封装、认证逻辑
-- React-first 阶段确认完整克隆 Ant Design Pro 到 `apps/react-web` 后改造
-- 后续如果拆出 `apps/next-web`，后台可继续由 `apps/react-web` 承担，避免把强交互后台迁移到 Next.js 带来额外成本
+- 用户端与管理端都基于 Ant Design Pro：`apps/user-web` 与 `apps/admin-web`
+- 后续如果拆出 `apps/next-web`，后台继续由 `apps/admin-web` 承担，避免把强交互后台迁移到 Next.js 带来额外成本
 
 ---
 

@@ -68,7 +68,7 @@ personal-hub/
 
 ```mermaid
 flowchart LR
-    ReactWeb["apps/react-web"] --> Server["apps/server NestJS"]
+    ReactWeb["apps/user-web"] --> Server["apps/server NestJS"]
     Flutter["Flutter（后置）"] --> Server
     Server --> Pg[("PostgreSQL")]
     Server --> Redis[("Redis")]

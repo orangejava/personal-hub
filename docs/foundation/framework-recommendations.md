@@ -17,7 +17,7 @@
 
 本项目当前已经确认主线技术栈，本文不重新推翻既定选型，而是补充每个框架的使用边界、适用模块、取舍理由和后续扩展策略。
 
-> 阶段性补充：当前实施路线先在 `apps/react-web` 中使用 React + Umi + Ant Design Pro 完成首版 Web 功能，后续再将适合 SEO 的公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型方案不变。详细见 [../react-first/README.md](../react-first/README.md)。
+> 阶段性补充：当前实施路线先在 `apps/user-web` 中使用 React + Umi + Ant Design Pro 完成首版 Web 功能，后续再将适合 SEO 的公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型方案不变。详细见 [../react-first/README.md](../react-first/README.md)。
 
 ---
 
@@ -60,7 +60,7 @@
 | 注册是否必须邮箱验证、密码策略细则     | `docs/product/auth-rbac.md` |               否 | 认证模块开发前         |
 | 第三方登录首版是否启用                 | `docs/product/auth-rbac.md` |               否 | OAuth 接入前           |
 
-建议：先按 React-first 文档搭建 `apps/react-web` 与共享类型；进入对应业务模块前，再逐项确认上述细节。
+建议：先按 React-first 文档搭建 `apps/user-web` 与共享类型；进入对应业务模块前，再逐项确认上述细节。
 
 ---
 
@@ -74,7 +74,7 @@
 - 后续内容阅读：`/content/:id`
 - 可选迁移：部分工作区或 AI 工具页面
 
-React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速跑通完整业务体验。
+React-first 阶段，上述页面先由 `apps/user-web` 实现，用来快速跑通完整业务体验。
 
 **推荐理由**：
 
@@ -191,14 +191,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 **使用边界**：
 
 - 主要在 `/admin` 路由范围内作为主 UI 框架，工作区也可以适度使用 Pro Components 提高效率。
-- 当前阶段确认完整克隆 Ant Design Pro 到 `apps/react-web` 后改造；这属于 Monorepo 内首版 React 应用，不是与主工程割裂的独立后台。
+- 当前阶段确认完整克隆 Ant Design Pro 到 `apps/user-web` 后改造；这属于 Monorepo 内首版 React 应用，不是与主工程割裂的独立后台。
 - 不建议把 Ant Design 组件扩散到公开前台，避免视觉割裂。
 
 **替代方案分析**：
 
 | 替代方案                       | 不作为主选的原因                                                                            |
 | ------------------------------ | ------------------------------------------------------------------------------------------- |
-| 独立部署的 Ant Design Pro 后台 | 管理台能力强，但会增加部署和认证同步成本；当前采用 Monorepo 内 `apps/react-web`，不独立部署 |
+| 独立部署的 Ant Design Pro 后台 | 管理台能力强，但会增加部署和认证同步成本；当前采用 Monorepo 内 `apps/user-web`，不独立部署 |
 | Refine                         | 后台 CRUD 效率高，但会带来新的抽象体系，当前项目没必要额外引入                              |
 | React Admin                    | 更适合标准资源管理后台，本项目需要与 Next.js、RBAC、AI 配置深度整合                         |
 | shadcn/ui 自建后台             | 视觉统一，但表格、筛选、复杂表单开发成本明显高于 Ant Design                                 |

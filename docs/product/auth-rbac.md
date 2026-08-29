@@ -7,7 +7,7 @@
 
 ## 当前 Mock 与未来 Nest 的关系
 
-`apps/react-web` 当前通过 mock 验证登录页面、菜单、路由守卫和按钮显隐；它不是认证或授权的事实来源。mock token、粗粒度权限和本地存储仅用于过渡体验，接入 Nest 时必须由 `/api/v1/auth/*` 和服务端 Guard/Service 替换。
+`apps/user-web` 当前通过 mock 验证登录页面、菜单、路由守卫和按钮显隐；它不是认证或授权的事实来源。mock token、粗粒度权限和本地存储仅用于过渡体验，接入 Nest 时必须由 `/api/v1/auth/*` 和服务端 Guard/Service 替换。
 
 长期 Web 请求只在内存保存 Access Token，并以 Bearer Header 调用受保护 API；Refresh Token 仅通过 Cookie 用于 Auth 接口。前端菜单、路由和按钮只能改善体验，不能构成权限边界。
 

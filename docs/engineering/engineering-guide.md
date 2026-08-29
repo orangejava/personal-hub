@@ -2,7 +2,7 @@
 
 > 面向开发者的环境搭建、目录规范、命名约定、核心决策规则。开始编码前必读。
 >
-> **阅读提示**：当前可运行应用是 `apps/react-web` 与阶段 0 `apps/server`。Next.js 仍是长期目标；Nest 本地依赖通过 Compose 启动，服务在宿主机热更新。
+> **阅读提示**：当前可运行应用是用户端 `apps/user-web`（`:8000`）、管理端 `apps/admin-web`（`:8001`）与 `apps/server`。Next.js 仍是长期目标；Nest 本地依赖通过 Compose 启动，服务在宿主机热更新。
 
 ---
 
@@ -26,13 +26,17 @@ cd personal-hub
 nvm use
 pnpm install
 
-# 2. 启动 Umi mock 应用
+# 2. 启动用户端（公开前台、工作区、AI、登录）
 pnpm dev:react
+
+# 3. 启动管理端（可选，后台）
+pnpm dev:admin
 ```
 
 启动后：
 
-- React Web（公开前台、工作区、后台和 AI mock）：http://localhost:8000
+- 用户端 React：http://localhost:8000
+- 管理端 React：http://localhost:8001
 
 React mock 开发不需要 `apps/next-web`、数据库、Docker 或 server 环境变量；`apps/server` 已完成阶段 0，按下一节单独启动。
 
@@ -158,7 +162,8 @@ SMTP_FROM="noreply@yourdomain.com"
 # ── 服务配置 ─────────────────────────────────────
 PORT=3001
 NODE_ENV=development
-CORS_ORIGIN="http://localhost:8000"
+CORS_ORIGIN="http://localhost:8000,http://localhost:8001"
+PUBLIC_APP_ORIGIN="http://localhost:8000"
 
 # ── 后台管理默认账号（seed 用，生产另行生成）────
 # React mock 环境见 docs/engineering/dev-credentials.md
@@ -389,9 +394,9 @@ async publishContent(@Param('id') id: string) { ... }
 ```bash
 pnpm dev:react                         # 启动当前 React-first 应用
 pnpm build:react                       # 构建当前应用
-pnpm --filter react-web lint           # Biome + TypeScript 检查
-pnpm --filter react-web test           # Vitest 单元测试
-pnpm --filter react-web sync:booklets  # 同步本地小册 mock
+pnpm --filter user-web lint           # Biome + TypeScript 检查
+pnpm --filter user-web test           # Vitest 单元测试
+pnpm --filter user-web sync:booklets  # 同步本地小册 mock
 ```
 
 ---

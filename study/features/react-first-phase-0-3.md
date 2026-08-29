@@ -55,7 +55,7 @@ const observer = new IntersectionObserver(entries => {
 | Word | docx-preview | 浏览器端 docx → HTML |
 | 富文本 | Textbus | 产品文档已定 |
 
-配置集中在 `apps/react-web/src/config/documentViewers.ts`。
+配置集中在 `apps/user-web/src/config/documentViewers.ts`。
 
 ## 实现步骤（推荐顺序）
 

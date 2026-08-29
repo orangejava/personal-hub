@@ -13,8 +13,9 @@
 | `docs/overview.md` | 总索引、产品定位、子文档入口 | 长文细节 |
 | `docs/foundation/` | 技术栈、架构图、框架取舍 | 单次功能 PRD、部署命令 |
 | `docs/product/` | 产品功能范围（前台/工作区/后台/内容/AI） | 实现细节、运维步骤 |
-| `docs/backend/` | API 清单、数据库 Schema | 前端页面说明 |
-| `docs/react-first/` | React-first **路线与架构**（非阶段 PRD） | 运维、单次功能实现记录 |
+| `docs/backend/` | **跨端契约**：API 清单、数据模型、mock 迁移对照 | 单应用实现说明、Nest 工程约定（已迁 `apps/server/docs`） |
+| `apps/<name>/docs/` | **该应用专属** PRD、实现说明、应用结构 | 跨端产品范围、Canonical API、整站部署 |
+| `docs/react-first/` | React-first **路线索引**（长文已迁 history 或 apps） | 运维、单次功能实现记录 |
 | `docs/prd/` | **可指导开发的需求/验收**（按 react-first / long-term） | 服务器命令、部署目录规划 |
 | `docs/engineering/` | 本地开发环境、工具链、凭证；commit 仅留 stub 入口 | 完整 commit 规范、生产部署命令 |
 | `docs/deploy/` | **部署 / 上线 / 备份 / 服务器目录** | 产品需求、页面交互 PRD |

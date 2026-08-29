@@ -1120,7 +1120,7 @@ export class AuthService {
   }
 
   private async trySendVerificationEmail(email: string, token: string): Promise<void> {
-    const origin = this.config.getOrThrow('CORS_ORIGIN').replace(/\/$/, '');
+    const origin = this.config.getOrThrow('PUBLIC_APP_ORIGIN');
     const verifyUrl = `${origin}/user/verify-email?token=${encodeURIComponent(token)}`;
     try {
       await this.mailService.sendVerificationEmail({ to: email, verifyUrl });
@@ -1164,7 +1164,7 @@ export class AuthService {
   }
 
   private async trySendPasswordResetEmail(email: string, token: string): Promise<void> {
-    const origin = this.config.getOrThrow('CORS_ORIGIN').replace(/\/$/, '');
+    const origin = this.config.getOrThrow('PUBLIC_APP_ORIGIN');
     const resetUrl = `${origin}/user/reset-password?token=${encodeURIComponent(token)}`;
     try {
       await this.mailService.sendPasswordResetEmail({ to: email, resetUrl });

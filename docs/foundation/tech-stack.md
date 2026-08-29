@@ -4,7 +4,7 @@
 > 最后更新：2026-08-02
 >
 > ⚠️ **当前阶段以 React-first 为准**：本文件下方"前端完整依赖选型"描述的是 Next.js 长期目标栈。
-> 当前 `apps/react-web` 实际使用 React 19 + Umi Max + Ant Design Pro v6 + antd v6 + pro-components v3 + Biome，
+> 当前 `apps/user-web` 实际使用 React 19 + Umi Max + Ant Design Pro v6 + antd v6 + pro-components v3 + Biome，
 > 状态管理用 Umi `@@initialState`/`src/models`/`useModel`（不引入 Zustand/TanStack Query 作为主状态方案），
 > 样式以 Less + CSS Modules + Ant Design token 为主（不以 Tailwind 为主样式体系）。
 > 详见 [react-first/README.md](./react-first/README.md) 与 [prd/react-first/phase-0-3-foundation-prd.md](./prd/react-first/phase-0-3-foundation-prd.md)。
@@ -14,7 +14,7 @@
 
 ## 最终选型
 
-> 说明：本节描述长期技术架构。当前阶段会先用 `apps/react-web`（React + Umi + Ant Design Pro）快速完成首版前端，后续再将部分公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型选型不变。
+> 说明：本节描述长期技术架构。当前阶段会先用 `apps/user-web`（React + Umi + Ant Design Pro）快速完成首版前端，后续再将部分公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型选型不变。
 
 ### 基础架构
 
@@ -34,7 +34,7 @@
 
 | 层       | 技术                                        | 说明                                                    |
 | -------- | ------------------------------------------- | ------------------------------------------------------- |
-| 首版 Web | **React + Umi Max + Ant Design Pro**        | 位于 `apps/react-web`，用于快速完成完整 Web 功能        |
+| 首版 Web | **React + Umi Max + Ant Design Pro**        | 位于 `apps/user-web`，用于快速完成完整 Web 功能        |
 | UI       | **Ant Design + @ant-design/pro-components** | 公开前台做轻量品牌化封装，工作区和后台优先使用 Pro 体系 |
 | 数据     | **Umi mock + service 层**                   | 后端未完成前模拟 NestJS API 契约                        |
 | 后续迁移 | **Next.js 15**                              | 首页、内容中心、阅读页、项目页、关于我优先迁移          |
@@ -181,14 +181,17 @@ React-first 详细路线见 [../react-first/README.md](../react-first/README.md)
 ```
 monorepo（Turborepo 管理）
 ├── apps/
-│   ├── react-web/    ← React-first 首版 Web（React + Umi + Ant Design Pro）
+│   ├── user-web/     ← 用户端（React + Umi + Ant Design Pro）
+│   ├── admin-web/    ← 管理端（同上，端口 8001）
 │   ├── next-web/     ← 后续 Next.js（公开前台 + 内容阅读等 SEO 页面）
 │   └── server/       ← NestJS + Express（阶段 0 已落地，后续接入领域模块）
 └── packages/
-    └── shared-types/ ← 前后端共享 TypeScript 类型与 zod Schema
+    ├── shared-types/ ← 前后端共享 TypeScript 类型与 zod Schema
+    ├── app-origins/  ← 两端 Origin、登录回跳、开发代理转发
+    └── api-client/   ← Nest Auth HTTP 与内存 Access Token
 ```
 
-> 当前已创建 `apps/react-web`、`packages/shared-types` 与 `apps/server`；后续创建 `apps/next-web` 并在 server 中接入领域模块。React mock 保持阶段 A 可用，但它的旧 `/api/*` 路径不是 Nest API 规范。
+> 当前已创建 `apps/user-web`、`apps/admin-web`、`packages/shared-types`、`packages/app-origins`、`packages/api-client` 与 `apps/server`。后续创建 `apps/next-web` 并在 server 中接入领域模块。React mock 保持阶段 A 可用，但它的旧 `/api/*` 路径不是 Nest API 规范。
 
 ---
 

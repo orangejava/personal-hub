@@ -4,14 +4,16 @@
 
 ## 当前阶段
 
-React-first：`apps/react-web`（Umi + Ant Design Pro + mock）；Nest 阶段 0：`apps/server`（Express + Prisma + Redis）。
+React-first 用户端：`apps/user-web`（`:8000`）；管理端：`apps/admin-web`（`:8001`）；Nest：`apps/server`。
 
 ## 本地启动
 
 ```bash
 pnpm install
 pnpm sync:booklets   # 需本地 content-local/（不进 Git）
-pnpm dev:react
+pnpm dev:server
+pnpm dev:user        # http://localhost:8000（`pnpm dev:react` 仍是同一命令的别名）
+pnpm dev:admin       # http://localhost:8001
 ```
 
 ### Nest 阶段 0（本地）

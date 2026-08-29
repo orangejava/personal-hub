@@ -11,7 +11,7 @@
 
 | 项 | 说明 |
 | --- | --- |
-| 应用 | Monorepo 根目录下的 `apps/react-web`（Umi Max 4） |
+| 应用 | Monorepo 根目录下的 `apps/user-web`（Umi Max 4） |
 | 启动方式 | **dev 模式**（`max dev`），不是 `build` + 静态托管 |
 | 数据 | 小册在 `/data/.../content-local/` → **启动前自动** `sync:booklets` → `mock/data/local-booklets.generated.ts` |
 | 端口 | 默认 **8000**（Umi dev server） |
@@ -33,7 +33,7 @@
 | `pm2 status` 显示 errored / 找不到 pnpm | systemd 环境下 **PATH 不含 corepack 的 pnpm** | 见 §5.3 用 `which pnpm` 写绝对路径，或装全局 pnpm |
 | 外网访问不了 :8000 | 未监听 `0.0.0.0` 或安全组未放行 | 环境变量 `HOST=0.0.0.0`；云安全组放行你的 IP → 8000 |
 | 小册列表为空 | 未 rsync / 未生成 `local-booklets.generated.ts` / 目录内无 `.md` | 确认 `/data/personal-hub/content-local` 有小册文件夹；`pm2 restart` 会自动 sync（见 §5） |
-| 在 `apps/react-web` 里 `pnpm install` | Monorepo 必须在**仓库根**安装 | 始终在 `/opt/personal-hub` 执行 `pnpm install` |
+| 在 `apps/user-web` 里 `pnpm install` | Monorepo 必须在**仓库根**安装 | 始终在 `/opt/personal-hub` 执行 `pnpm install` |
 | 首次 `curl` 失败但 PM2 online | Umi 首次编译需 **1～3 分钟** | 看 `pm2 logs` 出现 `App listening at` 再访问 |
 | pnpm 10 提示 Ignored build scripts | 默认拦截依赖 postinstall | 见 §4.2 执行 `pnpm approve-builds` 或配置 onlyBuiltDependencies |
 
@@ -45,7 +45,7 @@
 /opt/personal-hub/                    # Git 仓库根
 ├── ecosystem.config.js              # PM2 配置（CONTENT_LOCAL_DIR 指向 /data/...）
 ├── scripts/pm2-start-dev.sh          # 启动前 sync:booklets + dev
-├── apps/react-web/mock/data/
+├── apps/user-web/mock/data/
 │   └── local-booklets.generated.ts   # sync 生成（gitignore，勿手改）
 /data/personal-hub/content-local/     # 小册源文件（每本一个子目录 + *.md）
 ```
@@ -111,11 +111,11 @@ pnpm config set --location project onlyBuiltDependencies[1] core-js
 pnpm install
 ```
 
-`pnpm install` 会触发 `apps/react-web` 的 `prepare`（`max setup` + `sync:booklets`）。此时尚无小册是正常的，会生成空 mock 数组。
+`pnpm install` 会触发 `apps/user-web` 的 `prepare`（`max setup` + `sync:booklets`）。此时尚无小册是正常的，会生成空 mock 数组。
 
 ### 4.3 同步小册（本机 → 服务器）
 
-**本机（仓库根）**，仅同步白名单内小册（与 `apps/react-web/src/scripts/sync-allowlist.json` 一致）：
+**本机（仓库根）**，仅同步白名单内小册（与 `apps/user-web/src/scripts/sync-allowlist.json` 一致）：
 
 ```bash
 rsync -avz --progress \
@@ -203,7 +203,7 @@ which pnpm   # 确认在 PATH 中
 ```bash
 cd /opt/personal-hub
 CONTENT_LOCAL_DIR=/data/personal-hub/content-local pnpm sync:booklets
-HOST=0.0.0.0 PORT=8000 pnpm --filter react-web dev
+HOST=0.0.0.0 PORT=8000 pnpm --filter user-web dev
 ```
 
 ---
@@ -329,9 +329,9 @@ cd /opt/personal-hub && pm2 start ecosystem.config.js && pm2 save
 | [`ecosystem.config.js`](../../ecosystem.config.js) | PM2 进程定义 |
 | [`scripts/deploy-server.sh`](../../scripts/deploy-server.sh) | 服务器一键部署 |
 | [`scripts/pm2-start-dev.sh`](../../scripts/pm2-start-dev.sh) | 启动前同步小册 |
-| [`apps/react-web/mock/data/local-booklets.generated.ts`](../../apps/react-web/mock/data/local-booklets.generated.ts) | sync 生成的小册 mock 数据（gitignore） |
+| [`apps/user-web/mock/data/local-booklets.generated.ts`](../../apps/user-web/mock/data/local-booklets.generated.ts) | sync 生成的小册 mock 数据（gitignore） |
 | [`package.json`](../../package.json) | 根脚本 `dev:react`、`sync:booklets` |
-| [`apps/react-web/package.json`](../../apps/react-web/package.json) | Umi `dev` / `prepare` / `sync:booklets` |
-| [`apps/react-web/src/scripts/sync-local-booklets.ts`](../../apps/react-web/src/scripts/sync-local-booklets.ts) | 小册 → mock 生成 |
-| [`apps/react-web/src/scripts/sync-allowlist.json`](../../apps/react-web/src/scripts/sync-allowlist.json) | rsync 白名单 |
-| [`apps/react-web/mock/content.ts`](../../apps/react-web/mock/content.ts) | 小册 mock API |
+| [`apps/user-web/package.json`](../../apps/user-web/package.json) | Umi `dev` / `prepare` / `sync:booklets` |
+| [`apps/user-web/src/scripts/sync-local-booklets.ts`](../../apps/user-web/src/scripts/sync-local-booklets.ts) | 小册 → mock 生成 |
+| [`apps/user-web/src/scripts/sync-allowlist.json`](../../apps/user-web/src/scripts/sync-allowlist.json) | rsync 白名单 |
+| [`apps/user-web/mock/content.ts`](../../apps/user-web/mock/content.ts) | 小册 mock API |

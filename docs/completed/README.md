@@ -7,22 +7,23 @@
 
 | 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
 |---|---|---|---|---|
-| 阶段 0 工程骨架 | ✅ 已完成 | 2026-06-27 | [phase-0-structure.md](../implementation/react-first/phase-0-structure.md) | — |
-| 阶段 1 基础底座 | ✅ 已完成 | 2026-06-27 | [phase-1-foundation.md](../implementation/react-first/phase-1-foundation.md) | [umi-mock-and-dataflow.md](../../study/features/umi-mock-and-dataflow.md) |
-| 阶段 2 公开前台与内容阅读 | ✅ 已完成 | 2026-06-27 | [phase-2-public-reading.md](../implementation/react-first/phase-2-public-reading.md) | [markdown-booklet-reading.md](../../study/features/markdown-booklet-reading.md) |
-| 阶段 3 工作区与内容生产 | ✅ 已完成 | 2026-06-27 | [phase-3-workspace.md](../implementation/react-first/phase-3-workspace.md) | — |
-| 阶段 0–3 合并与补强 | ✅ 已完成 | 2026-06-28 | [phase-0-3.md](../implementation/react-first/phase-0-3.md) | [react-first-phase-0-3.md](../../study/features/react-first-phase-0-3.md) |
-| 阶段 4 后台运营台 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-closeout.md](../implementation/react-first/phase-4-closeout.md) | — |
-| 阶段 4.5 全站体验底座 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-5-experience-deepening.md](../implementation/react-first/phase-4-5-experience-deepening.md) | [react-experience-system.md](../../study/features/react-experience-system.md) |
-| 阶段 5 AI 平台 mock 闭环 | ✅ 已完成本轮收尾 | 2026-07-06 | [phase-5-ai-shell.md](../implementation/react-first/phase-5-ai-shell.md) | [ai-platform-mock-workbench.md](../../study/features/ai-platform-mock-workbench.md) |
+| 阶段 0 工程骨架 | ✅ 已完成 | 2026-06-27 | [phase-0-structure.md](../../apps/user-web/docs/implementation/phase-0-structure.md) | — |
+| 阶段 1 基础底座 | ✅ 已完成 | 2026-06-27 | [phase-1-foundation.md](../../apps/user-web/docs/implementation/phase-1-foundation.md) | [umi-mock-and-dataflow.md](../../study/features/umi-mock-and-dataflow.md) |
+| 阶段 2 公开前台与内容阅读 | ✅ 已完成 | 2026-06-27 | [phase-2-public-reading.md](../../apps/user-web/docs/implementation/phase-2-public-reading.md) | [markdown-booklet-reading.md](../../study/features/markdown-booklet-reading.md) |
+| 阶段 3 工作区与内容生产 | ✅ 已完成 | 2026-06-27 | [phase-3-workspace.md](../../apps/user-web/docs/implementation/phase-3-workspace.md) | — |
+| 阶段 0–3 合并与补强 | ✅ 已完成 | 2026-06-28 | [phase-0-3.md](../../apps/user-web/docs/implementation/phase-0-3.md) | [react-first-phase-0-3.md](../../study/features/react-first-phase-0-3.md) |
+| 阶段 4 后台运营台 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-closeout.md](../../apps/admin-web/docs/implementation/phase-4-closeout.md) | — |
+| 阶段 4.5 全站体验底座 | ✅ 已完成本轮收尾 | 2026-07-05 | [phase-4-5-experience-deepening.md](../../apps/admin-web/docs/implementation/phase-4-5-experience-deepening.md) | [react-experience-system.md](../../study/features/react-experience-system.md) |
+| 阶段 5 AI 平台 mock 闭环 | ✅ 已完成本轮收尾 | 2026-07-06 | [phase-5-ai-shell.md](../../apps/user-web/docs/implementation/phase-5-ai-shell.md) | [ai-platform-mock-workbench.md](../../study/features/ai-platform-mock-workbench.md) |
+| 用户端 / 管理端拆分 | ✅ 已完成 | 2026-08-28 | [admin-web-split.md](../implementation/admin-web-split.md) | — |
 
 ## Nest 后端阶段
 
 | 阶段 | 状态 | 完成时间 | 实现文档 | 学习文档 |
 |---|---|---|---|---|
-| 阶段 0 Express 运行底座 | ✅ 已完成 | 2026-08-09 | [nest-server-bootstrap.md](../implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
-| M1 身份/RBAC/菜单数据基线 | ✅ 已完成 | 2026-08-09 | [auth-rbac-menu-baseline.md](../implementation/auth/auth-rbac-menu-baseline.md) | — |
-| M2 Auth HTTP + React 登录切片 | ✅ 第 1–8 刀已落地 | 2026-08-22 | [切片划分](../implementation/auth/README.md) · [登录](../implementation/auth/auth-login-slice.md) · [权限](../implementation/auth/auth-permissions-slice.md) · [注册](../implementation/auth/auth-register-slice.md) · [验证码](../implementation/auth/auth-captcha-slice.md) · [会话](../implementation/auth/auth-sessions-slice.md) · [改密](../implementation/auth/auth-change-password-slice.md) · [忘记密码](../implementation/auth/auth-forgot-password-slice.md) · [后台踢人](../implementation/auth/auth-admin-sessions-slice.md) | [登录](../../study/features/nest-auth-login-slice.md) · [权限菜单](../../study/features/nest-auth-permissions.md) · [注册验证](../../study/features/nest-auth-register.md) · [验证码/会话/改密](../../study/features/nest-auth-captcha-sessions-password.md) |
+| 阶段 0 Express 运行底座 | ✅ 已完成 | 2026-08-09 | [nest-server-bootstrap.md](../../apps/server/docs/implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
+| M1 身份/RBAC/菜单数据基线 | ✅ 已完成 | 2026-08-09 | [auth-rbac-menu-baseline.md](../../apps/server/docs/implementation/auth/auth-rbac-menu-baseline.md) | — |
+| M2 Auth HTTP + React 登录切片 | ✅ 第 1–8 刀已落地 | 2026-08-22 | [切片划分](../../apps/server/docs/implementation/auth/README.md) · [登录](../../apps/server/docs/implementation/auth/auth-login-slice.md) · [权限](../../apps/server/docs/implementation/auth/auth-permissions-slice.md) · [注册](../../apps/server/docs/implementation/auth/auth-register-slice.md) · [验证码](../../apps/server/docs/implementation/auth/auth-captcha-slice.md) · [会话](../../apps/server/docs/implementation/auth/auth-sessions-slice.md) · [改密](../../apps/server/docs/implementation/auth/auth-change-password-slice.md) · [忘记密码](../../apps/server/docs/implementation/auth/auth-forgot-password-slice.md) · [后台踢人](../../apps/server/docs/implementation/auth/auth-admin-sessions-slice.md) | [登录](../../study/features/nest-auth-login-slice.md) · [权限菜单](../../study/features/nest-auth-permissions.md) · [注册验证](../../study/features/nest-auth-register.md) · [验证码/会话/改密](../../study/features/nest-auth-captcha-sessions-password.md) |
 
 ### Nest 阶段 0 Express 运行底座
 
@@ -35,7 +36,7 @@
 ### 阶段 0 工程骨架
 - `pnpm install` 成功（Node 22，`.nvmrc` 锁定）。
 - `pnpm dev:react` 启动，`http://localhost:8000` HTTP 200。
-- `apps/react-web` 可 import `@personal-hub/shared-types`。
+- `apps/user-web` 可 import `@personal-hub/shared-types`。
 - `packages/shared-types` typecheck 通过。
 
 ### 阶段 1 基础底座

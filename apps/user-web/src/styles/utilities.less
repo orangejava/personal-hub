@@ -1,0 +1,53 @@
+/**
+ * 少量通用工具类
+ */
+
+.ph-text-muted {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.ph-text-center {
+  text-align: center;
+}
+
+.ph-flex {
+  display: flex;
+}
+
+.ph-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ph-mt-md {
+  margin-top: var(--ph-space-md);
+}
+.ph-mt-lg {
+  margin-top: var(--ph-space-lg);
+}
+
+.ph-public-nav {
+  flex: 1;
+  justify-content: center;
+
+  a {
+    padding: 8px 14px;
+    color: rgba(0, 0, 0, 0.72);
+    border-radius: 999px;
+    transition:
+      color 0.2s ease,
+      background-color 0.2s ease;
+
+    &:hover,
+    &.active {
+      color: var(--ph-color-primary);
+      background: rgba(22, 119, 255, 0.08);
+    }
+  }
+}
+
+/* 隐藏 SettingDrawer 自带浮动把手，触发按钮已移至顶栏右侧 */
+.ant-pro-setting-drawer-handle {
+  display: none !important;
+}

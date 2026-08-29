@@ -1,7 +1,7 @@
 # 项目架构图与链路说明
 
 > 目标：把“系统有哪些部分、它们如何协作、请求是怎么走的”讲清楚，方便从前端视角转向全栈视角。
-> 最后更新：2026-08-02
+> 最后更新：2026-08-29
 > Nest 实现基线：[后端实现约定](../backend/conventions.md) · [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) · [Compose 策略](../deploy/nest-compose-strategy.md)
 
 ---
@@ -10,7 +10,7 @@
 
 这个项目不是“一个前端站点”，而是一套完整系统：
 
-- 当前阶段 `apps/react-web` 先用 React / Umi / Ant Design Pro 负责首版公开前台、登录后工作区、后台管理台
+- 当前阶段 `apps/user-web` 负责公开前台、工作区、AI；`apps/admin-web` 负责 `/admin` 后台
 - 后续 `apps/next-web` 承担首页、内容中心、阅读页、项目页、关于我等适合 SEO 的页面
 - 后续 `apps/server` 负责认证、内容、AI、管理能力，统一暴露 `/api/v1`
 - `PostgreSQL` 负责核心业务数据
@@ -24,22 +24,24 @@
 
 ```mermaid
 flowchart LR
-    Visitor["访客 / 注册用户"] --> ReactWeb["apps/react-web<br/>React + Umi"]
-    Admin["管理员"] --> ReactWeb
+    Visitor["访客 / 注册用户"] --> ReactWeb["apps/user-web<br/>React + Umi"]
+    Admin["管理员"] --> AdminWeb["apps/admin-web<br/>React + Umi"]
     Visitor --> NextWeb["apps/next-web<br/>Next.js 15（后续）"]
     Mobile["Flutter App"] --> Api["apps/server<br/>NestJS + Express<br/>/api/v1"]
     ReactWeb --> Api
+    AdminWeb --> Api
     NextWeb --> Api
     Api --> Db[("PostgreSQL 16")]
     Api --> Redis[("Redis 7")]
     Api --> Storage["本地 MinIO / 生产腾讯 COS"]
     Api --> AI["阿里云百炼 / OpenAI / 其他模型厂商"]
     ReactWeb --> Shared["packages/shared-types<br/>共享类型 / Zod Schema"]
+    AdminWeb --> Shared
     NextWeb --> Shared
     Api --> Shared
 ```
 
-React-first 阶段后端未完成前，`apps/react-web` 先通过 Umi mock / 本地 service 模拟 API，mock 结构要尽量贴近后续 NestJS API。
+React-first 阶段后端未完成前，`apps/user-web` 先通过 Umi mock / 本地 service 模拟 API，mock 结构要尽量贴近后续 NestJS API。
 
 ---
 
@@ -54,12 +56,15 @@ flowchart TD
     Root --> Study["study/"]
     Root --> Infra["docker / ci / scripts"]
 
-    Apps --> ReactWeb["react-web<br/>React + Umi + Ant Design Pro"]
+    Apps --> ReactWeb["user-web<br/>用户端 Umi"]
+    Apps --> AdminWeb["admin-web<br/>管理端 Umi"]
     Apps --> NextWeb["next-web<br/>Next.js（后续）"]
-    Apps --> Server["server<br/>NestJS（后续）"]
+    Apps --> Server["server<br/>NestJS"]
     Apps --> Mobile["mobile<br/>Flutter（后置）"]
 
-    Packages --> SharedTypes["shared-types<br/>共享类型 / Schema"]
+    Packages --> SharedTypes["shared-types"]
+    Packages --> AppOrigins["app-origins"]
+    Packages --> ApiClient["api-client"]
 ```
 
 ---
@@ -68,10 +73,10 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ReactWeb["apps/react-web"]
+    ReactWeb["apps/user-web"]
     ReactWeb --> Public["公开前台（首版）"]
     ReactWeb --> Workspace["登录后工作区"]
-    ReactWeb --> Admin["后台管理台"]
+    AdminWeb["apps/admin-web"] --> Admin["后台管理台"]
     NextWeb["apps/next-web（后续）"] --> PublicNext["公开前台 SEO 页面"]
 
     Public --> Home["/"]

@@ -61,7 +61,7 @@ flowchart LR
 
 | 类型                  | 服务器路径                                | 是否进 Git    | 说明                                                        |
 | --------------------- | ----------------------------------------- | ------------- | ----------------------------------------------------------- |
-| **代码**              | `/opt/personal-hub/`                      | ✅ Gitee 管理 | Monorepo：`apps/react-web`、`packages/`；后续 `apps/server` |
+| **代码**              | `/opt/personal-hub/`                      | ✅ Gitee 管理 | Monorepo：`apps/user-web`、`packages/`；后续 `apps/server` |
 | **小册源文件**        | `/data/personal-hub/content-local/`       | ❌            | 体积大、更新频；不进仓库                                    |
 | **软链**              | `/opt/personal-hub/content-local` → 上项  | —             | 让 `sync:booklets` 脚本路径与本地一致                       |
 | **环境变量**          | `/etc/personal-hub/.env`                  | ❌            | 密钥；软链到仓库根或 API 目录                               |
@@ -170,13 +170,13 @@ git remote set-url origin git@gitee.com:oralemon/personal-hub.git
 
 | 路径                                                | 阶段 A                                               | 阶段 B（NestJS）                         |
 | --------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------- |
-| `apps/react-web/`                                   | Umi dev + mock，端口 **8000**                        | `pnpm build:react` → `dist/`，Nginx 托管 |
+| `apps/user-web/`                                   | Umi dev + mock，端口 **8000**                        | `pnpm build:react` → `dist/`，Nginx 托管 |
 | `packages/shared-types/`                            | 前后端共享类型                                       | API DTO 与前端 service 契约              |
 | `apps/server/`                                      | 阶段 0 已创建；本地 Express + Prisma + Redis 可运行 | 后续 Auth 与领域 API                     |
 | `apps/next-web/`                                    | 未创建                                               | 阶段 C SEO 页                            |
 | `ecosystem.config.js`                               | PM2 进程 `personal-hub-dev`；显式监听 `0.0.0.0:8000` | 阶段 A 继续使用或下线                    |
-| `apps/react-web/src/scripts/sync-local-booklets.ts` | 扫描 `content-local/` 生成 mock                      | 本地开发保留；生产改 API                 |
-| `apps/react-web/src/scripts/sync-allowlist.json`    | 白名单小册（约 12 本）                               | 上传 COS 时沿用目录名                    |
+| `apps/user-web/src/scripts/sync-local-booklets.ts` | 扫描 `content-local/` 生成 mock                      | 本地开发保留；生产改 API                 |
+| `apps/user-web/src/scripts/sync-allowlist.json`    | 白名单小册（约 12 本）                               | 上传 COS 时沿用目录名                    |
 | `content-local/`（本地）                            | gitignore，rsync 到服务器                            | 本地 `booklet:push` → COS（规划）        |
 
 **阶段 A 限制（已知）：** Umi mock **仅 dev 生效**；`pnpm build` 后无 `/api/*`。个人阅读期用 dev 模式可接受；上 NestJS 前不要对公网宣传 build 版。
@@ -308,7 +308,7 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 ```text
 浏览器 → Nginx :443
-           ├── /        → apps/react-web/dist（静态）
+           ├── /        → apps/user-web/dist（静态）
            └── /api/*   → apps/api :3001 → PG / Redis / COS / 磁盘缓存
 ```
 

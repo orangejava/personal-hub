@@ -85,7 +85,7 @@ metadata:
 
 小写短词，本仓库常用：
 
-`react-web` · `shared-types` · `booklet` · `docs` · `deploy` · `mock` · `api` · `auth` · `agents`
+`user-web` · `shared-types` · `booklet` · `docs` · `deploy` · `mock` · `api` · `auth` · `agents`
 
 ### 2.3 summary（必填）
 
@@ -147,7 +147,7 @@ EOF
 | --- | --- |
 | `content-local/` | 小册正文，走 rsync / COS |
 | `**/node_modules/` | lockfile 还原 |
-| `apps/react-web/mock/data/local-booklets.generated.ts` | 本地生成物 |
+| `apps/user-web/mock/data/local-booklets.generated.ts` | 本地生成物 |
 | `.env` / `*.pem` / 密钥 | 安全 |
 | `.umi/` / `dist/` / `.turbo/` / `.cache/` | 构建产物 |
 

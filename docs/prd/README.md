@@ -9,7 +9,8 @@
 
 | 你在做什么                            | 读哪组                                |
 | ------------------------------------- | ------------------------------------- |
-| 当前 `apps/react-web` 开发、mock、Umi | **[react-first/](./react-first/)**    |
+| 当前用户端 `apps/user-web` | **[../../apps/user-web/docs/prd](../../apps/user-web/docs/prd/)** |
+| 当前管理端 `apps/admin-web` | **[../../apps/admin-web/docs/prd](../../apps/admin-web/docs/prd/)** |
 | 规划未来 Next、`apps/server`、数据库  | **[long-term/](./long-term/)**        |
 | 产品功能范围（不分阶段）              | [../product/](../product/) 大模块文档 |
 | 部署 / 上线                           | [../deploy/](../deploy/)              |
@@ -20,22 +21,17 @@
 
 ## React-first（当前主线）
 
-> 目录：[react-first/](./react-first/) · 应用：`apps/react-web` · 阶段见 [../react-first/roadmap.md](../react-first/roadmap.md)
+> 用户端 PRD：[apps/user-web/docs/prd](../../apps/user-web/docs/prd/) · 管理端：[apps/admin-web/docs/prd](../../apps/admin-web/docs/prd/) · 历史路线图：[../history/react-first-roadmap.md](../history/react-first-roadmap.md)
 
-| 文档                                                                                           | 阶段            | 状态              |
-| ---------------------------------------------------------------------------------------------- | --------------- | ----------------- |
-| [react-first/bootstrap-prd.md](./react-first/bootstrap-prd.md)                                 | 工程初始化      | ✅ 已实施         |
-| [react-first/phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md)           | 阶段 0–3        | ✅ 已实施         |
-| [react-first/phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md)         | 阶段 4          | ✅ 已完成本轮收尾 |
-| [react-first/phase-5-ai-platform-prd.md](./react-first/phase-5-ai-platform-prd.md)             | 阶段 5          | ✅ 已完成本轮收尾 |
-| [react-first/ai-composer-layout-prd.md](./react-first/ai-composer-layout-prd.md)               | 阶段 5 体验增强 | 🟡 待实施         |
-| [react-first/phase-5-5-next-api-bridge-prd.md](./react-first/phase-5-5-next-api-bridge-prd.md) | 阶段 5.5 可选   | ⏭️ 已跳过         |
-| [react-first/frontend-visual-spec.md](./react-first/frontend-visual-spec.md)                   | 跨阶段          | ✅ 已确定         |
-| [react-first/theme-navigation-config-prd.md](./react-first/theme-navigation-config-prd.md)     | 跨阶段          | 🟡 首版够用，剩余后置 |
-| [react-first/content-reading-prd.md](./react-first/content-reading-prd.md)                     | 阶段 2+         | ✅ 已完成         |
-| [react-first/content-workspace-prd.md](./react-first/content-workspace-prd.md)                 | 阶段 3+         | ✅ 已完成         |
+| 文档 | 阶段 | 状态 |
+| --- | --- | --- |
+| [../../apps/user-web/docs/prd/bootstrap-prd.md](../../apps/user-web/docs/prd/bootstrap-prd.md) | 工程初始化 | ✅ 已实施 |
+| [../../apps/user-web/docs/prd/phase-0-3-foundation-prd.md](../../apps/user-web/docs/prd/phase-0-3-foundation-prd.md) | 阶段 0–3 | ✅ 已实施 |
+| [../../apps/admin-web/docs/prd/phase-4-admin-preview-prd.md](../../apps/admin-web/docs/prd/phase-4-admin-preview-prd.md) | 阶段 4 | ✅ 已完成本轮收尾 |
+| [../../apps/user-web/docs/prd/phase-5-ai-platform-prd.md](../../apps/user-web/docs/prd/phase-5-ai-platform-prd.md) | 阶段 5 | ✅ 已完成本轮收尾 |
+| [react-first/phase-5-5-next-api-bridge-prd.md](./react-first/phase-5-5-next-api-bridge-prd.md) | 阶段 5.5 可选 | ⏭️ 已跳过 |
 
-**后端下一阶段入口**：Nest M2 Auth 第 1–8 刀已落地（含忘记密码与管理员踢全部设备）。下一可选为其它 Nest 业务模块或后台禁用/改角色；划分见 [M2 切片](../implementation/auth/README.md)。阅读 [Auth/RBAC PRD](./long-term/auth-rbac-session-prd.md) 与 Canonical 文档。阶段 5.5 Next API Bridge 已跳过。
+**后端下一阶段入口**：Nest M2 Auth 切片见 [apps/server/docs/implementation/auth](../../apps/server/docs/implementation/auth/README.md)。阶段 5.5 Next API Bridge 已跳过。
 
 ---
 
@@ -61,6 +57,6 @@
 
 ## 维护规则
 
-1. React-first 新 PRD 放入 `react-first/`；Next/Nest 相关放入 `long-term/`。
-2. React-first 阶段 PRD 实施完成后，在 [../implementation/react-first/](../implementation/react-first/) 补实现说明；Nest 阶段在 [../implementation/foundation/](../implementation/foundation/) 或对应领域目录补实现说明。
-3. 决策变更时同步更新 [../react-first/roadmap.md](../react-first/roadmap.md) 与 product 文档。
+1. 用户端 PRD 放入 `apps/user-web/docs/prd/`；管理端放入 `apps/admin-web/docs/prd/`；长期 Nest/Next 放入 `long-term/`。本目录 `react-first/` 只留索引与跳过方案。
+2. 实施完成后：用户端实现说明进 `apps/user-web/docs/implementation/`；管理端进 `apps/admin-web/docs/implementation/`；Nest 进 `apps/server/docs/`。全局 `docs/implementation/` 只留索引与旧路径 stub。
+3. 决策变更时同步更新 [../react-first/README.md](../react-first/README.md) 与 product 文档。

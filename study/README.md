@@ -2,7 +2,7 @@
 
 > 这个目录不写“需求文档”，而是写开发过程中需要反复参考的学习材料、设计方法、复盘笔记。
 >
-> **分区提示**：当前 Web 开发走 React-first（`apps/react-web`）；Nest 阶段 0 已启动，Next.js 手册仍对应后续阶段 6–7。
+> **分区提示**：当前 Web 拆为用户端 `apps/user-web` 与管理端 `apps/admin-web`；Nest 阶段 0 已启动，Next.js 手册仍对应后续阶段 6–7。
 
 ---
 
@@ -50,7 +50,7 @@
 2. [features/markdown-booklet-reading.md](./features/markdown-booklet-reading.md) — Markdown、小册、目录、同步脚本。
 3. [features/umi-mock-and-dataflow.md](./features/umi-mock-and-dataflow.md) — mock 与 `useRequest` 数据流。
 
-PRD 与路线图见 [../docs/prd/README.md](../docs/prd/README.md)、[../docs/react-first/roadmap.md](../docs/react-first/roadmap.md)。
+PRD 与路线图见 [../docs/prd/README.md](../docs/prd/README.md)、[../docs/react-first/README.md](../docs/react-first/README.md)。
 
 ### 当前：Nest 阶段 0 与后续领域模块
 

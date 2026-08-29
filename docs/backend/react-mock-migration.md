@@ -2,7 +2,7 @@
 
 > 状态：🟢 已确认；React 对接真实 API 时的迁移清单
 > 最后更新：2026-08-02
-> 原则：以现有 `apps/react-web/src/services` 盘点为功能事实，以 [canonical-api.md](./canonical-api.md) 为未来契约事实。Mock 路径不长期保留别名。
+> 原则：以现有 `apps/user-web/src/services` 盘点为功能事实，以 [canonical-api.md](./canonical-api.md) 为未来契约事实。Mock 路径不长期保留别名。
 
 ---
 

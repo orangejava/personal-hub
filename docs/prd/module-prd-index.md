@@ -14,7 +14,7 @@ PRD 按实施路线分为两组，**不要混读**：
 
 | 分区                    | 入口                                                                        | 适用场景                         |
 | ----------------------- | --------------------------------------------------------------------------- | -------------------------------- |
-| **React-first（当前）** | [README.md](./README.md) · [react-first/README.md](./react-first/README.md) | `apps/react-web`、mock、阶段 0–7 |
+| **React-first（当前）** | [README.md](./README.md) · [react-first/README.md](./react-first/README.md) | `apps/user-web`、mock、阶段 0–7 |
 | **长期全栈**            | [long-term/README.md](./long-term/README.md)                                | Next.js、NestJS、生产部署        |
 
 当前开发顺序以 React-first 为主；长期 PRD 提供字段与 API 契约，供阶段 6 接入时对齐。
@@ -63,7 +63,7 @@ PRD 按实施路线分为两组，**不要混读**：
 | 文档                                                                       | 状态      | 说明                                                                     |
 | -------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------ |
 | [nest-server-bootstrap-prd.md](./long-term/nest-server-bootstrap-prd.md)   | ✅ 阶段 0 已实施 | `apps/server`、本地依赖 Compose、Prisma、Redis、Health、Swagger          |
-| [bootstrap-prd.md](./react-first/bootstrap-prd.md)                         | 🟡 已补充 | React-first 工程初始化：`apps/react-web`、Ant Design Pro、mock、共享类型 |
+| [bootstrap-prd.md](./react-first/bootstrap-prd.md)                         | 🟡 已补充 | React-first 工程初始化：`apps/user-web`、Ant Design Pro、mock、共享类型 |
 | [phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md)   | ✅ 已实施 | React-first 阶段 0-3 一次性实施计划                                      |
 | [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md) | 🟡 已补充 | React-first 阶段 4：后台运营、PDF/Word 预览                              |
 | [agent-file-templates.md](../engineering/agent-file-templates.md)          | ✅ 已补充 | 目录级 AGENT 模板；后续领域模块按实际结构补充                            |
@@ -195,16 +195,16 @@ PRD 按实施路线分为两组，**不要混读**：
 
 参考：
 
-- [phase-4-admin-preview-prd.md](./react-first/phase-4-admin-preview-prd.md)
+- [phase-4-admin-preview-prd.md](../../apps/admin-web/docs/prd/phase-4-admin-preview-prd.md)
 - [admin-content-config-prd.md](../history/admin-content-config-prd.md)
-- [../react-first/roadmap.md](../react-first/roadmap.md)
+- [../react-first/README.md](../react-first/README.md)
 
 ### 已完成：React-first 阶段 0–3
 
 参考：
 
-- [phase-0-3-foundation-prd.md](./react-first/phase-0-3-foundation-prd.md)
-- [../implementation/react-first/phase-0-3.md](../implementation/react-first/phase-0-3.md)
+- [phase-0-3-foundation-prd.md](../../apps/user-web/docs/prd/phase-0-3-foundation-prd.md)
+- [phase-0-3.md](../../apps/user-web/docs/implementation/phase-0-3.md)
 
 ### 后续：长期全栈工程骨架
 

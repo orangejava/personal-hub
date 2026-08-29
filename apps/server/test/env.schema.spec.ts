@@ -18,7 +18,8 @@ describe('validateEnv', () => {
 
     expect(env.PORT).toBe(3001);
     expect(env.NODE_ENV).toBe('development');
-    expect(env.CORS_ORIGIN).toBe('http://localhost:8000');
+    expect(env.CORS_ORIGIN).toEqual(['http://localhost:8000', 'http://localhost:8001']);
+    expect(env.PUBLIC_APP_ORIGIN).toBe('http://localhost:8000');
     expect(env.MAILPIT_HOST).toBe('localhost');
     expect(env.MAILPIT_PORT).toBe(1025);
     expect(env.MAIL_FROM).toBe('Personal Hub <noreply@localhost>');
@@ -31,5 +32,28 @@ describe('validateEnv', () => {
         JWT_ACCESS_SECRET: 'too-short',
       }),
     ).toThrow();
+  });
+
+  it('parses comma-separated CORS_ORIGIN and rejects paths', () => {
+    const env = validateEnv({
+      ...validEnvironment,
+      CORS_ORIGIN: 'http://localhost:8000, http://localhost:8001/',
+    });
+    expect(env.CORS_ORIGIN).toEqual(['http://localhost:8000', 'http://localhost:8001']);
+
+    expect(() =>
+      validateEnv({
+        ...validEnvironment,
+        CORS_ORIGIN: 'http://localhost:8000/admin',
+      }),
+    ).toThrow();
+  });
+
+  it('allows empty CORS_ORIGIN so production can rely on PUBLIC_APP_ORIGIN', () => {
+    const env = validateEnv({
+      ...validEnvironment,
+      CORS_ORIGIN: '',
+    });
+    expect(env.CORS_ORIGIN).toEqual([]);
   });
 });

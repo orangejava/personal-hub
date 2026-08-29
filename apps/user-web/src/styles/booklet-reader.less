@@ -1,0 +1,179 @@
+/**
+ * 小册阅读页：全宽四栏布局 + 可折叠侧栏（颜色走 public-theme 变量）
+ */
+
+.ph-public-main-full {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  overflow: visible;
+}
+
+.ph-booklet-reader {
+  display: flex;
+  width: 100%;
+  min-height: calc(100vh - var(--ph-header-height));
+  align-items: stretch;
+  background: var(--ph-bg-layout);
+}
+
+.ph-booklet-sidebar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--ph-header-height));
+  position: sticky;
+  top: var(--ph-header-height);
+  overflow: hidden;
+  background: var(--ph-bg-spotlight);
+  border-right: 1px solid var(--ph-border-color);
+  transition: width var(--ph-motion-base) ease;
+  color: var(--ph-text-primary);
+
+  &.collapsed {
+    width: var(--ph-booklet-sidebar-collapsed) !important;
+  }
+}
+
+.ph-booklet-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 8px 8px 12px;
+  border-bottom: 1px solid var(--ph-border-color);
+  background: var(--ph-bg-container);
+  color: var(--ph-text-primary);
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+
+  .collapsed & {
+    justify-content: center;
+    padding-inline: 8px;
+  }
+}
+
+.ph-booklet-sidebar-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 0;
+}
+
+/** 章节目录 / 小册列表：独立滚动，避免与顶部进度条共用 scrollTop */
+.ph-booklet-sidebar-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.ph-booklet-sidebar-progress {
+  flex-shrink: 0;
+  padding: 0 12px 8px;
+}
+
+/** 右侧阅读区：纵向分为中间(正文+大纲)与底部 footer，参与整页滚动高度 */
+.ph-booklet-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--ph-bg-layout);
+}
+
+/** 中间区与 footer 共用列宽：正文 flex:1 + 大纲固定宽 */
+.ph-booklet-columns {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.ph-booklet-content {
+  flex: 1 1 auto;
+}
+
+.ph-booklet-main {
+  flex: 1;
+  min-width: var(--ph-booklet-main-min-width);
+  padding: var(--ph-page-padding);
+  background: var(--ph-bg-layout);
+  color: var(--ph-text-primary);
+}
+
+.ph-booklet-toc {
+  flex-shrink: 0;
+  width: var(--ph-booklet-toc-width);
+  background: var(--ph-bg-layout);
+  color: var(--ph-text-primary);
+}
+
+/** 大纲区吸顶，阅读长文时保持可见 */
+.ph-booklet-toc-sticky {
+  position: sticky;
+  top: var(--ph-header-height);
+  max-height: calc(100vh - var(--ph-header-height));
+  overflow: hidden;
+
+  .ph-outline {
+    height: 100%;
+    min-height: 200px;
+  }
+}
+
+/** 底部 footer：列宽与中间区一致；上下章在正文列内居中 */
+.ph-booklet-footer {
+  flex-shrink: 0;
+}
+
+.ph-booklet-footer-main {
+  flex: 1;
+  min-width: var(--ph-booklet-main-min-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px var(--ph-page-padding) 48px;
+  background: var(--ph-bg-layout);
+}
+
+.ph-booklet-footer-toc {
+  flex-shrink: 0;
+  width: var(--ph-booklet-toc-width);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 32px 16px 48px;
+  background: var(--ph-bg-layout);
+  font-size: 13px;
+
+  a {
+    color: var(--ph-color-primary);
+    text-decoration: none;
+
+    &:hover {
+      opacity: 0.85;
+    }
+  }
+}
+
+.ph-scroll-back-top {
+  position: fixed !important;
+  inset-inline-end: 24px !important;
+  inset-block-end: 24px !important;
+  z-index: 100;
+}
+
+.ph-booklet-sidebar-body .ant-menu {
+  border-inline-end: none !important;
+  background: transparent;
+}
+
+/** 侧栏 Menu 标题溢出省略，配合 EllipsisTooltip */
+.ph-booklet-sidebar-body .ant-menu-title-content {
+  overflow: hidden;
+  min-width: 0;
+}

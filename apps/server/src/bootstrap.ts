@@ -26,7 +26,7 @@ export function configureHttpApp(
 
   if (config.getOrThrow('NODE_ENV') !== 'production') {
     app.enableCors({
-      origin: config.getOrThrow<string>('CORS_ORIGIN'),
+      origin: config.getOrThrow('CORS_ORIGIN'),
       credentials: true,
       exposedHeaders: ['X-Request-Id'],
     });

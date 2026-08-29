@@ -17,6 +17,7 @@ dumi/tmp/
 # 环境变量与密钥
 .env
 .env.local
+.env.prod
 .env.*.local
 *.pem
 
@@ -38,7 +39,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # 生成的本地小册 mock 数据
-apps/react-web/mock/data/local-booklets.generated.ts
+apps/user-web/mock/data/local-booklets.generated.ts
 
 # 本地小册目录
 content-local/

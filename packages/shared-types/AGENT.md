@@ -4,7 +4,7 @@
 
 ## 定位
 
-前后端共享的业务类型、枚举、接口响应结构、分页结构。供 `apps/react-web`、未来 `apps/next-web`、`apps/api` 共用，避免各写一套。
+前后端共享的业务类型、枚举、接口响应结构、分页结构。供 `apps/user-web`、`apps/admin-web`、未来 `apps/next-web`、`apps/server` 共用，避免各写一套。
 
 ## 规则
 

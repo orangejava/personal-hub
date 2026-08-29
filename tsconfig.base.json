@@ -14,7 +14,9 @@
     "baseUrl": ".",
     "paths": {
       "@personal-hub/shared-types": ["./packages/shared-types/src/index.ts"],
-      "@personal-hub/shared-types/*": ["./packages/shared-types/src/*"]
+      "@personal-hub/shared-types/*": ["./packages/shared-types/src/*"],
+      "@personal-hub/api-client": ["./packages/api-client/src/index.ts"],
+      "@personal-hub/app-origins": ["./packages/app-origins/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "dist", "build", ".next", ".umi"]
