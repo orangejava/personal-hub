@@ -17,7 +17,7 @@
 ## 2. 数据获取铁律
 
 - 页面/组件**必须通过 `src/services/*` 取数**，禁止直接 import mock 数据。
-- 调用链：`page → services/module.ts → request → mock 接口 → mock/data`。
+- 调用链（`dev:mock`）：`page → services/module.ts → request → mock 接口 → mock/data`。默认 `dev` 为 `MOCK=none`，只打 Nest `/api/v1`。
 - mock 响应统一使用 `ApiResponse<T>`（来自 `@personal-hub/shared-types`）。
 - 后续接 NestJS API 时只改 service 层 baseURL/代理，页面不动。
 
@@ -73,7 +73,7 @@
 
 - 权限点沿用 `@personal-hub/shared-types` 的 `PermissionCode`。
 - 权限判断三层：路由可访问 → 菜单可见 → 按钮可用。
-- mock 用户：见 [../../docs/engineering/dev-credentials.md](../../docs/engineering/dev-credentials.md)（单一数据源 `src/config/devCredentials.ts`）。
+- mock 用户：见 [../../docs/engineering/dev-credentials.md](../../docs/engineering/dev-credentials.md)（单一数据源 `mock/data/devCredentials.ts`）。默认 `pnpm dev` 不加载 mock。
 - 前端只做体验层显隐，真实校验由后续 NestJS Guard 完成。
 
 ## 8. 模块边界
@@ -88,19 +88,25 @@
 | 本地小册脚本 | `src/scripts` | — | `.agent/local-booklets.md` |
 | 样式与主题 | `src/styles` | — | `.agent/styles-theme.md` |
 
-## 9. 注释约定
+## 9. 语言
+
+- 运行时只加载 `src/locales` 下的 `zh-CN`、`en-US`。下拉也只展示这两项。
+- 其它语言文件保留在 `src/locales-frozen/`，不删除、不更新、不移回 `src/locales/`。
+- 后续模块新增文案只改中、英。
+
+## 10. 注释约定
 
 - 关键方法、复杂逻辑、核心状态变量补中文注释，说明「为什么」与业务含义。
 - 关键方法优先写 JSDoc（中文），说明用途、参数、返回值、副作用。
 - 简单自解释代码无需为注释而注释。
 
-## 10. 安全增量
+## 11. 安全增量
 
 - 只改与当前需求直接相关文件，不顺手重构无关代码。
 - 改共享组件、工具函数、全局 store、请求封装、路由前先确认调用方。
 - 不通过直接操作 DOM 等脆弱方式实现功能。
 
-## 11. 验收
+## 12. 验收
 
 - 完成前端页面/组件/样式/交互改动后，用 Cursor 内置浏览器验收：页面可打开、DOM 符合预期、关键流程可执行、控制台无新增 error。
-- 阶段完成前执行：`pnpm install`、`pnpm dev:react`、`pnpm --filter user-web lint`、`pnpm --filter user-web tsc`。
+- 阶段完成前执行：`pnpm install`、`pnpm dev:user`（或 `dev:user:mock`）、`pnpm --filter user-web lint`、`pnpm --filter user-web tsc`。

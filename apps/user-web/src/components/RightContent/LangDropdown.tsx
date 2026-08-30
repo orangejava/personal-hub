@@ -1,18 +1,16 @@
 import { CheckOutlined, GlobalOutlined } from '@ant-design/icons';
-import { getAllLocales, getLocale, setLocale } from '@umijs/max';
+import { getLocale, setLocale } from '@umijs/max';
 import type { MenuProps } from 'antd';
 import { Button } from 'antd';
-import { useMemo } from 'react';
+import { useLayoutEffect } from 'react';
+import { ACTIVE_LOCALES, ensureActiveLocale } from '@/utils/locale';
 import HeaderDropdown from '../HeaderDropdown';
 import useHeaderActionStyles from './style';
 
-const localeLabelMap: Record<string, { emoji: string; label: string }> = {
+const localeLabelMap: Record<(typeof ACTIVE_LOCALES)[number], { emoji: string; label: string }> = {
   'zh-CN': { emoji: '🇨🇳', label: '简体中文' },
   'en-US': { emoji: '🇺🇸', label: 'English' },
 };
-
-/** 工作区仅支持中英文 */
-const SUPPORTED_LOCALES = ['zh-CN', 'en-US'];
 
 const onLangClick: MenuProps['onClick'] = ({ key }) => {
   if (key.startsWith('lang-')) {
@@ -22,15 +20,12 @@ const onLangClick: MenuProps['onClick'] = ({ key }) => {
 
 export const LangDropdown: React.FC = () => {
   const { styles } = useHeaderActionStyles();
-  const allLocales = useMemo(() => getAllLocales(), []);
+  useLayoutEffect(() => {
+    ensureActiveLocale();
+  }, []);
   const currentLocale = getLocale();
-  const supportLocales = SUPPORTED_LOCALES.filter((l) => allLocales.includes(l));
 
-  if (supportLocales.length <= 1) {
-    return null;
-  }
-
-  const langItems: MenuProps['items'] = supportLocales.map((locale) => ({
+  const langItems: MenuProps['items'] = ACTIVE_LOCALES.map((locale) => ({
     key: `lang-${locale}`,
     icon:
       locale === currentLocale ? (
@@ -38,7 +33,7 @@ export const LangDropdown: React.FC = () => {
       ) : (
         <span style={{ display: 'inline-block', width: 14 }} />
       ),
-    label: `${localeLabelMap[locale]?.emoji ?? ''} ${localeLabelMap[locale]?.label ?? locale}`,
+    label: `${localeLabelMap[locale].emoji} ${localeLabelMap[locale].label}`,
   }));
 
   return (

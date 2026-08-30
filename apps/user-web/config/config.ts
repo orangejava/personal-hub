@@ -37,6 +37,7 @@ export default defineConfig({
     plugins: ['duration', 'relativeTime'],
   },
   locale: {
+    // 只加载 src/locales 下的 zh-CN / en-US；其它语言在 src/locales-frozen
     default: 'zh-CN',
     antd: true,
     baseNavigator: true,
@@ -58,6 +59,7 @@ export default defineConfig({
   headScripts: [{ src: join(PUBLIC_PATH, 'scripts/loading.js'), async: true }],
   tailwindcss: {},
   mock: {
+    // 仅 `pnpm dev:mock` 会加载；`MOCK=none`（默认 `dev`）和生产 `max build` 都不跑 mock 中间件
     // Umi 默认已加载 mock/*.ts；再 include mock/** 会重复注册同一路由
     exclude: ['mock/utils.ts', 'mock/data/**'],
   },

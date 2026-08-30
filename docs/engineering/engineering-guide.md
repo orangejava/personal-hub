@@ -26,11 +26,13 @@ cd personal-hub
 nvm use
 pnpm install
 
-# 2. 启动用户端（公开前台、工作区、AI、登录）
-pnpm dev:react
+# 2. 启动用户端（默认无 mock，只打 Nest）
+pnpm dev:user
+# 需要内容/工作区/AI mock 时：pnpm dev:user:mock
 
-# 3. 启动管理端（可选，后台）
+# 3. 启动管理端（可选）
 pnpm dev:admin
+# 需要后台 CRUD mock 时：pnpm dev:admin:mock
 ```
 
 启动后：
@@ -392,8 +394,11 @@ async publishContent(@Param('id') id: string) { ... }
 ## 当前常用命令
 
 ```bash
-pnpm dev:react                         # 启动当前 React-first 应用
-pnpm build:react                       # 构建当前应用
+pnpm dev:user                          # 用户端，默认无 mock
+pnpm dev:user:mock                     # 用户端 + Umi mock
+pnpm dev:admin                         # 管理端，默认无 mock
+pnpm dev:admin:mock                    # 管理端 + Umi mock
+pnpm build:user                        # 构建用户端（不含 mock）
 pnpm --filter user-web lint           # Biome + TypeScript 检查
 pnpm --filter user-web test           # Vitest 单元测试
 pnpm --filter user-web sync:booklets  # 同步本地小册 mock

@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 已完成；M2 Auth 第 1–6 刀已落地
-> 最后更新：2026-08-29
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 已完成；M2 Auth 第 1–8 刀已落地
+> 最后更新：2026-08-30
 
 ---
 
@@ -192,9 +192,9 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-08-28）
+## 当前开发主线（2026-08-30）
 
-1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀；Web 已拆为用户端 `:8000` 与管理端 `:8001`（见 [implementation/admin-web-split.md](./implementation/admin-web-split.md)）。Auth 切片见 [implementation/auth/README.md](./implementation/auth/README.md)。
+1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀；Web 已拆为用户端 `:8000` 与管理端 `:8001`（见 [implementation/admin-web-split.md](./implementation/admin-web-split.md)）。Auth 切片见 [implementation/auth/README.md](./implementation/auth/README.md)。本地前端默认 `MOCK=none`，内容 mock 用 `dev:user:mock` / `dev:admin:mock`。
 2. **接下来（可选，未开刀）**：其它 Nest 业务模块（内容、文件、AI），或后台禁用/改角色。开刀前先对契约与 PRD。
 3. **明确跳过**：阶段 5.5 Next API Bridge。
 4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余项、域名与站点名、Flutter。

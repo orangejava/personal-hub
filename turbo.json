@@ -6,6 +6,10 @@
       "cache": false,
       "persistent": true
     },
+    "dev:mock": {
+      "cache": false,
+      "persistent": true
+    },
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", "build/**", ".next/**", ".umi/**"]

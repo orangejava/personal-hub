@@ -1,7 +1,7 @@
 # React-first Mock 数据与接口契约
 
 > 状态：🟢 阶段 0-5 mock 已实施；本文继续作为真实 API 接入前的契约索引
-> 最后更新：2026-07-10
+> 最后更新：2026-07-10；启动方式 2026-08-30：默认 `dev` 为 `MOCK=none`，`dev:mock` 才加载 mock
 > 目标：在 NestJS 后端完成前，用 mock 数据支撑完整前端开发，同时保证后续接真实 API 时改动可控。
 
 ---
@@ -9,6 +9,16 @@
 ## 1. Mock 的定位
 
 React-first 阶段的 mock 不是临时页面数据，而是未来 API 契约的前置模拟。
+
+**启动（不要删 `mock/` 文件）：**
+
+| 命令 | 是否加载 `mock/` |
+| --- | --- |
+| `pnpm dev:user` / `pnpm dev:admin`（默认） | 否（`MOCK=none`） |
+| `pnpm dev:user:mock` / `pnpm dev:admin:mock` | 是 |
+| `pnpm build:user` / `pnpm build:admin` | 否，产物不含 mock 中间件 |
+
+`dev:mock` 时 `/api/v1` 仍代理 Nest，登录走真实鉴权；mock 只回答尚未迁 Nest 的路径（内容、工作区、AI、后台 CRUD）。
 
 mock 需要做到：
 

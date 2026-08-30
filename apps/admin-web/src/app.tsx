@@ -20,6 +20,7 @@ import { fetchCurrentUser, fetchPermissions, nestHttpStatus } from '@/services/a
 import { fetchPublicConfig } from '@/services/system';
 import type { InitialState } from '@/types/app';
 import { getThemePreference } from '@/utils/clientPreferences';
+import { ensureActiveLocale } from '@/utils/locale';
 import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
@@ -40,6 +41,8 @@ function pickAdminMenu(menu: MenuItem[] | undefined): MenuItem[] {
  * 启动期恢复会话：Access Token 在内存，跨应用跳转后必须靠 Refresh Cookie 换票。
  */
 export async function getInitialState(): Promise<InitialState> {
+  ensureActiveLocale();
+
   const fetchUserInfo = async (): Promise<{
     user: InitialState['currentUser'];
     restoreFailed: boolean;

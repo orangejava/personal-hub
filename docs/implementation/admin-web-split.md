@@ -57,7 +57,7 @@
 
 ## 6. 验证方式
 
-见 `docs/engineering/dev-credentials.md`。日常：`pnpm dev:server` + `pnpm dev:user` + `pnpm dev:admin`，用 `owner@example.com` 登录后点「后台管理」。`pnpm dev:react` 仍指向用户端。
+见 `docs/engineering/dev-credentials.md`。日常：`pnpm dev:server` + `pnpm dev:user` + `pnpm dev:admin`（默认无 mock），用 `owner@example.com` 登录后点「后台管理」。内容等页面仍要 mock 时改用 `dev:user:mock` / `dev:admin:mock`。`pnpm dev:react` 仍指向用户端。
 
 ## 7. 后续优化清单
 

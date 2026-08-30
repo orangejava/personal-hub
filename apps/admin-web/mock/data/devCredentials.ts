@@ -1,6 +1,6 @@
 /**
  * 本地开发 mock 账号（仅 dev/mock 环境使用，勿用于生产）
- * 文档：[../../../docs/engineering/dev-credentials.md](../../../docs/engineering/dev-credentials.md)
+ * 文档：[../../../../docs/engineering/dev-credentials.md](../../../../docs/engineering/dev-credentials.md)
  */
 import { UserRole } from '@personal-hub/shared-types';
 

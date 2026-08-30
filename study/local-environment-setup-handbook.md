@@ -253,8 +253,9 @@ pnpm lint
 Monorepo 常用：
 
 ```bash
-pnpm dev:react
+pnpm dev:user
 pnpm --filter server dev
+# 内容页仍要 mock：pnpm dev:user:mock
 ```
 
 ---

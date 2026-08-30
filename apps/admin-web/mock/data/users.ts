@@ -1,7 +1,7 @@
 /**
  * Mock 用户数据：admin / editor / member 三角色
  */
-import { DEV_MOCK_ACCOUNTS } from '../../src/config/devCredentials';
+import { DEV_MOCK_ACCOUNTS } from './devCredentials';
 import { UserRole, type PermissionCode, type User } from '@personal-hub/shared-types';
 
 const basePermissions: Record<UserRole, PermissionCode[]> = {
@@ -62,7 +62,7 @@ const profiles: Record<UserRole, Omit<User, 'permissions'>> = {
   },
 };
 
-/** 账号密码表（与 src/config/devCredentials.ts 同步） */
+/** 账号密码表（与 mock/data/devCredentials.ts 同步） */
 export const accounts: { email: string; password: string; role: UserRole }[] =
   DEV_MOCK_ACCOUNTS.map((a) => ({
     email: a.email,

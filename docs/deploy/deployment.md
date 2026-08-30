@@ -18,8 +18,8 @@
 
 | 项     | 方式                                                                                    |
 | ------ | --------------------------------------------------------------------------------------- |
-| 用户端 | `pnpm dev:react` → http://localhost:8000                                                |
-| 管理端 | `pnpm dev:admin` → http://localhost:8001                                                |
+| 用户端 | `pnpm dev:user`（无 mock）或 `pnpm dev:user:mock` → http://localhost:8000 |
+| 管理端 | `pnpm dev:admin` 或 `pnpm dev:admin:mock` → http://localhost:8001        |
 | API    | `pnpm dev:server` → http://localhost:3001/api/v1                                        |
 | 依赖   | `compose.dev.yml`：PostgreSQL、Redis、MinIO、Mailpit                                    |
 
@@ -82,7 +82,7 @@ services:
     volumes: ['meili_data:/meili_data']
 ```
 
-- **React-first 阶段**：`user-web` 在宿主机运行（`pnpm dev:react`），不进 Docker
+- **React-first 阶段**：`user-web` 在宿主机运行（`pnpm dev:user` / `dev:user:mock`），不进 Docker
 - **长期全栈阶段**：`web`（Next.js）和 `api`（NestJS）直接在宿主机运行（`pnpm dev`），不进 Docker，保持热更新体验
 - MinIO 和 Meilisearch 首版开发阶段可选启动，不是必须依赖
 

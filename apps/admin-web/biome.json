@@ -15,6 +15,7 @@
       "!**/.umi-test-production",
       "!**/src/services",
       "!**/mock",
+      "!**/src/locales-frozen",
       "!**/dist",
       "!**/server",
       "!**/public",

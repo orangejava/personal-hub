@@ -12,8 +12,9 @@ React-first 用户端：`apps/user-web`（`:8000`）；管理端：`apps/admin-w
 pnpm install
 pnpm sync:booklets   # 需本地 content-local/（不进 Git）
 pnpm dev:server
-pnpm dev:user        # http://localhost:8000（`pnpm dev:react` 仍是同一命令的别名）
-pnpm dev:admin       # http://localhost:8001
+pnpm dev:user        # http://localhost:8000，默认无 mock（`dev:react` 仍是别名）
+pnpm dev:admin       # http://localhost:8001，默认无 mock
+# 内容/工作区/AI/后台仍要 mock 时：pnpm dev:user:mock / pnpm dev:admin:mock
 ```
 
 ### Nest 阶段 0（本地）

@@ -1,6 +1,8 @@
 # mock 与 service 层规范
 
 > 适用：`mock/`、`src/services/`、`mock/data/`
+>
+> 默认 `pnpm dev:admin` 为 `MOCK=none`。需要后台 CRUD mock 时用 `pnpm dev:admin:mock`。
 
 ## 分层
 ```

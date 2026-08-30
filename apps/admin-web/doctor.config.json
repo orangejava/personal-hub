@@ -10,6 +10,7 @@
       "cloudflare-worker/**",
       "src/.umi*/**",
       "src/services/**",
+      "src/locales-frozen/**",
       "src/service-worker.js",
       "**/_mock.ts",
       "**/*.md",

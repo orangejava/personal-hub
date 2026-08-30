@@ -8,7 +8,7 @@
 - 框架：React 19 + Umi Max + Ant Design Pro
 - 本地端口：`http://localhost:8001`（`PORT=8001`）
 - 用户端：`http://localhost:8000`
-- 数据：页面走 `src/services/*`；后台 CRUD 仍有 mock，认证走 Nest `/api/v1`
+- 数据：页面走 `src/services/*`；默认 `pnpm dev:admin` 无 mock。后台 CRUD 仍可用 `pnpm dev:admin:mock`；认证走 Nest `/api/v1`
 - 共享类型：`@personal-hub/shared-types`
 
 ## 2. 路由
@@ -22,7 +22,13 @@
 - 返回前台、个人设置、登录：使用 `src/config/appOrigins.ts` 拼用户端绝对地址。
 - 不要再用 Umi `history.push('/admin')` 从用户端进后台。
 
-## 4. 模块
+## 4. 语言
+
+- 运行时只加载 `src/locales` 下的 `zh-CN`、`en-US`。下拉也只展示这两项。
+- 其它语言文件保留在 `src/locales-frozen/`，不删除、不更新、不移回 `src/locales/`。
+- 后续模块新增文案只改中、英。
+
+## 5. 模块
 
 | 模块 | 位置 |
 |---|---|

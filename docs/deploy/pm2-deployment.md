@@ -203,7 +203,7 @@ which pnpm   # 确认在 PATH 中
 ```bash
 cd /opt/personal-hub
 CONTENT_LOCAL_DIR=/data/personal-hub/content-local pnpm sync:booklets
-HOST=0.0.0.0 PORT=8000 pnpm --filter user-web dev
+HOST=0.0.0.0 PORT=8000 pnpm --filter user-web dev:mock
 ```
 
 ---

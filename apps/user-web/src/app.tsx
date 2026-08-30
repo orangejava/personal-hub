@@ -19,6 +19,7 @@ import { fetchCurrentUser, fetchPermissions, nestHttpStatus } from '@/services/a
 import { fetchPublicConfig } from '@/services/system';
 import type { InitialState } from '@/types/app';
 import { getThemePreference } from '@/utils/clientPreferences';
+import { ensureActiveLocale } from '@/utils/locale';
 import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
@@ -65,6 +66,7 @@ function pickMenu(
  * 启动期拉取当前用户、权限菜单、系统配置，写入 @@initialState 供全应用共享
  */
 export async function getInitialState(): Promise<InitialState> {
+  ensureActiveLocale();
   const fetchUserInfo = async (): Promise<{
     user: InitialState['currentUser'];
     restoreFailed: boolean;

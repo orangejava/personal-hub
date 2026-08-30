@@ -1,6 +1,8 @@
 # mock 与 service 层规范
 
 > 适用：`mock/`、`src/services/`、`mock/data/`
+>
+> 默认 `pnpm dev` / `pnpm dev:user` 设置 `MOCK=none`，不加载本目录。需要 mock 时用 `pnpm dev:user:mock`（管理端 `dev:admin:mock`）。生产 `max build` 不跑 mock。
 
 ## 分层
 ```

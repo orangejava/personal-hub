@@ -47,7 +47,7 @@ flowchart LR
 
 | 阶段  | 运行形态                                   | 后端                            | 小册数据                                            | 你现在在哪       |
 | ----- | ------------------------------------------ | ------------------------------- | --------------------------------------------------- | ---------------- |
-| **A** | PM2 跑 `pnpm dev:react`（mock）            | Umi mock                        | rsync → `/data/.../content-local` + `sync:booklets` | **已部署第一版** |
+| **A** | PM2 跑 `pnpm --filter user-web dev:mock`            | Umi mock                        | rsync → `/data/.../content-local` + `sync:booklets` | **已部署第一版** |
 | **B** | Compose `server` + `server-worker` + Nginx | `apps/server` NestJS，`/api/v1` | 腾讯 COS 为唯一生产对象存储                         | 未开始           |
 | **C** | 多应用 + 域名 + 自动化发布                 | NestJS 全模块                   | COS 为主                                            | 长期             |
 

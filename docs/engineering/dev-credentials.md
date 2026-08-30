@@ -1,10 +1,10 @@
 # 本地开发常用信息
 
-> 状态：✅ 已确定（2026-08-22）
+> 状态：✅ 已确定（2026-08-30）
 > 适用范围：本地 mock 与 Nest 联调。**生产环境禁止使用本组密码。**
 > 其它文档（工程指南、`.env.example`、实现说明）原文不变；日常查账号、端口、邮箱先看这一页。
 
-当前 React 默认走 Nest 真实登录（`UMI_APP_NEST_AUTH` 未设为 `0`）。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
+当前 React 默认 **不加载 Umi mock**（`MOCK=none`）。登录走 Nest `/api/v1`。内容、工作区、AI、后台多数 CRUD 若还要 mock，用下面的 `:mock` 命令。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
 
 ---
 
@@ -26,9 +26,20 @@ docker compose -f compose.dev.yml up -d
 pnpm --filter server prisma:deploy
 pnpm --filter server seed:local-users
 pnpm dev:server
-pnpm dev:user
-pnpm dev:admin
+pnpm dev:user          # MOCK=none，只打 Nest
+pnpm dev:admin         # MOCK=none
+# 需要内容/工作区/AI/后台 mock 时：
+pnpm dev:user:mock
+pnpm dev:admin:mock
 ```
+
+| 命令 | Mock | 说明 |
+| --- | --- | --- |
+| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容等未迁接口会空或 404 |
+| `pnpm dev:user:mock` / `dev:admin:mock` | 开 | 保留 `mock/` 文件；`/api/v1` 仍代理 Nest，登录仍走真实鉴权 |
+| `pnpm build:user` / `build:admin` | 无 | `max build` 不跑 mock 中间件，产物不含 `mock/` |
+
+`dev:no-mock` 仍可用，等同默认 `dev`。阶段 A PM2 个人远程阅读走 `dev:mock`（见 `scripts/pm2-start-dev.sh`），避免默认无 mock 后小册列表为空。
 
 ---
 
@@ -60,7 +71,7 @@ pnpm --filter server seed:local-users
 | 编辑者 | `editor@example.com` | `dev123456` | 可访问工作区、创建/发布内容、上传小册 |
 | 普通会员 | `member@example.com` | `dev123456` | 仅公开区阅读 + AI 入口 |
 
-- 账号定义：`apps/user-web/src/config/devCredentials.ts`
+- 账号定义：`apps/user-web/mock/data/devCredentials.ts`（管理端同名文件）
 - mock 校验：`apps/user-web/mock/data/users.ts`
 - 登录页**不展示**账号密码。
 - `dev123456` 不满足 Nest 密码策略，Nest 联调不要用 mock 密码。

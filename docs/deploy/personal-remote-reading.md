@@ -16,7 +16,7 @@
 | 维度     | **阶段 A：当前立即可用**                                        | **阶段 B：目标生产架构**                                            |
 | -------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
 | 目的     | 你个人远程看小册学习                                            | 正式对外、React + Next + NestJS                                     |
-| 启动方式 | **`pnpm dev:react`（dev + mock）**                              | `pnpm build:react` + NestJS API                                     |
+| 启动方式 | **`pnpm --filter user-web dev:mock`（dev + mock）**                 | `pnpm build:user` + NestJS API                                      |
 | 访问方式 | **`http://服务器IP:8000` 直连**，不配 Nginx                     | Nginx :443 + HTTPS                                                  |
 | 小册数据 | rsync 到服务器 `content-local/` + `sync:booklets`（COS 可后置） | 腾讯 COS + NestJS 按需读 + 缓存                                     |
 | 后端     | Umi mock（现有代码零改造）                                      | `apps/server` NestJS + PostgreSQL + Redis + Compose `server-worker` |

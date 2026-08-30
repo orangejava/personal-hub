@@ -63,7 +63,7 @@ Redis `auth:session:{sid}` 会带上登录邮箱快照，只为方便对照账�
 1. `docker compose -f compose.dev.yml up -d`
 2. `pnpm --filter server prisma:deploy && pnpm --filter server prisma:seed`
 3. `pnpm --filter server seed:local-users`（写入文档中的 `owner@example.com` / `HubDev!234`）
-4. `pnpm dev:server` 与 `PORT=8000 pnpm dev:react`
+4. `pnpm dev:server` 与 `pnpm dev:user`
 5. 打开 `http://localhost:8000/user/login`，使用 [本地开发账号](../../../../docs/engineering/dev-credentials.md)
 
 空库首次创建系统所有者仍用 `bootstrap:super-admin`。日常联调账号用 `seed:local-users`；也可自行注册后走邮箱验证。
