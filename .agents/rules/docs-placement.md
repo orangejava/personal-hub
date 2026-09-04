@@ -14,6 +14,7 @@
 | 产品功能范围 | `docs/product/` |
 | 应用内结构 / 该 app 专属实现 | `apps/<name>/docs/` |
 | Git 提交工作流（权威） | `.agents/skills/git-commit/` |
+| 前后端 API 影响面评估 | `.agents/skills/fullstack-impact/` |
 | 学习笔记 | `study/features/` 或 `study/` |
 
 ## 硬性禁止

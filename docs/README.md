@@ -55,6 +55,7 @@
 
 - 部署：[deploy/README.md](./deploy/README.md)
 - Git commit skill：[`.agents/skills/git-commit/SKILL.md`](../.agents/skills/git-commit/SKILL.md)
+- 前后端 API 影响面：[`.agents/skills/fullstack-impact/SKILL.md`](../.agents/skills/fullstack-impact/SKILL.md)
 - docs 内 stub：[engineering/git-commit-convention.md](./engineering/git-commit-convention.md)
 
 ---

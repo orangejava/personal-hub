@@ -8,6 +8,7 @@
 2. **`.agents/rules/`** 下全部规则（当前含文档放置、开发工作流）
 3. 与当前任务匹配的 **`.agents/skills/*/SKILL.md`**
    - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
+   - 涉及 Nest / Canonical API / Prisma / `api-client` / Umi services / mock 回落 → **必须**加载 [`.agents/skills/fullstack-impact/SKILL.md`](.agents/skills/fullstack-impact/SKILL.md)
 
 说明见 [`.agents/README.md`](.agents/README.md)。
 
@@ -46,9 +47,9 @@
 
 细则见 `.agents/rules/dev-workflow.md`。摘要：
 
-- 在开始修改代码前，先给出清晰的实现计划。
-- 计划应至少说明：**现象/需求 → 根因或约束 → 解决方案 → 影响范围 → 计划修改的文件**。
-- 在思路未说明清楚前，不要直接开始改代码。
+- 在开始修改代码前，先给出清晰的实现计划；用户未确认前不改业务代码。
+- 计划应至少说明：**现象/需求 → 根因或约束 → 解决方案 → 影响范围 → 计划修改的文件 → 验收通过标准 / 故意忽略及后续阶段**。
+- 涉及 Nest / API / 前端 service / mock 时，计划还须符合 `.agents/skills/fullstack-impact/SKILL.md`（Umi 全局解包为 T、调用方 grep、不迁就 `code === 0`）。
 - 需求不明确时，先澄清再实施；思路明确后，按计划逐步实现。
 
 ## 分析优先

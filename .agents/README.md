@@ -9,12 +9,15 @@
 ├── README.md                 # 本说明
 ├── rules/                    # 始终应遵守的短约束
 │   ├── docs-placement.md
-│   └── dev-workflow.md
+│   ├── dev-workflow.md
+│   └── fullstack-impact.md   # 前后端契约改动必须评估影响面
 └── skills/
     ├── git-commit/
     │   ├── SKILL.md          # 提交权威规范 + 执行流程
     │   └── references/
     │       └── examples.md
+    ├── fullstack-impact/
+    │   └── SKILL.md          # Nest/API：计划门槛、Umi 全局解包、调用方清单
     └── task-quality-review/
         └── SKILL.md          # 手动触发的 AI 开发任务质量评分
 ```
@@ -35,3 +38,4 @@
 1. 打开任务时先读 `AGENTS.md` 与 `.agents/rules/*`
 2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`；要求“执行任务质量评审”时，加载 `skills/task-quality-review/SKILL.md`
 3. 涉及 commit / push 时，**必须**加载 `skills/git-commit/SKILL.md`
+4. 涉及 Nest / Canonical API / Prisma / api-client / Umi services / mock 回落时，**必须**加载 `skills/fullstack-impact/SKILL.md`
