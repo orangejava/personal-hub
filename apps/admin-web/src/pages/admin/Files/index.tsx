@@ -28,13 +28,9 @@ const Files: React.FC = () => {
   const removeOne = async (id: string) => {
     setDeletingId(id);
     try {
-      const res = await deleteAdminFile(id);
-      if (res?.code === 0) {
-        message.success('已删除');
-        reload();
-        return;
-      }
-      message.error(res?.message || '删除失败');
+      await deleteAdminFile(id);
+      message.success('已删除');
+      reload();
     } finally {
       setDeletingId(undefined);
     }
@@ -44,16 +40,12 @@ const Files: React.FC = () => {
     setBatchDeleting(true);
     try {
       const res = await batchDeleteAdminFiles(selectedRowKeys.map(String));
-      if (res?.code === 0) {
-        const deleted = res.data?.deleted.length ?? 0;
-        const failed = res.data?.failed.length ?? 0;
-        if (deleted) message.success(`已删除 ${deleted} 个文件`);
-        if (failed) message.warning(`${failed} 个文件因被引用或不存在未删除`);
-        setSelectedRowKeys([]);
-        reload();
-        return;
-      }
-      message.error(res?.message || '批量删除失败');
+      const deleted = res.deleted.length ?? 0;
+      const failed = res.failed.length ?? 0;
+      if (deleted) message.success(`已删除 ${deleted} 个文件`);
+      if (failed) message.warning(`${failed} 个文件因被引用或不存在未删除`);
+      setSelectedRowKeys([]);
+      reload();
     } finally {
       setBatchDeleting(false);
     }
@@ -92,7 +84,7 @@ const Files: React.FC = () => {
             keyword: params.keyword as string,
             mimeGroup: params.mimeGroup as 'image' | 'pdf' | 'word' | 'other',
           });
-          return { data: res.data ?? [], success: res.code === 0 };
+          return { data: res ?? [], success: true };
         }}
         columns={[
           { title: '关键字', dataIndex: 'keyword', hideInTable: true },

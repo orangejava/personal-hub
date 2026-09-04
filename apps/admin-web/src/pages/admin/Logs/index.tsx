@@ -24,9 +24,9 @@ const Logs: React.FC = () => {
             resource: params.resource as string,
           });
           return {
-            data: res.data?.list ?? [],
-            success: res.code === 0,
-            total: res.data?.total ?? 0,
+            data: res.list ?? [],
+            success: true,
+            total: res.total ?? 0,
           };
         }}
         columns={[

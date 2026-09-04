@@ -37,14 +37,10 @@ const Roles: React.FC = () => {
     if (!editing) return;
     setSaving(true);
     try {
-      const res = await updateAdminRolePermissions(editing.code, checked);
-      if (res?.code === 0) {
-        message.success('权限已保存');
-        setEditing(null);
-        setReloadKey((k) => k + 1);
-      } else {
-        message.error(res?.message || '保存失败');
-      }
+      await updateAdminRolePermissions(editing.code, checked);
+      message.success('权限已保存');
+      setEditing(null);
+      setReloadKey((k) => k + 1);
     } finally {
       setSaving(false);
     }
@@ -62,7 +58,7 @@ const Roles: React.FC = () => {
         }}
         request={async () => {
           const res = await fetchAdminRoles();
-          return { data: res.data ?? [], success: res.code === 0 };
+          return { data: res ?? [], success: true };
         }}
         columns={[
           { title: '角色', dataIndex: 'name' },

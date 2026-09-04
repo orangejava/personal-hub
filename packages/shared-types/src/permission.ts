@@ -24,10 +24,14 @@ export type PermissionCode =
 
 /** 菜单项结构，供权限与布局层共享 */
 export interface MenuItem {
+  /** Nest 菜单 UUID，后台编辑时回写用；前端布局可忽略 */
+  id?: string;
   /** 路由路径 */
   path: string;
-  /** 菜单名称 */
+  /** 已经可展示的名称（Nest `name` / 中文） */
   name: string;
+  /** 可选 i18n id；工作区/后台 localizeMenu 使用，公开区忽略 */
+  localeKey?: string;
   /** 图标名，沿用 Ant Design 图标约定 */
   icon?: string;
   /** 访问所需权限点 */

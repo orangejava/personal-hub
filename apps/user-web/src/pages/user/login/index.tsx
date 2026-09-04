@@ -83,25 +83,22 @@ const Login: React.FC = () => {
 
   /** 登录成功后补全 initialState（用户、权限菜单、系统配置） */
   const refreshInitialState = async () => {
-    const userRes = await fetchCurrentUser();
-    if (userRes?.code !== 0) return;
-    const permRes = await fetchPermissions();
-    const sysRes = await fetchPublicConfig();
-    // 必须等权限写入 initialState 后再跳工作区/后台，否则 access 会把已登录用户踢回登录页。
+    const user = await fetchCurrentUser();
+    if (!user) return;
+    const perm = await fetchPermissions();
+    const sys = await fetchPublicConfig();
     await setInitialState((s) => ({
       ...s,
-      currentUser: userRes.data
-        ? {
-            ...userRes.data,
-            permissions: permRes?.data?.permissions ?? userRes.data.permissions,
-          }
-        : userRes.data,
-      permissions: permRes?.data?.permissions,
-      permissionGrants: permRes?.data?.permissionGrants,
-      menu: permRes?.data?.menu,
-      systemConfig: sysRes?.data,
+      currentUser: {
+        ...user,
+        permissions: perm?.permissions ?? user.permissions,
+      },
+      permissions: perm?.permissions,
+      permissionGrants: perm?.permissionGrants,
+      menu: perm?.menu,
+      systemConfig: sys,
     }));
-    return userRes.data;
+    return user;
   };
 
   const persistRememberedEmail = (email: string | undefined, remember: boolean) => {
@@ -112,10 +109,10 @@ const Login: React.FC = () => {
     setCaptchaLoading(true);
     try {
       const res = await createCaptchaChallenge({ email });
-      if (res.data) {
+      if (res) {
         setCaptcha({
-          challengeId: res.data.challengeId,
-          imageSvg: res.data.imageSvg,
+          challengeId: res.challengeId,
+          imageSvg: res.imageSvg,
         });
         form.setFieldValue('captchaAnswer', undefined);
       }
@@ -143,28 +140,24 @@ const Login: React.FC = () => {
         challengeId: captcha?.challengeId,
         captchaAnswer: values.captchaAnswer,
       });
-      if (res?.code === 0) {
-        if (!isNestAuthEnabled()) {
-          localStorage.setItem('ph-token', res.data.token);
-        }
-        message.success('登录成功');
-        const user = await refreshInitialState();
-        if (user?.mustChangePassword) {
-          history.replace('/user/change-password');
-          return;
-        }
-        const redirect = new URL(window.location.href).searchParams.get(
-          'redirect',
-        );
-        const next = resolvePostLoginRedirect(redirect);
-        if (next.type === 'external') {
-          window.location.replace(next.url);
-          return;
-        }
-        history.replace(next.path);
+      if (!isNestAuthEnabled() && res?.token) {
+        localStorage.setItem('ph-token', res.token);
+      }
+      message.success('登录成功');
+      const user = await refreshInitialState();
+      if (user?.mustChangePassword) {
+        history.replace('/user/change-password');
         return;
       }
-      setErrorText(res?.message || '登录失败');
+      const redirect = new URL(window.location.href).searchParams.get(
+        'redirect',
+      );
+      const next = resolvePostLoginRedirect(redirect);
+      if (next.type === 'external') {
+        window.location.replace(next.url);
+        return;
+      }
+      history.replace(next.path);
     } catch (e: unknown) {
       const nest = nestError(e);
       if (nest.code === 'AUTH_EMAIL_NOT_VERIFIED') {

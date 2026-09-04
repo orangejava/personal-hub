@@ -158,7 +158,11 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
   'admin.logs': { path: '/admin/logs', name: 'admin.logs', icon: 'fileSearch' },
 };
 
-export type { NestMenuNode } from '@personal-hub/api-client';
+export function mapPublicNavigation(nodes: NestMenuNode[]): MenuItem[] {
+  return flattenMapped(
+    nodes.filter((node) => node.scope === 'PUBLIC' || node.scope === 'AI'),
+  );
+}
 
 /**
  * 把 Nest 菜单树转成当前 ProLayout 使用的 MenuItem。
@@ -201,8 +205,9 @@ function mapNode(node: NestMenuNode): MenuItem | null {
     }
     return {
       path: registry?.path ?? `/${node.id}`,
-      name: registry?.name ?? node.name,
-      icon: registry?.icon,
+      name: node.name,
+      localeKey: node.localeKey ?? undefined,
+      icon: node.icon ?? registry?.icon,
       children,
     };
   }
@@ -210,9 +215,8 @@ function mapNode(node: NestMenuNode): MenuItem | null {
   if (node.type === 'EXTERNAL' && node.externalUrl) {
     return {
       path: node.externalUrl,
-      name: node.routeKey
-        ? (NEST_ROUTE_REGISTRY[node.routeKey]?.name ?? node.name)
-        : node.name,
+      name: node.name,
+      localeKey: node.localeKey ?? undefined,
       children: children.length > 0 ? children : undefined,
     };
   }
@@ -232,8 +236,9 @@ function mapNode(node: NestMenuNode): MenuItem | null {
 
   return {
     path: registry.path,
-    name: registry.name,
-    icon: registry.icon,
+    name: node.name,
+    localeKey: node.localeKey ?? undefined,
+    icon: node.icon ?? registry.icon,
     children: children.length > 0 ? children : undefined,
   };
 }

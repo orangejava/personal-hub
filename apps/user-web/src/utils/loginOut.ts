@@ -24,6 +24,7 @@ function clearLocalLoginState(setInitialState?: SetInitialState) {
     permissions: undefined,
     permissionGrants: undefined,
     menu: publicMenu,
+    publicMenu: s?.publicMenu ?? publicMenu,
   }));
 }
 

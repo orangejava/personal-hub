@@ -1,5 +1,6 @@
 import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { useRequest, useParams, history } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+import { useParams, history } from '@umijs/max';
 import { Button, Menu, Progress } from 'antd';
 import clsx from 'clsx';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';

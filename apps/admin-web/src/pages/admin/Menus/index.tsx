@@ -1,11 +1,12 @@
 import { ProForm, ProFormText } from '@ant-design/pro-components';
+import { useRequest } from '@/hooks/useRequest';
 import type { AdminMenuConfig, MenuItem } from '@personal-hub/shared-types';
-import { useModel, useRequest } from '@umijs/max';
+
 import { Alert, Button, Card, Col, Drawer, Form, message, Row, Space, Tabs, Tag, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import React, { useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
-import { fetchAdminMenuConfig, updateAdminMenuConfig } from '@/services/admin';
+import { fetchAdminMenuConfig, updateAdminMenuItem } from '@/services/admin';
 
 type MenuScope = keyof AdminMenuConfig;
 
@@ -60,12 +61,10 @@ function findMenuItem(menu: MenuItem[], path: string): MenuItem | undefined {
   return undefined;
 }
 
-/** 菜单管理：维护公开、工作区、后台和阶段 5 AI 侧边栏的 mock 菜单树。 */
+/** 菜单管理：维护 Nest 菜单树，单项编辑立即保存。 */
 const Menus: React.FC = () => {
-  const { setInitialState } = useModel('@@initialState');
   const [config, setConfig] = useState<AdminMenuConfig>();
   const [editing, setEditing] = useState<EditingState | null>(null);
-  const [saving, setSaving] = useState(false);
   const [form] = Form.useForm<MenuItem & { permissionsText?: string }>();
 
   const { loading, error, refresh } = useRequest(fetchAdminMenuConfig, {
@@ -94,8 +93,8 @@ const Menus: React.FC = () => {
               style={{ marginBottom: 16 }}
               title={
                 scope === 'ai'
-                  ? 'AI 菜单为阶段 5 预留配置，本阶段只保存 mock'
-                  : '菜单配置保存后会写入 mock，并同步当前 initialState'
+                  ? 'AI 区域暂无系统菜单，可后续新增外链或内部项'
+                  : '编辑单项会立即写入 Nest；核心恢复入口不能禁用或删除'
               }
             />
             <Tree
@@ -133,31 +132,6 @@ const Menus: React.FC = () => {
     [config, form],
   );
 
-  const save = async () => {
-    if (!config) return;
-    setSaving(true);
-    try {
-      const res = await updateAdminMenuConfig(config);
-      if (res?.code === 0 && res.data) {
-        message.success('菜单配置已保存');
-        setConfig(res.data);
-        // 当前阶段只同步三大既有区域；AI 菜单到阶段 5 AiLayout 再接入。
-        setInitialState((state) => ({
-          ...state,
-          menu: [
-            ...res.data.public,
-            { path: '/workspace', name: '工作区', icon: 'desktop', children: res.data.workspace },
-            { path: '/admin', name: '后台管理', icon: 'crown', children: res.data.admin },
-          ],
-        }));
-        return;
-      }
-      message.error(res?.message || '保存失败');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   if (error) {
     return (
       <PageContainer title="菜单管理">
@@ -178,14 +152,9 @@ const Menus: React.FC = () => {
     <PageContainer
       title="菜单管理"
       extra={
-        <Space>
-          <Button onClick={() => refresh()} loading={loading} disabled={saving}>
-            重新加载
-          </Button>
-          <Button type="primary" onClick={save} disabled={!config} loading={saving}>
-            保存菜单
-          </Button>
-        </Space>
+        <Button onClick={() => refresh()} loading={loading}>
+          重新加载
+        </Button>
       }
     >
       <Tabs items={tabs} />
@@ -208,6 +177,15 @@ const Menus: React.FC = () => {
               ?.split(',')
               .map((item) => item.trim())
               .filter(Boolean);
+            const nestId = editing.item.id;
+            if (nestId) {
+              await updateAdminMenuItem({
+                id: nestId,
+                name: values.name,
+                icon: values.icon,
+                permissionCodes: permissions,
+              });
+            }
             setConfig({
               ...config,
               [editing.scope]: updateMenuItem(config[editing.scope], editing.path, {
@@ -217,11 +195,12 @@ const Menus: React.FC = () => {
               }),
             });
             setEditing(null);
+            message.success('菜单项已保存');
             return true;
           }}
         >
           <ProFormText name="path" label="路由" disabled />
-          <ProFormText name="name" label="名称 / locale key" rules={[{ required: true }]} />
+          <ProFormText name="name" label="名称" rules={[{ required: true }]} />
           <ProFormText name="icon" label="图标 key" />
           <ProFormText
             name="permissionsText"

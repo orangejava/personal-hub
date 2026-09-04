@@ -14,8 +14,8 @@ export default function SystemModel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchPublicConfig();
-      if (res?.code === 0) setConfig(res.data);
+      const config = await fetchPublicConfig();
+      if (config) setConfig(config);
     } finally {
       setLoading(false);
     }

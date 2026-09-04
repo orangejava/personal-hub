@@ -1,10 +1,11 @@
+import { useRequest } from '@/hooks/useRequest';
 import {
   CheckCircleOutlined,
   GiftOutlined,
   LineChartOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons';
-import { useModel, useRequest } from '@umijs/max';
+import { useModel } from '@umijs/max';
 import { Alert, Button, Card, Col, Progress, Row, Skeleton, Space, Statistic, Tag } from 'antd';
 import React from 'react';
 import { AiPageHeader } from '@/components/ai';

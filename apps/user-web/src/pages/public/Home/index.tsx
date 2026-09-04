@@ -1,4 +1,5 @@
-import { useRequest, Link, history } from '@umijs/max';
+import { Link, history } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, Col, Row, Typography } from 'antd';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';

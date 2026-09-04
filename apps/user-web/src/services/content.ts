@@ -3,7 +3,6 @@
  */
 import { request } from '@umijs/max';
 import type {
-  ApiResponse,
   PaginationResult,
   ContentItem,
   ContentDetail,
@@ -21,11 +20,13 @@ export interface ContentListQuery {
 }
 
 export async function fetchContentList(params: ContentListQuery) {
-  return request<ApiResponse<PaginationResult<ContentItem>>>('/api/contents', { params });
+  return request<PaginationResult<ContentItem>>('/api/contents', { params });
 }
 
 export async function fetchFeatured() {
-  return request<ApiResponse<ContentItem[]>>('/api/contents/featured');
+  return request<ContentItem[]>('/api/contents/featured', {
+    skipErrorHandler: true,
+  });
 }
 
 export interface ContentMeta {
@@ -34,29 +35,31 @@ export interface ContentMeta {
 }
 
 export async function fetchContentMeta() {
-  return request<ApiResponse<ContentMeta>>('/api/contents/meta');
+  return request<ContentMeta>('/api/contents/meta', {
+    skipErrorHandler: true,
+  });
 }
 
 export async function fetchContentDetail(id: string) {
-  return request<ApiResponse<ContentDetail>>(`/api/contents/${id}`);
+  return request<ContentDetail>(`/api/contents/${id}`);
 }
 
 export async function favoriteContent(id: string) {
-  return request<ApiResponse<{ contentId: string; favorited: boolean }>>(
+  return request<{ contentId: string; favorited: boolean }>(
     `/api/contents/${id}/favorite`,
     { method: 'POST' },
   );
 }
 
 export async function unfavoriteContent(id: string) {
-  return request<ApiResponse<{ contentId: string; favorited: boolean }>>(
+  return request<{ contentId: string; favorited: boolean }>(
     `/api/contents/${id}/favorite`,
     { method: 'DELETE' },
   );
 }
 
 export async function saveReadingProgress(data: ReadingProgress) {
-  return request<ApiResponse<ReadingProgress>>('/api/reading/progress', {
+  return request<ReadingProgress>('/api/reading/progress', {
     method: 'POST',
     data,
   });

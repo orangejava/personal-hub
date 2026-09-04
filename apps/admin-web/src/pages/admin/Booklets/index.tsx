@@ -23,9 +23,9 @@ const Booklets: React.FC = () => {
             type: ContentType.Booklet,
           });
           return {
-            data: res.data?.list ?? [],
-            success: res.code === 0,
-            total: res.data?.total ?? 0,
+            data: res.list ?? [],
+            success: true,
+            total: res.total ?? 0,
           };
         }}
         columns={[
@@ -46,11 +46,9 @@ const Booklets: React.FC = () => {
                 key="delete"
                 title="确认删除小册？"
                 onConfirm={async () => {
-                  const res = await deleteAdminContent(r.id);
-                  if (res?.code === 0) {
-                    message.success('已删除');
-                    setReloadKey((k) => k + 1);
-                  }
+                  await deleteAdminContent(r.id);
+                  message.success('已删除');
+                  setReloadKey((k) => k + 1);
                 }}
               >
                 <a>删除</a>

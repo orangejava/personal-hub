@@ -139,9 +139,9 @@ export function useAiGenerationMock({
         params: normalizedDraft.params,
         simulateFailure: normalizedDraft.simulateFailure,
       });
-      const nextAssets = result.data?.assets ?? [];
+      const nextAssets = result.assets ?? [];
       const nextTask =
-        result.data?.task ??
+        result.task ??
         createFallbackTask(
           toolType,
           normalizedDraft,

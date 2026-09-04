@@ -29,6 +29,8 @@ export interface InitialState {
   /** Nest 动作权限与 OWN/ALL 范围；mock 模式下为空 */
   permissionGrants?: Array<{ code: string; dataScope: 'OWN' | 'ALL' }>;
   menu?: MenuItem[];
+  /** 匿名公开顶栏菜单；与登录后工作区/后台 menu 分开，避免串区 */
+  publicMenu?: MenuItem[];
   systemConfig?: SystemPublicConfig;
   /** 工作区 SettingDrawer 开关 */
   workspaceSettingDrawerOpen?: boolean;

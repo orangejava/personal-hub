@@ -1,5 +1,6 @@
 import { ProForm, ProFormDigit, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import { useRequest } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+
 import { Card, message } from 'antd';
 import React, { useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
@@ -9,6 +10,7 @@ import { fetchAdminSystemConfig, updateAdminSystemTheme } from '@/services/admin
 const SystemTheme: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const { data, loading, error, run } = useRequest(fetchAdminSystemConfig);
+  const theme = data?.theme;
 
   if (loading && !data) {
     return (
@@ -30,17 +32,13 @@ const SystemTheme: React.FC = () => {
     <PageContainer title="主题配置">
       <Card>
         <ProForm
-          initialValues={data?.theme ?? {}}
+          initialValues={theme ?? {}}
           onFinish={async (values) => {
             setSaving(true);
             try {
-              const res = await updateAdminSystemTheme(values);
-              if (res?.code === 0) {
-                message.success('主题配置已保存（公开区需刷新后生效）');
-                return true;
-              }
-              message.error(res?.message || '保存失败');
-              return false;
+              await updateAdminSystemTheme(values);
+              message.success('主题配置已保存（公开区需刷新后生效）');
+              return true;
             } finally {
               setSaving(false);
             }

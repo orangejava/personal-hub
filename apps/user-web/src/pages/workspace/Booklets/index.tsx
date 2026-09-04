@@ -1,5 +1,6 @@
 import { ContentType } from '@personal-hub/shared-types';
-import { history, Link, useIntl, useRequest } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+import { history, Link, useIntl } from '@umijs/max';
 import { Button, Card, Col, Row, Tag } from 'antd';
 import React from 'react';
 import {

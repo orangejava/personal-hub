@@ -88,8 +88,8 @@ export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions 
       let consumedTokens = tokenEstimate;
       try {
         const response = await generateAiText(submittedDraft);
-        generatedOutput = response.data?.output ?? '';
-        consumedTokens = response.data?.estimatedTokens ?? tokenEstimate;
+        generatedOutput = response.output ?? '';
+        consumedTokens = response.estimatedTokens ?? tokenEstimate;
       } catch (_error) {
         generatedOutput = '文本生成 mock 请求失败，请稍后重试。';
       }

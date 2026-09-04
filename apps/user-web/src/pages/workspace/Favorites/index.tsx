@@ -30,9 +30,9 @@ const Favorites: React.FC = () => {
           pageSize: params.pageSize,
         });
         return {
-          data: res.data.list,
-          success: res.code === 0,
-          total: res.data.total,
+          data: res.list,
+          success: true,
+          total: res.total,
         };
       }}
       columns={[

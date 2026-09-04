@@ -1,5 +1,6 @@
 import { SearchOutlined } from '@ant-design/icons';
-import { useRequest } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+
 import { Button, Drawer, Empty, Input, Skeleton, Space, Tag } from 'antd';
 import {
   ContentTypeLabel,

@@ -1,10 +1,11 @@
+import { useRequest } from '@/hooks/useRequest';
 import {
   CopyOutlined,
   HeartFilled,
   HeartOutlined,
   RobotOutlined,
 } from '@ant-design/icons';
-import { useRequest, useParams, history, Link, useModel } from '@umijs/max';
+import { useParams, history, Link, useModel } from '@umijs/max';
 import {
   Alert,
   Button,
@@ -138,13 +139,9 @@ const ContentDetail: React.FC = () => {
       return;
     }
     const next = !favorited;
-    const res = next ? await favoriteContent(id) : await unfavoriteContent(id);
-    if (res?.code === 0) {
-      setFavorited(next);
-      message.success(next ? '已收藏' : '已取消收藏');
-    } else {
-      message.error(res?.message || '收藏失败');
-    }
+    await (next ? favoriteContent(id) : unfavoriteContent(id));
+    setFavorited(next);
+    message.success(next ? '已收藏' : '已取消收藏');
   };
 
   const copyLink = () => void copyToClipboard(window.location.href, '链接已复制');

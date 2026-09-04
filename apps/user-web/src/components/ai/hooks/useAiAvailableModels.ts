@@ -1,5 +1,6 @@
 import type { AiModel, AiToolType } from '@personal-hub/shared-types';
-import { useRequest } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+
 import { useEffect, useMemo } from 'react';
 import { fetchAiModels } from '@/services/ai';
 

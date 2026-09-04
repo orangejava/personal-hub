@@ -44,17 +44,13 @@ const Markdown: React.FC = () => {
       const values = await form.validateFields().catch(() => ({}));
       const payload = { title, body, status, ...values };
       const id = params.id;
-      const res =
+      const created =
         isEdit && id
           ? await updateContent(id, payload)
           : await createContent(payload);
-      if (res?.code === 0) {
-        message.success(status === 'published' ? '已发布' : '已保存草稿');
-        setDirty(false);
-        if (!isEdit) history.push(`/workspace/markdown/${res.data.id}`);
-      } else {
-        message.error(res?.message || '保存失败');
-      }
+      message.success(status === 'published' ? '已发布' : '已保存草稿');
+      setDirty(false);
+      if (!isEdit) history.push(`/workspace/markdown/${created.id}`);
     } catch {
       message.error('保存失败');
     }

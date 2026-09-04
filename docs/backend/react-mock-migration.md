@@ -1,7 +1,7 @@
 # React Mock 到 Canonical Nest API 对照
 
 > 状态：🟢 已确认；React 对接真实 API 时的迁移清单
-> 最后更新：2026-08-02
+> 最后更新：2026-08-31
 > 原则：以现有 `apps/user-web/src/services` 盘点为功能事实，以 [canonical-api.md](./canonical-api.md) 为未来契约事实。Mock 路径不长期保留别名。
 
 ---
@@ -12,6 +12,26 @@
 - React 对接时在 service 层集中改造，不在页面内拼 URL 或伪造状态。
 - 先接 Auth 和基础公开读取，再逐领域替换；Mock 可保留为本地演示兜底，但不与真实 API 混用同一状态源。
 - `packages/shared-types` 中的旧 `ApiResponse { code, message, data }` 和 mock DTO 不作为新 HTTP 类型来源；新类型由 OpenAPI 生成。
+- **Umi 全局解包**：两端 `requestErrorConfig` 的 responseInterceptor 把 Nest `{ data }` 和遗留 mock `{ code: 0, data }` 都拆成业务对象 T；失败 throw。页面、`useRequest`、`getInitialState` 禁止再判断 `res.code === 0`。不要为内容/工作区/AI 仍走 mock 而保留信封兼容层。
+- 已有 Nest 的路径禁止失败后再请求旧 mock 路径。
+
+---
+
+## 1.1 请求解包（Umi）
+
+共享函数放 `packages/api-client`，user-web / admin-web 的 `requestErrorConfig` 调用，避免两套逻辑。
+
+| 响应体 | 拦截器结果 |
+| --- | --- |
+| Nest `{ data, requestId? }` | 返回 `data`（T） |
+| 遗留 mock `{ code: 0, data }` | 返回 `data`（T），不把信封交给页面 |
+| mock `{ code !== 0 }` 或 HTTP 4xx/5xx | throw；`errorHandler` 处理 |
+
+`toApiResponse` 不得用于新调用链。公开接口优先走同一套 Umi `request`，不要为「没有 code 字段」再单独 `fetch` 后又打 mock。
+
+本仓库 Umi 4（axios plugin）**没有** `dataField`，且 `useRequest` 硬编码 `formatResult: r => r.data`。拦截器已经解成 T 之后，页面必须走两端的 `@/hooks/useRequest`（覆盖成原样返回），不能再用 `@umijs/max` 的 `useRequest`，否则 `data` 会变成 `undefined`。
+
+---
 
 ## 2. Auth
 
@@ -73,8 +93,10 @@
 | `PUT /admin/users/:id/role`       | 保留单角色语义，统一 `/admin/users/:id/role`                     |
 | 管理端按 `role === admin`         | API 使用权限 Guard；前端仅做体验性显示                           |
 | `PUT /admin/menus` 全树覆盖       | 菜单 UUID 单项 POST/PATCH/DELETE + `/sort`                       |
-| `/admin/system/config` 等多套路径 | `/admin/system-configs`，按 group 原子更新                       |
-| `/admin/homepage` 独立配置        | `system_configs` 的 `site.homepage`                              |
+| `/admin/system/config` 等多套路径 | `/admin/system-configs`，按 group 原子更新（M3 已接）            |
+| `/admin/homepage` 独立配置        | `system_configs` 的 `site.homepage`（M3 已接）                   |
+| `GET /api/system/config/public`   | `GET /api/v1/public/site-config`（M3 已接）                      |
+| 公开顶栏写死 `publicMenu.ts`      | `GET /api/v1/public/navigation`，失败时 fallback                 |
 | `/admin/ai/config` 聚合读写       | 聚合只读；写入拆为 provider/model/tool/template/entitlement 资源 |
 | `POST /admin/files/batch-delete`  | `DELETE /admin/files`，响应逐项结果                              |
 
@@ -83,4 +105,4 @@
 1. React 请求层能通过 HTTP 401 刷新 Cookie 会话且不会把 Refresh Token 写入 localStorage。
 2. 收藏、阅读进度、AI 消息、额度均由后端持久化，不再依赖 mock 内存 store。
 3. 所有写请求在需要时携带稳定的 `Idempotency-Key`，同一用户操作重试复用该 key。
-4. 管理页面不再假设 Mock 的 `200 + code`、整树菜单 PUT、AI 前端手动扣费等语义。
+4. 管理页面不再假设 Mock 的 `200 + code`、整树菜单 PUT、AI 前端手动扣费等语义。Umi 拦截器已解包时，表格 `request` 应返回 `{ data: T, success: true }`，而不是读 `res.code`。

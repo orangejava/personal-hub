@@ -2,18 +2,20 @@ import type { MenuItem } from '@personal-hub/shared-types';
 import { getIntl } from '@umijs/max';
 
 /**
- * 将 mock 菜单的 name（locale id）转成当前语言文案
- * name 字段约定为 `workspace.dashboard` 等形式，对应 `menu.workspace.dashboard`
+ * 后台侧栏：用 localeKey 查 `menu.*`，没有 key 或没有译文时回退展示名。
  */
 export function localizeMenu(menu: MenuItem[] | undefined): MenuItem[] {
   if (!menu?.length) return [];
   const intl = getIntl();
-  return menu.map((m) => ({
-    ...m,
-    name: intl.formatMessage({
-      id: `menu.${m.name}`,
-      defaultMessage: m.name,
-    }),
-    children: m.children ? localizeMenu(m.children) : undefined,
-  })) as MenuItem[];
+  return menu.map((m) => {
+    const localeId = m.localeKey ?? m.name;
+    return {
+      ...m,
+      name: intl.formatMessage({
+        id: `menu.${localeId}`,
+        defaultMessage: m.name,
+      }),
+      children: m.children ? localizeMenu(m.children) : undefined,
+    };
+  }) as MenuItem[];
 }

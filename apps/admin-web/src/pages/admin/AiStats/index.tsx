@@ -1,11 +1,12 @@
 import { ProTable } from '@ant-design/pro-components';
+import { useRequest } from '@/hooks/useRequest';
 import type {
   AdminAiModelUsageDistribution,
   AdminAiToolUsageShare,
   AdminAiUsageTrendPoint,
   AdminAiUserUsageRank,
 } from '@personal-hub/shared-types';
-import { useRequest } from '@umijs/max';
+
 import { Card, Col, Progress, Row, Segmented, Statistic, Tag } from 'antd';
 import React, { useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';

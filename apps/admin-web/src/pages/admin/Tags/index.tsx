@@ -17,14 +17,10 @@ const Tags: React.FC = () => {
           title="新建标签"
           trigger={<a>新建标签</a>}
           onFinish={async (values) => {
-            const res = await createAdminTag(values as { name: string; slug: string });
-            if (res?.code === 0) {
-              message.success('已创建');
-              setReloadKey((k) => k + 1);
-              return true;
-            }
-            message.error(res?.message || '创建失败');
-            return false;
+            await createAdminTag(values as { name: string; slug: string });
+            message.success('已创建');
+            setReloadKey((k) => k + 1);
+            return true;
           }}
         >
           <ProFormText name="name" label="名称" rules={[{ required: true }]} />
@@ -41,7 +37,7 @@ const Tags: React.FC = () => {
         }}
         request={async () => {
           const res = await fetchAdminTags();
-          return { data: res.data ?? [], success: res.code === 0 };
+          return { data: res ?? [], success: true };
         }}
         columns={[
           { title: '名称', dataIndex: 'name' },
@@ -57,13 +53,9 @@ const Tags: React.FC = () => {
                 onConfirm={async () => {
                   setDeletingId(r.id);
                   try {
-                    const res = await deleteAdminTag(r.id);
-                    if (res?.code === 0) {
-                      message.success('已删除');
-                      setReloadKey((k) => k + 1);
-                    } else {
-                      message.error(res?.message || '删除失败');
-                    }
+                    await deleteAdminTag(r.id);
+                    message.success('已删除');
+                    setReloadKey((k) => k + 1);
                   } finally {
                     setDeletingId(undefined);
                   }

@@ -205,8 +205,8 @@ export function useAiChatMock({
             ),
           })
             .then((res) => {
-              onMessagesChange?.(res.data.messages);
-              setMessages(res.data.messages);
+              onMessagesChange?.(res.messages);
+              setMessages(res.messages);
             })
             .finally(() => {
               onComplete?.(persistInputMessages, completedTokenCount);

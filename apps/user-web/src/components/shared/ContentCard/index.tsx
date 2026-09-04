@@ -32,16 +32,12 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
     const next = !favorited;
     setFavoriteLoading(true);
     try {
-      const res = next
-        ? await favoriteContent(item.id)
-        : await unfavoriteContent(item.id);
-      if (res?.code === 0) {
-        setFavorited(next);
-        setFavoriteCount((count) => Math.max(0, count + (next ? 1 : -1)));
-        message.success(next ? '已收藏' : '已取消收藏');
-      } else {
-        message.error(res?.message || '收藏失败');
-      }
+      await (next
+        ? favoriteContent(item.id)
+        : unfavoriteContent(item.id));
+      setFavorited(next);
+      setFavoriteCount((count) => Math.max(0, count + (next ? 1 : -1)));
+      message.success(next ? '已收藏' : '已取消收藏');
     } finally {
       setFavoriteLoading(false);
     }

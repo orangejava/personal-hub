@@ -95,7 +95,7 @@ export function useAiChatSessionsMock({
       title: '新对话',
       settings: defaultSessionSettings,
     });
-    const session = res.data;
+    const session = res;
     setSessions((current) => [session, ...current.filter((item) => item.id !== session.id)]);
     setMessagesBySession((current) => ({ ...current, [session.id]: [] }));
     setActiveSessionId(session.id);
@@ -111,9 +111,9 @@ export function useAiChatSessionsMock({
       ),
     );
     updateAiSession(sessionId, { title: normalizedTitle }).then((res) => {
-      if (!res.data) return;
+      if (!res) return;
       setSessions((current) =>
-        current.map((session) => (session.id === sessionId ? res.data : session)),
+        current.map((session) => (session.id === sessionId ? res : session)),
       );
     });
   }, []);
@@ -126,9 +126,9 @@ export function useAiChatSessionsMock({
         ),
       );
       updateAiSession(sessionId, { settings }).then((res) => {
-        if (!res.data) return;
+        if (!res) return;
         setSessions((current) =>
-          current.map((session) => (session.id === sessionId ? res.data : session)),
+          current.map((session) => (session.id === sessionId ? res : session)),
         );
       });
     },

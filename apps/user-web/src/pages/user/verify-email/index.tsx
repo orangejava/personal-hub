@@ -24,11 +24,11 @@ const VerifyEmail: React.FC = () => {
         if (cancelled) {
           return;
         }
-        if (res?.code === 0 && res.data?.verified) {
+        if (res?.verified) {
           setStatus('success');
           return;
         }
-        setErrorText(res?.message || '验证失败');
+        setErrorText('验证失败');
         setStatus('error');
       })
       .catch((error: unknown) => {

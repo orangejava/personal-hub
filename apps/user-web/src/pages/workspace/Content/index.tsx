@@ -45,13 +45,9 @@ const Content: React.FC = () => {
   const toggleStatus = async (id: string, status: ContentStatus) => {
     setOperatingId(id);
     try {
-      const res = await setContentStatus(id, status);
-      if (res?.code === 0) {
-        message.success(`已切换为「${ContentStatusLabel[status]}」`);
-        reload();
-      } else {
-        message.error(res?.message || '操作失败');
-      }
+      await setContentStatus(id, status);
+      message.success(`已切换为「${ContentStatusLabel[status]}」`);
+      reload();
     } finally {
       setOperatingId(undefined);
     }
@@ -60,13 +56,9 @@ const Content: React.FC = () => {
   const remove = async (id: string) => {
     setOperatingId(id);
     try {
-      const res = await deleteContent(id);
-      if (res?.code === 0) {
-        message.success('已删除');
-        reload();
-      } else {
-        message.error(res?.message || '删除失败');
-      }
+      await deleteContent(id);
+      message.success('已删除');
+      reload();
     } finally {
       setOperatingId(undefined);
     }
@@ -114,9 +106,9 @@ const Content: React.FC = () => {
             visibility: params.visibility as string | undefined,
           });
           return {
-            data: res.data.list,
-            success: res.code === 0,
-            total: res.data.total,
+            data: res.list,
+            success: true,
+            total: res.total,
           };
         }}
         columns={[

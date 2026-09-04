@@ -62,18 +62,16 @@ const Categories: React.FC = () => {
       ...values,
       parentId: values.parentId || creatingParent?.id || undefined,
     };
-    const res = editing
-      ? await updateAdminCategory(editing.id, payload)
-      : await createAdminCategory(payload);
-    if (res?.code === 0) {
-      message.success(editing ? '分类已更新' : '分类已创建');
-      setEditing(null);
-      setCreatingParent(null);
-      setReloadKey((key) => key + 1);
-      return true;
+    if (editing) {
+      await updateAdminCategory(editing.id, payload);
+    } else {
+      await createAdminCategory(payload);
     }
-    message.error(res?.message || '保存失败');
-    return false;
+    message.success(editing ? '分类已更新' : '分类已创建');
+    setEditing(null);
+    setCreatingParent(null);
+    setReloadKey((key) => key + 1);
+    return true;
   };
 
   return (
@@ -96,9 +94,9 @@ const Categories: React.FC = () => {
         expandable={{ defaultExpandAllRows: true }}
         request={async () => {
           const res = await fetchAdminCategories();
-          const list = res.data ?? [];
+          const list = res ?? [];
           setCategories(list);
-          return { data: toTree(list), success: res.code === 0 };
+          return { data: toTree(list), success: true };
         }}
         columns={[
           { title: '名称', dataIndex: 'name' },
@@ -133,13 +131,9 @@ const Categories: React.FC = () => {
                 onConfirm={async () => {
                   setDeletingId(record.id);
                   try {
-                    const res = await deleteAdminCategory(record.id);
-                    if (res?.code === 0) {
-                      message.success('已删除');
-                      setReloadKey((key) => key + 1);
-                    } else {
-                      message.error(res?.message || '删除失败');
-                    }
+                    await deleteAdminCategory(record.id);
+                    message.success('已删除');
+                    setReloadKey((key) => key + 1);
                   } finally {
                     setDeletingId(undefined);
                   }

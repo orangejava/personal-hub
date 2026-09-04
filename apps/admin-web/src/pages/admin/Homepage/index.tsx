@@ -1,3 +1,4 @@
+import { useRequest } from '@/hooks/useRequest';
 import {
   DragSortTable,
   type ProColumns,
@@ -11,7 +12,7 @@ import type {
   HomepageModuleConfig,
   HomepageTechStackConfig,
 } from '@personal-hub/shared-types';
-import { useRequest } from '@umijs/max';
+
 import { Alert, Button, Card, Col, Form, message, Row, Space, Tag } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
@@ -46,7 +47,7 @@ const Homepage: React.FC = () => {
 
   const { data, loading, error, refresh } = useRequest(fetchAdminHomepageConfig, {
     onSuccess: (homepage) => {
-      if (homepage) {
+      if (homepage?.featuredContent) {
         form.setFieldsValue({
           ...homepage,
           featuredContent: {
@@ -77,13 +78,9 @@ const Homepage: React.FC = () => {
     };
     setSaving(true);
     try {
-      const res = await updateAdminHomepageConfig(payload);
-      if (res?.code === 0) {
-        message.success('首页配置已保存');
-        refresh();
-        return;
-      }
-      message.error(res?.message || '保存失败');
+      await updateAdminHomepageConfig(payload);
+      message.success('首页配置已保存');
+      refresh();
     } finally {
       setSaving(false);
     }
@@ -111,8 +108,8 @@ const Homepage: React.FC = () => {
         showIcon
         type="info"
         style={{ marginBottom: 16 }}
-        title="当前为 mock 配置"
-        description="保存后会写入本地 dev server 内存态配置，并记录操作日志；接入后端后会迁移到系统配置表。"
+        title="首页配置来自 Nest system_configs（site.homepage）"
+        description="精选内容 ID 在内容模块接入前可留空；保存会整组更新并清公开配置缓存。"
       />
       <Row gutter={16}>
         <Col span={16}>

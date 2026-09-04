@@ -1,4 +1,5 @@
-import { Link, useIntl, useRequest } from '@umijs/max';
+import { Link, useIntl } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Card, Col, Row, Statistic } from 'antd';
 import React from 'react';
 import {

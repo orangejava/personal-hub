@@ -16,7 +16,7 @@ import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
 import { buildAdminWebUrl } from '@personal-hub/app-origins';
 import { fetchCurrentUser, fetchPermissions, nestHttpStatus } from '@/services/auth';
-import { fetchPublicConfig } from '@/services/system';
+import { fetchPublicConfig, fetchPublicNavigation } from '@/services/system';
 import type { InitialState } from '@/types/app';
 import { getThemePreference } from '@/utils/clientPreferences';
 import { ensureActiveLocale } from '@/utils/locale';
@@ -24,6 +24,7 @@ import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
+import { mapPublicNavigation } from '@/auth/routeRegistry';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
@@ -72,8 +73,8 @@ export async function getInitialState(): Promise<InitialState> {
     restoreFailed: boolean;
   }> => {
     try {
-      const res = await fetchCurrentUser({ skipErrorHandler: true });
-      return { user: res?.data, restoreFailed: false };
+      const user = await fetchCurrentUser({ skipErrorHandler: true });
+      return { user, restoreFailed: false };
     } catch (error: unknown) {
       if (nestHttpStatus(error) === 401) {
         return { user: undefined, restoreFailed: false };
@@ -88,18 +89,19 @@ export async function getInitialState(): Promise<InitialState> {
     workspaceSettingDrawerOpen: false,
     publicSettingDrawerOpen: false,
     menu: publicMenu,
+    publicMenu,
   };
   bootstrapThemeRuntime(state);
 
   // 公开系统配置和公开导航不依赖登录态，未登录首页/关于页也需要正常展示
   try {
     const sys = await fetchPublicConfig();
-    if (sys?.code === 0) {
-      state.systemConfig = sys.data;
-      if (sys.data?.theme) {
-        const navTheme = sys.data.theme.mode === 'dark' ? 'realDark' : 'light';
+    if (sys) {
+      state.systemConfig = sys;
+      if (sys.theme) {
+        const navTheme = sys.theme.mode === 'dark' ? 'realDark' : 'light';
         const colorPrimary =
-          sys.data.theme.colorPrimary ?? publicDefaultSettings.colorPrimary;
+          sys.theme.colorPrimary ?? publicDefaultSettings.colorPrimary;
         state.publicSettings = { navTheme, colorPrimary };
         state.settings = {
           ...state.settings,
@@ -110,6 +112,18 @@ export async function getInitialState(): Promise<InitialState> {
     }
   } catch (_e) {
     // 系统配置拉取失败不阻塞页面
+  }
+
+  try {
+    const nav = await fetchPublicNavigation();
+    if (nav?.length) {
+      const mapped = mapPublicNavigation(nav);
+      if (mapped.length > 0) {
+        state.publicMenu = mapped;
+      }
+    }
+  } catch (_e) {
+    // 公开导航失败时继续使用写死的 publicMenu
   }
 
   // 用户本地主题覆盖站点默认，直到用户再次修改
@@ -148,13 +162,13 @@ export async function getInitialState(): Promise<InitialState> {
     state.currentUser = currentUser;
     try {
       const perm = await fetchPermissions();
-      if (perm?.code === 0) {
-        state.permissions = perm.data.permissions;
-        state.permissionGrants = perm.data.permissionGrants;
-        state.menu = perm.data.menu;
+      if (perm) {
+        state.permissions = perm.permissions;
+        state.permissionGrants = perm.permissionGrants;
+        state.menu = perm.menu;
         state.currentUser = {
           ...currentUser,
-          permissions: perm.data.permissions,
+          permissions: perm.permissions,
         };
       }
     } catch (_e) {

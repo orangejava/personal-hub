@@ -41,7 +41,7 @@ const Users: React.FC = () => {
     setSessionsLoading(true);
     try {
       const res = await fetchNestAdminUserSessions(user.id);
-      setSessions(res.data ?? []);
+      setSessions(res ?? []);
     } catch (error: unknown) {
       const nest = nestError(error);
       message.error(nest.message || '无法加载会话');
@@ -55,7 +55,7 @@ const Users: React.FC = () => {
     setOperatingId(user.id);
     try {
       const res = await revokeNestAdminUserSessions(user.id);
-      message.success(`已撤销 ${res.data?.revokedCount ?? 0} 个会话`);
+      message.success(`已撤销 ${res.revokedCount ?? 0} 个会话`);
       if (sessionUser?.id === user.id) {
         setSessions([]);
       }
@@ -83,9 +83,9 @@ const Users: React.FC = () => {
             email: params.email as string,
           });
           return {
-            data: res.data?.list ?? [],
+            data: res.list ?? [],
             success: true,
-            total: res.data?.total ?? 0,
+            total: res.total ?? 0,
           };
         }}
         columns={[

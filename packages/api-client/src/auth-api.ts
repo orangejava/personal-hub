@@ -1,13 +1,12 @@
 import type {
-  ApiResponse,
   LoginParams,
   LoginResult,
   MenuItem,
   PermissionCode,
   User,
 } from '@personal-hub/shared-types';
-import type { AuthHttpRequest, NestEnvelope } from './http';
-import { nestError, nestHttpStatus, toApiResponse } from './http';
+import type { AuthHttpRequest } from './http';
+import { nestHttpStatus, readNestData } from './http';
 import { mapNestUser } from './mapNestUser';
 import {
   adaptNestPermissions,
@@ -90,24 +89,27 @@ export interface CreateAuthApiOptions {
 
 /**
  * 创建 Auth API。HTTP 与菜单映射由各 app 注入，避免本包依赖 Umi。
+ * 调用方拿到的已是业务对象（Umi 拦截器解包）；失败 throw。
  */
 export function createAuthApi(options: CreateAuthApiOptions) {
   const { request, mapMenus } = options;
 
-  async function login(data: LoginParams) {
+  async function login(data: LoginParams): Promise<LoginResult> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<LoginResult>>('/api/auth/login', {
+      return request<LoginResult>('/api/auth/login', {
         method: 'POST',
         data,
       });
     }
 
-    const res = await request<NestEnvelope<NestLoginData>>('/api/v1/auth/login', {
-      method: 'POST',
-      data,
-      skipErrorHandler: true,
-    });
-    return toApiResponse(rememberNestLogin(res.data), res.requestId);
+    const payload = readNestData(
+      await request<NestLoginData>('/api/v1/auth/login', {
+        method: 'POST',
+        data,
+        skipErrorHandler: true,
+      }),
+    );
+    return rememberNestLogin(payload);
   }
 
   async function refreshAccessToken(): Promise<boolean> {
@@ -115,14 +117,13 @@ export function createAuthApi(options: CreateAuthApiOptions) {
       return false;
     }
     try {
-      const res = await request<NestEnvelope<NestLoginData>>(
-        '/api/v1/auth/refresh',
-        {
+      const payload = readNestData(
+        await request<NestLoginData>('/api/v1/auth/refresh', {
           method: 'POST',
           skipErrorHandler: true,
-        },
+        }),
       );
-      rememberNestLogin(res.data);
+      rememberNestLogin(payload);
       return true;
     } catch (error: unknown) {
       if (nestHttpStatus(error) === 401) {
@@ -133,20 +134,20 @@ export function createAuthApi(options: CreateAuthApiOptions) {
     }
   }
 
-  async function logout() {
+  async function logout(): Promise<null> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<null>>('/api/auth/logout', { method: 'POST' });
+      return request<null>('/api/auth/logout', { method: 'POST' });
     }
     await request('/api/v1/auth/logout', {
       method: 'POST',
       skipErrorHandler: true,
     });
-    return toApiResponse(null);
+    return null;
   }
 
-  async function fetchCurrentUser(opts?: { skipErrorHandler?: boolean }) {
+  async function fetchCurrentUser(opts?: { skipErrorHandler?: boolean }): Promise<User> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<User>>('/api/auth/current-user', {
+      return request<User>('/api/auth/current-user', {
         skipErrorHandler: opts?.skipErrorHandler,
       });
     }
@@ -162,178 +163,150 @@ export function createAuthApi(options: CreateAuthApiOptions) {
       }
     }
 
-    const res = await request<NestEnvelope<NestLoginData['user']>>(
-      '/api/v1/auth/me',
-      {
+    const payload = readNestData(
+      await request<NestLoginData['user']>('/api/v1/auth/me', {
         skipErrorHandler: opts?.skipErrorHandler ?? true,
-      },
+      }),
     );
-    const user = mapNestUser(res.data);
+    const user = mapNestUser(payload);
     setMockBridgeRole(user.role);
-    return toApiResponse(user, res.requestId);
+    return user;
   }
 
-  async function fetchPermissions() {
+  async function fetchPermissions(): Promise<PermissionPayload> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<PermissionPayload>>('/api/auth/permissions');
+      return request<PermissionPayload>('/api/auth/permissions');
     }
 
-    const res = await request<NestEnvelope<NestPermissionSnapshot>>(
-      '/api/v1/auth/permissions',
-      {
+    const snapshot = readNestData(
+      await request<NestPermissionSnapshot>('/api/v1/auth/permissions', {
         skipErrorHandler: true,
-      },
+      }),
     );
-    const adapted = adaptNestPermissions(res.data, mapMenus);
-    return toApiResponse<PermissionPayload>(
-      {
-        permissions: adapted.permissions,
-        permissionGrants: adapted.permissionGrants,
-        menu: adapted.menu,
-      },
-      res.requestId,
-    );
+    const adapted = adaptNestPermissions(snapshot, mapMenus);
+    return {
+      permissions: adapted.permissions,
+      permissionGrants: adapted.permissionGrants,
+      menu: adapted.menu,
+    };
   }
 
   async function register(data: {
     email: string;
     password: string;
     nickname?: string;
-  }) {
+  }): Promise<NestAccepted> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<{ accepted: boolean }>>('/api/auth/register', {
+      return request<NestAccepted>('/api/auth/register', {
         method: 'POST',
         data,
         skipErrorHandler: true,
       });
     }
 
-    const res = await request<NestEnvelope<NestAccepted>>(
-      '/api/v1/auth/register',
-      {
+    return readNestData(
+      await request<NestAccepted>('/api/v1/auth/register', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
-  async function verifyEmail(data: { token: string }) {
+  async function verifyEmail(data: { token: string }): Promise<NestVerified> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<{ verified: boolean }>>(
-        '/api/auth/verify-email',
-        {
-          method: 'POST',
-          data,
-          skipErrorHandler: true,
-        },
-      );
-    }
-
-    const res = await request<NestEnvelope<NestVerified>>(
-      '/api/v1/auth/verify-email',
-      {
+      return request<NestVerified>('/api/auth/verify-email', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      });
+    }
+
+    return readNestData(
+      await request<NestVerified>('/api/v1/auth/verify-email', {
+        method: 'POST',
+        data,
+        skipErrorHandler: true,
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
-  async function resendVerification(data: { email: string }) {
+  async function resendVerification(data: { email: string }): Promise<NestAccepted> {
     if (!isNestAuthEnabled()) {
-      return request<ApiResponse<{ accepted: boolean }>>(
-        '/api/auth/resend-verification',
-        {
-          method: 'POST',
-          data,
-          skipErrorHandler: true,
-        },
-      );
-    }
-
-    const res = await request<NestEnvelope<NestAccepted>>(
-      '/api/v1/auth/resend-verification',
-      {
+      return request<NestAccepted>('/api/auth/resend-verification', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      });
+    }
+
+    return readNestData(
+      await request<NestAccepted>('/api/v1/auth/resend-verification', {
+        method: 'POST',
+        data,
+        skipErrorHandler: true,
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function createCaptchaChallenge(data: { email: string }) {
-    const res = await request<
-      NestEnvelope<{ challengeId: string; imageSvg: string; expiresIn: number }>
-    >('/api/v1/auth/captcha-challenges', {
-      method: 'POST',
-      data,
-      skipErrorHandler: true,
-    });
-    return toApiResponse(res.data, res.requestId);
+    return readNestData(
+      await request<{ challengeId: string; imageSvg: string; expiresIn: number }>(
+        '/api/v1/auth/captcha-challenges',
+        {
+          method: 'POST',
+          data,
+          skipErrorHandler: true,
+        },
+      ),
+    );
   }
 
   async function fetchAuthSessions() {
-    const res = await request<NestEnvelope<AuthSessionItem[]>>(
-      '/api/v1/auth/sessions',
-      {
+    return readNestData(
+      await request<AuthSessionItem[]>('/api/v1/auth/sessions', {
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function revokeAuthSession(sessionId: string) {
-    const res = await request<NestEnvelope<{ revoked: boolean }>>(
-      `/api/v1/auth/sessions/${sessionId}`,
-      {
+    return readNestData(
+      await request<{ revoked: boolean }>(`/api/v1/auth/sessions/${sessionId}`, {
         method: 'DELETE',
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function revokeOtherAuthSessions() {
-    const res = await request<NestEnvelope<{ revokedCount: number }>>(
-      '/api/v1/auth/sessions/revoke-all',
-      {
+    return readNestData(
+      await request<{ revokedCount: number }>('/api/v1/auth/sessions/revoke-all', {
         method: 'POST',
         data: { keepCurrent: true },
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function forgotPassword(data: { email: string }) {
-    const res = await request<NestEnvelope<NestAccepted>>(
-      '/api/v1/auth/forgot-password',
-      {
+    return readNestData(
+      await request<NestAccepted>('/api/v1/auth/forgot-password', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
-  async function resetPassword(data: {
-    token: string;
-    newPassword: string;
-  }) {
-    const res = await request<NestEnvelope<{ passwordReset: boolean }>>(
-      '/api/v1/auth/reset-password',
-      {
+  async function resetPassword(data: { token: string; newPassword: string }) {
+    return readNestData(
+      await request<{ passwordReset: boolean }>('/api/v1/auth/reset-password', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function fetchNestAdminUsers(params: {
@@ -341,53 +314,51 @@ export function createAuthApi(options: CreateAuthApiOptions) {
     pageSize?: number;
     email?: string;
   }) {
-    const res = await request<NestEnvelope<NestAdminUserPage>>(
-      '/api/v1/admin/users',
-      {
+    return readNestData(
+      await request<NestAdminUserPage>('/api/v1/admin/users', {
         params: {
           page: params.current,
           pageSize: params.pageSize,
           email: params.email,
         },
         skipErrorHandler: true,
-      },
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function fetchNestAdminUserSessions(userId: string) {
-    const res = await request<NestEnvelope<AuthSessionItem[]>>(
-      `/api/v1/admin/users/${userId}/sessions`,
-      { skipErrorHandler: true },
+    return readNestData(
+      await request<AuthSessionItem[]>(`/api/v1/admin/users/${userId}/sessions`, {
+        skipErrorHandler: true,
+      }),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function revokeNestAdminUserSessions(userId: string) {
-    const res = await request<NestEnvelope<{ revokedCount: number }>>(
-      `/api/v1/admin/users/${userId}/sessions/revoke-all`,
-      {
-        method: 'POST',
-        skipErrorHandler: true,
-      },
+    return readNestData(
+      await request<{ revokedCount: number }>(
+        `/api/v1/admin/users/${userId}/sessions/revoke-all`,
+        {
+          method: 'POST',
+          skipErrorHandler: true,
+        },
+      ),
     );
-    return toApiResponse(res.data, res.requestId);
   }
 
   async function changePassword(data: {
     currentPassword: string;
     newPassword: string;
   }) {
-    const res = await request<NestEnvelope<{ passwordChanged: boolean }>>(
-      '/api/v1/auth/change-password',
-      {
+    const result = readNestData(
+      await request<{ passwordChanged: boolean }>('/api/v1/auth/change-password', {
         method: 'POST',
         data,
         skipErrorHandler: true,
-      },
+      }),
     );
     clearAuthSession();
-    return toApiResponse(res.data, res.requestId);
+    return result;
   }
 
   return {

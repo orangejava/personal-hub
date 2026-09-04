@@ -1,4 +1,5 @@
-import { useModel, useRequest, useSearchParams } from '@umijs/max';
+import { useModel, useSearchParams } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import type { AiAsset } from '@personal-hub/shared-types';
 import {
   App,

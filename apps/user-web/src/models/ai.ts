@@ -35,8 +35,7 @@ export default function AiModel() {
   const loadHomeConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchAiHome();
-      const home = res.data;
+      const home = await fetchAiHome();
       updateRuntimeConfig({
         brandName: home.brandName,
         quota: home.quota,
@@ -52,8 +51,7 @@ export default function AiModel() {
   const loadMembership = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchAiMembership();
-      const data = res.data;
+      const data = await fetchAiMembership();
       setMembership(data);
       updateRuntimeConfig({
         quota: data.quota,
@@ -73,10 +71,10 @@ export default function AiModel() {
   const consumeQuota = useCallback(
     async (input: AiQuotaConsumeInput) => {
       const res = await consumeAiQuota(input);
-      if (res.data?.quota) {
-        updateRuntimeConfig({ quota: res.data.quota });
+      if (res.quota) {
+        updateRuntimeConfig({ quota: res.quota });
       }
-      return res.data;
+      return res;
     },
     [updateRuntimeConfig],
   );

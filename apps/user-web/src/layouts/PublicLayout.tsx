@@ -13,7 +13,6 @@ import { publicMenu } from '@/config/publicMenu';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import { setThemePreference } from '@/utils/clientPreferences';
 import { loginOut } from '@/utils/loginOut';
-import { localizeMenu } from '@/utils/localizeMenu';
 import { getPageTransitionKey } from '@/utils/pageTransitionKey';
 
 /**
@@ -29,14 +28,11 @@ const PublicLayout: React.FC<{
   const siteName = initialState?.systemConfig?.siteName ?? 'Personal Hub';
   const user = initialState?.currentUser;
 
-  // 顶栏仅展示公开导航项；登录后 full menu 含工作区/后台，需过滤
-  const basePublicMenu = user
-    ? (initialState?.menu ?? publicMenu)
-    : publicMenu;
-  const menu: MenuItem[] = basePublicMenu.filter(
+  // 顶栏只用公开导航；登录后 initialState.menu 含工作区，不能混进前台
+  const menu: MenuItem[] = (initialState?.publicMenu ?? publicMenu).filter(
     (m) => !m.path.startsWith('/workspace') && !m.path.startsWith('/admin'),
   );
-  const displayMenu = localizeMenu(menu);
+  const displayMenu = menu;
 
   const firstSegment = history.location.pathname.split('/')[1];
   const activeKey = firstSegment ? `/${firstSegment}` : '/';

@@ -22,13 +22,9 @@ const Register: React.FC = () => {
     nickname?: string;
   }) => {
     try {
-      const res = await registerService(values);
-      if (res?.code === 0) {
-        setSubmittedEmail(values.email);
-        message.success('注册请求已提交');
-        return;
-      }
-      setErrorText(res?.message || '注册失败');
+      await registerService(values);
+      setSubmittedEmail(values.email);
+      message.success('注册请求已提交');
     } catch (error: unknown) {
       const nest = nestError(error);
       setErrorText(

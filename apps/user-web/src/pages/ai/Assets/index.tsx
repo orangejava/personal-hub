@@ -1,3 +1,4 @@
+import { useRequest } from '@/hooks/useRequest';
 import {
   ClockCircleOutlined,
   DeleteOutlined,
@@ -12,7 +13,7 @@ import {
   UploadOutlined,
   VideoCameraOutlined,
 } from '@ant-design/icons';
-import { useRequest } from '@umijs/max';
+
 import {
   Button,
   Card,
@@ -265,9 +266,9 @@ const AiAssetsPage: React.FC = () => {
     setOperating(true);
     try {
       const result = await deleteAiAssetFolder(folderId);
-      if (!result.data?.deleted) {
+      if (!result.deleted) {
         message.warning(
-          result.data?.reason === 'notEmpty'
+          result.reason === 'notEmpty'
             ? '文件夹内仍有资产，请先移动或取消归档'
             : '未找到该文件夹',
         );

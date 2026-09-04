@@ -48,8 +48,8 @@ export async function getInitialState(): Promise<InitialState> {
     restoreFailed: boolean;
   }> => {
     try {
-      const res = await fetchCurrentUser({ skipErrorHandler: true });
-      return { user: res?.data, restoreFailed: false };
+      const user = await fetchCurrentUser({ skipErrorHandler: true });
+      return { user, restoreFailed: false };
     } catch (error: unknown) {
       if (nestHttpStatus(error) === 401) {
         return { user: undefined, restoreFailed: false };
@@ -66,11 +66,11 @@ export async function getInitialState(): Promise<InitialState> {
 
   try {
     const sys = await fetchPublicConfig();
-    if (sys?.code === 0) {
-      state.systemConfig = sys.data;
-      if (sys.data?.theme) {
-        const navTheme = sys.data.theme.mode === 'dark' ? 'realDark' : 'light';
-        const colorPrimary = sys.data.theme.colorPrimary;
+    if (sys) {
+      state.systemConfig = sys;
+      if (sys.theme) {
+        const navTheme = sys.theme.mode === 'dark' ? 'realDark' : 'light';
+        const colorPrimary = sys.theme.colorPrimary;
         state.settings = {
           ...state.settings,
           navTheme,
@@ -101,13 +101,13 @@ export async function getInitialState(): Promise<InitialState> {
     state.currentUser = currentUser;
     try {
       const perm = await fetchPermissions();
-      if (perm?.code === 0) {
-        state.permissions = perm.data.permissions;
-        state.permissionGrants = perm.data.permissionGrants;
-        state.menu = perm.data.menu;
+      if (perm) {
+        state.permissions = perm.permissions;
+        state.permissionGrants = perm.permissionGrants;
+        state.menu = perm.menu;
         state.currentUser = {
           ...currentUser,
-          permissions: perm.data.permissions,
+          permissions: perm.permissions,
         };
       }
     } catch {

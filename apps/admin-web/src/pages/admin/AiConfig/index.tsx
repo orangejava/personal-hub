@@ -1,4 +1,5 @@
 import { ProTable } from '@ant-design/pro-components';
+import { useRequest } from '@/hooks/useRequest';
 import type {
   AdminAiBrandingConfig,
   AdminAiModelConfig,
@@ -6,7 +7,7 @@ import type {
   AdminAiToolConfig,
   AiToolStatus,
 } from '@personal-hub/shared-types';
-import { useRequest } from '@umijs/max';
+
 import {
   App,
   Card,

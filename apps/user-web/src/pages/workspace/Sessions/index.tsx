@@ -1,4 +1,5 @@
-import { useIntl, useRequest } from '@umijs/max';
+import { useIntl } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, List, message, Popconfirm, Space, Tag } from 'antd';
 import React from 'react';
 import {
@@ -41,7 +42,7 @@ const Sessions: React.FC = () => {
   const handleRevokeOthers = async () => {
     try {
       const res = await revokeOtherAuthSessions();
-      message.success(`已退出其它 ${res.data?.revokedCount ?? 0} 个会话`);
+      message.success(`已退出其它 ${res.revokedCount ?? 0} 个会话`);
       await run();
     } catch (err: unknown) {
       message.error(nestError(err).message || '操作失败');

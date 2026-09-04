@@ -1,4 +1,5 @@
-import { useIntl, useRequest } from '@umijs/max';
+import { useIntl } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Card, Col, Progress, Row, Statistic } from 'antd';
 import React from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';

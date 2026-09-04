@@ -1,5 +1,6 @@
-import { useRequest } from '@umijs/max';
+
 import { Card, Col, Row, Statistic } from 'antd';
+import { useRequest } from '@/hooks/useRequest';
 import React from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import { fetchAdminDashboardStats } from '@/services/admin';

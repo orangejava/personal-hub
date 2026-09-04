@@ -25,23 +25,19 @@ const ContentNew: React.FC = () => {
       <Card>
         <ProForm
           onFinish={async (values) => {
-            const res = await createContent(values);
-            if (res?.code === 0) {
-              message.success('已创建草稿');
-              const id = res.data.id;
-              if (values.type === ContentType.Markdown) {
-                history.push(`/workspace/markdown/${id}`);
-              } else if (values.type === ContentType.RichText) {
-                history.push(`/workspace/richtext/${id}`);
-              } else if (values.type === ContentType.Booklet) {
-                history.push('/workspace/booklets');
-              } else {
-                history.push(`/content/${id}`);
-              }
-              return true;
+            const created = await createContent(values);
+            message.success('已创建草稿');
+            const id = created.id;
+            if (values.type === ContentType.Markdown) {
+              history.push(`/workspace/markdown/${id}`);
+            } else if (values.type === ContentType.RichText) {
+              history.push(`/workspace/richtext/${id}`);
+            } else if (values.type === ContentType.Booklet) {
+              history.push('/workspace/booklets');
+            } else {
+              history.push(`/content/${id}`);
             }
-            message.error(res?.message || '创建失败');
-            return false;
+            return true;
           }}
           submitter={{ searchConfig: { submitText: '创建并继续' } }}
         >

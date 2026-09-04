@@ -32,16 +32,12 @@ const RichText: React.FC = () => {
       ...values,
     };
     const id = params.id;
-    const res =
+    const created =
       isEdit && id
         ? await updateContent(id, payload)
         : await createContent(payload);
-    if (res?.code === 0) {
-      message.success(status === 'published' ? '已发布' : '已保存草稿');
-      if (!isEdit) history.push(`/workspace/richtext/${res.data.id}`);
-    } else {
-      message.error(res?.message || '保存失败');
-    }
+    message.success(status === 'published' ? '已发布' : '已保存草稿');
+    if (!isEdit) history.push(`/workspace/richtext/${created.id}`);
   };
 
   return (

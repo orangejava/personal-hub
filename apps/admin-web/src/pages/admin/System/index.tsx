@@ -1,5 +1,6 @@
 import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
-import { useModel, useRequest } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
+import { useModel } from '@umijs/max';
 import { Card, message } from 'antd';
 import React, { useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
@@ -11,11 +12,12 @@ const System: React.FC = () => {
   const { setInitialState } = useModel('@@initialState');
   const [saving, setSaving] = useState(false);
   const { data, loading, error, run } = useRequest(fetchAdminSystemConfig);
+  const formValues = data;
 
   const syncPublicConfig = async () => {
-    const res = await fetchPublicConfig();
-    if (res?.code === 0) {
-      setInitialState((s) => ({ ...s, systemConfig: res.data }));
+    const config = await fetchPublicConfig();
+    if (config) {
+      setInitialState((s) => ({ ...s, systemConfig: config }));
     }
   };
 
@@ -39,18 +41,14 @@ const System: React.FC = () => {
     <PageContainer title="系统配置">
       <Card>
         <ProForm
-          initialValues={data ?? {}}
+          initialValues={formValues ?? {}}
           onFinish={async (values) => {
             setSaving(true);
             try {
-              const res = await updateAdminSystemConfig(values);
-              if (res?.code === 0) {
-                message.success('已保存，公开前台将读取最新配置');
-                await syncPublicConfig();
-                return true;
-              }
-              message.error(res?.message || '保存失败');
-              return false;
+              await updateAdminSystemConfig(values);
+              message.success('已保存，公开前台将读取最新配置');
+              await syncPublicConfig();
+              return true;
             } finally {
               setSaving(false);
             }

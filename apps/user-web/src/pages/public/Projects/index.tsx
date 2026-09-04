@@ -1,5 +1,6 @@
-import { useRequest } from '@umijs/max';
+
 import { Col, Row } from 'antd';
+import { useRequest } from '@/hooks/useRequest';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import {

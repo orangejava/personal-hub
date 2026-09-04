@@ -29,13 +29,9 @@ const AiHistory: React.FC = () => {
   const removeOne = async (id: string) => {
     setOperating(true);
     try {
-      const res = await deleteWorkspaceAiHistory(id);
-      if (res?.code === 0) {
-        message.success('已删除会话');
-        reload();
-        return;
-      }
-      message.error(res?.message || '删除失败');
+      await deleteWorkspaceAiHistory(id);
+      message.success('已删除会话');
+      reload();
     } finally {
       setOperating(false);
     }
@@ -49,13 +45,9 @@ const AiHistory: React.FC = () => {
     setOperating(true);
     try {
       const res = await batchDeleteWorkspaceAiHistory(selectedRowKeys.map(String));
-      if (res?.code === 0) {
-        message.success(`已删除 ${res.data.deleted.length} 个会话`);
-        setSelectedRowKeys([]);
-        reload();
-        return;
-      }
-      message.error(res?.message || '批量删除失败');
+      message.success(`已删除 ${res.deleted.length} 个会话`);
+      setSelectedRowKeys([]);
+      reload();
     } finally {
       setOperating(false);
     }
@@ -70,14 +62,10 @@ const AiHistory: React.FC = () => {
     }
     setOperating(true);
     try {
-      const res = await renameWorkspaceAiHistory(renaming.id, title);
-      if (res?.code === 0) {
-        message.success('会话已重命名');
-        setRenaming(null);
-        reload();
-        return;
-      }
-      message.error(res?.message || '重命名失败');
+      await renameWorkspaceAiHistory(renaming.id, title);
+      message.success('会话已重命名');
+      setRenaming(null);
+      reload();
     } finally {
       setOperating(false);
     }
@@ -130,9 +118,9 @@ const AiHistory: React.FC = () => {
             keyword: params.keyword as string,
           });
           return {
-            data: res.data?.list ?? [],
-            success: res.code === 0,
-            total: res.data?.total ?? 0,
+            data: res.list ?? [],
+            success: true,
+            total: res.total ?? 0,
           };
         }}
         columns={[

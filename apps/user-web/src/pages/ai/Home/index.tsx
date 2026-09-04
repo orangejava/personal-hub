@@ -1,4 +1,5 @@
-import { Link, useRequest } from '@umijs/max';
+import { Link } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, Col, Input, Row, Skeleton, Space, Statistic, Tag } from 'antd';
 import React, { useMemo, useState } from 'react';
 import type {

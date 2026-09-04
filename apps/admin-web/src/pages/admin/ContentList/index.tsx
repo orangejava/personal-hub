@@ -26,13 +26,9 @@ const ContentList: React.FC = () => {
   const changeStatus = async (id: string, status: ContentStatus) => {
     setOperatingId(id);
     try {
-      const res = await updateAdminContentStatus(id, status);
-      if (res?.code === 0) {
-        message.success(status === ContentStatus.Published ? '已发布' : `已${ContentStatusLabel[status]}`);
-        reload();
-      } else {
-        message.error(res?.message || '操作失败');
-      }
+      await updateAdminContentStatus(id, status);
+      message.success(status === ContentStatus.Published ? '已发布' : `已${ContentStatusLabel[status]}`);
+      reload();
     } finally {
       setOperatingId(undefined);
     }
@@ -41,13 +37,9 @@ const ContentList: React.FC = () => {
   const remove = async (id: string) => {
     setOperatingId(id);
     try {
-      const res = await deleteAdminContent(id);
-      if (res?.code === 0) {
-        message.success('已删除');
-        reload();
-      } else {
-        message.error(res?.message || '删除失败');
-      }
+      await deleteAdminContent(id);
+      message.success('已删除');
+      reload();
     } finally {
       setOperatingId(undefined);
     }
@@ -70,9 +62,9 @@ const ContentList: React.FC = () => {
             type: params.type as string,
           });
           return {
-            data: res.data?.list ?? [],
-            success: res.code === 0,
-            total: res.data?.total ?? 0,
+            data: res.list ?? [],
+            success: true,
+            total: res.total ?? 0,
           };
         }}
         columns={[

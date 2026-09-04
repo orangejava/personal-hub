@@ -1,4 +1,5 @@
-import { useRequest, useSearchParams, Link, useModel } from '@umijs/max';
+import { useSearchParams, Link, useModel } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import { Button, Col, Input, Pagination, Row, Select, Space, Tag } from 'antd';
 import React, { useEffect } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';

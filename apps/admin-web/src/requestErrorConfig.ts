@@ -7,11 +7,44 @@ import {
   getMockBridgeToken,
   isNestAuthEnabled,
 } from '@personal-hub/api-client';
+
+const NEST_ENVELOPE_KEYS = new Set(['data', 'requestId', 'error', 'success']);
+
+/**
+ * 拦截器内就地解包，不从 api-client 引入 unwrapHttpData/readNestData。
+ * Umi MFSU 会缓存共享包导出，新符号在热更新后经常是 undefined。
+ */
+function unwrapResponseData<T>(body: unknown): T {
+  if (body != null && typeof body === 'object' && !Array.isArray(body) && 'code' in body) {
+    const envelope = body as ApiResponse<T>;
+    if (typeof envelope.code === 'number' && envelope.code !== 0) {
+      const error: any = new Error(envelope.message || '请求失败');
+      error.name = 'BizError';
+      error.info = {
+        code: envelope.code,
+        message: envelope.message,
+        data: envelope.data,
+      };
+      throw error;
+    }
+    if (typeof envelope.code === 'number') {
+      return envelope.data as T;
+    }
+  }
+  if (body && typeof body === 'object' && !Array.isArray(body) && 'data' in body) {
+    const keys = Object.keys(body);
+    if (keys.length > 0 && keys.every((key) => NEST_ENVELOPE_KEYS.has(key))) {
+      return (body as { data: T }).data;
+    }
+  }
+  return body as T;
+}
 import { buildUserWebLoginUrl } from '@personal-hub/app-origins';
 
 /**
  * 请求错误处理
- * 与后端统一响应 ApiResponse<T> 对齐：code !== 0 视为业务错误
+ * Canonical：HTTP 2xx 由拦截器解包为业务对象 T；失败 throw。
+ * Umi 4 没有 dataField；useRequest 二次拆 data 在 `@/hooks/useRequest` 覆盖。
  */
 export const errorConfig: RequestConfig = {
   errorConfig: {
@@ -92,5 +125,10 @@ export const errorConfig: RequestConfig = {
     },
   ],
 
-  responseInterceptors: [],
+  responseInterceptors: [
+    (response) => ({
+      ...response,
+      data: unwrapResponseData(response.data),
+    }),
+  ],
 };

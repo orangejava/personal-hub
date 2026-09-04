@@ -1,4 +1,5 @@
-import { Link, useModel, useRequest, useSearchParams } from '@umijs/max';
+import { Link, useModel, useSearchParams } from '@umijs/max';
+import { useRequest } from '@/hooks/useRequest';
 import {
   CopyOutlined,
   DislikeFilled,
@@ -189,7 +190,7 @@ const AiChatPage: React.FC = () => {
       const res = await updateAiMessageFeedback(message.id, {
         feedback: nextFeedback,
       });
-      const updatedMessage = res.data;
+      const updatedMessage = res;
       if (!updatedMessage) {
         messageApi.warning('当前消息暂不支持反馈');
         return;
@@ -308,7 +309,7 @@ const AiChatPage: React.FC = () => {
   useEffect(() => {
     if (!currentSessionId) return;
     fetchAiMessages(currentSessionId).then((res) => {
-      const nextMessages = res.data ?? [];
+      const nextMessages = res ?? [];
       setSessionMessages(currentSessionId, nextMessages);
       syncSessionAfterMessagesChange(nextMessages);
     });
