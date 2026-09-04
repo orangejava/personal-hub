@@ -836,7 +836,8 @@ export class AuthService {
     userId: string,
     permissionVersion: number,
   ): Promise<AuthPermissionSnapshot> {
-    const cacheKey = this.permissionCacheKey(userId, permissionVersion);
+    const epoch = (await this.redis.get('system:menu-epoch')) ?? '0';
+    const cacheKey = this.permissionCacheKey(userId, permissionVersion, epoch);
     const cached = await this.readPermissionCache(cacheKey);
     if (cached !== null) {
       return cached;
@@ -908,8 +909,12 @@ export class AuthService {
     return `auth:session:${sessionId}`;
   }
 
-  private permissionCacheKey(userId: string, permissionVersion: number): string {
-    return `auth:permission:${userId}:${permissionVersion}`;
+  private permissionCacheKey(
+    userId: string,
+    permissionVersion: number,
+    menuEpoch: string,
+  ): string {
+    return `auth:permission:${userId}:${permissionVersion}:${menuEpoch}`;
   }
 
   private async readPermissionCache(key: string): Promise<AuthPermissionSnapshot | null> {
@@ -946,6 +951,9 @@ export class AuthService {
       scope: menu.scope,
       type: menu.type,
       name: menu.name,
+      localeKey: menu.localeKey,
+      icon: menu.icon,
+      openInNewTab: menu.openInNewTab,
       parentId: menu.parentId,
       routeKey: menu.routeKey,
       externalUrl: menu.externalUrl,

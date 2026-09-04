@@ -5,6 +5,9 @@ export interface NestMenuNode {
   scope: 'PUBLIC' | 'WORKSPACE' | 'ADMIN' | 'AI';
   type: 'DIRECTORY' | 'INTERNAL' | 'EXTERNAL';
   name: string;
+  localeKey?: string | null;
+  icon?: string | null;
+  openInNewTab?: boolean;
   routeKey: string | null;
   externalUrl: string | null;
   sortOrder: number;

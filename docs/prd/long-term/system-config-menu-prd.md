@@ -1,7 +1,7 @@
 # 系统配置与菜单管理后端需求确认稿
 
 > 状态：🟢 已确认；最终端点与模型以 Canonical API/数据模型为准
-> 最后更新：2026-08-02
+> 最后更新：2026-08-31
 > 适用：`apps/server`、`apps/user-web` 与未来前端应用
 > 关联：[Auth、会话与 RBAC 后端需求确认稿](./auth-rbac-session-prd.md)、[公开前台](../../product/frontend-public.md)、[后台管理台](../../product/admin.md)
 
@@ -130,11 +130,11 @@ ai.chat              -> /ai/chat
 | `id`                      | 主键                                    |
 | `scope`                   | `PUBLIC` / `WORKSPACE` / `ADMIN` / `AI` |
 | `type`                    | `DIRECTORY` / `INTERNAL` / `EXTERNAL`   |
-| `name`                    | 默认展示名                              |
-| `localeKey`               | 可选国际化 key                          |
+| `name`                    | 默认展示名（运营可改的中文文案，前端可直接渲染） |
+| `localeKey`               | 可选国际化 key（如 `public.home`）；**不是**展示名 |
 | `icon`                    | 受白名单校验的图标 key                  |
 | `parentId`                | 同 scope 内父节点，可为空               |
-| `routeKey`                | 内部菜单目标；仅 `internal` 使用        |
+| `routeKey`                | 内部菜单目标；仅 `internal` 使用；只解析 path/icon，**不是文案** |
 | `externalUrl`             | 外链目标；仅 `external` 使用            |
 | `openInNewTab`            | 外链默认 true                           |
 | `sort`                    | 同级排序号                              |
@@ -143,6 +143,18 @@ ai.chat              -> /ai/chat
 | `isSystem`                | 核心内置菜单保护标记                    |
 | `remark`                  | 管理备注                                |
 | `createdAt` / `updatedAt` | 审计时间                                |
+
+### 4.3.1 前端如何展示 `name` / `localeKey` / `routeKey`
+
+三个字段职责不同，禁止把 `localeKey` 或 `routeKey` 写入前端 `MenuItem.name` 再交给 i18n。
+
+| 区域 | 展示规则 |
+| --- | --- |
+| 公开前台 | **不启用多语言**。顶栏只渲染接口返回的 `name`（中文）。浏览器或会话为 en-US 时仍显示「首页」，不得走 `localizeMenu()` 把 `public.home` 翻成 Home。 |
+| 工作区 / 后台 | 可用 `localeKey` 查 `menu.${localeKey}`；没有 `localeKey` 或没有译文时回退 `name`。 |
+| 路由 | `routeKey` 只通过前端注册表解析 path / icon。 |
+
+前端 `MenuItem.name` 语义是**已经可展示的字符串**。旧 mock 把 locale id 写在 `name` 里，对接 Nest 后必须改掉。
 
 `menu_permissions`：
 
@@ -186,7 +198,7 @@ ai.chat              -> /ai/chat
 | -------- | -------------------------------------- | ---------------------------------- |
 | 配置读取 | 白名单组装、缓存、默认值               | 启动时拉取、应用主题与首页展示     |
 | 配置修改 | 权限、DTO、事务、审计、缓存失效        | 表单校验提示、保存反馈             |
-| 菜单返回 | 根据 scope、enabled、visible、权限过滤 | 按区域渲染菜单                     |
+| 菜单返回 | 根据 scope、enabled、visible、权限过滤 | 按区域渲染；公开区用 `name`，约定见 §4.3.1 |
 | 内部目标 | 校验 `routeKey` 合法                   | 用注册表映射 `routeKey` 到当前路由 |
 | API 安全 | Guard 与数据范围校验                   | 不可依赖菜单隐藏作为安全措施       |
 

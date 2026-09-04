@@ -87,6 +87,7 @@ model User {
   totpFactor              TotpFactor?
   auditLogs               AuditLog[]               @relation("AuditActor")
   quotaAccount            AiQuotaAccount?
+  systemConfigUpdates     SystemConfig[]
 
   @@index([roleId, status])
   @@map("users")
@@ -244,27 +245,68 @@ model TotpRecoveryCode {
 
 /// 菜单仅控制导航展示；实际接口仍必须由 Guard 和数据范围校验保护。
 model Menu {
-  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  scope       MenuScope
-  type        MenuType
-  name        String           @db.VarChar(120)
-  parentId    String?          @map("parent_id") @db.Uuid
-  routeKey    String?          @unique @map("route_key") @db.VarChar(160)
-  externalUrl String?          @map("external_url") @db.VarChar(2048)
-  sortOrder   Int              @default(0) @map("sort_order")
-  visible     Boolean          @default(true)
-  enabled     Boolean          @default(true)
-  isSystem    Boolean          @default(true) @map("is_system")
-  version     Int              @default(1)
-  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(6)
-  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
-  parent      Menu?            @relation("MenuTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children    Menu[]           @relation("MenuTree")
-  permissions MenuPermission[]
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope        MenuScope
+  type         MenuType
+  name         String           @db.VarChar(120)
+  /// 对应前端 locale `menu.${localeKey}`；为空时回落到 name / routeKey。
+  localeKey    String?          @map("locale_key") @db.VarChar(160)
+  icon         String?          @db.VarChar(80)
+  parentId     String?          @map("parent_id") @db.Uuid
+  routeKey     String?          @unique @map("route_key") @db.VarChar(160)
+  externalUrl  String?          @map("external_url") @db.VarChar(2048)
+  openInNewTab Boolean          @default(false) @map("open_in_new_tab")
+  sortOrder    Int              @default(0) @map("sort_order")
+  visible      Boolean          @default(true)
+  enabled      Boolean          @default(true)
+  isSystem     Boolean          @default(true) @map("is_system")
+  /// 仅后台可见的管理备注，不进入公开导航。
+  remark       String?          @db.VarChar(500)
+  version      Int              @default(1)
+  deletedAt    DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  parent       Menu?            @relation("MenuTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Menu[]           @relation("MenuTree")
+  permissions  MenuPermission[]
 
   @@index([scope, parentId, sortOrder])
   @@map("menus")
+}
+
+/// 类型化运营配置；value 必须经过注册表 DTO 校验，禁止存放密钥。
+model SystemConfig {
+  key       String   @id @db.VarChar(80)
+  group     String   @db.VarChar(80)
+  value     Json
+  isPublic  Boolean  @default(true) @map("is_public")
+  version   Int      @default(1)
+  updatedBy String?  @map("updated_by") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updater   User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+
+  @@index([group])
+  @@map("system_configs")
+}
+
+/// HTTP 写接口幂等记录。唯一范围见 Canonical 数据模型；过期后由定时任务清理。
+model IdempotencyRecord {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  subjectType         String   @map("subject_type") @db.VarChar(40)
+  subjectIdOrHash     String   @map("subject_id_or_hash") @db.VarChar(128)
+  httpMethod          String   @map("http_method") @db.VarChar(16)
+  pathHash            String   @map("path_hash") @db.VarChar(64)
+  idempotencyKey      String   @map("idempotency_key") @db.VarChar(128)
+  requestFingerprint  String   @map("request_fingerprint") @db.VarChar(64)
+  responseStatus      Int      @map("response_status")
+  responseBody        Json     @map("response_body")
+  expiresAt           DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([subjectType, subjectIdOrHash, httpMethod, pathHash, idempotencyKey], map: "idempotency_records_subject_key")
+  @@index([expiresAt])
+  @@map("idempotency_records")
 }
 
 model MenuPermission {

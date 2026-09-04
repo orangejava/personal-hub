@@ -6,6 +6,11 @@ import {
   SYSTEM_ROLE_PERMISSIONS,
   type PermissionCode,
 } from '../src/modules/auth/rbac-catalog';
+import {
+  DEFAULT_SYSTEM_CONFIGS,
+  SYSTEM_CONFIG_GROUPS,
+} from '../src/modules/system/config-registry';
+import { MENU_ROUTE_META } from '../src/modules/system/route-registry';
 
 const prisma = new PrismaClient();
 
@@ -424,6 +429,7 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
     }
 
     for (const menu of SYSTEM_MENUS) {
+      const meta = MENU_ROUTE_META[menu.routeKey];
       await tx.menu.upsert({
         where: { routeKey: menu.routeKey },
         create: {
@@ -431,6 +437,8 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
           scope: menu.scope,
           type: menu.type,
           name: menu.name,
+          localeKey: meta?.localeKey ?? menu.routeKey,
+          icon: meta?.icon ?? null,
           sortOrder: menu.sortOrder,
           isSystem: true,
         },
@@ -438,6 +446,8 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
           scope: menu.scope,
           type: menu.type,
           name: menu.name,
+          localeKey: meta?.localeKey ?? menu.routeKey,
+          icon: meta?.icon ?? null,
           sortOrder: menu.sortOrder,
           visible: true,
           enabled: true,
@@ -492,12 +502,26 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
     if (menuPermissionRows.length > 0) {
       await tx.menuPermission.createMany({ data: menuPermissionRows });
     }
+
+    for (const group of SYSTEM_CONFIG_GROUPS) {
+      await tx.systemConfig.upsert({
+        where: { key: group },
+        create: {
+          key: group,
+          group,
+          value: DEFAULT_SYSTEM_CONFIGS[group] as object,
+          isPublic: true,
+          version: 1,
+        },
+        update: {},
+      });
+    }
   });
 }
 
 async function main(): Promise<void> {
   await runBaselineSeed(prisma);
-  console.info('M1 Auth/RBAC/菜单基线 seed 已完成。');
+  console.info('M1 Auth/RBAC/菜单与 M3 系统配置基线 seed 已完成。');
 }
 
 if (require.main === module) {

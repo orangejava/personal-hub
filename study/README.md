@@ -22,6 +22,7 @@
 - [features/nest-auth-permissions.md](./features/nest-auth-permissions.md)：权限快照、菜单过滤与前端 routeKey 注册表。
 - [features/nest-auth-register.md](./features/nest-auth-register.md)：公开注册、Mailpit 邮件链接验证与验证赠额。
 - [features/nest-auth-captcha-sessions-password.md](./features/nest-auth-captcha-sessions-password.md)：登录验证码、设备会话、强制改密、忘记密码与后台踢人。
+- [features/nest-system-config-menu.md](./features/nest-system-config-menu.md)：类型化 system_configs、公开导航与 HTTP 幂等。
 - [frontend-to-fullstack-learning-path.md](./frontend-to-fullstack-learning-path.md)：面向 Vue 3 / React 前端开发者的全栈转型路径。
 - [local-environment-setup-handbook.md](./local-environment-setup-handbook.md)：本地开发环境准备手册，包含 Docker、PostgreSQL、Redis、GUI/CLI 工具建议。
 - [nextjs-learning-handbook.md](./nextjs-learning-handbook.md)：Next.js 学习手册，重点是 App Router、RSC、SSR、ISR、路由组织。

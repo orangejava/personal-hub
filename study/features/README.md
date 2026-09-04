@@ -53,3 +53,4 @@
 - [nest-auth-permissions.md](./nest-auth-permissions.md)：权限快照、菜单过滤、routeKey 注册表与 mock 权限兼容。
 - [nest-auth-register.md](./nest-auth-register.md)：公开注册、Mailpit 邮件链接验证与验证赠额幂等。
 - [nest-auth-captcha-sessions-password.md](./nest-auth-captcha-sessions-password.md)：登录验证码、设备会话、强制改密、忘记密码与后台踢人。
+- [nest-system-config-menu.md](./nest-system-config-menu.md)：类型化系统配置、公开导航与 HTTP 幂等。

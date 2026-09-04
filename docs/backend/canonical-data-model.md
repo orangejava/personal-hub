@@ -176,7 +176,7 @@ content_tags(content_id, tag_id) UNIQUE
 | 表                    | 核心字段                                                                                                                      |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `system_configs`      | `key`、`group`、JSONB `value`、`is_public`、`version`、`updated_by`                                                           |
-| `menus`               | `scope`、`type`、`name`、`parent_id`、`route_key`、`external_url`、`sort_order`、`visible`、`enabled`、`is_system`、`version` |
+| `menus`               | `scope`、`type`、`name`、`locale_key`、`icon`、`parent_id`、`route_key`、`external_url`、`open_in_new_tab`、`sort_order`、`visible`、`enabled`、`is_system`、`remark`、`version` |
 | `menu_permissions`    | `menu_id`、`permission_id` 复合唯一                                                                                           |
 | `audit_logs`          | `category`、`action`、`actor_id`、目标、`request_id`、`ip_hash`、结果、白名单 `detail`、`expires_at`                          |
 | `outbox_events`       | `aggregate_type`、`aggregate_id`、`event_type`、JSON `payload`、`occurred_at`、`dispatched_at`、失败信息                      |

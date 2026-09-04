@@ -475,7 +475,7 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 
 | 方法         | 路径                              | 说明                        |
 | ------------ | --------------------------------- | --------------------------- |
-| GET          | `/admin/system-configs`           | 按 group 查询类型化配置     |
+| GET          | `/admin/system-configs`           | 类型化配置；`?group=` 可选，不传返回全部 |
 | PUT          | `/admin/system-configs/:group`    | 同组原子更新，必填幂等键    |
 | GET/POST     | `/admin/menus`                    | 完整树/新增菜单项           |
 | PATCH/DELETE | `/admin/menus/:menuId`            | 单项更新/删除               |
@@ -504,6 +504,7 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 | File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`            |
 | AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`                                             |
 | Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
+| System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
 
 ## 6. 旧 Mock 迁移
 

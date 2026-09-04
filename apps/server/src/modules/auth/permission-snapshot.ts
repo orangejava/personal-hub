@@ -12,6 +12,9 @@ export interface MenuSnapshotRecord {
   scope: MenuScope;
   type: MenuType;
   name: string;
+  localeKey?: string | null;
+  icon?: string | null;
+  openInNewTab?: boolean;
   parentId: string | null;
   routeKey: string | null;
   externalUrl: string | null;
@@ -24,6 +27,9 @@ export interface MenuTreeNode {
   scope: MenuScope;
   type: MenuType;
   name: string;
+  localeKey?: string | null;
+  icon?: string | null;
+  openInNewTab?: boolean;
   routeKey: string | null;
   externalUrl: string | null;
   sortOrder: number;
@@ -66,6 +72,9 @@ export function buildFilteredMenuTree(
       scope: menu.scope,
       type: menu.type,
       name: menu.name,
+      localeKey: menu.localeKey ?? null,
+      icon: menu.icon ?? null,
+      openInNewTab: menu.openInNewTab ?? false,
       routeKey: menu.routeKey,
       externalUrl: menu.externalUrl,
       sortOrder: menu.sortOrder,
