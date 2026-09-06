@@ -5,10 +5,11 @@
 每次开始任务时，**必须先阅读**：
 
 1. **本文件** `AGENTS.md`
-2. **`.agents/rules/`** 下全部规则（当前含文档放置、开发工作流）
+2. **`.agents/rules/`** 下全部规则（当前含文档放置、开发工作流、前后端影响面、TSX 方法放置）
 3. 与当前任务匹配的 **`.agents/skills/*/SKILL.md`**
    - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
    - 涉及 Nest / Canonical API / Prisma / `api-client` / Umi services / mock 回落 → **必须**加载 [`.agents/skills/fullstack-impact/SKILL.md`](.agents/skills/fullstack-impact/SKILL.md)
+   - 涉及新增或修改 `apps/*/src/**/*.tsx` 页面 / 布局 / 组件 → **必须**加载 [`.agents/skills/tsx-structure/SKILL.md`](.agents/skills/tsx-structure/SKILL.md)
 
 说明见 [`.agents/README.md`](.agents/README.md)。
 
@@ -49,7 +50,8 @@
 
 - 在开始修改代码前，先给出清晰的实现计划；用户未确认前不改业务代码。
 - 计划应至少说明：**现象/需求 → 根因或约束 → 解决方案 → 影响范围 → 计划修改的文件 → 验收通过标准 / 故意忽略及后续阶段**。
-- 涉及 Nest / API / 前端 service / mock 时，计划还须符合 `.agents/skills/fullstack-impact/SKILL.md`（Umi 全局解包为 T、调用方 grep、不迁就 `code === 0`）。
+- 涉及 Nest / API / 前端 service / mock 时，计划还须符合 `.agents/skills/fullstack-impact/SKILL.md`（Umi 全局解包为 T、失败 toast 读 `error.message`、调用方 grep、不迁就 `code === 0`）。
+- 涉及新增或修改 tsx 时，计划还须符合 `.agents/skills/tsx-structure/SKILL.md`（纯函数放组件上方；长回调提到组件内具名函数；不要把关着 form 的提交抽到 utils）。
 - 需求不明确时，先澄清再实施；思路明确后，按计划逐步实现。
 
 ## 分析优先
@@ -101,6 +103,7 @@
 
 ## 新增页面与样式约束
 
+- 新增或修改 tsx 时，方法放置遵循 [`.agents/skills/tsx-structure/SKILL.md`](.agents/skills/tsx-structure/SKILL.md)：纯函数在组件上方，长回调提到组件内具名函数，不要把关着 `form` / `message` 的提交抽到外层文件。
 - 新增页面、组件或交互界面时，如果未提供明确设计稿、截图或视觉规范，优先参考**当前项目内、就近目录下的同类页面**。
 - 尽量复用现有布局、间距、配色、字号、组件用法和交互节奏，保持视觉与交互一致。
 - 不要无依据地新起一套样式体系或交互模式。

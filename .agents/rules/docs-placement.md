@@ -15,6 +15,7 @@
 | 应用内结构 / 该 app 专属实现 | `apps/<name>/docs/` |
 | Git 提交工作流（权威） | `.agents/skills/git-commit/` |
 | 前后端 API 影响面评估 | `.agents/skills/fullstack-impact/` |
+| TSX 方法放置（页面/组件） | `.agents/skills/tsx-structure/` |
 | 学习笔记 | `study/features/` 或 `study/` |
 
 ## 硬性禁止

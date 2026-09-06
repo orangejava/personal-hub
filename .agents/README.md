@@ -10,14 +10,17 @@
 ├── rules/                    # 始终应遵守的短约束
 │   ├── docs-placement.md
 │   ├── dev-workflow.md
-│   └── fullstack-impact.md   # 前后端契约改动必须评估影响面
+│   ├── fullstack-impact.md   # 前后端契约改动必须评估影响面
+│   └── tsx-structure.md      # tsx 纯函数 / 长回调放哪
 └── skills/
     ├── git-commit/
     │   ├── SKILL.md          # 提交权威规范 + 执行流程
     │   └── references/
     │       └── examples.md
     ├── fullstack-impact/
-    │   └── SKILL.md          # Nest/API：计划门槛、Umi 全局解包、调用方清单
+    │   └── SKILL.md          # Nest/API：计划门槛、Umi 解包、失败 toast、调用方清单
+    ├── tsx-structure/
+    │   └── SKILL.md          # 页面/组件：纯函数上提、长 JSX 回调具名、禁止乱抽 utils
     └── task-quality-review/
         └── SKILL.md          # 手动触发的 AI 开发任务质量评分
 ```
@@ -39,3 +42,4 @@
 2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`；要求“执行任务质量评审”时，加载 `skills/task-quality-review/SKILL.md`
 3. 涉及 commit / push 时，**必须**加载 `skills/git-commit/SKILL.md`
 4. 涉及 Nest / Canonical API / Prisma / api-client / Umi services / mock 回落时，**必须**加载 `skills/fullstack-impact/SKILL.md`
+5. 涉及新增或修改 `apps/*/src/**/*.tsx` 时，**必须**加载 `skills/tsx-structure/SKILL.md`
