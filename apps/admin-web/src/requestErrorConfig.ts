@@ -7,12 +7,15 @@ import {
   getMockBridgeToken,
   isNestAuthEnabled,
 } from '@personal-hub/api-client';
+import { buildUserWebLoginUrl } from '@personal-hub/app-origins';
 
 const NEST_ENVELOPE_KEYS = new Set(['data', 'requestId', 'error', 'success']);
 
 /**
- * 拦截器内就地解包，不从 api-client 引入 unwrapHttpData/readNestData。
+ * 拦截器内就地解包 / 读错误文案，不从 api-client 引入 unwrapHttpData、nestError。
  * Umi MFSU 会缓存共享包导出，新符号在热更新后经常是 undefined。
+ *
+ * 失败走 axios error.response，不会进上面的成功解包；BizError 只给遗留 mock `{ code !== 0 }`。
  */
 function unwrapResponseData<T>(body: unknown): T {
   if (body != null && typeof body === 'object' && !Array.isArray(body) && 'code' in body) {
@@ -39,12 +42,20 @@ function unwrapResponseData<T>(body: unknown): T {
   }
   return body as T;
 }
-import { buildUserWebLoginUrl } from '@personal-hub/app-origins';
+
+/** 4xx 体仍是 `{ error: { message } }`；优先用后端文案，避免 axios 的 status 英文句。 */
+function readNestErrorMessage(error: unknown): string | undefined {
+  const data = (error as { response?: { data?: { error?: { message?: string } } } })?.response
+    ?.data;
+  const fromNest = data?.error?.message?.trim();
+  return fromNest || undefined;
+}
 
 /**
  * 请求错误处理
  * Canonical：HTTP 2xx 由拦截器解包为业务对象 T；失败 throw。
  * Umi 4 没有 dataField；useRequest 二次拆 data 在 `@/hooks/useRequest` 覆盖。
+ * skipErrorHandler 仅留给启动拉取、登录冷却等要自己画 UI 的调用。
  */
 export const errorConfig: RequestConfig = {
   errorConfig: {
@@ -81,6 +92,11 @@ export const errorConfig: RequestConfig = {
         const status = error.response.status;
         if (status === 401) {
           window.location.replace(buildUserWebLoginUrl(window.location.href));
+          return;
+        }
+        const nestMessage = readNestErrorMessage(error);
+        if (nestMessage) {
+          message.error(nestMessage);
           return;
         }
         notification.error({

@@ -7,6 +7,7 @@
 ## 硬门槛
 
 - 成功/失败在 **Umi 全局拦截器** 统一处理：解包后页面拿到业务对象 T，失败 throw。禁止再包 `toApiResponse` 迁就 `code === 0`。
+- 失败 toast 默认用 Nest `error.message`；写接口不要 `skipErrorHandler`。特定文案写在 `DomainHttpException` 第三个参数。
 - 不要因为内容/工作区/AI 仍走 mock 而推迟这套收口；那些页面改成按 T 读取即可。
 - 已有 Nest 的路径禁止失败后再打已关闭的 mock。
 - 单测绿 ≠ 产品验收过。

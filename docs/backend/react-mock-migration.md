@@ -1,7 +1,7 @@
 # React Mock 到 Canonical Nest API 对照
 
 > 状态：🟢 已确认；React 对接真实 API 时的迁移清单
-> 最后更新：2026-08-31
+> 最后更新：2026-09-06
 > 原则：以现有 `apps/user-web/src/services` 盘点为功能事实，以 [canonical-api.md](./canonical-api.md) 为未来契约事实。Mock 路径不长期保留别名。
 
 ---
@@ -25,7 +25,9 @@
 | --- | --- |
 | Nest `{ data, requestId? }` | 返回 `data`（T） |
 | 遗留 mock `{ code: 0, data }` | 返回 `data`（T），不把信封交给页面 |
-| mock `{ code !== 0 }` 或 HTTP 4xx/5xx | throw；`errorHandler` 处理 |
+| mock `{ code !== 0 }` 或 HTTP 4xx/5xx | throw；`errorHandler` 优先展示 Nest `error.message` |
+
+写接口默认不要 `skipErrorHandler`，让全局 toast 弹出后端文案。`skipErrorHandler` 只留给启动拉取和登录冷却等要自己画 UI 的调用。不要为特定提示再包 `{ code, message, data }`。
 
 `toApiResponse` 不得用于新调用链。公开接口优先走同一套 Umi `request`，不要为「没有 code 字段」再单独 `fetch` 后又打 mock。
 

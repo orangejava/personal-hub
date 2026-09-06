@@ -97,6 +97,7 @@ function readResponseHeader(headers: unknown, name: string): string | undefined 
 /**
  * 从 Nest 错误响应取出业务码、文案，以及 429 的 Retry-After（秒）。
  * 登录冷却 UI 必须读 header：JSON message 只有「请稍后再试」，不含剩余时间。
+ * 全局 toast 在 requestErrorConfig 里就地读 error.message（避开 MFSU），本函数给页面分支用。
  */
 export function nestError(error: unknown): {
   code?: string;

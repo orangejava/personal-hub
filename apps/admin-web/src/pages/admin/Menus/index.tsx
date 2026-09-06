@@ -178,13 +178,17 @@ const Menus: React.FC = () => {
               .map((item) => item.trim())
               .filter(Boolean);
             const nestId = editing.item.id;
-            if (nestId) {
-              await updateAdminMenuItem({
-                id: nestId,
-                name: values.name,
-                icon: values.icon,
-                permissionCodes: permissions,
-              });
+            try {
+              if (nestId) {
+                await updateAdminMenuItem({
+                  id: nestId,
+                  name: values.name,
+                  icon: values.icon,
+                  permissionCodes: permissions,
+                });
+              }
+            } catch {
+              return false;
             }
             setConfig({
               ...config,

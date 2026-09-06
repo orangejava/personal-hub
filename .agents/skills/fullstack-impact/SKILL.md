@@ -10,7 +10,7 @@ description: >-
 compatibility: Works with Cursor, Claude Code, Codex, and other Agent Skills clients.
 metadata:
   author: personal-hub
-  version: "1.2"
+  version: "1.3"
 ---
 
 # 前后端影响面评估（personal-hub）
@@ -73,6 +73,19 @@ metadata:
 
 `toApiResponse` 只允许出现在尚未切到拦截器的遗留代码；新增或改到的调用链必须删掉。
 
+### 2.1 失败 toast 与 `skipErrorHandler`
+
+后续新接口**默认沿用全局 `errorHandler`**，不要为每个页面再写一套失败提示。
+
+| 角色 | 做什么 |
+| --- | --- |
+| Nest | 特定失败文案写在 `DomainHttpException(status, 'CODE', '给人看的中文')`。成功 toast 仍由前端写。 |
+| 两端 `requestErrorConfig` | HTTP 4xx/5xx 优先 `message.error(error.message)`（就地读 `response.data.error`，避开 MFSU）。401 跳登录。 |
+| 写接口 service | **不要** `skipErrorHandler`；让全局 toast 弹出后端文案。页面 `catch` 后 `return false`，不要再 `message.error` 一遍。 |
+| 仅这些才 skip | `getInitialState` / 启动拉取、登录冷却与验证码等要自己画 UI 的调用。skip 后用 `nestError` 分支。 |
+
+**禁止**：为了特定 toast 再包 `{ code, message, data }`；禁止写接口 skip 完又不 catch，导致失败既无 toast 也无空态。
+
 ---
 
 ## 3. mock 与后续阶段
@@ -120,7 +133,7 @@ metadata:
 2. `packages/api-client` 映射
 3. 两端 `services/`、`getInitialState`、`useRequest` 页、layout、model
 4. 所有 `code === 0` 调用方
-5. 失败是否回落 mock、`skipErrorHandler`
+5. 失败是否回落 mock；写接口是否误加 `skipErrorHandler`；toast 是否会显示 Nest `error.message`
 
 Grep 起点：新路径、旧 mock 路径、`toApiResponse`、`fetchXxx`、`code === 0`。
 

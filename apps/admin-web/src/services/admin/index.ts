@@ -76,6 +76,7 @@ function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
+/** GET 跳过全局 toast：列表页用 ErrorState；启动拉取也不该弹窗。 */
 async function loadAdminConfigGroups(group?: string): Promise<AdminConfigGroup[]> {
   const url =
     group === undefined
@@ -94,7 +95,6 @@ async function putAdminConfigGroup(group: string, version: number, value: unknow
       method: 'PUT',
       data: { version, value },
       headers: { 'Idempotency-Key': newIdempotencyKey() },
-      skipErrorHandler: true,
     },
   );
   return readNestData(res);
@@ -425,6 +425,10 @@ export async function fetchAdminMenuConfig() {
   return nestMenusToConfig(readNestData(res));
 }
 
+/**
+ * 后台编辑展示名写 Nest `name`，不要把输入塞进 localeKey。
+ * 失败交给全局 errorHandler 弹出后端 error.message。
+ */
 export async function updateAdminMenuItem(input: {
   id: string;
   name?: string;
@@ -439,7 +443,6 @@ export async function updateAdminMenuItem(input: {
       permissionCodes: input.permissionCodes,
     },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
-    skipErrorHandler: true,
   });
 }
 

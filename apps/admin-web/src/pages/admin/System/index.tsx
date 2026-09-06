@@ -49,6 +49,8 @@ const System: React.FC = () => {
               message.success('已保存，公开前台将读取最新配置');
               await syncPublicConfig();
               return true;
+            } catch {
+              return false;
             } finally {
               setSaving(false);
             }

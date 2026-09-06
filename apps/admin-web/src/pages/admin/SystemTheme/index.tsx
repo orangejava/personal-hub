@@ -39,6 +39,8 @@ const SystemTheme: React.FC = () => {
               await updateAdminSystemTheme(values);
               message.success('主题配置已保存（公开区需刷新后生效）');
               return true;
+            } catch {
+              return false;
             } finally {
               setSaving(false);
             }

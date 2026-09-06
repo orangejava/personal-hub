@@ -81,6 +81,9 @@ const Homepage: React.FC = () => {
       await updateAdminHomepageConfig(payload);
       message.success('首页配置已保存');
       refresh();
+      return true;
+    } catch {
+      return false;
     } finally {
       setSaving(false);
     }
@@ -128,10 +131,7 @@ const Homepage: React.FC = () => {
                 ),
                 submitButtonProps: { loading: saving },
               }}
-              onFinish={async (values) => {
-                await save(values);
-                return true;
-              }}
+              onFinish={async (values) => save(values)}
             >
               <ProForm.Group title="Hero">
                 <ProFormText name={['hero', 'title']} label="标题" rules={[{ required: true }]} />
