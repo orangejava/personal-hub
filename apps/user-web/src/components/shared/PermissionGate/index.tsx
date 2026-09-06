@@ -10,7 +10,7 @@ interface PermissionGateProps {
   fallback?: React.ReactNode;
 }
 
-/** 根据权限点控制局部渲染 */
+/** 根据权限点控制局部渲染。路由级 403 走 access，这里只挡块级按钮/分区。 */
 const PermissionGate: React.FC<PermissionGateProps> = ({
   permissions,
   children,

@@ -18,6 +18,7 @@ import type { RequestAuthContext } from '../../common/types/request-id';
 import { CreateMenuDto, SortMenusDto, UpdateMenuDto } from './dto/menu.dto';
 import { SystemService } from './system.service';
 
+/** 菜单写操作全部 RequireIdempotency；核心恢复入口的删/禁用由 menu-rules 拦截。 */
 @ApiTags('Admin Menus')
 @ApiBearerAuth()
 @Controller('admin/menus')

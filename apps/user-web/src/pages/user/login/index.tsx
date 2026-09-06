@@ -37,6 +37,9 @@ function formatCooldown(seconds: number): string {
   return `${minutes} 分 ${String(rest).padStart(2, '0')} 秒`;
 }
 
+/**
+ * 登录。验证码和 429 冷却必须 skip 全局 toast，用 nestError 读 Retry-After 自己画 Alert。
+ */
 const Login: React.FC = () => {
   const { setInitialState } = useModel('@@initialState');
   const { message } = App.useApp();

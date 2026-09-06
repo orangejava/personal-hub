@@ -19,7 +19,7 @@ type PdfViewerProps = {
   url: string;
 };
 
-/** PDF 在线预览（react-pdf） */
+/** PDF 预览。worker 走本地 public；disableWorker 是为了 mock 开发态稳定，大文件后再开。 */
 const PdfViewer: React.FC<PdfViewerProps> = ({ url }) => {
   const frameRef = useRef<HTMLDivElement>(null);
   const [numPages, setNumPages] = useState(0);

@@ -1,5 +1,6 @@
 /**
- * 前端受控 routeKey 清单。首版由两端 routeRegistry 并集固化，Nest 不扫描前端仓库。
+ * 前端受控 routeKey 清单。由两端 routeRegistry 并集固化，Nest 不扫描前端仓库。
+ * 后台新增内部菜单只能选这里的 key，否则公开/工作区会丢菜单。
  */
 export interface MenuRouteOption {
   routeKey: string;

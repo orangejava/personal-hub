@@ -78,6 +78,9 @@ interface ResendVerificationInput {
   requestId: string;
 }
 
+/**
+ * 登录注册会话与权限快照。限流键按账号+IP，失败文案给人看、错误码给前端分支。
+ */
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);

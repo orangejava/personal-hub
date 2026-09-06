@@ -15,6 +15,10 @@ type DbClient = Prisma.TransactionClient | PrismaService;
 
 export type UserWithRole = User & { role: { code: RoleCode } };
 
+/**
+ * Auth 持久化。邮件/重置 Token 只存哈希；Refresh 轮换先插新再作废旧的，防止重放。
+ * 多数方法接受可选事务客户端，必须与 Service 层 asTransaction 共用同一 db。
+ */
 @Injectable()
 export class AuthRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -114,6 +118,9 @@ export class AuthRepository {
     });
   }
 
+  /**
+   * 条件消费重置 Token。count === 0 表示已用或过期，避免把明文 Token 落库后被重复消费。
+   */
   async consumePasswordResetToken(tokenId: string, db: DbClient = this.prisma): Promise<number> {
     const result = await db.passwordResetToken.updateMany({
       where: {
@@ -127,6 +134,7 @@ export class AuthRepository {
   }
 
   async incrementAuthVersion(userId: string, db: DbClient = this.prisma): Promise<void> {
+    // 改密/踢人后递增，让尚未过期的 Access JWT 在 Guard 里立刻失效。
     await db.user.update({
       where: { id: userId },
       data: { authVersion: { increment: 1 } },
@@ -354,6 +362,10 @@ export class AuthRepository {
     });
   }
 
+  /**
+   * Refresh 轮换：先写入新哈希再标记旧行 revoked+replacedBy。
+   * 顺序反过来会在崩溃时留下「旧 token 仍有效、新 token 未入库」。
+   */
   async rotateRefreshToken(
     input: {
       oldTokenId: string;

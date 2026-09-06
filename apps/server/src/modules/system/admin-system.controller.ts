@@ -9,6 +9,7 @@ import { ListSystemConfigQueryDto } from './dto/list-system-config-query.dto';
 import { UpdateSystemConfigDto } from './dto/update-system-config.dto';
 import { SystemService } from './system.service';
 
+/** 后台配置写入必须带 Idempotency-Key，body.version 与库内不一致则 409。 */
 @ApiTags('Admin System Config')
 @ApiBearerAuth()
 @Controller('admin/system-configs')

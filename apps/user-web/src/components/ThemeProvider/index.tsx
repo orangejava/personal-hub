@@ -10,10 +10,10 @@ import {
 
 type Region = 'public' | 'workspace' | 'admin';
 
+/** /user 登录注册跟公开区主题，避免登录页突然变成工作区暗色。 */
 function getRegion(pathname: string): Region {
   if (pathname.startsWith('/workspace')) return 'workspace';
   if (pathname.startsWith('/admin')) return 'admin';
-  // /user 登录注册与公开前台共用主题，不跟工作区
   return 'public';
 }
 

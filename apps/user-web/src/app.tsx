@@ -73,6 +73,7 @@ export async function getInitialState(): Promise<InitialState> {
     restoreFailed: boolean;
   }> => {
     try {
+      // 启动拉取失败不能弹 toast，否则未登录进首页会刷「未登录」。
       const user = await fetchCurrentUser({ skipErrorHandler: true });
       return { user, restoreFailed: false };
     } catch (error: unknown) {

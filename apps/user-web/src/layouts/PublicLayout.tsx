@@ -90,6 +90,7 @@ const PublicLayout: React.FC<{
               to={m.path}
               className={activeKey === m.path ? 'active' : undefined}
             >
+              {/* 公开顶栏固定渲染接口 name，不用 localizeMenu，避免英文环境变成 Home */}
               {m.name}
             </Link>
           ))}

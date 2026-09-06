@@ -16,7 +16,7 @@ type TextbusEditorProps = {
 };
 
 /**
- * Textbus 富文本编辑器封装（编辑 / 只读共用）
+ * Textbus 富文本封装。读写必须走官方 getHTML / createEditor，禁止改 DOM textContent，否则编辑器状态会和画面脱节。
  */
 const TextbusEditor = React.forwardRef<TextbusEditorHandle, TextbusEditorProps>(
   ({ initialHtml = '', readonly = false, minHeight = '480px' }, ref) => {

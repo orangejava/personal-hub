@@ -16,6 +16,11 @@ interface ErrorBody {
   details: unknown[];
 }
 
+/**
+ * 所有失败统一成 `{ error, requestId }`，成功信封由 ResponseEnvelopeInterceptor 处理。
+ * 校验失败时 class-validator 的 message 数组收成一句「请求参数校验失败」，细节放 details。
+ * 429 必须写 Retry-After，登录冷却 UI 才能显示剩余秒数。
+ */
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);

@@ -7,7 +7,7 @@ import type { MenuItem } from '@personal-hub/shared-types';
  */
 export interface RouteRegistryItem {
   path: string;
-  /** locale id，对应 `menu.${name}` */
+  /** 注册表内部 id；展示名用 Nest `node.name`，不要把这个字段塞进菜单 name */
   name: string;
   icon?: string;
 }
@@ -194,6 +194,10 @@ function flattenMapped(nodes: NestMenuNode[]): MenuItem[] {
     .filter((item): item is MenuItem => item !== null);
 }
 
+/**
+ * 展示名用接口 `name`（中文），localeKey 另存。
+ * 若把 localeKey 写进 name，公开顶栏在 en-US 下会被 localizeMenu 译成 Home。
+ */
 function mapNode(node: NestMenuNode): MenuItem | null {
   const children = flattenMapped(node.children ?? []);
   if (node.type === 'DIRECTORY') {

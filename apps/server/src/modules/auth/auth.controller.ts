@@ -44,6 +44,7 @@ import { VerifyEmailDto } from './dto/verify-email.dto';
 import { assertSameOrigin } from './origin';
 import type { AuthLoginResult } from './token.types';
 
+/** Cookie 类接口（login/refresh/logout）必须 assertSameOrigin，Access 仍只走 Bearer。 */
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {

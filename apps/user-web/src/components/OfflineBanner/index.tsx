@@ -14,6 +14,7 @@ const subscribeOnlineStatus = (callback: () => void) => {
 const getOnlineStatus = () =>
   typeof navigator === 'undefined' ? true : navigator.onLine;
 
+/** SSR/首屏用 useSyncExternalStore，避免 hydration 时 navigator.onLine 和服务器不一致。 */
 const OfflineBanner: React.FC = () => {
   const isOnline = useSyncExternalStore(
     subscribeOnlineStatus,

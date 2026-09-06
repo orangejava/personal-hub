@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/**
+ * 类型化配置分组。公开接口只拼装 is_public 组里允许外露的字段，
+ * 密钥类配置不得进入 assemblePublicSiteConfig。
+ */
 export const SYSTEM_CONFIG_GROUPS = [
   'site.general',
   'site.theme',
@@ -243,6 +247,9 @@ export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
   return GROUP_SCHEMAS[group].parse(merged);
 }
 
+/**
+ * 只拼装允许公开的字段。调用方必须传入已按组取出的 value，不要把整张 system_configs 表丢进来。
+ */
 export function assemblePublicSiteConfig(
   rows: ReadonlyMap<SystemConfigGroup, unknown>,
 ): PublicSiteConfig {

@@ -3,6 +3,10 @@ import { MenuScope, MenuType } from '@prisma/client';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { CORE_RECOVERY_ROUTE_KEYS, MENU_ROUTE_KEY_SET } from './route-registry';
 
+/**
+ * 菜单写入约束。routeKey 必须在前后端登记表里，避免后台配出前端不认识的路径。
+ * 核心恢复入口不能删/禁用，否则登录后无处可去。
+ */
 export function assertInternalRouteKey(type: MenuType, routeKey: string | null | undefined): void {
   if (type !== MenuType.INTERNAL) {
     return;

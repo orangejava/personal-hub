@@ -10,7 +10,7 @@ export default function SystemModel() {
   const [config, setConfig] = useState<SystemPublicConfig | null>(null);
   const [loading, setLoading] = useState(false);
 
-  /** 拉取公开系统配置 */
+  /** 拉取公开系统配置。失败静默：由调用方决定是否空态，不走全局 toast。 */
   const load = useCallback(async () => {
     setLoading(true);
     try {

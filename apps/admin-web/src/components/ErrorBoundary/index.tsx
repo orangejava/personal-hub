@@ -84,6 +84,9 @@ interface ErrorBoundaryState {
   retryCount: number;
 }
 
+/**
+ * 捕获渲染错误。ChunkLoadError 在重新联网时自动 reload，避免用户卡在过期分包白屏。
+ */
 export default class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   ErrorBoundaryState

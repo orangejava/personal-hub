@@ -6,6 +6,7 @@ import { AppModule } from './app.module';
 import { configureHttpApp } from './bootstrap';
 import type { Env } from './config/env.schema';
 
+/** HTTP 进程入口。横切中间件在 bootstrap.configureHttpApp，测试可复用那份而不走 listen。 */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService<Env, true>);

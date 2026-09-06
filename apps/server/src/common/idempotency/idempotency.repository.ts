@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 
+/**
+ * 幂等记录按「主体 + 方法 + 路径哈希 + Key」唯一。
+ * TTL 由拦截器写入 expiresAt；此处只负责查找与插入。
+ */
 @Injectable()
 export class IdempotencyRepository {
   constructor(private readonly prisma: PrismaService) {}

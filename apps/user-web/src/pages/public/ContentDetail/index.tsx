@@ -47,7 +47,7 @@ import { scrollPageToTop } from '@/utils/scroll';
 
 const { Title, Paragraph } = Typography;
 
-/** 内容详情：按类型分流展示 */
+/** 内容详情：按类型分流。小册点进详情会重定向到章节，避免在本页再渲染整本目录。 */
 const ContentDetail: React.FC = () => {
   const params = useParams<{ id: string }>();
   const id = params.id!;

@@ -9,6 +9,7 @@ import { PublicSystemController } from './public-system.controller';
 import { SystemRepository } from './system.repository';
 import { SystemService } from './system.service';
 
+/** 幂等拦截器挂在本模块，避免未声明 @RequireIdempotency 的全局写接口也被强制要 Key。 */
 @Module({
   controllers: [
     PublicSystemController,

@@ -15,8 +15,17 @@ import { DomainHttpException } from '../errors/domain-http.exception';
 import { IdempotencyRepository } from './idempotency.repository';
 import { IDEMPOTENCY_REQUIRED_KEY } from './require-idempotency.decorator';
 
+/** 与 Canonical 一致：普通写操作幂等记录保留 24 小时。 */
 const TTL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * 受保护写接口的幂等闸门。
+ *
+ * 缺 Idempotency-Key 直接 400：否则刷新/重试无法与首次请求对齐。
+ * 查找键是 用户 + method + path + Key；body 另做 fingerprint。
+ * 同一 Key 配不同 body → 409，避免把「重试」当成「换一组参数再提交」。
+ * 未过期命中则回放上次 status/body，不再进 Controller，防止重复扣费/重复写入。
+ */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(
@@ -69,6 +78,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
               '同一幂等键不能搭配不同的请求体',
             );
           }
+          // 回放已完成的写结果，跳过业务层。
           response.status(existing.responseStatus);
           return of(existing.responseBody);
         }

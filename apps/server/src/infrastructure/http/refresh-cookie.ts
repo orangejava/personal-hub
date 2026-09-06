@@ -1,6 +1,7 @@
 import type { Response } from 'express';
 
 export const REFRESH_COOKIE_NAME = 'ph_refresh';
+/** Access 短 TTL，放内存 Header；Refresh 长 TTL，只走 HttpOnly Cookie 并轮换。 */
 export const ACCESS_TOKEN_TTL_SECONDS = 8 * 60 * 60;
 export const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 export const MEMBER_ACTIVE_SESSION_LIMIT = 5;

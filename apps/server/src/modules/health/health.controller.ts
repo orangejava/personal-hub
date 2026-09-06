@@ -9,6 +9,7 @@ import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { Public } from '../../common/decorators/public.decorator';
 import { InfrastructureHealthIndicator } from './health.indicator';
 
+/** live 只证明进程在；ready 才探 Postgres/Redis，避免存活探针被依赖拖死。 */
 @Public()
 @ApiTags('Health')
 @Controller('health')

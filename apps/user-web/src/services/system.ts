@@ -1,5 +1,6 @@
 /**
  * 系统配置服务。公开读取走 Nest；失败由调用方 try/catch，不再回落 mock。
+ * skipErrorHandler：getInitialState 失败应静默回退，不能每页弹 toast。
  */
 import type { ThemeConfig } from '@personal-hub/shared-types';
 import {

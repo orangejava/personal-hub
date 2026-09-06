@@ -9,7 +9,7 @@ export interface ApiSuccess<T> {
 }
 
 /**
- * 统一封装成功响应，客户端无需为每个业务端点重复处理关联 ID。
+ * 只包成功体 `{ data, requestId }`。异常不经过这里，由 HttpExceptionFilter 写 `{ error, requestId }`。
  */
 @Injectable()
 export class ResponseEnvelopeInterceptor<T> implements NestInterceptor<T, ApiSuccess<T>> {

@@ -89,6 +89,7 @@ export class JwtAuthGuard implements CanActivate {
     return method === 'POST' && path.endsWith('/auth/change-password');
   }
 
+  /** Access 只从 Authorization 读，Refresh Cookie 不参与本 Guard。 */
   private readBearerToken(header: string | undefined): string | null {
     if (header === undefined || !header.startsWith('Bearer ')) {
       return null;

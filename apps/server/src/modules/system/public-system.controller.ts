@@ -3,6 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { SystemService } from './system.service';
 
+/** 匿名可读；组装结果已去掉密钥类字段，见 assemblePublicSiteConfig。 */
 @ApiTags('Public System')
 @Controller('public')
 export class PublicSystemController {

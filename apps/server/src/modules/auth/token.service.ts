@@ -11,6 +11,9 @@ import {
 } from '../../infrastructure/http/refresh-cookie';
 import type { AccessTokenPayload } from './token.types';
 
+/**
+ * Access JWT 与一次性邮件/重置 token。Refresh 不在这里签发 Cookie，见 refresh-cookie。
+ */
 @Injectable()
 export class TokenService {
   constructor(

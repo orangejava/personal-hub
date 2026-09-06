@@ -18,6 +18,7 @@ import {
 
 type CategoryTreeRecord = CategoryRecord & { children?: CategoryTreeRecord[] };
 
+/** mock 分类是扁平列表，树只在前端拼；Nest 接上后仍可按 parentId 组装。 */
 function toTree(categories: CategoryRecord[]): CategoryTreeRecord[] {
   const map = new Map<string, CategoryTreeRecord>();
   for (const item of categories) map.set(item.id, { ...item, children: [] });

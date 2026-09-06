@@ -5,6 +5,7 @@ import type { SystemConfigGroup } from './config-registry';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 
+/** 配置与菜单的持久化。写路径应走 asTransaction，避免菜单树半更新。 */
 @Injectable()
 export class SystemRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -164,6 +165,7 @@ export class SystemRepository {
     });
   }
 
+  /** 菜单/配置更新与审计日志必须同一事务，失败则整组回滚。 */
   asTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
     return this.prisma.$transaction(fn);
   }

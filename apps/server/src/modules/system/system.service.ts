@@ -71,6 +71,10 @@ export interface AdminMenuNode extends MenuTreeNode {
   permissionCodes: string[];
 }
 
+/**
+ * 系统配置与菜单写入。version 冲突返回 409，避免后保存覆盖先保存。
+ * 写成功后清公开配置/导航缓存，前台下次请求才能读到新值。
+ */
 @Injectable()
 export class SystemService {
   private readonly logger = new Logger(SystemService.name);
@@ -156,6 +160,7 @@ export class SystemService {
     const updated = await this.repository.asTransaction(async (tx) => {
       const current = await this.repository.findConfigByGroup(group, tx);
       const currentVersion = current?.version ?? 0;
+      // 客户端必须带上读取时的 version；过期则拒绝，而不是静默覆盖。
       if (current !== null && currentVersion !== input.expectedVersion) {
         throw new DomainHttpException(
           HttpStatus.CONFLICT,
