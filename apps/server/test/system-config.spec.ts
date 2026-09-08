@@ -9,12 +9,26 @@ describe('系统配置注册表', () => {
     expect(publicConfig.logoFileId).toBeNull();
     expect(publicConfig.homepage.featuredContent.contentIds).toEqual([]);
     expect(publicConfig.layout.homeHeroStyle).toBe('split');
+    expect(publicConfig.layout.projectsTitle).toBe('项目');
+    expect(publicConfig.layout.projectsIntro).toBe('');
+    expect(publicConfig.about.title).toBe('关于我');
     expect(publicConfig.navigation.publicPosition).toBe('top');
     expect(publicConfig.aiEnabled).toBe(false);
   });
 
   it('拒绝非法颜色', () => {
     expect(() => parseGroupValue('site.theme', { colorPrimary: 'blue' })).toThrow();
+  });
+
+  it('旧 layout JSON 缺项目字段时用默认值补齐', () => {
+    const layout = parseGroupValue('site.layout', {
+      homeHeroStyle: 'center',
+      contentCardStyle: 'compact',
+      contentReaderWidth: 'wide',
+      showBreadcrumb: false,
+    }) as { projectsTitle: string; homeHeroStyle: string };
+    expect(layout.homeHeroStyle).toBe('center');
+    expect(layout.projectsTitle).toBe('项目');
   });
 });
 

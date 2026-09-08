@@ -39,6 +39,90 @@
   padding: var(--ph-page-padding);
 }
 
+/**
+ * 工作区把视口高度分给顶栏、主内容和 Footer。页面本身不再撑开 body，
+ * 超出时只由中间内容区滚动，避免 Footer 被推到可视区域外。
+ */
+.ph-workspace-pro-layout {
+  height: 100vh;
+  overflow: hidden;
+
+  .ant-pro-layout-container {
+    // ProLayout 会为普通 footer 预留额外高度；工作区改为自身管理剩余空间。
+    height: 100vh !important;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .ant-pro-layout-content {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+.ph-workspace-page-shell {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ph-workspace-editor-shell {
+  overflow: hidden;
+
+  .ph-page-transition {
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+.ph-workspace-editor-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+
+  > .ph-markdown-editor,
+  > .ph-textbus-editor {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  > .ph-markdown-editor {
+    display: flex;
+
+    .w-md-editor {
+      flex: 1 1 auto;
+      height: 100% !important;
+      min-height: 0;
+    }
+  }
+
+  > .ph-textbus-editor {
+    display: flex;
+
+    .textbus-container {
+      flex: 1 1 auto;
+      height: 100%;
+      min-height: 100% !important;
+    }
+  }
+}
+
+.ph-workspace-footer {
+  flex: 0 0 auto;
+}
+
+/* Textbus 内部会写默认 min-height；继承页面计算高度以撑满编辑工作区。 */
+.ph-textbus-editor {
+  width: 100%;
+
+  .textbus-container {
+    min-height: inherit !important;
+  }
+}
+
 .ph-booklet-sidebar-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -87,6 +171,10 @@
     width: 100%;
     margin-top: 24px;
   }
+}
+
+.ph-content-card-compact .ant-card-body {
+  min-height: 140px;
 }
 
 .ph-content-card-cover {

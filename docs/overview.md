@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth 已完成；M3 系统配置与菜单已落地
-> 最后更新：2026-08-30
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + **M4 内容域 4.1–4.5** 已落地；下一步为文件/小册 ZIP
+> 最后更新：2026-09-08
 
 ---
 
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest 下一阶段见下方待办。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M4 内容域已落地**；下一阶段为文件/小册（ZIP、对象存储）。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -115,7 +115,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [completed/README.md](./completed/README.md)                                                                   | 已完成功能进度台账（阶段状态与验收入口） | ✅ 已完成 |
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
 | [implementation/admin-web-split.md](./implementation/admin-web-split.md)                                       | 用户端 / 管理端拆分与跨 Origin 会话      | ✅ 已完成 |
-| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现与 Auth 切片                    | ✅ 已完成 |
+| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 系统配置 / M4 内容域   | ✅ 已完成 |
 | [../apps/user-web/docs/README.md](../apps/user-web/docs/README.md)                                           | 用户端实现说明                           | ✅ 已完成 |
 | [../apps/admin-web/docs/README.md](../apps/admin-web/docs/README.md)                                           | 管理端实现说明                           | ✅ 已完成 |
 
@@ -179,6 +179,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [../study/features/nest-auth-permissions.md](../study/features/nest-auth-permissions.md)           | Nest 权限快照、菜单过滤与 routeKey | ✅ 已完成 |
 | [../study/features/nest-auth-register.md](../study/features/nest-auth-register.md)                 | Nest 注册、邮件链接验证与验证赠额 | ✅ 已完成 |
 | [../study/features/nest-auth-captcha-sessions-password.md](../study/features/nest-auth-captcha-sessions-password.md) | Nest 验证码、设备会话与强制改密 | ✅ 已完成 |
+| [../study/features/nest-system-config-menu.md](../study/features/nest-system-config-menu.md) | Nest 类型化配置、公开导航与 HTTP 幂等 | ✅ 已完成 |
 | [../study/features/nest-http-adapter-comparison.md](../study/features/nest-http-adapter-comparison.md) | Express / Fastify 选型比较 | ✅ 已完成 |
 | [../study/features/nest-stage0-retrospective.md](../study/features/nest-stage0-retrospective.md)   | Nest 阶段 0 问题与排障复盘   | ✅ 已完成 |
 | [../study/interview/nest-phase-0-bootstrap.md](../study/interview/nest-phase-0-bootstrap.md)       | Nest 阶段 0 面试题          | ✅ 已完成 |
@@ -193,12 +194,12 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-08-30）
+## 当前开发主线（2026-09-07）
 
-1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀；**M3 系统配置与菜单**（公开 site-config / navigation + 后台写入）。Web 已拆为用户端 `:8000` 与管理端 `:8001`。本地前端默认 `MOCK=none`，内容 mock 用 `dev:user:mock` / `dev:admin:mock`。
-2. **接下来**：Nest 内容模块（公开阅读与工作区），或后台禁用/改角色。开刀前先对契约与 PRD。
+1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀；**M3 系统配置与菜单** 3.1–3.3；**M4 内容域** 4.1–4.5（公开阅读、工作区 Markdown/外链/项目、收藏与进度、后台分类/精选）。Web 已拆为用户端 `:8000` 与管理端 `:8001`。本地前端默认 `MOCK=none`。失败 toast 已读 Nest `error.message`。
+2. **接下来**：Nest **文件/小册**（MinIO/`file_assets`、ZIP 导入、章节正文、封面真文件）。本地 71 本小册继续只走 `dev:user:mock`。
 3. **明确跳过**：阶段 5.5 Next API Bridge。
-4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余项、域名与站点名、Flutter。
+4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余 UI、域名与站点名、Flutter。
 
 ---
 
@@ -220,9 +221,11 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
 - [x] 阶段 5.5 Next API Bridge：已确认跳过，直接走 Nest
 - [x] Nest M2 Auth 第 1–8 刀：登录、权限菜单、注册验证、验证码、设备会话、强制改密、忘记密码、后台踢全部设备（见 [implementation/auth/README.md](./implementation/auth/README.md)）。改邮箱 / TOTP / 真实 SMTP / 禁用改角色仍后置。
+- [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。Logo 真文件、左/右导航 UI 仍后置。About Markdown 已由系统配置中心 `site.about` 接线。
+- [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。ZIP、封面真文件、章节正文仍后置。
 
-### 后置待办（不阻塞 M2）
+### 后置待办（不阻塞文件/小册域）
 
-- [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`，站点名暂用 mock 默认）
-- [ ] 主题与导航剩余项：公开区左/右导航布局、后台主题表单补齐（Logo/SEO/功能开关/预览）、真实 `system_configs` 读写（见 `prd/react-first/theme-navigation-config-prd.md`）
+- [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`；站点名已可由 Nest `system_configs` 改）
+- [ ] 主题与导航剩余 UI：公开区左/右导航布局、后台主题表单补齐（Logo 文件 / SEO / 功能开关 / 预览）（见 `prd/react-first/theme-navigation-config-prd.md`）
 - [ ] Flutter App（Web 主链路稳定后再补 `prd/long-term/flutter-app-prd.md`）

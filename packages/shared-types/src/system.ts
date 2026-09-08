@@ -19,6 +19,22 @@ export interface ThemeConfig {
   mode: ThemeMode;
 }
 
+/** 关于我页配置（对应 Nest `site.about`） */
+export interface SiteAboutConfig {
+  title: string;
+  markdown: string;
+}
+
+/** 内容中心与项目页布局（对应 Nest `site.layout`） */
+export interface SiteLayoutConfig {
+  homeHeroStyle: 'split' | 'center' | 'minimal';
+  contentCardStyle: 'cover' | 'compact';
+  contentReaderWidth: 'narrow' | 'comfortable' | 'wide';
+  showBreadcrumb: boolean;
+  projectsTitle?: string;
+  projectsIntro?: string;
+}
+
 /** 站点公开系统配置 */
 export interface SystemPublicConfig {
   siteName: string;
@@ -31,4 +47,6 @@ export interface SystemPublicConfig {
   theme: ThemeConfig;
   /** 是否启用 AI 工具入口（本阶段仅占位） */
   aiEnabled?: boolean;
+  about?: SiteAboutConfig;
+  layout?: SiteLayoutConfig;
 }

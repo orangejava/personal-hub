@@ -1,6 +1,6 @@
-
-import { Col, Row } from 'antd';
+import { Col, Row, Typography } from 'antd';
 import { useRequest } from '@/hooks/useRequest';
+import { useModel } from '@umijs/max';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import {
@@ -11,10 +11,18 @@ import {
   SectionSkeleton,
 } from '@/components/shared';
 import { fetchContentList } from '@/services/content';
+import { fetchPublicConfig } from '@/services/system';
 import { ContentType } from '@personal-hub/shared-types';
 
-/** 项目页：列出类型为 project 的内容 */
+const { Title, Paragraph } = Typography;
+
+/** 项目页：标题/简介来自系统配置，列表仍按内容类型 Project 拉取。 */
 const Projects: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const { data: liveConfig } = useRequest(fetchPublicConfig);
+  const layout = liveConfig?.layout ?? initialState?.systemConfig?.layout;
+  const title = layout?.projectsTitle?.trim() || '项目';
+  const intro = layout?.projectsIntro?.trim();
   const { data, loading, error, run } = useRequest(() =>
     fetchContentList({ type: ContentType.Project, page: 1, pageSize: 50 }),
   );
@@ -22,7 +30,14 @@ const Projects: React.FC = () => {
 
   return (
     <PublicLayout>
-      <h2>项目</h2>
+      <Title level={2} style={{ marginTop: 0 }}>
+        {title}
+      </Title>
+      {intro ? (
+        <Paragraph type="secondary" style={{ marginBottom: 24 }}>
+          {intro}
+        </Paragraph>
+      ) : null}
       {error && <ErrorState onRetry={run} />}
       {loading ? (
         <SectionSkeleton variant="card" count={3} columns={3} />

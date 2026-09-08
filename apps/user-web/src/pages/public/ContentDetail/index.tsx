@@ -8,6 +8,7 @@ import {
 import { useParams, history, Link, useModel } from '@umijs/max';
 import {
   Alert,
+  Breadcrumb,
   Button,
   Card,
   message,
@@ -47,6 +48,21 @@ import { scrollPageToTop } from '@/utils/scroll';
 
 const { Title, Paragraph } = Typography;
 
+const READER_MAX_WIDTH: Record<string, string> = {
+  narrow: '680px',
+  comfortable: '820px',
+  wide: '1040px',
+};
+
+/**
+ * 把配置组里的阅读宽度落到行内 max-width。
+ * comfortable 与 tokens 默认 820px 对齐，其它两档只改本页正文。
+ */
+function readingMaxWidth(width?: string): string | undefined {
+  if (!width) return undefined;
+  return READER_MAX_WIDTH[width];
+}
+
 /** 内容详情：按类型分流。小册点进详情会重定向到章节，避免在本页再渲染整本目录。 */
 const ContentDetail: React.FC = () => {
   const params = useParams<{ id: string }>();
@@ -55,13 +71,29 @@ const ContentDetail: React.FC = () => {
   const [favorited, setFavorited] = useState(false);
   const [readingPercent, setReadingPercent] = useState(0);
   const restoredRef = useRef<string | null>(null);
+  // 同步失败后停止本次阅读会话的后续上报，避免滚动时反复产生失败请求。
+  const readingSyncDisabledRef = useRef(false);
   const { data, loading, error, run } = useRequest(() => fetchContentDetail(id), {
     refreshDeps: [id],
   });
   const detail = data;
+  const categoryLabel = detail?.categoryName || detail?.categorySlug;
+  const layout = initialState?.systemConfig?.layout;
+  const showBreadcrumb = layout?.showBreadcrumb !== false;
+  const readerWidth = readingMaxWidth(layout?.contentReaderWidth);
+  const needsLogin = (error as { response?: { status?: number } } | undefined)?.response?.status === 401;
+  const loginPath = `/user/login?redirect=${encodeURIComponent(`/content/${id}`)}`;
+
+  useEffect(() => {
+    setFavorited(Boolean(detail?.isFavorited));
+  }, [detail?.isFavorited]);
 
   // 小册入口：优先跳上次章节，否则第一章（带 chapterId 的 URL 不经此页）
-  const { data: chapterData } = useRequest(
+  const {
+    data: chapterData,
+    error: chapterError,
+    run: reloadChapters,
+  } = useRequest(
     () => fetchBookletChapters(id),
     { ready: detail?.type === ContentType.Booklet, refreshDeps: [id, detail?.type] },
   );
@@ -81,14 +113,16 @@ const ContentDetail: React.FC = () => {
   useEffect(() => {
     scrollPageToTop();
     restoredRef.current = null;
+    readingSyncDisabledRef.current = false;
   }, [id]);
 
-  // Markdown：滚动进度写入本地 + mock API；进入时恢复 scrollY
+  // Markdown：滚动进度写入本地；登录后才同步 Nest，避免匿名 401 刷屏
   useEffect(() => {
     if (detail?.type !== ContentType.Markdown) return;
 
     const saved = getReadingProgress(detail.id);
     if (saved) setReadingPercent(saved.percent);
+    const loggedIn = Boolean(initialState?.currentUser);
 
     let ticking = false;
     const onScroll = () => {
@@ -99,11 +133,15 @@ const ContentDetail: React.FC = () => {
         const percent = calcScrollPercent(scrollY);
         setReadingPercent(percent);
         setReadingProgress(detail.id, { scrollY, percent });
-        void saveReadingProgress({
-          contentId: detail.id,
-          percent,
-          updatedAt: new Date().toISOString(),
-        });
+        if (loggedIn && !readingSyncDisabledRef.current) {
+          void saveReadingProgress({
+            contentId: detail.id,
+            percent,
+            updatedAt: new Date().toISOString(),
+          }).catch(() => {
+            readingSyncDisabledRef.current = true;
+          });
+        }
         ticking = false;
       });
     };
@@ -115,7 +153,7 @@ const ContentDetail: React.FC = () => {
       const percent = calcScrollPercent(scrollY);
       setReadingProgress(detail.id, { scrollY, percent });
     };
-  }, [detail]);
+  }, [detail, initialState?.currentUser]);
 
   useEffect(() => {
     if (detail?.type !== ContentType.Markdown || loading) return;
@@ -153,14 +191,41 @@ const ContentDetail: React.FC = () => {
 
   return (
     <PublicLayout>
-      {error && <ErrorState title="内容不存在或加载失败" onRetry={run} />}
+      {needsLogin && (
+        <Alert
+          type="info"
+          showIcon
+          title="这篇内容需要登录后查看"
+          action={
+            <Button type="primary" onClick={() => history.push(loginPath)}>
+              去登录
+            </Button>
+          }
+        />
+      )}
+      {error && !needsLogin && <ErrorState title="内容不存在或加载失败" onRetry={run} />}
+      {detail?.type === ContentType.Booklet && chapterError && (
+        <ErrorState title="小册章节加载失败" onRetry={reloadChapters} />
+      )}
       {loading && <SectionSkeleton variant="article" rows={10} />}
       {detail && detail.type !== ContentType.Booklet && (
         <div className="ph-content-detail-layout">
-          <div className="ph-reading ph-content-detail-main">
+          <div
+            className="ph-reading ph-content-detail-main"
+            style={readerWidth ? { maxWidth: readerWidth } : undefined}
+          >
+            {showBreadcrumb && (
+              <Breadcrumb
+                style={{ marginBottom: 12 }}
+                items={[
+                  { title: <Link to="/content">内容中心</Link> },
+                  { title: detail.title },
+                ]}
+              />
+            )}
             <Space style={{ marginBottom: 12 }}>
               <Tag color="blue">{ContentTypeLabel[detail.type]}</Tag>
-              {detail.categorySlug && <Tag>{detail.categorySlug}</Tag>}
+              {categoryLabel && <Tag>{categoryLabel}</Tag>}
               {detail.tags?.map((t) => <Tag key={t}>{t}</Tag>)}
             </Space>
             <Title level={2}>{detail.title}</Title>

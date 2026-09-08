@@ -29,7 +29,7 @@ export default {
   'workspace.usage.remaining': '剩余 Token',
   'workspace.usage.total': '总额度',
   'workspace.usage.progress': '用量进度',
-  'workspace.profile.title': '个人设置',
+  'workspace.profile.title': '个人中心',
   'workspace.sessions.title': '登录设备',
   'workspace.common.save': '保存',
   'workspace.common.cancel': '取消',

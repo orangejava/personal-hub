@@ -4,7 +4,6 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
-import type { RequestAuthContext } from '../../common/types/request-id';
 import { AuthService } from './auth.service';
 import type { AccessTokenPayload } from './token.types';
 
@@ -25,13 +24,38 @@ export class JwtAuthGuard implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) {
+      // 公开读接口允许匿名；有合法 Token 则挂上 auth，便于 LOGIN 正文和收藏态。
+      await this.tryAttachAuth(context.switchToHttp().getRequest<Request>(), {
+        required: false,
+        enforcePasswordChange: false,
+      });
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request>();
+    await this.tryAttachAuth(context.switchToHttp().getRequest<Request>(), {
+      required: true,
+      enforcePasswordChange: true,
+    });
+    return true;
+  }
+
+  /**
+   * required=false 时坏 Token 当匿名，不 401。
+   */
+  private async tryAttachAuth(
+    request: Request,
+    options: { required: boolean; enforcePasswordChange: boolean },
+  ): Promise<void> {
     const token = this.readBearerToken(request.headers.authorization);
     if (token === null) {
-      throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
+      if (options.required) {
+        throw new DomainHttpException(
+          HttpStatus.UNAUTHORIZED,
+          'AUTH_REQUIRED',
+          '未登录或登录已失效',
+        );
+      }
+      return;
     }
 
     let payload: AccessTokenPayload;
@@ -40,7 +64,14 @@ export class JwtAuthGuard implements CanActivate {
         algorithms: ['HS256'],
       });
     } catch {
-      throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
+      if (options.required) {
+        throw new DomainHttpException(
+          HttpStatus.UNAUTHORIZED,
+          'AUTH_REQUIRED',
+          '未登录或登录已失效',
+        );
+      }
+      return;
     }
 
     if (
@@ -49,32 +80,47 @@ export class JwtAuthGuard implements CanActivate {
       typeof payload.av !== 'number' ||
       typeof payload.pv !== 'number'
     ) {
-      throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
+      if (options.required) {
+        throw new DomainHttpException(
+          HttpStatus.UNAUTHORIZED,
+          'AUTH_REQUIRED',
+          '未登录或登录已失效',
+        );
+      }
+      return;
     }
 
-    const session = await this.authService.assertActiveSession({
-      userId: payload.sub,
-      sessionId: payload.sid,
-      authVersion: payload.av,
-      permissionVersion: payload.pv,
-    });
+    try {
+      const session = await this.authService.assertActiveSession({
+        userId: payload.sub,
+        sessionId: payload.sid,
+        authVersion: payload.av,
+        permissionVersion: payload.pv,
+      });
 
-    if (session.mustChangePassword && !this.isAllowedWhileMustChangePassword(request)) {
-      throw new DomainHttpException(
-        HttpStatus.FORBIDDEN,
-        'AUTH_PASSWORD_CHANGE_REQUIRED',
-        '请先修改临时密码后再继续',
-      );
+      if (
+        options.enforcePasswordChange &&
+        session.mustChangePassword &&
+        !this.isAllowedWhileMustChangePassword(request)
+      ) {
+        throw new DomainHttpException(
+          HttpStatus.FORBIDDEN,
+          'AUTH_PASSWORD_CHANGE_REQUIRED',
+          '请先修改临时密码后再继续',
+        );
+      }
+
+      request.auth = {
+        userId: session.userId,
+        sessionId: session.sessionId,
+        authVersion: session.authVersion,
+        permissionVersion: session.permissionVersion,
+      };
+    } catch (error) {
+      if (options.required) {
+        throw error;
+      }
     }
-
-    const auth: RequestAuthContext = {
-      userId: session.userId,
-      sessionId: session.sessionId,
-      authVersion: session.authVersion,
-      permissionVersion: session.permissionVersion,
-    };
-    request.auth = auth;
-    return true;
   }
 
   /**

@@ -14,3 +14,11 @@ export const CurrentAuth = createParamDecorator(
     return request.auth;
   },
 );
+
+/** 公开可选登录：没有 Token 时返回 undefined。 */
+export const OptionalAuth = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): RequestAuthContext | undefined => {
+    const request = context.switchToHttp().getRequest<{ auth?: RequestAuthContext }>();
+    return request.auth;
+  },
+);

@@ -11,6 +11,7 @@ import {
   SYSTEM_CONFIG_GROUPS,
 } from '../src/modules/system/config-registry';
 import { MENU_ROUTE_META } from '../src/modules/system/route-registry';
+import { seedContentTaxonomy, seedSampleContents } from './seed-content';
 
 const prisma = new PrismaClient();
 
@@ -21,6 +22,8 @@ interface SystemMenuDefinition {
   name: string;
   parentRouteKey?: string;
   sortOrder: number;
+  /** 默认可见；配置中心子页可隐式挂在系统管理下，避免侧栏多出入口。 */
+  visible?: boolean;
   permissionCodes: readonly PermissionCode[];
 }
 
@@ -161,7 +164,7 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     routeKey: 'workspace.profile',
     scope: MenuScope.WORKSPACE,
     type: MenuType.INTERNAL,
-    name: '个人设置',
+    name: '个人中心',
     sortOrder: 50,
     permissionCodes: [],
   },
@@ -235,15 +238,6 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     permissionCodes: ['file:read'],
   },
   {
-    routeKey: 'admin.homepage',
-    scope: MenuScope.ADMIN,
-    type: MenuType.INTERNAL,
-    name: '首页配置',
-    parentRouteKey: 'admin.content.group',
-    sortOrder: 60,
-    permissionCodes: ['system:config:manage'],
-  },
-  {
     routeKey: 'admin.ai.group',
     scope: MenuScope.ADMIN,
     type: MenuType.DIRECTORY,
@@ -279,7 +273,7 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     routeKey: 'admin.system.group',
     scope: MenuScope.ADMIN,
     type: MenuType.DIRECTORY,
-    name: '系统',
+    name: '系统管理',
     sortOrder: 40,
     permissionCodes: [],
   },
@@ -317,6 +311,16 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     name: '系统配置',
     parentRouteKey: 'admin.system.group',
     sortOrder: 40,
+    permissionCodes: ['system:config:manage'],
+  },
+  {
+    routeKey: 'admin.homepage',
+    scope: MenuScope.ADMIN,
+    type: MenuType.INTERNAL,
+    name: '首页配置',
+    parentRouteKey: 'admin.system.group',
+    sortOrder: 45,
+    visible: false,
     permissionCodes: ['system:config:manage'],
   },
   {
@@ -430,6 +434,7 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
 
     for (const menu of SYSTEM_MENUS) {
       const meta = MENU_ROUTE_META[menu.routeKey];
+      const visible = menu.visible ?? true;
       await tx.menu.upsert({
         where: { routeKey: menu.routeKey },
         create: {
@@ -440,6 +445,7 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
           localeKey: meta?.localeKey ?? menu.routeKey,
           icon: meta?.icon ?? null,
           sortOrder: menu.sortOrder,
+          visible,
           isSystem: true,
         },
         update: {
@@ -449,7 +455,7 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
           localeKey: meta?.localeKey ?? menu.routeKey,
           icon: meta?.icon ?? null,
           sortOrder: menu.sortOrder,
-          visible: true,
+          visible,
           enabled: true,
           isSystem: true,
           deletedAt: null,
@@ -517,11 +523,13 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
       });
     }
   });
+  await seedContentTaxonomy(client);
 }
 
 async function main(): Promise<void> {
   await runBaselineSeed(prisma);
-  console.info('M1 Auth/RBAC/菜单与 M3 系统配置基线 seed 已完成。');
+  await seedSampleContents(prisma);
+  console.info('M1/M3 基线与内容分类/样例 seed 已完成。');
 }
 
 if (require.main === module) {

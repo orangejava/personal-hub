@@ -2,7 +2,7 @@ import { HeartFilled, HeartOutlined } from '@ant-design/icons';
 import type { ContentItem } from '@personal-hub/shared-types';
 import { history, Link, useModel } from '@umijs/max';
 import { Button, Card, message, Tag } from 'antd';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { favoriteContent, unfavoriteContent } from '@/services/content';
 import ContentTypeTag from '../ContentTypeTag';
 import EllipsisTooltip from '../EllipsisTooltip';
@@ -19,6 +19,22 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
   const [favoriteCount, setFavoriteCount] = useState(item.favoriteCount);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const href = `/content/${item.id}`;
+  const categoryLabel = item.categoryName || item.categorySlug;
+  const compact = initialState?.systemConfig?.layout?.contentCardStyle === 'compact';
+
+  useEffect(() => {
+    setFavorited(Boolean(item.isFavorited));
+    setFavoriteCount(item.favoriteCount);
+  }, [item.favoriteCount, item.id, item.isFavorited]);
+
+  const openDetail = () => {
+    if (item.locked && !initialState?.currentUser) {
+      message.info('登录后可以查看该内容');
+      history.push(`/user/login?redirect=${encodeURIComponent(href)}`);
+      return;
+    }
+    history.push(href);
+  };
 
   const handleFavorite = async (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault();
@@ -46,24 +62,35 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
   return (
     <MotionSurface variant="soft" style={{ width: '100%' }}>
       <Card
-        className="ph-content-card"
+        className={`ph-content-card${compact ? ' ph-content-card-compact' : ''}`}
         hoverable
         cover={
-          <div className="ph-content-card-cover">
-            {item.cover ? (
-              <img alt={item.title} src={item.cover} loading="lazy" />
-            ) : (
-              <div className="ph-content-card-cover-placeholder">
-                <ContentTypeTag type={item.type} />
-              </div>
-            )}
-          </div>
+          compact ? undefined : (
+            <div className="ph-content-card-cover">
+              {item.cover ? (
+                <img alt={item.title} src={item.cover} loading="lazy" />
+              ) : (
+                <div className="ph-content-card-cover-placeholder">
+                  <ContentTypeTag type={item.type} />
+                </div>
+              )}
+            </div>
+          )
         }
-        onClick={() => history.push(href)}
+        onClick={openDetail}
       >
         <Card.Meta
           title={
-            <Link to={href} onClick={(e) => e.stopPropagation()}>
+            <Link
+              to={href}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (item.locked && !initialState?.currentUser) {
+                  e.preventDefault();
+                  openDetail();
+                }
+              }}
+            >
               <EllipsisTooltip title={item.title} lines={1} />
             </Link>
           }
@@ -71,7 +98,8 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
             <div className="ph-content-card-body">
               <div className="ph-content-card-tags">
                 <ContentTypeTag type={item.type} />
-                {item.categorySlug && <Tag>{item.categorySlug}</Tag>}
+                {categoryLabel && <Tag>{categoryLabel}</Tag>}
+                {item.locked && <Tag color="warning">登录可见</Tag>}
               </div>
               <EllipsisTooltip
                 className="ph-content-card-summary"

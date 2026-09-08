@@ -1,4 +1,10 @@
-import type { SystemPublicConfig, ThemeConfig, ThemeMode } from '@personal-hub/shared-types';
+import type {
+  SiteAboutConfig,
+  SiteLayoutConfig,
+  SystemPublicConfig,
+  ThemeConfig,
+  ThemeMode,
+} from '@personal-hub/shared-types';
 import { readNestData, type NestEnvelope } from './http';
 
 export interface NestPublicSiteConfig {
@@ -27,6 +33,8 @@ export interface NestPublicSiteConfig {
   navigation: {
     publicPosition: 'top' | 'left' | 'right';
   };
+  about?: SiteAboutConfig;
+  layout?: SiteLayoutConfig;
   aiEnabled?: boolean;
 }
 
@@ -48,6 +56,24 @@ export function mapPublicSiteConfig(
     fontFamily: themeIn?.fontFamily,
     mode,
   };
+  const layoutIn = payload.layout;
+  const layout: SiteLayoutConfig | undefined = layoutIn
+    ? {
+        homeHeroStyle: layoutIn.homeHeroStyle ?? 'split',
+        contentCardStyle: layoutIn.contentCardStyle ?? 'cover',
+        contentReaderWidth: layoutIn.contentReaderWidth ?? 'comfortable',
+        showBreadcrumb: layoutIn.showBreadcrumb ?? true,
+        projectsTitle: layoutIn.projectsTitle,
+        projectsIntro: layoutIn.projectsIntro,
+      }
+    : undefined;
+  const aboutIn = payload.about;
+  const about: SiteAboutConfig | undefined = aboutIn
+    ? {
+        title: aboutIn.title ?? '关于我',
+        markdown: aboutIn.markdown ?? '',
+      }
+    : undefined;
   return {
     siteName: payload.siteName,
     siteDescription: payload.siteDescription,
@@ -56,5 +82,7 @@ export function mapPublicSiteConfig(
     navigation: payload.navigation?.publicPosition ?? 'top',
     theme,
     aiEnabled: payload.aiEnabled,
+    about,
+    layout,
   };
 }

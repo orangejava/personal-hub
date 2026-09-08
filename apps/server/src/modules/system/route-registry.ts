@@ -140,6 +140,30 @@ export const MENU_ROUTE_OPTIONS: readonly MenuRouteOption[] = [
     icon: 'home',
     scopes: ['ADMIN'],
   },
+  {
+    routeKey: 'admin.system.site',
+    localeKey: 'admin.system.site',
+    icon: 'fileText',
+    scopes: ['ADMIN'],
+  },
+  {
+    routeKey: 'admin.system.content',
+    localeKey: 'admin.system.content',
+    icon: 'appstore',
+    scopes: ['ADMIN'],
+  },
+  {
+    routeKey: 'admin.system.about',
+    localeKey: 'admin.system.about',
+    icon: 'user',
+    scopes: ['ADMIN'],
+  },
+  {
+    routeKey: 'admin.system.projects',
+    localeKey: 'admin.system.projects',
+    icon: 'project',
+    scopes: ['ADMIN'],
+  },
   { routeKey: 'admin.ai.group', localeKey: 'admin.ai.group', icon: 'robot', scopes: ['ADMIN'] },
   {
     routeKey: 'admin.ai.config',

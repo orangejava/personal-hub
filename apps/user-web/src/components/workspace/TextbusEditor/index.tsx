@@ -46,9 +46,16 @@ const TextbusEditor = React.forwardRef<TextbusEditorHandle, TextbusEditorProps>(
         editor.destroy();
         editorRef.current = null;
       };
-    }, [initialHtml, minHeight, readonly]);
+    // 高度由外层 React 样式接管；切换全屏不能销毁重建编辑器，否则未保存内容会丢失。
+    }, [initialHtml, readonly]);
 
-    return <div ref={hostRef} className="ph-textbus-editor" />;
+    return (
+      <div
+        ref={hostRef}
+        className="ph-textbus-editor"
+        style={{ minHeight }}
+      />
+    );
   },
 );
 

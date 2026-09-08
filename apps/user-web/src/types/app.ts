@@ -34,6 +34,12 @@ export interface InitialState {
   systemConfig?: SystemPublicConfig;
   /** 工作区 SettingDrawer 开关 */
   workspaceSettingDrawerOpen?: boolean;
+  /** Markdown / 富文本编辑时隐藏工作区框架，退出页面自动恢复。 */
+  workspaceEditorFullscreen?: boolean;
+  /** 工作区目录菜单的展开项；全屏切换和编辑路由跳转都不能重置它。 */
+  workspaceMenuOpenKeys?: string[];
+  /** 工作区侧栏是否收成图标模式；与菜单组 openKeys、编辑全屏互不影响。 */
+  workspaceSiderCollapsed?: boolean;
   /** 公开前台主题抽屉开关 */
   publicSettingDrawerOpen?: boolean;
   /**

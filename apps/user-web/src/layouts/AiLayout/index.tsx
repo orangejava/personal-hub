@@ -343,7 +343,7 @@ const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText }) => {
     <Popover
       arrow={false}
       content={card}
-      overlayClassName="ph-ai-user-popover"
+      classNames={{ root: 'ph-ai-user-popover' }}
       placement="bottomRight"
       trigger={['hover', 'click']}
     >

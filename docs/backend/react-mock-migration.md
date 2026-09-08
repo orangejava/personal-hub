@@ -49,7 +49,7 @@
 
 | 当前 Service/Mock                        | Canonical Nest                                              |
 | ---------------------------------------- | ----------------------------------------------------------- |
-| `GET /api/contents`                      | `GET /api/v1/public/contents`，使用 `categorySlug/tagSlugs` |
+| `GET /api/contents`                      | `GET /api/v1/public/contents`，使用 `categorySlug/tagSlugs`（M4 已接） |
 | `GET /api/contents/:id`                  | `GET /api/v1/public/contents/:contentId`                    |
 | `GET /api/contents/:id/chapters*`        | `GET /api/v1/public/contents/:contentId/chapters*`          |
 | `GET /api/contents/meta`                 | `GET /api/v1/public/contents/meta`                          |
@@ -96,7 +96,7 @@
 | 管理端按 `role === admin`         | API 使用权限 Guard；前端仅做体验性显示                           |
 | `PUT /admin/menus` 全树覆盖       | 菜单 UUID 单项 POST/PATCH/DELETE + `/sort`                       |
 | `/admin/system/config` 等多套路径 | `/admin/system-configs`，按 group 原子更新（M3 已接）            |
-| `/admin/homepage` 独立配置        | `system_configs` 的 `site.homepage`（M3 已接）                   |
+| `/admin/homepage` 独立配置        | `system_configs` 的 `site.homepage`（页面现为 `/admin/system/homepage`，旧路径重定向） |
 | `GET /api/system/config/public`   | `GET /api/v1/public/site-config`（M3 已接）                      |
 | 公开顶栏写死 `publicMenu.ts`      | `GET /api/v1/public/navigation`，失败时 fallback                 |
 | `/admin/ai/config` 聚合读写       | 聚合只读；写入拆为 provider/model/tool/template/entitlement 资源 |

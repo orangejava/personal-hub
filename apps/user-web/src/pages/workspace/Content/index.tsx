@@ -34,6 +34,17 @@ const visibilityValueEnum = Object.fromEntries(
   ]),
 );
 
+/** 仅 Markdown 与富文本有当前阶段可编辑的工作区页面。 */
+function getContentEditorPath(type: ContentType, id: string): string | undefined {
+  if (type === ContentType.Markdown) {
+    return `/workspace/markdown/${id}`;
+  }
+  if (type === ContentType.RichText) {
+    return `/workspace/richtext/${id}`;
+  }
+  return undefined;
+}
+
 /** 文档管理：我的内容表格 + 状态展示 + 发布/归档/删除（mock） */
 const Content: React.FC = () => {
   const intl = useIntl();
@@ -74,11 +85,6 @@ const Content: React.FC = () => {
               {intl.formatMessage({ id: 'workspace.content.new' })}
             </Button>
           </Link>
-          <Link to="/workspace/markdown">
-            <Button>
-              {intl.formatMessage({ id: 'workspace.markdown.newTitle' })}
-            </Button>
-          </Link>
         </Space>
       }
     >
@@ -115,7 +121,10 @@ const Content: React.FC = () => {
           {
             title: '标题',
             dataIndex: 'title',
-            render: (_, r) => <Link to={`/content/${r.id}`}>{r.title}</Link>,
+            render: (_, r) => {
+              const path = getContentEditorPath(r.type as ContentType, r.id);
+              return path ? <Link to={path}>{r.title}</Link> : r.title;
+            },
           },
           {
             title: '类型',
@@ -131,7 +140,12 @@ const Content: React.FC = () => {
               <Tag color="blue">{ContentTypeLabel[r.type as ContentType]}</Tag>
             ),
           },
-          { title: '分类', dataIndex: 'categorySlug' },
+          {
+            title: '分类',
+            dataIndex: 'categorySlug',
+            search: false,
+            render: (_, r) => r.categoryName || r.categorySlug || '-',
+          },
           {
             title: '可见性',
             dataIndex: 'visibility',
@@ -170,22 +184,18 @@ const Content: React.FC = () => {
               const isPublished = status === ContentStatus.Published;
               const isArchived = status === ContentStatus.Archived;
               const operating = operatingId === r.id;
-              const editPath =
-                r.type === ContentType.RichText
-                  ? `/workspace/richtext/${r.id}`
-                  : r.type === ContentType.Markdown
-                    ? `/workspace/markdown/${r.id}`
-                    : `/content/${r.id}`;
+              const editPath = getContentEditorPath(r.type as ContentType, r.id);
               return [
-                <a key="edit" onClick={() => history.push(editPath)}>
-                  {r.type === ContentType.Markdown ||
-                  r.type === ContentType.RichText
-                    ? '编辑'
-                    : '查看'}
-                </a>,
-                <a key="view" onClick={() => history.push(`/content/${r.id}`)}>
-                  查看
-                </a>,
+                editPath && (
+                  <a key="edit" onClick={() => history.push(editPath)}>
+                    编辑
+                  </a>
+                ),
+                isPublished && (
+                  <a key="view" onClick={() => history.push(`/content/${r.id}`)}>
+                    查看
+                  </a>
+                ),
                 !isPublished && (
                   <a
                     key="publish"
@@ -206,11 +216,11 @@ const Content: React.FC = () => {
                 ),
                 isArchived && (
                   <a
-                    key="restore"
+                    key="publish"
                     aria-disabled={operating}
-                    onClick={() => toggleStatus(r.id, ContentStatus.Draft)}
+                    onClick={() => toggleStatus(r.id, ContentStatus.Published)}
                   >
-                    {operating ? '处理中' : '还原草稿'}
+                    {operating ? '处理中' : '重新发布'}
                   </a>
                 ),
                 <Popconfirm

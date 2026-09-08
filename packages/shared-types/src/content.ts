@@ -60,7 +60,10 @@ export interface ContentItem {
   type: ContentType;
   summary: string;
   cover?: string;
+  /** 分类 slug，筛选与写接口使用，不作为默认展示文案。 */
   categorySlug?: string;
+  /** 分类展示名；列表/卡片优先显示该字段。 */
+  categoryName?: string;
   tags?: string[];
   viewCount: number;
   favoriteCount: number;
@@ -80,6 +83,12 @@ export interface ContentItem {
   createdAt?: string;
   /** 最近更新时间，工作区列表优先展示该字段。 */
   updatedAt?: string;
+  /** 公开列表中 LOGIN 内容对访客锁定，详情需登录。 */
+  locked?: boolean;
+  /** 当前登录用户是否已收藏。 */
+  isFavorited?: boolean;
+  /** 是否精选；公开首页与后台运营使用。 */
+  isFeatured?: boolean;
 }
 
 /** 内容详情 */

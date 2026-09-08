@@ -25,7 +25,7 @@ export const AvatarDropdown: React.FC<AvatarDropdownProps> = ({ children }) => {
     Boolean(initialState?.currentUser?.permissions?.includes('admin:access'));
 
   const menuItems: MenuProps['items'] = [
-    { key: 'profile', icon: <SettingOutlined />, label: '个人设置' },
+    { key: 'profile', icon: <SettingOutlined />, label: '个人中心' },
     ...(isAdmin
       ? [
           {

@@ -8,7 +8,7 @@ import { Card, message } from 'antd';
 import React, { useState } from 'react';
 import { PageContainer } from '@/components/shared';
 
-/** 个人设置：基础资料 mock 编辑 */
+/** 个人中心：基础资料 mock 编辑 */
 const Profile: React.FC = () => {
   const intl = useIntl();
   const { initialState } = useModel('@@initialState');

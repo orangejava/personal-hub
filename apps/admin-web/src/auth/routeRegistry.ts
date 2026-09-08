@@ -118,9 +118,29 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
     icon: 'cloudUpload',
   },
   'admin.homepage': {
-    path: '/admin/homepage',
+    path: '/admin/system/homepage',
     name: 'admin.homepage',
     icon: 'home',
+  },
+  'admin.system.site': {
+    path: '/admin/system/site',
+    name: 'admin.system.site',
+    icon: 'fileText',
+  },
+  'admin.system.content': {
+    path: '/admin/system/content',
+    name: 'admin.system.content',
+    icon: 'appstore',
+  },
+  'admin.system.about': {
+    path: '/admin/system/about',
+    name: 'admin.system.about',
+    icon: 'user',
+  },
+  'admin.system.projects': {
+    path: '/admin/system/projects',
+    name: 'admin.system.projects',
+    icon: 'project',
   },
   'admin.ai.group': {
     path: '/admin/ai',

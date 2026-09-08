@@ -24,6 +24,20 @@
 | 阶段 0 Express 运行底座 | ✅ 已完成 | 2026-08-09 | [nest-server-bootstrap.md](../../apps/server/docs/implementation/foundation/nest-server-bootstrap.md) | [阶段 0 学习](../../study/features/nest-server-bootstrap.md) · [问题复盘](../../study/features/nest-stage0-retrospective.md) · [面试题](../../study/interview/nest-phase-0-bootstrap.md) |
 | M1 身份/RBAC/菜单数据基线 | ✅ 已完成 | 2026-08-09 | [auth-rbac-menu-baseline.md](../../apps/server/docs/implementation/auth/auth-rbac-menu-baseline.md) | — |
 | M2 Auth HTTP + React 登录切片 | ✅ 第 1–8 刀已落地 | 2026-08-22 | [切片划分](../../apps/server/docs/implementation/auth/README.md) · [登录](../../apps/server/docs/implementation/auth/auth-login-slice.md) · [权限](../../apps/server/docs/implementation/auth/auth-permissions-slice.md) · [注册](../../apps/server/docs/implementation/auth/auth-register-slice.md) · [验证码](../../apps/server/docs/implementation/auth/auth-captcha-slice.md) · [会话](../../apps/server/docs/implementation/auth/auth-sessions-slice.md) · [改密](../../apps/server/docs/implementation/auth/auth-change-password-slice.md) · [忘记密码](../../apps/server/docs/implementation/auth/auth-forgot-password-slice.md) · [后台踢人](../../apps/server/docs/implementation/auth/auth-admin-sessions-slice.md) | [登录](../../study/features/nest-auth-login-slice.md) · [权限菜单](../../study/features/nest-auth-permissions.md) · [注册验证](../../study/features/nest-auth-register.md) · [验证码/会话/改密](../../study/features/nest-auth-captcha-sessions-password.md) |
+| M3 系统配置与菜单 | ✅ 3.1–3.3 已落地 | 2026-08-31 | [切片划分](../../apps/server/docs/implementation/system/README.md) | [类型化配置与幂等](../../study/features/nest-system-config-menu.md) |
+| M4 内容域 | ✅ 4.1–4.5 已落地 | 2026-09-07 | [切片划分](../../apps/server/docs/implementation/content/README.md) | [可见性与枚举映射](../../study/features/nest-content-domain.md) |
+
+### Nest M3 系统配置与菜单
+
+- 匿名首页读取 `GET /api/v1/public/site-config`、`GET /api/v1/public/navigation`；公开顶栏展示菜单 `name`（中文），失败才 fallback `publicMenu.ts`。
+- 后台可按组 `PUT /api/v1/admin/system-configs/:group`（`Idempotency-Key` + `version`）；菜单 UUID CRUD / 排序 / `route-options`；改菜单后权限快照按世代失效。
+- Logo 真文件、About Markdown 接线、左/右导航 UI、配置草稿/回滚不在本阶段。
+
+### Nest M4 内容域
+
+- 匿名首页/内容中心读 `GET /api/v1/public/contents*`；LOGIN 锁定卡片，详情未登录 `401 AUTH_REQUIRED`。
+- 工作区 Markdown / 外链 / 项目可创建、发布、归档、软删；收藏与阅读进度只要求登录。
+- 后台可跨作者列表、精选、分类/标签 CRUD。ZIP、封面真文件、章节正文仍后置。
 
 ### Nest 阶段 0 Express 运行底座
 

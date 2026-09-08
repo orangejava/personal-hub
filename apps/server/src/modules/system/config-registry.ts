@@ -110,6 +110,9 @@ export const siteLayoutSchema = z.object({
   contentCardStyle: z.enum(['cover', 'compact']),
   contentReaderWidth: z.enum(['narrow', 'comfortable', 'wide']),
   showBreadcrumb: z.boolean(),
+  /** 公开项目页标题；放 layout 组避免再开一组配置。 */
+  projectsTitle: z.string().max(80),
+  projectsIntro: longText,
 });
 
 export const aiBrandingSchema = z.object({
@@ -225,6 +228,8 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     contentCardStyle: 'cover',
     contentReaderWidth: 'comfortable',
     showBreadcrumb: true,
+    projectsTitle: '项目',
+    projectsIntro: '',
   } satisfies SiteLayout,
   'ai.branding': {
     aiEnabled: false,

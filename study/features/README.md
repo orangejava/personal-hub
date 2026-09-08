@@ -54,3 +54,5 @@
 - [nest-auth-register.md](./nest-auth-register.md)：公开注册、Mailpit 邮件链接验证与验证赠额幂等。
 - [nest-auth-captcha-sessions-password.md](./nest-auth-captcha-sessions-password.md)：登录验证码、设备会话、强制改密、忘记密码与后台踢人。
 - [nest-system-config-menu.md](./nest-system-config-menu.md)：类型化系统配置、公开导航与 HTTP 幂等。
+- [admin-system-config-hub.md](./admin-system-config-hub.md)：后台系统配置中心、配置组 merge 与公开页接线。
+- [nest-content-domain.md](./nest-content-domain.md)：内容域可见性、枚举映射与公开读。

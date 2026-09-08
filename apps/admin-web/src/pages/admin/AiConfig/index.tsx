@@ -23,7 +23,7 @@ import {
   Tag,
   Button,
 } from 'antd';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import {
   createAdminAiModelConfig,
@@ -100,10 +100,46 @@ const AiConfig: React.FC = () => {
     [data?.providers],
   );
 
+  /** Drawer 内 Form 挂载后再回填，避免 destroyOnHidden 导致 useForm 未连接。 */
+  useEffect(() => {
+    if (editingBranding) {
+      brandingForm.setFieldsValue(editingBranding);
+    }
+  }, [editingBranding, brandingForm]);
+
+  useEffect(() => {
+    if (editingProvider) {
+      providerForm.setFieldsValue({ ...editingProvider, apiKey: undefined });
+    }
+  }, [editingProvider, providerForm]);
+
+  useEffect(() => {
+    if (creatingModel) {
+      modelForm.setFieldsValue({
+        enabled: true,
+        visibleToUser: true,
+        isDefault: false,
+        contextTokens: 8192,
+        inputPricePer1k: 0,
+        outputPricePer1k: 0,
+        toolTypes: ['chat'],
+      });
+      return;
+    }
+    if (editingModel) {
+      modelForm.setFieldsValue(editingModel);
+    }
+  }, [creatingModel, editingModel, modelForm]);
+
+  useEffect(() => {
+    if (editingTool) {
+      toolForm.setFieldsValue(editingTool);
+    }
+  }, [editingTool, toolForm]);
+
   const openBrandingDrawer = () => {
     if (!data?.branding) return;
     setEditingBranding(data.branding);
-    brandingForm.setFieldsValue(data.branding);
   };
 
   const closeBrandingDrawer = () => {
@@ -149,7 +185,6 @@ const AiConfig: React.FC = () => {
 
   const openProviderDrawer = (provider: AdminAiProviderConfig) => {
     setEditingProvider(provider);
-    providerForm.setFieldsValue({ ...provider, apiKey: undefined });
   };
 
   const closeProviderDrawer = () => {
@@ -160,21 +195,11 @@ const AiConfig: React.FC = () => {
   const openModelDrawer = (model: AdminAiModelConfig) => {
     setCreatingModel(false);
     setEditingModel(model);
-    modelForm.setFieldsValue(model);
   };
 
   const openCreateModelDrawer = () => {
     setCreatingModel(true);
     setEditingModel(null);
-    modelForm.setFieldsValue({
-      enabled: true,
-      visibleToUser: true,
-      isDefault: false,
-      contextTokens: 8192,
-      inputPricePer1k: 0,
-      outputPricePer1k: 0,
-      toolTypes: ['chat'],
-    });
   };
 
   const closeModelDrawer = () => {
@@ -185,7 +210,6 @@ const AiConfig: React.FC = () => {
 
   const openToolDrawer = (tool: AdminAiToolConfig) => {
     setEditingTool(tool);
-    toolForm.setFieldsValue(tool);
   };
 
   const closeToolDrawer = () => {

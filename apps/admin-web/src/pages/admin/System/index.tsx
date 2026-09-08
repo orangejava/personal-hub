@@ -1,70 +1,58 @@
-import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
-import { useRequest } from '@/hooks/useRequest';
-import { useModel } from '@umijs/max';
-import { Card, message } from 'antd';
-import React, { useState } from 'react';
-import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
-import { fetchAdminSystemConfig, updateAdminSystemConfig } from '@/services/admin';
-import { fetchPublicConfig } from '@/services/system';
+import { history } from '@umijs/max';
+import { Card, Col, Row, Typography } from 'antd';
+import React from 'react';
+import { PageContainer } from '@/components/shared';
 
-/** 系统配置：站点名等，保存后刷新 initialState */
+const { Paragraph } = Typography;
+
+const CONFIG_HUB_CARDS = [
+  {
+    path: '/admin/system/site',
+    title: '站点配置',
+    description: '站点名称、描述等公开身份信息。',
+  },
+  {
+    path: '/admin/system/homepage',
+    title: '首页配置',
+    description: 'Hero、模块显隐、精选内容和首页推荐区块。',
+  },
+  {
+    path: '/admin/system/content',
+    title: '内容中心配置',
+    description: '内容卡片样式、阅读页宽度和面包屑。',
+  },
+  {
+    path: '/admin/system/about',
+    title: '关于我配置',
+    description: '关于我页面的标题与 Markdown。',
+  },
+  {
+    path: '/admin/system/projects',
+    title: '项目配置',
+    description: '项目页标题与简介文案。',
+  },
+] as const;
+
+/** 系统配置中心：只放按公开页面拆开的展示配置，不把 AI 管理或主题配置收进来。 */
 const System: React.FC = () => {
-  const { setInitialState } = useModel('@@initialState');
-  const [saving, setSaving] = useState(false);
-  const { data, loading, error, run } = useRequest(fetchAdminSystemConfig);
-  const formValues = data;
-
-  const syncPublicConfig = async () => {
-    const config = await fetchPublicConfig();
-    if (config) {
-      setInitialState((s) => ({ ...s, systemConfig: config }));
-    }
+  const openCard = (path: string) => {
+    history.push(path);
   };
-
-  if (loading && !data) {
-    return (
-      <PageContainer title="系统配置">
-        <SectionSkeleton variant="form" count={3} />
-      </PageContainer>
-    );
-  }
-
-  if (error) {
-    return (
-      <PageContainer title="系统配置">
-        <ErrorState title="系统配置加载失败" onRetry={run} />
-      </PageContainer>
-    );
-  }
 
   return (
     <PageContainer title="系统配置">
-      <Card>
-        <ProForm
-          initialValues={formValues ?? {}}
-          onFinish={async (values) => {
-            setSaving(true);
-            try {
-              await updateAdminSystemConfig(values);
-              message.success('已保存，公开前台将读取最新配置');
-              await syncPublicConfig();
-              return true;
-            } catch {
-              return false;
-            } finally {
-              setSaving(false);
-            }
-          }}
-          submitter={{
-            submitButtonProps: { loading: saving },
-          }}
-        >
-          <ProFormText name="siteName" label="站点名称" rules={[{ required: true }]} />
-          <ProFormTextArea name="siteDescription" label="站点描述" />
-          <ProFormText name="heroTitle" label="首页 Hero 标题" />
-          <ProFormText name="heroSubtitle" label="首页 Hero 副标题" />
-        </ProForm>
-      </Card>
+      <Paragraph type="secondary" style={{ marginTop: 0 }}>
+        按公开前台页面拆开维护展示配置。厂商模型、主题色仍在侧栏的「AI 管理」和「主题配置」。
+      </Paragraph>
+      <Row gutter={[16, 16]}>
+        {CONFIG_HUB_CARDS.map((card) => (
+          <Col xs={24} md={12} xl={8} key={card.path}>
+            <Card hoverable onClick={() => openCard(card.path)}>
+              <Card.Meta title={card.title} description={card.description} />
+            </Card>
+          </Col>
+        ))}
+      </Row>
     </PageContainer>
   );
 };

@@ -4,7 +4,7 @@ import type { AdminMenuConfig, MenuItem } from '@personal-hub/shared-types';
 
 import { Alert, Button, Card, Col, Drawer, Form, message, Row, Space, Tabs, Tag, Tree } from 'antd';
 import type { DataNode } from 'antd/es/tree';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import { fetchAdminMenuConfig, updateAdminMenuItem } from '@/services/admin';
 
@@ -80,6 +80,17 @@ const Menus: React.FC = () => {
     },
   });
 
+  /** Drawer 打开且 Form 挂载后再回填，避免 useForm 未连接警告。 */
+  useEffect(() => {
+    if (!editing) {
+      return;
+    }
+    form.setFieldsValue({
+      ...editing.item,
+      permissionsText: editing.item.permissions?.join(',') ?? '',
+    });
+  }, [editing, form]);
+
   const tabs = useMemo(
     () =>
       (Object.keys(scopeLabels) as MenuScope[]).map((scope) => ({
@@ -113,10 +124,6 @@ const Menus: React.FC = () => {
                         type="link"
                         onClick={() => {
                           setEditing({ scope, path: item.path, item });
-                          form.setFieldsValue({
-                            ...item,
-                            permissionsText: item.permissions?.join(',') ?? '',
-                          });
                         }}
                       >
                         编辑
@@ -159,6 +166,7 @@ const Menus: React.FC = () => {
     >
       <Tabs items={tabs} />
       <Drawer
+        forceRender
         title="编辑菜单项"
         open={!!editing}
         size={420}

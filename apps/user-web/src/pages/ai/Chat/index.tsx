@@ -367,7 +367,9 @@ const AiChatPage: React.FC = () => {
                   <Tag color="blue">引用内容</Tag>
                   <Link to={`/content/${quotedContent.id}`}>{quotedContent.title}</Link>
                   <Tag>{ContentTypeLabel[quotedContent.type]}</Tag>
-                  {quotedContent.categorySlug && <Tag>{quotedContent.categorySlug}</Tag>}
+                  {(quotedContent.categoryName || quotedContent.categorySlug) && (
+                    <Tag>{quotedContent.categoryName || quotedContent.categorySlug}</Tag>
+                  )}
                 </Space>
               ) : (
                 <Space wrap>

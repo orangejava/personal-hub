@@ -1,4 +1,4 @@
-import { Link, history } from '@umijs/max';
+import { Link, history, useModel } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, Col, Row, Typography } from 'antd';
 import React from 'react';
@@ -8,8 +8,14 @@ import { fetchFeatured, fetchContentMeta } from '@/services/content';
 
 const { Title, Paragraph } = Typography;
 
-/** 首页：Hero + 精选内容 + 分类入口 + AI 占位 */
+/** 首页：Hero 文案与排版来自公开系统配置，精选内容仍走内容接口。 */
 const Home: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const heroTitle =
+    initialState?.systemConfig?.heroTitle?.trim() || '把知识沉淀成可复用的资产';
+  const heroSubtitle =
+    initialState?.systemConfig?.heroSubtitle?.trim() || '内容阅读 · 内容生产 · AI 工具，一站完成';
+  const heroStyle = initialState?.systemConfig?.layout?.homeHeroStyle ?? 'split';
   const { data, loading, error } = useRequest(fetchFeatured);
   const featured = data ?? [];
   const { data: meta } = useRequest(fetchContentMeta);
@@ -18,12 +24,12 @@ const Home: React.FC = () => {
   return (
     <PublicLayout>
       {/* Hero */}
-      <Card className="ph-home-hero">
+      <Card className={`ph-home-hero ph-home-hero-${heroStyle}`}>
         <Title level={2} style={{ marginTop: 0 }}>
-          把知识沉淀成可复用的资产
+          {heroTitle}
         </Title>
         <Paragraph type="secondary" style={{ fontSize: 16 }}>
-          内容阅读 · 内容生产 · AI 工具，一站完成
+          {heroSubtitle}
         </Paragraph>
         <Button type="primary" onClick={() => history.push('/content')}>
           浏览内容

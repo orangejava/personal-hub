@@ -1,5 +1,5 @@
 /**
- * 工作区服务
+ * 工作区服务。文档/收藏/统计走 Nest；AI 与本地小册仍打旧路径。
  */
 import { request } from '@umijs/max';
 import type {
@@ -10,13 +10,26 @@ import type {
   ContinueReading,
   WorkspaceUsage,
 } from '@personal-hub/shared-types';
+import {
+  mapNestContentDetail,
+  mapNestContentPage,
+  toNestContentStatus,
+  toNestContentType,
+  toNestContentVisibility,
+  type NestContentDetail,
+  type NestContentPage,
+} from './mapNestContent';
+
+function newIdempotencyKey(): string {
+  return crypto.randomUUID();
+}
 
 export async function fetchWorkspaceStats() {
-  return request<WorkspaceStats>('/api/workspace/stats');
+  return request<WorkspaceStats>('/api/v1/app/dashboard');
 }
 
 export async function fetchContinueReading() {
-  return request<ContinueReading[]>('/api/workspace/continue-reading');
+  return request<ContinueReading[]>('/api/v1/app/reading-records/recent');
 }
 
 export async function fetchMyContents(params: {
@@ -27,37 +40,108 @@ export async function fetchMyContents(params: {
   status?: string;
   visibility?: string;
 }) {
-  return request<PaginationResult<ContentItem>>('/api/workspace/contents', {
-    params,
+  const res = await request<NestContentPage>('/api/v1/app/contents', {
+    params: {
+      page: params.page,
+      pageSize: params.pageSize,
+      keyword: params.title || undefined,
+      types: toNestContentType(params.type),
+      lifecycle: toNestContentStatus(params.status),
+      visibility: toNestContentVisibility(params.visibility),
+    },
   });
+  return mapNestContentPage(res);
+}
+
+export async function fetchAppContent(id: string) {
+  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}`);
+  return mapNestContentDetail(res);
+}
+
+function nestWritePayload(data: Record<string, unknown>, options?: { includeType?: boolean }) {
+  const type = toNestContentType(typeof data.type === 'string' ? data.type : undefined);
+  const visibility = toNestContentVisibility(
+    typeof data.visibility === 'string' ? data.visibility : undefined,
+  );
+  const markdownSource =
+    typeof data.markdownSource === 'string'
+      ? data.markdownSource
+      : typeof data.body === 'string' && type !== 'RICH_TEXT'
+        ? data.body
+        : undefined;
+  const editorDocument =
+    data.editorDocument && typeof data.editorDocument === 'object'
+      ? data.editorDocument
+      : type === 'RICH_TEXT' && typeof data.body === 'string'
+        ? { html: data.body }
+        : undefined;
+  return {
+    ...(options?.includeType && type ? { type } : {}),
+    ...(typeof data.title === 'string' ? { title: data.title } : {}),
+    ...(typeof data.summary === 'string' ? { summary: data.summary } : {}),
+    ...(typeof data.categorySlug === 'string' && data.categorySlug
+      ? { categorySlug: data.categorySlug }
+      : {}),
+    ...(visibility ? { visibility } : {}),
+    ...(markdownSource !== undefined ? { markdownSource } : {}),
+    ...(editorDocument !== undefined ? { editorDocument } : {}),
+    ...(typeof data.externalUrl === 'string' ? { externalUrl: data.externalUrl } : {}),
+    ...(Array.isArray(data.tagNames) ? { tagNames: data.tagNames } : {}),
+  };
 }
 
 export async function createContent(data: Record<string, unknown>) {
-  return request<ContentItem>('/api/workspace/contents', {
+  const type =
+    toNestContentType(typeof data.type === 'string' ? data.type : undefined) ?? 'MARKDOWN';
+  const res = await request<NestContentDetail>('/api/v1/app/contents', {
     method: 'POST',
-    data,
+    data: { ...nestWritePayload({ ...data, type }, { includeType: true }), type },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
+  // 创建与发布分两步：调用方须先记住草稿 ID，发布失败时才能继续保存同一篇内容。
+  return mapNestContentDetail(res);
 }
 
 export async function updateContent(id: string, data: Record<string, unknown>) {
-  return request<ContentItem>(`/api/workspace/contents/${id}`, {
-    method: 'PUT',
-    data,
+  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}`, {
+    method: 'PATCH',
+    data: nestWritePayload(data),
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
+  return mapNestContentDetail(res);
 }
 
-/** 切换内容状态（发布 / 归档 / 草稿），mock 阶段只改内存状态 */
+export async function publishContent(id: string) {
+  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}/publish`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+  return mapNestContentDetail(res);
+}
+
+export async function archiveContent(id: string) {
+  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}/archive`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+  return mapNestContentDetail(res);
+}
+
+/** 发布 / 归档走独立 POST；已归档内容再次发布，而不是改回草稿。 */
 export async function setContentStatus(id: string, status: string) {
-  return request<ContentItem>(`/api/workspace/contents/${id}`, {
-    method: 'PUT',
-    data: { status },
-  });
+  if (status === 'published' || status === 'PUBLISHED') {
+    return publishContent(id);
+  }
+  if (status === 'archived' || status === 'ARCHIVED') {
+    return archiveContent(id);
+  }
+  return fetchAppContent(id);
 }
 
-/** 删除内容（mock 阶段从内存列表移除） */
 export async function deleteContent(id: string) {
-  return request<{ id: string }>(`/api/workspace/contents/${id}`, {
+  return request<{ id: string }>(`/api/v1/app/contents/${id}`, {
     method: 'DELETE',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
@@ -68,9 +152,10 @@ export async function fetchLocalBooklets() {
 }
 
 export async function fetchFavorites(params: { page?: number; pageSize?: number }) {
-  return request<PaginationResult<ContentItem>>('/api/workspace/favorites', {
+  const res = await request<NestContentPage>('/api/v1/app/favorites', {
     params,
   });
+  return mapNestContentPage(res);
 }
 
 export async function fetchUsage() {
@@ -112,3 +197,5 @@ export async function batchDeleteWorkspaceAiHistory(ids: string[]) {
     { method: 'POST', data: { ids } },
   );
 }
+
+export type { ContentItem };

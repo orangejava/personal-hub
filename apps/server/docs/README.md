@@ -10,3 +10,4 @@ Nest 工程约定与已落地切片。跨端 HTTP/数据契约仍在仓库根 `d
 | [implementation/foundation/nest-server-bootstrap.md](./implementation/foundation/nest-server-bootstrap.md) | 阶段 0 实现说明 |
 | [implementation/auth/README.md](./implementation/auth/README.md) | M2 Auth 切片 |
 | [implementation/system/README.md](./implementation/system/README.md) | M3 系统配置与菜单 |
+| [implementation/content/README.md](./implementation/content/README.md) | M4 内容域 4.1–4.5 |

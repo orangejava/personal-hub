@@ -1,6 +1,7 @@
 import { PrismaClient, RoleCode, UserStatus } from '@prisma/client';
 import { normalizeEmail } from '../modules/auth/email';
 import { assertPasswordPolicy, hashPassword } from '../modules/auth/password';
+import { seedContentTaxonomy, seedSampleContents } from '../../prisma/seed-content';
 
 /**
  * 仅本地开发使用的固定登录账号，权威记录见 docs/engineering/dev-credentials.md。
@@ -155,6 +156,8 @@ async function main(): Promise<void> {
   const prisma = new PrismaClient();
   try {
     const result = await seedLocalDevUsers(prisma, nodeEnv);
+    await seedContentTaxonomy(prisma);
+    await seedSampleContents(prisma);
     console.info(
       `本地开发账号已就绪：${result.emails.join('、')}。密码见 docs/engineering/dev-credentials.md。`,
     );

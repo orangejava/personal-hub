@@ -44,6 +44,53 @@ enum AuditCategory {
   SECURITY
   QUOTA
   SYSTEM
+  CONTENT
+  FILE
+}
+
+enum ContentType {
+  MARKDOWN
+  RICH_TEXT
+  BOOKLET
+  PDF
+  WORD
+  LINK
+  PROJECT
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentVisibility {
+  PUBLIC
+  LOGIN
+  PRIVATE
+}
+
+enum ContentSourceType {
+  MANUAL
+  UPLOAD
+  IMPORT
+}
+
+enum ImportSource {
+  JUEJIN
+  LOCAL
+  MANUAL
+}
+
+enum ImportRestriction {
+  NONE
+  PRIVATE_UNTIL_LICENSED
+}
+
+enum ContentVersionReason {
+  PUBLISH_SNAPSHOT
+  RESTORE_SNAPSHOT
+  IMPORT_SNAPSHOT
 }
 
 enum AuditResult {
@@ -88,6 +135,12 @@ model User {
   auditLogs               AuditLog[]               @relation("AuditActor")
   quotaAccount            AiQuotaAccount?
   systemConfigUpdates     SystemConfig[]
+  authoredContents        Content[]               @relation("ContentAuthor")
+  deletedContents         Content[]               @relation("ContentDeletedBy")
+  createdTags             Tag[]
+  contentVersions         ContentVersion[]
+  favorites               Favorite[]
+  readingRecords          ReadingRecord[]
 
   @@index([roleId, status])
   @@map("users")
@@ -384,4 +437,174 @@ model AiQuotaTransaction {
 
   @@index([accountId, createdAt])
   @@map("ai_quota_transactions")
+}
+
+model Category {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String     @db.VarChar(80)
+  slug      String     @unique @db.VarChar(80)
+  parentId  String?    @map("parent_id") @db.Uuid
+  sortOrder Int        @default(0) @map("sort_order")
+  enabled   Boolean    @default(true)
+  version   Int        @default(1)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  parent    Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Category[] @relation("CategoryTree")
+  contents  Content[]
+
+  @@index([parentId, sortOrder])
+  @@map("categories")
+}
+
+model Tag {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String       @db.VarChar(80)
+  normalizedName  String       @unique @map("normalized_name") @db.VarChar(80)
+  slug            String       @unique @db.VarChar(80)
+  createdBy       String?      @map("created_by") @db.Uuid
+  createdAt       DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  creator         User?        @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+  contents        ContentTag[]
+
+  @@map("tags")
+}
+
+model Content {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type               ContentType
+  title              String?            @db.VarChar(200)
+  summary            String?
+  authorId           String             @map("author_id") @db.Uuid
+  categoryId         String?            @map("category_id") @db.Uuid
+  status             ContentStatus      @default(DRAFT)
+  visibility         ContentVisibility  @default(PRIVATE)
+  sourceType         ContentSourceType  @default(MANUAL) @map("source_type")
+  importSource       ImportSource?      @map("import_source")
+  importRestriction  ImportRestriction  @default(NONE) @map("import_restriction")
+  coverFileId        String?            @map("cover_file_id") @db.Uuid
+  primaryFileId      String?            @map("primary_file_id") @db.Uuid
+  externalUrl        String?            @map("external_url") @db.VarChar(2048)
+  extra              Json?
+  isFeatured         Boolean            @default(false) @map("is_featured")
+  viewCount          Int                @default(0) @map("view_count")
+  wordCount          Int                @default(0) @map("word_count")
+  publishedAt        DateTime?          @map("published_at") @db.Timestamptz(6)
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  deletedBy          String?            @map("deleted_by") @db.Uuid
+  version            Int                @default(1)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  author             User               @relation("ContentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  deletedByUser      User?              @relation("ContentDeletedBy", fields: [deletedBy], references: [id], onDelete: SetNull)
+  category           Category?          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  body               ContentBody?
+  versions           ContentVersion[]
+  chapters           ContentChapter[]
+  tags               ContentTag[]
+  favorites          Favorite[]
+  readingRecords     ReadingRecord[]
+  viewDays           ContentViewDay[]
+
+  @@index([status, visibility, deletedAt, publishedAt])
+  @@index([authorId, deletedAt, updatedAt])
+  @@index([categoryId, status, visibility])
+  @@map("contents")
+}
+
+model ContentBody {
+  contentId        String   @id @map("content_id") @db.Uuid
+  markdownSource   String?  @map("markdown_source")
+  editorDocument   Json?    @map("editor_document")
+  renderedHtml     String?  @map("rendered_html")
+  toc              Json?
+  renderVersion    Int      @default(1) @map("render_version")
+  content          Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@map("content_bodies")
+}
+
+model ContentVersion {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId       String                @map("content_id") @db.Uuid
+  snapshotReason  ContentVersionReason  @map("snapshot_reason")
+  markdownSource  String?               @map("markdown_source")
+  editorDocument  Json?                 @map("editor_document")
+  renderedHtml    String?               @map("rendered_html")
+  toc             Json?
+  createdBy       String                @map("created_by") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  content         Content               @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  creator         User                  @relation(fields: [createdBy], references: [id], onDelete: Restrict)
+
+  @@index([contentId, createdAt])
+  @@map("content_versions")
+}
+
+model ContentChapter {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId               String    @map("content_id") @db.Uuid
+  title                   String    @db.VarChar(200)
+  chapterOrder            Int       @map("chapter_order")
+  objectKey               String?   @map("object_key") @db.VarChar(512)
+  toc                     Json?
+  wordCount               Int?      @map("word_count")
+  estimatedReadingSeconds Int?      @map("estimated_reading_seconds")
+  version                 Int       @default(1)
+  createdAt               DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  content                 Content   @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  readingRecords          ReadingRecord[]
+
+  @@unique([contentId, chapterOrder])
+  @@map("content_chapters")
+}
+
+model ContentTag {
+  contentId String  @map("content_id") @db.Uuid
+  tagId     String  @map("tag_id") @db.Uuid
+  content   Content @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([contentId, tagId])
+  @@map("content_tags")
+}
+
+model Favorite {
+  userId    String   @map("user_id") @db.Uuid
+  contentId String   @map("content_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, contentId])
+  @@index([userId, createdAt])
+  @@map("favorites")
+}
+
+model ReadingRecord {
+  userId                   String          @map("user_id") @db.Uuid
+  contentId                String          @map("content_id") @db.Uuid
+  chapterId                String?         @map("chapter_id") @db.Uuid
+  contentProgressPercent   Float           @default(0) @map("content_progress_percent")
+  chapterProgressPercent   Float?          @map("chapter_progress_percent")
+  lastReadAt               DateTime        @default(now()) @map("last_read_at") @db.Timestamptz(6)
+  user                     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content                  Content         @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  chapter                  ContentChapter? @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+
+  @@id([userId, contentId])
+  @@index([userId, lastReadAt])
+  @@map("reading_records")
+}
+
+model ContentViewDay {
+  contentId    String   @map("content_id") @db.Uuid
+  subjectHash  String   @map("subject_hash") @db.VarChar(128)
+  viewDate     DateTime @map("view_date") @db.Date
+  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@id([contentId, subjectHash, viewDate])
+  @@map("content_view_days")
 }

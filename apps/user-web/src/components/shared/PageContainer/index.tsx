@@ -4,6 +4,7 @@ interface PageContainerProps {
   title?: string;
   extra?: React.ReactNode;
   children: React.ReactNode;
+  className?: string;
 }
 
 /** 简单页面容器：标题 + 操作区 + 内容 */
@@ -11,8 +12,9 @@ const PageContainer: React.FC<PageContainerProps> = ({
   title,
   extra,
   children,
+  className,
 }) => (
-  <div className="ph-page">
+  <div className={['ph-page', className].filter(Boolean).join(' ')}>
     {(title || extra) && (
       <div
         style={{

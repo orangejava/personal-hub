@@ -135,7 +135,7 @@ const Users: React.FC = () => {
         title={sessionUser ? `${sessionUser.email} 的登录设备` : '登录设备'}
         open={Boolean(sessionUser)}
         onClose={() => setSessionUser(null)}
-        width={480}
+        size={480}
       >
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           {sessionsLoading ? (

@@ -133,6 +133,7 @@ export const layout: RunTimeLayoutConfig = ({
   const {
     layout: _omitLayout,
     navTheme,
+    collapsed: _omitSettingsCollapsed,
     ...restSettings
   } = (initialState?.settings ?? {}) as Record<string, unknown>;
   const selectedMenuKey = resolveMenuSelectedKey(
@@ -207,6 +208,10 @@ export const layout: RunTimeLayoutConfig = ({
       </>
     ),
     ...restSettings,
+    // 必须放在 settings 展开之后，避免被覆盖回默认的 /admin 首页。
+    onMenuHeaderClick: () => {
+      window.location.href = getUserWebOrigin();
+    },
   };
 };
 

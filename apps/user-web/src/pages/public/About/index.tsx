@@ -1,11 +1,14 @@
 import { Card, Col, Row, Typography } from 'antd';
+import { useModel } from '@umijs/max';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
-import { MarkdownViewer, MotionSurface } from '@/components/shared';
+import { MarkdownViewer, MotionSurface, ResultState } from '@/components/shared';
+import { useRequest } from '@/hooks/useRequest';
+import { fetchPublicConfig } from '@/services/system';
 
 const { Title } = Typography;
 
-const ABOUT_MD = `# 关于我
+const ABOUT_MD_FALLBACK = `# 关于我
 
 一个正在搭建个人知识中台的开发者，把阅读、写作与 AI 工具沉淀到一个站点。
 
@@ -28,30 +31,43 @@ const ABOUT_MD = `# 关于我
 - GitHub：personal-hub
 `;
 
-/** 关于我 */
-const About: React.FC = () => (
-  <PublicLayout>
-    <Row gutter={24}>
-      <Col span={16}>
-        <MotionSurface>
-          <Card>
-            <MarkdownViewer source={ABOUT_MD} />
-          </Card>
-        </MotionSurface>
-      </Col>
-      <Col span={8}>
-        <MotionSurface variant="soft">
-          <Card title="站点信息">
-            <div className="ph-about-side">
-              Personal Hub · React-first 阶段
-              <br />
-              基于 Ant Design Pro 改造
-            </div>
-          </Card>
-        </MotionSurface>
-      </Col>
-    </Row>
-  </PublicLayout>
-);
+/** 关于我：优先读公开 site-config 的 site.about，空正文回落内置草稿。 */
+const About: React.FC = () => {
+  const { initialState } = useModel('@@initialState');
+  const { data: liveConfig } = useRequest(fetchPublicConfig);
+  const about = liveConfig?.about ?? initialState?.systemConfig?.about;
+  const title = about?.title?.trim() || '关于我';
+  const markdown = about?.markdown?.trim() || ABOUT_MD_FALLBACK;
+
+  return (
+    <PublicLayout>
+      <Row gutter={24}>
+        <Col span={16}>
+          <MotionSurface>
+            <Card>
+              {markdown ? (
+                <MarkdownViewer source={markdown} />
+              ) : (
+                <ResultState status="empty" description="尚未配置关于我" />
+              )}
+            </Card>
+          </MotionSurface>
+        </Col>
+        <Col span={8}>
+          <MotionSurface variant="soft">
+            <Card title="站点信息">
+              <div className="ph-about-side">
+                <Title level={5} style={{ marginTop: 0 }}>
+                  {title}
+                </Title>
+                Personal Hub · React-first 阶段
+              </div>
+            </Card>
+          </MotionSurface>
+        </Col>
+      </Row>
+    </PublicLayout>
+  );
+};
 
 export default About;

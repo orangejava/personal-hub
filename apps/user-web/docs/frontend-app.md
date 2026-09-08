@@ -79,9 +79,14 @@ git clone --depth=1 https://github.com/ant-design/ant-design-pro.git apps/user-w
     ├── /admin/files
     ├── /admin/ai/config
     ├── /admin/ai/stats
-    ├── /admin/homepage
+    ├── /admin/system
+    ├── /admin/system/site
+    ├── /admin/system/homepage
+    ├── /admin/system/content
+    ├── /admin/system/about
+    ├── /admin/system/projects
+    ├── /admin/system/theme
     ├── /admin/menus
-    ├── /admin/system/config
     └── /admin/logs
 ```
 

@@ -7,13 +7,14 @@ import {
   type ContentVisibility,
   ContentVisibilityLabel,
 } from '@personal-hub/shared-types';
-import { message, Popconfirm, Tag } from 'antd';
+import { Button, message, Popconfirm, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
 import { getUserWebOrigin } from '@personal-hub/app-origins';
 import {
   deleteAdminContent,
   fetchAdminContents,
+  setAdminContentFeatured,
   updateAdminContentStatus,
 } from '@/services/admin';
 
@@ -21,26 +22,48 @@ import {
 const ContentList: React.FC = () => {
   const actionRef = useRef<ActionType>(null);
   const [operatingId, setOperatingId] = useState<string>();
+  // state 更新有一个渲染间隙；ref 用于在第二次点击到达前同步拦截并发写入。
+  const operatingRef = useRef(false);
   const reload = () => actionRef.current?.reload();
 
   const changeStatus = async (id: string, status: ContentStatus) => {
+    if (operatingRef.current) return;
+    operatingRef.current = true;
     setOperatingId(id);
     try {
       await updateAdminContentStatus(id, status);
       message.success(status === ContentStatus.Published ? '已发布' : `已${ContentStatusLabel[status]}`);
       reload();
     } finally {
+      operatingRef.current = false;
+      setOperatingId(undefined);
+    }
+  };
+
+  const toggleFeatured = async (id: string, featured: boolean) => {
+    if (operatingRef.current) return;
+    operatingRef.current = true;
+    setOperatingId(id);
+    try {
+      await setAdminContentFeatured(id, featured);
+      message.success(featured ? '已设为精选' : '已取消精选');
+      reload();
+    } finally {
+      operatingRef.current = false;
       setOperatingId(undefined);
     }
   };
 
   const remove = async (id: string) => {
+    if (operatingRef.current) return;
+    operatingRef.current = true;
     setOperatingId(id);
     try {
       await deleteAdminContent(id);
       message.success('已删除');
       reload();
     } finally {
+      operatingRef.current = false;
       setOperatingId(undefined);
     }
   };
@@ -86,6 +109,12 @@ const ContentList: React.FC = () => {
               <Tag color="blue">{ContentTypeLabel[r.type as ContentType]}</Tag>
             ),
           },
+          {
+            title: '分类',
+            dataIndex: 'categorySlug',
+            search: false,
+            render: (_, r) => r.categoryName || r.categorySlug || '-',
+          },
           { title: '作者', dataIndex: 'author', search: false },
           {
             title: '可见性',
@@ -118,29 +147,47 @@ const ContentList: React.FC = () => {
             valueType: 'option',
             render: (_, r) => {
               const operating = operatingId === r.id;
+              const status = (r.status ?? ContentStatus.Draft) as ContentStatus;
+              const isPublished = status === ContentStatus.Published;
               return [
-                <a
-                  key="publish"
-                  aria-disabled={operating}
-                  onClick={() => changeStatus(r.id, ContentStatus.Published)}
+                !isPublished && (
+                  <Button
+                    type="link"
+                    key="publish"
+                    disabled={operating}
+                    onClick={() => changeStatus(r.id, ContentStatus.Published)}
+                  >
+                    {operating ? '处理中' : '发布'}
+                  </Button>
+                ),
+                isPublished && (
+                  <Button
+                    type="link"
+                    key="archive"
+                    disabled={operating}
+                    onClick={() => changeStatus(r.id, ContentStatus.Archived)}
+                  >
+                    {operating ? '处理中' : '归档'}
+                  </Button>
+                ),
+                <Button
+                  type="link"
+                  key="featured"
+                  disabled={operating}
+                  onClick={() => toggleFeatured(r.id, !r.isFeatured)}
                 >
-                  {operating ? '处理中' : '发布'}
-                </a>,
-                <a
-                  key="archive"
-                  aria-disabled={operating}
-                  onClick={() => changeStatus(r.id, ContentStatus.Archived)}
-                >
-                  {operating ? '处理中' : '归档'}
-                </a>,
+                  {r.isFeatured ? '取消精选' : '精选'}
+                </Button>,
                 <Popconfirm
                   key="delete"
                   title="确认删除？"
                   onConfirm={() => remove(r.id)}
                 >
-                  <a>{operating ? '处理中' : '删除'}</a>
+                  <Button type="link" danger disabled={operating}>
+                    {operating ? '处理中' : '删除'}
+                  </Button>
                 </Popconfirm>,
-              ];
+              ].filter(Boolean);
             },
           },
         ]}

@@ -92,7 +92,7 @@ export default [
       { path: '/workspace/favorites', name: '我的收藏', component: './workspace/Favorites' },
       { path: '/workspace/ai/history', name: 'AI 历史', component: './workspace/AiHistory' },
       { path: '/workspace/usage', name: '我的用量', component: './workspace/Usage' },
-      { path: '/workspace/profile', name: '个人设置', component: './workspace/Profile' },
+      { path: '/workspace/profile', name: '个人中心', component: './workspace/Profile' },
       { path: '/workspace/sessions', name: '登录设备', component: './workspace/Sessions' },
     ],
   },

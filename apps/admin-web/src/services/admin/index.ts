@@ -24,9 +24,10 @@ import type {
   AuditLogItem,
   CategoryMutationInput,
   CategoryRecord,
-  ContentItem,
   HomepageConfig,
   PaginationResult,
+  SiteAboutConfig,
+  SiteLayoutConfig,
   SystemPublicConfig,
   TagRecord,
   ThemeConfig,
@@ -39,6 +40,7 @@ import {
   type NestPublicSiteConfig,
 } from '@personal-hub/api-client';
 import { NEST_ROUTE_REGISTRY } from '@/auth/routeRegistry';
+import { mapNestContentPage, toNestContentType, type NestContentPage } from '../mapNestContent';
 
 interface AdminConfigGroup {
   group: string;
@@ -106,6 +108,8 @@ function groupsToPublicConfig(groups: AdminConfigGroup[]): NestPublicSiteConfig 
   const theme = pick('site.theme') as unknown as NestPublicSiteConfig['theme'];
   const homepage = pick('site.homepage') as unknown as NestPublicSiteConfig['homepage'];
   const navigation = pick('site.navigation') as unknown as NestPublicSiteConfig['navigation'];
+  const about = pick('site.about') as unknown as NestPublicSiteConfig['about'];
+  const layout = pick('site.layout') as unknown as NestPublicSiteConfig['layout'];
   const branding = pick('ai.branding') as { aiEnabled?: boolean };
   return {
     siteName: String(general.siteName ?? 'Personal Hub'),
@@ -113,6 +117,8 @@ function groupsToPublicConfig(groups: AdminConfigGroup[]): NestPublicSiteConfig 
     theme,
     homepage,
     navigation,
+    about,
+    layout,
     aiEnabled: branding.aiEnabled,
   };
 }
@@ -317,59 +323,98 @@ export async function fetchAdminContents(params: {
   title?: string;
   type?: string;
 }) {
-  return request<PaginationResult<ContentItem>>('/api/admin/contents', {
+  const res = await request<NestContentPage>('/api/v1/admin/contents', {
     params: {
       page: params.current,
       pageSize: params.pageSize,
-      title: params.title,
-      type: params.type,
+      keyword: params.title || undefined,
+      types: toNestContentType(params.type),
     },
   });
+  return mapNestContentPage(res);
 }
 
 export async function deleteAdminContent(id: string) {
-  return request<null>(`/api/admin/contents/${id}`, { method: 'DELETE' });
+  return request<null>(`/api/v1/admin/contents/${id}`, {
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function updateAdminContentStatus(id: string, status: string) {
-  return request<ContentItem>(
-    `/api/admin/contents/${id}/status`,
-    { method: 'PUT', data: { status } },
-  );
+  if (status === 'published' || status === 'PUBLISHED') {
+    return request(`/api/v1/admin/contents/${id}/publish`, {
+      method: 'POST',
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    });
+  }
+  return request(`/api/v1/admin/contents/${id}/archive`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function setAdminContentFeatured(id: string, featured: boolean) {
+  return request(`/api/v1/admin/contents/${id}/featured`, {
+    method: 'PATCH',
+    data: { featured },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+function categoryWritePayload(data: CategoryMutationInput) {
+  return {
+    name: data.name,
+    slug: data.slug,
+    parentId: data.parentId || undefined,
+    sortOrder: data.sort,
+  };
 }
 
 export async function fetchAdminCategories() {
-  return request<CategoryRecord[]>('/api/admin/categories');
+  return request<CategoryRecord[]>('/api/v1/admin/categories');
 }
 
 export async function createAdminCategory(data: CategoryMutationInput) {
-  return request<CategoryRecord>('/api/admin/categories', {
+  return request<CategoryRecord>('/api/v1/admin/categories', {
     method: 'POST',
-    data,
+    data: categoryWritePayload(data),
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
 export async function updateAdminCategory(id: string, data: CategoryMutationInput) {
-  return request<CategoryRecord>(`/api/admin/categories/${id}`, {
-    method: 'PUT',
-    data,
+  return request<CategoryRecord>(`/api/v1/admin/categories/${id}`, {
+    method: 'PATCH',
+    data: categoryWritePayload(data),
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
 export async function deleteAdminCategory(id: string) {
-  return request<null>(`/api/admin/categories/${id}`, { method: 'DELETE' });
+  return request<null>(`/api/v1/admin/categories/${id}`, {
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function fetchAdminTags() {
-  return request<TagRecord[]>('/api/admin/tags');
+  return request<TagRecord[]>('/api/v1/admin/tags');
 }
 
 export async function createAdminTag(data: { name: string; slug: string }) {
-  return request<TagRecord>('/api/admin/tags', { method: 'POST', data });
+  return request<TagRecord>('/api/v1/admin/tags', {
+    method: 'POST',
+    data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function deleteAdminTag(id: string) {
-  return request<null>(`/api/admin/tags/${id}`, { method: 'DELETE' });
+  return request<null>(`/api/v1/admin/tags/${id}`, {
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function fetchAdminFiles(params?: AdminFileQuery) {
@@ -458,23 +503,11 @@ export async function fetchAdminSystemConfig() {
 export async function updateAdminSystemConfig(data: Partial<SystemPublicConfig>) {
   const groups = await loadAdminConfigGroups();
   const general = groups.find((item) => item.group === 'site.general');
-  const homepage = groups.find((item) => item.group === 'site.homepage');
   if (general) {
     await putAdminConfigGroup('site.general', general.version, {
       ...general.value,
       siteName: data.siteName ?? general.value.siteName,
       siteDescription: data.siteDescription ?? general.value.siteDescription,
-    });
-  }
-  if (homepage && (data.heroTitle !== undefined || data.heroSubtitle !== undefined)) {
-    const current = homepage.value as unknown as SiteHomepageValue;
-    await putAdminConfigGroup('site.homepage', homepage.version, {
-      ...current,
-      hero: {
-        ...current.hero,
-        title: data.heroTitle ?? current.hero.title,
-        subtitle: data.heroSubtitle ?? current.hero.subtitle,
-      },
     });
   }
   return fetchAdminSystemConfig();
@@ -491,4 +524,51 @@ export async function updateAdminSystemTheme(data: Partial<ThemeConfig>) {
     mode,
   });
   return data;
+}
+
+/** 读取关于我配置组；页面拿到的就是 T，不要再解信封。 */
+export async function fetchAdminAboutConfig(): Promise<SiteAboutConfig> {
+  const groups = await loadAdminConfigGroups('site.about');
+  const row = groups[0];
+  return {
+    title: String(row.value.title ?? '关于我'),
+    markdown: String(row.value.markdown ?? ''),
+  };
+}
+
+export async function updateAdminAboutConfig(data: SiteAboutConfig) {
+  const groups = await loadAdminConfigGroups('site.about');
+  const row = groups[0];
+  await putAdminConfigGroup('site.about', row.version, {
+    ...row.value,
+    title: data.title,
+    markdown: data.markdown,
+  });
+  return data;
+}
+
+/** 读取内容中心 / 项目页布局配置组。 */
+export async function fetchAdminLayoutConfig(): Promise<SiteLayoutConfig> {
+  const groups = await loadAdminConfigGroups('site.layout');
+  const row = groups[0];
+  return {
+    homeHeroStyle: (row.value.homeHeroStyle as SiteLayoutConfig['homeHeroStyle']) ?? 'split',
+    contentCardStyle: (row.value.contentCardStyle as SiteLayoutConfig['contentCardStyle']) ?? 'cover',
+    contentReaderWidth:
+      (row.value.contentReaderWidth as SiteLayoutConfig['contentReaderWidth']) ?? 'comfortable',
+    showBreadcrumb: Boolean(row.value.showBreadcrumb ?? true),
+    projectsTitle: String(row.value.projectsTitle ?? '项目'),
+    projectsIntro: String(row.value.projectsIntro ?? ''),
+  };
+}
+
+export async function updateAdminLayoutConfig(data: Partial<SiteLayoutConfig>) {
+  const groups = await loadAdminConfigGroups('site.layout');
+  const row = groups[0];
+  const next = {
+    ...row.value,
+    ...data,
+  };
+  await putAdminConfigGroup('site.layout', row.version, next);
+  return fetchAdminLayoutConfig();
 }

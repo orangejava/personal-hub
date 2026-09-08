@@ -13,8 +13,9 @@ import type {
   HomepageTechStackConfig,
 } from '@personal-hub/shared-types';
 
+import { Link } from '@umijs/max';
 import { Alert, Button, Card, Col, Form, message, Row, Space, Tag } from 'antd';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import {
   fetchAdminHomepageConfig,
@@ -45,25 +46,27 @@ const Homepage: React.FC = () => {
   const [modules, setModules] = useState<HomepageModuleConfig[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const { data, loading, error, refresh } = useRequest(fetchAdminHomepageConfig, {
-    onSuccess: (homepage) => {
-      if (homepage?.featuredContent) {
-        form.setFieldsValue({
-          ...homepage,
-          featuredContent: {
-            contentIds: homepage.featuredContent.contentIds.join(','),
-          },
-        });
-        setModules([...homepage.modules].sort((a, b) => a.sort - b.sort));
-      }
-    },
-  });
+  const { data, loading, error, refresh } = useRequest(fetchAdminHomepageConfig);
 
   const config = data;
   const visibleModules = useMemo(
     () => modules.filter((item) => item.visible).map((item) => item.title),
     [modules],
   );
+
+  /** 等 ProForm 挂载后再写入，避免 loading 阶段 useForm 未连接 Form。 */
+  useEffect(() => {
+    if (!config?.featuredContent) {
+      return;
+    }
+    form.setFieldsValue({
+      ...config,
+      featuredContent: {
+        contentIds: config.featuredContent.contentIds.join(','),
+      },
+    });
+    setModules([...config.modules].sort((a, b) => a.sort - b.sort));
+  }, [config, form]);
 
   const save = async (values: HomepageFormValues) => {
     const payload: HomepageConfig = {
@@ -106,13 +109,16 @@ const Homepage: React.FC = () => {
   }
 
   return (
-    <PageContainer title="首页配置">
+    <PageContainer
+      title="首页配置"
+      extra={<Link to="/admin/system">返回系统配置</Link>}
+    >
       <Alert
         showIcon
         type="info"
         style={{ marginBottom: 16 }}
         title="首页配置来自 Nest system_configs（site.homepage）"
-        description="精选内容 ID 在内容模块接入前可留空；保存会整组更新并清公开配置缓存。"
+        description="入口在「系统配置」卡片。Hero、模块显隐、精选内容和首页推荐区块都在此页。AI 工具推荐和技术栈目前仍是首页模块数据，不是独立的 AI 管理页。"
       />
       <Row gutter={16}>
         <Col span={16}>

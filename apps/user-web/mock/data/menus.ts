@@ -47,7 +47,6 @@ export const adminMenu: MenuItem[] = [
       { path: '/admin/content/categories', name: 'admin.content.categories', icon: 'folder' },
       { path: '/admin/content/tags', name: 'admin.content.tags', icon: 'tags' },
       { path: '/admin/files', name: 'admin.files', icon: 'cloudUpload' },
-      { path: '/admin/homepage', name: 'admin.homepage', icon: 'home' },
     ],
   },
   {

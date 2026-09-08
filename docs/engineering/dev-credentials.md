@@ -4,7 +4,7 @@
 > 适用范围：本地 mock 与 Nest 联调。**生产环境禁止使用本组密码。**
 > 其它文档（工程指南、`.env.example`、实现说明）原文不变；日常查账号、端口、邮箱先看这一页。
 
-当前 React 默认 **不加载 Umi mock**（`MOCK=none`）。登录走 Nest `/api/v1`。内容、工作区、AI、后台多数 CRUD 若还要 mock，用下面的 `:mock` 命令。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
+当前 React 默认 **不加载 Umi mock**（`MOCK=none`）。登录与**内容中心/工作区文档/后台分类标签**走 Nest `/api/v1`。AI、用量、本地 71 本小册正文若还要 mock，用下面的 `:mock` 命令。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
 
 ---
 
@@ -35,7 +35,7 @@ pnpm dev:admin:mock
 
 | 命令 | Mock | 说明 |
 | --- | --- | --- |
-| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容等未迁接口会空或 404 |
+| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容列表/详情/工作区文档已走 Nest；AI 与本地小册正文仍空或 404 |
 | `pnpm dev:user:mock` / `dev:admin:mock` | 开 | 保留 `mock/` 文件；`/api/v1` 仍代理 Nest，登录仍走真实鉴权 |
 | `pnpm build:user` / `build:admin` | 无 | `max build` 不跑 mock 中间件，产物不含 `mock/` |
 
