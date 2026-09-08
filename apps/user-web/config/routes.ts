@@ -89,6 +89,7 @@ export default [
       { path: '/workspace/richtext', name: '新建富文本', component: './workspace/RichText' },
       { path: '/workspace/richtext/:id', name: '编辑富文本', component: './workspace/RichText' },
       { path: '/workspace/booklets', name: '小册管理', component: './workspace/Booklets' },
+      { path: '/workspace/uploads', name: '上传任务', component: './workspace/Uploads' },
       { path: '/workspace/favorites', name: '我的收藏', component: './workspace/Favorites' },
       { path: '/workspace/ai/history', name: 'AI 历史', component: './workspace/AiHistory' },
       { path: '/workspace/usage', name: '我的用量', component: './workspace/Usage' },

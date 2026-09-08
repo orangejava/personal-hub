@@ -1,8 +1,8 @@
 import { ContentType } from '@personal-hub/shared-types';
 import { useRequest } from '@/hooks/useRequest';
 import { history, Link, useIntl } from '@umijs/max';
-import { Button, Card, Col, Row, Tag } from 'antd';
-import React from 'react';
+import { Button, Card, Col, Pagination, Row, Tag } from 'antd';
+import React, { useState } from 'react';
 import {
   AnimatedList,
   ErrorState,
@@ -10,30 +10,32 @@ import {
   ResultState,
   SectionSkeleton,
 } from '@/components/shared';
-import { fetchContentList } from '@/services/content';
-import { fetchLocalBooklets } from '@/services/workspace';
+import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
+import { fetchMyContents } from '@/services/workspace';
+import ContentMetaDrawer from '../Content/ContentMetaDrawer';
 
-/** 小册管理：本地同步小册 + mock 小册，可打开阅读 */
+/** 小册管理：工作区已导入的 Nest 小册。存量目录请用 CLI，不再扫描本地 mock。 */
 const Booklets: React.FC = () => {
   const intl = useIntl();
-  const {
-    data: localData,
-    loading: localLoading,
-    error: localError,
-    run: reloadLocal,
-  } = useRequest(fetchLocalBooklets);
-  const localBooklets = localData?.booklets ?? [];
-  const syncedAt = localData?.syncedAt;
-
-  const {
-    data: mockData,
-    loading: mockLoading,
-    error: mockError,
-    run: reloadMock,
-  } = useRequest(() =>
-    fetchContentList({ type: ContentType.Booklet, page: 1, pageSize: 50 }),
+  const [metaId, setMetaId] = useState<string>();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE);
+  const { data, loading, error, run } = useRequest(
+    () => fetchMyContents({ type: ContentType.Booklet, page, pageSize }),
+    { refreshDeps: [page, pageSize] },
   );
-  const mockBooklets = mockData?.list ?? [];
+  const booklets = data?.list ?? [];
+  const total = data?.total ?? 0;
+
+  const openMeta = (event: React.MouseEvent, id: string) => {
+    event.stopPropagation();
+    setMetaId(id);
+  };
+
+  const handlePageChange = (nextPage: number, nextSize: number) => {
+    setPage(nextPage);
+    setPageSize(nextSize);
+  };
 
   return (
     <PageContainer
@@ -46,81 +48,66 @@ const Booklets: React.FC = () => {
         </Link>
       }
     >
-      <Card
-        title={intl.formatMessage({ id: 'workspace.booklets.local' })}
-        extra={
-          syncedAt ? (
-            <span style={{ color: 'rgba(0,0,0,0.45)' }}>同步于 {syncedAt}</span>
-          ) : null
-        }
-        style={{ marginBottom: 24 }}
-      >
-        {localError && <ErrorState onRetry={reloadLocal} />}
-        {localLoading ? (
-          <SectionSkeleton variant="card" count={2} columns={3} />
-        ) : localBooklets.length > 0 ? (
-          <Row gutter={16}>
-            <AnimatedList
-              items={localBooklets}
-              getKey={(b) => b.id}
-              wrapItem={false}
-              renderItem={(b) => (
-                <Col xs={24} md={12} lg={8}>
-                  <Card
-                    hoverable
-                    title={b.title}
-                    onClick={() => history.push(`/content/${b.id}`)}
-                  >
-                    <p style={{ color: 'rgba(0,0,0,0.65)', minHeight: 44 }}>
-                      {b.summary}
-                    </p>
-                    <Tag color="green">本地</Tag>
-                    <span style={{ marginLeft: 8, color: 'rgba(0,0,0,0.45)' }}>
-                      {b.chapterCount} 章
-                    </span>
-                  </Card>
-                </Col>
-              )}
-            />
-          </Row>
+      <Card title={intl.formatMessage({ id: 'workspace.booklets.site' })}>
+        {error && <ErrorState onRetry={run} />}
+        {loading ? (
+          <SectionSkeleton variant="card" count={3} columns={3} />
+        ) : booklets.length > 0 ? (
+          <>
+            <Row gutter={16}>
+              <AnimatedList
+                items={booklets}
+                getKey={(item) => item.id}
+                wrapItem={false}
+                renderItem={(item) => (
+                  <Col xs={24} md={12} lg={8}>
+                    <Card
+                      hoverable
+                      title={item.title}
+                      extra={
+                        <Button type="link" size="small" onClick={(event) => openMeta(event, item.id)}>
+                          编辑信息
+                        </Button>
+                      }
+                      onClick={() => history.push(`/content/${item.id}`)}
+                    >
+                      <p style={{ minHeight: 44 }}>{item.summary}</p>
+                      <Tag>{item.status}</Tag>
+                      <Tag>{item.categoryName || '未分类'}</Tag>
+                      {item.reviewStatus === 'PENDING' ? (
+                        <Tag color="processing">待审核</Tag>
+                      ) : item.importRestriction === 'PRIVATE_UNTIL_LICENSED' ? (
+                        <Tag color="orange">待审公开</Tag>
+                      ) : null}
+                      <span style={{ marginLeft: 8, opacity: 0.65 }}>{item.author}</span>
+                    </Card>
+                  </Col>
+                )}
+              />
+            </Row>
+            <div style={{ textAlign: 'center', marginTop: 24 }}>
+              <Pagination
+                {...DEFAULT_TABLE_PAGINATION}
+                current={page}
+                pageSize={pageSize}
+                total={total}
+                onChange={handlePageChange}
+              />
+            </div>
+          </>
         ) : (
           <ResultState
             status="empty"
-            description="未同步到本地小册，可执行 pnpm sync:booklets"
+            description="暂无已导入小册。可在新建内容里上传 ZIP，或用 pnpm booklet:import-local 迁移存量目录。"
           />
         )}
       </Card>
-
-      <Card title={intl.formatMessage({ id: 'workspace.booklets.site' })}>
-        {mockError && <ErrorState onRetry={reloadMock} />}
-        {mockLoading ? (
-          <SectionSkeleton variant="card" count={3} columns={3} />
-        ) : mockBooklets.length > 0 ? (
-          <Row gutter={16}>
-            <AnimatedList
-              items={mockBooklets}
-              getKey={(b) => b.id}
-              wrapItem={false}
-              renderItem={(b) => (
-                <Col xs={24} md={12} lg={8}>
-                  <Card
-                    hoverable
-                    title={b.title}
-                    onClick={() => history.push(`/content/${b.id}`)}
-                  >
-                    <p style={{ color: 'rgba(0,0,0,0.65)', minHeight: 44 }}>
-                      {b.summary}
-                    </p>
-                    <span style={{ color: 'rgba(0,0,0,0.45)' }}>{b.author}</span>
-                  </Card>
-                </Col>
-              )}
-            />
-          </Row>
-        ) : (
-          <ResultState status="empty" description="暂无站点小册" />
-        )}
-      </Card>
+      <ContentMetaDrawer
+        contentId={metaId}
+        open={!!metaId}
+        onClose={() => setMetaId(undefined)}
+        onSaved={run}
+      />
     </PageContainer>
   );
 };

@@ -25,6 +25,7 @@ export const workspaceMenu: MenuItem[] = [
       { path: '/workspace/markdown', name: 'workspace.markdown.new', icon: 'edit' },
       { path: '/workspace/richtext', name: 'workspace.richtext.new', icon: 'edit' },
       { path: '/workspace/booklets', name: 'workspace.booklets', icon: 'book' },
+      { path: '/workspace/uploads', name: 'workspace.uploads', icon: 'cloudUpload' },
       { path: '/workspace/favorites', name: 'workspace.favorites', icon: 'star' },
     ],
   },
@@ -43,6 +44,7 @@ export const adminMenu: MenuItem[] = [
     permissions: ['admin:access'],
     children: [
       { path: '/admin/content/list', name: 'admin.content.list', icon: 'fileText' },
+      { path: '/admin/content/reviews', name: 'admin.content.reviews', icon: 'audit' },
       { path: '/admin/content/booklets', name: 'admin.content.booklets', icon: 'book' },
       { path: '/admin/content/categories', name: 'admin.content.categories', icon: 'folder' },
       { path: '/admin/content/tags', name: 'admin.content.tags', icon: 'tags' },

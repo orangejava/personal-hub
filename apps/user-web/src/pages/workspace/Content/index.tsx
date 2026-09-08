@@ -4,18 +4,21 @@ import {
   ContentStatusLabel,
   ContentType,
   ContentTypeLabel,
+  type ContentItem,
   ContentVisibility,
   ContentVisibilityLabel,
 } from '@personal-hub/shared-types';
-import { history, Link, useIntl } from '@umijs/max';
-import { Button, message, Popconfirm, Space, Tag } from 'antd';
+import { history, Link, useIntl, useModel } from '@umijs/max';
+import { App, Button, Form, Input, Modal, Popconfirm, Select, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   deleteContent,
   fetchMyContents,
   setContentStatus,
 } from '@/services/workspace';
+import ContentMetaDrawer from './ContentMetaDrawer';
 
 const statusColor: Record<ContentStatus, string> = {
   [ContentStatus.Draft]: 'default',
@@ -34,6 +37,11 @@ const visibilityValueEnum = Object.fromEntries(
   ]),
 );
 
+const visibilityOptions = Object.values(ContentVisibility).map((value) => ({
+  label: ContentVisibilityLabel[value],
+  value,
+}));
+
 /** 仅 Markdown 与富文本有当前阶段可编辑的工作区页面。 */
 function getContentEditorPath(type: ContentType, id: string): string | undefined {
   if (type === ContentType.Markdown) {
@@ -45,23 +53,102 @@ function getContentEditorPath(type: ContentType, id: string): string | undefined
   return undefined;
 }
 
-/** 文档管理：我的内容表格 + 状态展示 + 发布/归档/删除（mock） */
+function hasPublishAll(grants?: Array<{ code: string; dataScope: string }>) {
+  return Boolean(grants?.some((item) => item.code === 'content:publish' && item.dataScope === 'ALL'));
+}
+
+/** 待审核优先于待审公开：编辑者排队 vs 仅版权闸尚未允许公开。 */
+function restrictionTag(item: Pick<ContentItem, 'reviewStatus' | 'importRestriction'>) {
+  if (item.reviewStatus === 'PENDING') {
+    return <Tag color="processing">待审核</Tag>;
+  }
+  if (item.importRestriction === 'PRIVATE_UNTIL_LICENSED') {
+    return <Tag color="orange">待审公开</Tag>;
+  }
+  if (item.reviewStatus === 'REJECTED') {
+    return <Tag color="error">已驳回</Tag>;
+  }
+  return null;
+}
+
+/** 文档管理：我的内容表格 + 状态展示 + 发布/归档/删除 */
 const Content: React.FC = () => {
   const intl = useIntl();
+  const { message } = App.useApp();
+  const { initialState } = useModel('@@initialState');
+  const publishAll = hasPublishAll(initialState?.permissionGrants);
   const actionRef = useRef<ActionType>(null);
   const [operatingId, setOperatingId] = useState<string>();
+  const [metaId, setMetaId] = useState<string>();
+  const [publishItem, setPublishItem] = useState<ContentItem>();
+  const [publishForm] = Form.useForm<{
+    requestedVisibility: ContentVisibility;
+    copyrightNote?: string;
+  }>();
 
   const reload = () => actionRef.current?.reload();
 
-  const toggleStatus = async (id: string, status: ContentStatus) => {
+  /** 把「新建」放在重置/查询旁边，避免顶栏 extra 与筛选栏脱节。 */
+  const renderSearchOptions = (
+    _searchConfig: unknown,
+    _formProps: unknown,
+    dom: React.ReactNode[],
+  ) => [
+    ...dom,
+    <Link key="create" to="/workspace/content/new">
+      <Button type="primary">
+        {intl.formatMessage({ id: 'workspace.content.new' })}
+      </Button>
+    </Link>,
+  ];
+
+  const toggleStatus = async (
+    id: string,
+    status: ContentStatus,
+    options?: { requestedVisibility?: string; copyrightNote?: string },
+  ) => {
     setOperatingId(id);
     try {
-      await setContentStatus(id, status);
-      message.success(`已切换为「${ContentStatusLabel[status]}」`);
+      const result = await setContentStatus(id, status, options);
+      if (status === ContentStatus.Published) {
+        message.success(result.reviewStatus === 'PENDING' ? '已提交审核' : '已发布');
+      } else {
+        message.success(`已切换为「${ContentStatusLabel[status]}」`);
+      }
+      setPublishItem(undefined);
+      publishForm.resetFields();
       reload();
     } finally {
       setOperatingId(undefined);
     }
+  };
+
+  const openPublish = (item: ContentItem) => {
+    if (item.importRestriction === 'PRIVATE_UNTIL_LICENSED') {
+      setPublishItem(item);
+      publishForm.setFieldsValue({
+        requestedVisibility: item.visibility ?? ContentVisibility.Private,
+      });
+      return;
+    }
+    void toggleStatus(item.id, ContentStatus.Published);
+  };
+
+  const submitPublish = async () => {
+    if (!publishItem) return;
+    const values = await publishForm.validateFields();
+    const needsNote =
+      publishAll &&
+      (values.requestedVisibility === ContentVisibility.Public ||
+        values.requestedVisibility === ContentVisibility.Login);
+    if (needsNote && !values.copyrightNote?.trim()) {
+      publishForm.setFields([{ name: 'copyrightNote', errors: ['公开或登录可见前请填写版权说明'] }]);
+      return;
+    }
+    await toggleStatus(publishItem.id, ContentStatus.Published, {
+      requestedVisibility: values.requestedVisibility,
+      copyrightNote: values.copyrightNote,
+    });
   };
 
   const remove = async (id: string) => {
@@ -76,22 +163,15 @@ const Content: React.FC = () => {
   };
 
   return (
-    <PageContainer
-      title={intl.formatMessage({ id: 'workspace.content.title' })}
-      extra={
-        <Space>
-          <Link to="/workspace/content/new">
-            <Button type="primary">
-              {intl.formatMessage({ id: 'workspace.content.new' })}
-            </Button>
-          </Link>
-        </Space>
-      }
-    >
+    <PageContainer title={intl.formatMessage({ id: 'workspace.content.title' })}>
       <ProTable
         actionRef={actionRef}
         rowKey="id"
-        search={{ labelWidth: 'auto' }}
+        pagination={DEFAULT_TABLE_PAGINATION}
+        search={{
+          ...DEFAULT_TABLE_SEARCH,
+          optionRender: renderSearchOptions,
+        }}
         locale={{
           emptyText: (
             <ResultState
@@ -123,7 +203,13 @@ const Content: React.FC = () => {
             dataIndex: 'title',
             render: (_, r) => {
               const path = getContentEditorPath(r.type as ContentType, r.id);
-              return path ? <Link to={path}>{r.title}</Link> : r.title;
+              const tag = restrictionTag(r);
+              return (
+                <Space size={4} wrap>
+                  {path ? <Link to={path}>{r.title}</Link> : r.title}
+                  {tag}
+                </Space>
+              );
             },
           },
           {
@@ -186,9 +272,12 @@ const Content: React.FC = () => {
               const operating = operatingId === r.id;
               const editPath = getContentEditorPath(r.type as ContentType, r.id);
               return [
+                <a key="meta" onClick={() => setMetaId(r.id)}>
+                  编辑信息
+                </a>,
                 editPath && (
                   <a key="edit" onClick={() => history.push(editPath)}>
-                    编辑
+                    编辑正文
                   </a>
                 ),
                 isPublished && (
@@ -200,9 +289,9 @@ const Content: React.FC = () => {
                   <a
                     key="publish"
                     aria-disabled={operating}
-                    onClick={() => toggleStatus(r.id, ContentStatus.Published)}
+                    onClick={() => openPublish(r)}
                   >
-                    {operating ? '处理中' : '发布'}
+                    {operating ? '处理中' : r.reviewStatus === 'PENDING' ? '再次提交' : '发布'}
                   </a>
                 ),
                 isPublished && (
@@ -218,7 +307,7 @@ const Content: React.FC = () => {
                   <a
                     key="publish"
                     aria-disabled={operating}
-                    onClick={() => toggleStatus(r.id, ContentStatus.Published)}
+                    onClick={() => openPublish(r)}
                   >
                     {operating ? '处理中' : '重新发布'}
                   </a>
@@ -237,6 +326,62 @@ const Content: React.FC = () => {
           },
         ]}
       />
+      <ContentMetaDrawer
+        contentId={metaId}
+        open={!!metaId}
+        onClose={() => setMetaId(undefined)}
+        onSaved={reload}
+      />
+      <Modal
+        title={publishAll ? '发布导入内容' : '提交审核'}
+        open={!!publishItem}
+        onCancel={() => {
+          setPublishItem(undefined);
+          publishForm.resetFields();
+        }}
+        onOk={() => void submitPublish()}
+        confirmLoading={operatingId === publishItem?.id}
+        destroyOnHidden
+      >
+        <p style={{ marginBottom: 12 }}>
+          {publishAll
+            ? 'ZIP 导入内容默认私有。改为公开或登录可见时必须填写版权说明。'
+            : '编辑者发布会进入审核队列，内容保持草稿。导入内容申请公开后，由管理员填写版权说明。'}
+        </p>
+        <Form form={publishForm} layout="vertical">
+          <Form.Item
+            name="requestedVisibility"
+            label="目标可见性"
+            rules={[{ required: true, message: '请选择可见性' }]}
+          >
+            <Select options={visibilityOptions} />
+          </Form.Item>
+          {publishAll ? (
+            <Form.Item noStyle shouldUpdate>
+              {() => {
+                const visibility = publishForm.getFieldValue(
+                  'requestedVisibility',
+                ) as ContentVisibility;
+                const showNote =
+                  visibility === ContentVisibility.Public ||
+                  visibility === ContentVisibility.Login;
+                if (!showNote) {
+                  return null;
+                }
+                return (
+                  <Form.Item
+                    name="copyrightNote"
+                    label="版权说明"
+                    rules={[{ required: true, message: '请填写版权说明' }]}
+                  >
+                    <Input.TextArea rows={4} maxLength={500} placeholder="说明可公开传播的授权依据" />
+                  </Form.Item>
+                );
+              }}
+            </Form.Item>
+          ) : null}
+        </Form>
+      </Modal>
     </PageContainer>
   );
 };

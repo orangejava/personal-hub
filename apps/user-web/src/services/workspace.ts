@@ -87,6 +87,8 @@ function nestWritePayload(data: Record<string, unknown>, options?: { includeType
     ...(editorDocument !== undefined ? { editorDocument } : {}),
     ...(typeof data.externalUrl === 'string' ? { externalUrl: data.externalUrl } : {}),
     ...(Array.isArray(data.tagNames) ? { tagNames: data.tagNames } : {}),
+    ...(typeof data.coverFileId === 'string' ? { coverFileId: data.coverFileId } : {}),
+    ...(typeof data.primaryFileId === 'string' ? { primaryFileId: data.primaryFileId } : {}),
   };
 }
 
@@ -111,9 +113,18 @@ export async function updateContent(id: string, data: Record<string, unknown>) {
   return mapNestContentDetail(res);
 }
 
-export async function publishContent(id: string) {
+/** 发布可选体：OWN 提交审核；ALL 公开导入内容时带 copyrightNote。 */
+export async function publishContent(
+  id: string,
+  options?: { requestedVisibility?: string; copyrightNote?: string },
+) {
+  const requestedVisibility = toNestContentVisibility(options?.requestedVisibility);
   const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}/publish`, {
     method: 'POST',
+    data: {
+      ...(requestedVisibility ? { requestedVisibility } : {}),
+      ...(options?.copyrightNote?.trim() ? { copyrightNote: options.copyrightNote.trim() } : {}),
+    },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
   return mapNestContentDetail(res);
@@ -128,9 +139,13 @@ export async function archiveContent(id: string) {
 }
 
 /** 发布 / 归档走独立 POST；已归档内容再次发布，而不是改回草稿。 */
-export async function setContentStatus(id: string, status: string) {
+export async function setContentStatus(
+  id: string,
+  status: string,
+  options?: { requestedVisibility?: string; copyrightNote?: string },
+) {
   if (status === 'published' || status === 'PUBLISHED') {
-    return publishContent(id);
+    return publishContent(id, options);
   }
   if (status === 'archived' || status === 'ARCHIVED') {
     return archiveContent(id);

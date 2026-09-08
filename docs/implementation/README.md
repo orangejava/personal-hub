@@ -1,17 +1,19 @@
 # 功能开发文档归档规范
 
 > 状态：进行中
-> 最后更新：2026-09-07
+> 最后更新：2026-09-09
 > 目标：把“功能已经开发了什么、为什么这样实现、涉及哪些文件和接口”固定沉淀到统一位置，避免散落在聊天记录里。
 
 ## 已归档文档
 
 应用专属实现说明已迁入对应 `apps/*/docs/`，本目录只保留索引规则。
 
-- Nest 阶段 0 / Auth 切片 / 系统配置菜单 / 内容域 → [apps/server/docs](../../apps/server/docs/README.md)
+- Nest 阶段 0 / Auth 切片 / 系统配置菜单 / 内容域 / 文件小册 → [apps/server/docs](../../apps/server/docs/README.md)
 - 用户端阶段 0–3、5 → [apps/user-web/docs](../../apps/user-web/docs/README.md)
 - 管理端阶段 4 → [apps/admin-web/docs](../../apps/admin-web/docs/README.md)
 - 用户端 / 管理端拆分 → [admin-web-split.md](./admin-web-split.md)
+- 内容审核与上传任务 UI → [content/content-review-and-uploads.md](./content/content-review-and-uploads.md)
+- 审查修复收口（幂等/审核/上传任务） → [review-remediation.md](./review-remediation.md)
 
 进度总览见 [`docs/completed/README.md`](../completed/README.md)。
 
