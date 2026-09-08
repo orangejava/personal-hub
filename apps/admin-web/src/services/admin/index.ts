@@ -16,7 +16,7 @@ import type {
   AdminAiToolMutationInput,
   AdminAiToolStatusMutationInput,
   AdminDashboardStats,
-  AdminFileRecord,
+  AdminFilePage,
   AdminFileQuery,
   AdminMenuConfig,
   AdminRoleRecord,
@@ -29,9 +29,11 @@ import type {
   SiteAboutConfig,
   SiteLayoutConfig,
   SystemPublicConfig,
+  ContentReviewItem,
   TagRecord,
   ThemeConfig,
   UserRole,
+  AdminPermissionItem,
 } from '@personal-hub/shared-types';
 import {
   mapPublicSiteConfig,
@@ -40,7 +42,12 @@ import {
   type NestPublicSiteConfig,
 } from '@personal-hub/api-client';
 import { NEST_ROUTE_REGISTRY } from '@/auth/routeRegistry';
-import { mapNestContentPage, toNestContentType, type NestContentPage } from '../mapNestContent';
+import {
+  mapNestContentPage,
+  toNestContentType,
+  toNestContentVisibility,
+  type NestContentPage,
+} from '../mapNestContent';
 
 interface AdminConfigGroup {
   group: string;
@@ -307,13 +314,18 @@ export async function updateAdminUserRole(id: string, role: UserRole) {
 }
 
 export async function fetchAdminRoles() {
-  return request<AdminRoleRecord[]>('/api/admin/roles');
+  return request<AdminRoleRecord[]>('/api/v1/admin/roles');
 }
 
-export async function updateAdminRolePermissions(code: UserRole, permissions: string[]) {
-  return request<AdminRoleRecord>(`/api/admin/roles/${code}/permissions`, {
+export async function fetchAdminPermissions() {
+  return request<AdminPermissionItem[]>('/api/v1/admin/permissions');
+}
+
+export async function updateAdminRolePermissions(code: string, permissions: string[], version: number) {
+  return request<AdminRoleRecord>(`/api/v1/admin/roles/${code}/permissions`, {
     method: 'PUT',
-    data: { permissions },
+    data: { permissions, version },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
@@ -341,10 +353,19 @@ export async function deleteAdminContent(id: string) {
   });
 }
 
-export async function updateAdminContentStatus(id: string, status: string) {
+export async function updateAdminContentStatus(
+  id: string,
+  status: string,
+  options?: { requestedVisibility?: string; copyrightNote?: string },
+) {
   if (status === 'published' || status === 'PUBLISHED') {
+    const requestedVisibility = toNestContentVisibility(options?.requestedVisibility);
     return request(`/api/v1/admin/contents/${id}/publish`, {
       method: 'POST',
+      data: {
+        ...(requestedVisibility ? { requestedVisibility } : {}),
+        ...(options?.copyrightNote?.trim() ? { copyrightNote: options.copyrightNote.trim() } : {}),
+      },
       headers: { 'Idempotency-Key': newIdempotencyKey() },
     });
   }
@@ -358,6 +379,36 @@ export async function setAdminContentFeatured(id: string, featured: boolean) {
   return request(`/api/v1/admin/contents/${id}/featured`, {
     method: 'PATCH',
     data: { featured },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function fetchAdminContentReviews(params: {
+  current?: number;
+  pageSize?: number;
+  status?: string;
+}) {
+  return request<PaginationResult<ContentReviewItem>>('/api/v1/admin/content-reviews', {
+    params: {
+      page: params.current,
+      pageSize: params.pageSize,
+      status: params.status || undefined,
+    },
+  });
+}
+
+export async function approveAdminContentReview(id: string, copyrightNote?: string) {
+  return request<ContentReviewItem>(`/api/v1/admin/content-reviews/${id}/approve`, {
+    method: 'POST',
+    data: copyrightNote?.trim() ? { copyrightNote: copyrightNote.trim() } : {},
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function rejectAdminContentReview(id: string, reason: string) {
+  return request<ContentReviewItem>(`/api/v1/admin/content-reviews/${id}/reject`, {
+    method: 'POST',
+    data: { reason },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
@@ -418,17 +469,24 @@ export async function deleteAdminTag(id: string) {
 }
 
 export async function fetchAdminFiles(params?: AdminFileQuery) {
-  return request<AdminFileRecord[]>('/api/admin/files', { params });
+  return request<AdminFilePage>('/api/v1/admin/files', { params });
 }
 
 export async function deleteAdminFile(id: string) {
-  return request<null>(`/api/admin/files/${id}`, { method: 'DELETE' });
+  return request<null>(`/api/v1/admin/files/${id}`, {
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function batchDeleteAdminFiles(ids: string[]) {
   return request<{ deleted: string[]; failed: { id: string; message: string }[] }>(
-    '/api/admin/files/batch-delete',
-    { method: 'POST', data: { ids } },
+    '/api/v1/admin/files',
+    {
+      method: 'DELETE',
+      data: { ids },
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    },
   );
 }
 

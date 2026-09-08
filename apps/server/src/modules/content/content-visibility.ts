@@ -48,13 +48,17 @@ export function publicDetailAccess(
   },
   viewer: ContentViewer,
 ): 'ok' | 'login' | 'not_found' {
-  if (row.deletedAt !== null || row.status !== ContentStatus.PUBLISHED) {
+  if (row.deletedAt !== null) {
+    return 'not_found';
+  }
+  // 作者和全站读者可以预览自己的草稿/私有小册；匿名和其他人仍按发布态过滤。
+  if (row.authorId === viewer.userId || viewer.contentReadAll) {
+    return 'ok';
+  }
+  if (row.status !== ContentStatus.PUBLISHED) {
     return 'not_found';
   }
   if (row.importRestriction === ImportRestriction.PRIVATE_UNTIL_LICENSED) {
-    if (row.authorId === viewer.userId || viewer.contentReadAll) {
-      return 'ok';
-    }
     return 'not_found';
   }
   if (row.visibility === ContentVisibility.PRIVATE) {

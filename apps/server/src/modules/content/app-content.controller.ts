@@ -18,7 +18,7 @@ import { RequireIdempotency } from '../../common/idempotency/require-idempotency
 import type { RequestAuthContext } from '../../common/types/request-id';
 import { ContentService } from './content.service';
 import { ListAppContentQueryDto } from './dto/list-app-content.query.dto';
-import { CreateContentDto, PatchContentDto } from './dto/mutate-content.dto';
+import { CreateContentDto, PatchContentDto, PublishContentDto } from './dto/mutate-content.dto';
 
 @ApiTags('App Content')
 @ApiBearerAuth()
@@ -64,10 +64,11 @@ export class AppContentController {
   @RequireIdempotency()
   publish(
     @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @Body() body: PublishContentDto = {},
     @CurrentAuth() auth: RequestAuthContext,
     @Req() request: Request,
   ) {
-    return this.contentService.publish(auth, contentId, request.requestId);
+    return this.contentService.publish(auth, contentId, request.requestId, body ?? {});
   }
 
   @Post(':contentId/archive')

@@ -48,6 +48,18 @@ export class PublicContentController {
   }
 
   @Public()
+  @Get(':contentId/chapters/:chapterId')
+  @ApiOperation({ summary: '单章正文和目录' })
+  async chapter(
+    @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @Param('chapterId', new ParseUUIDPipe()) chapterId: string,
+    @OptionalAuth() auth?: RequestAuthContext,
+  ) {
+    const viewer = await this.contentService.resolveViewerFromAuth(auth);
+    return this.contentService.getChapter(contentId, chapterId, viewer);
+  }
+
+  @Public()
   @Get(':contentId')
   @ApiOperation({ summary: '公开内容详情' })
   async detail(

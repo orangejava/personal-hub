@@ -13,6 +13,7 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { DataScope } from '@prisma/client';
 import type { Request } from 'express';
 import { CurrentAuth } from '../../common/decorators/current-auth.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -23,7 +24,9 @@ import {
   CreateCategoryDto,
   CreateTagDto,
   FeaturedDto,
+  ImportLicenseDto,
   PatchCategoryDto,
+  PublishContentDto,
   PurgeContentDto,
   SortCategoriesDto,
 } from './dto/mutate-content.dto';
@@ -75,18 +78,19 @@ export class AdminContentController {
   }
 
   @Post('contents/:contentId/publish')
-  @RequirePermission('content:publish')
+  @RequirePermission('content:publish', DataScope.ALL)
   @RequireIdempotency()
   publish(
     @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @Body() body: PublishContentDto = {},
     @CurrentAuth() auth: RequestAuthContext,
     @Req() request: Request,
   ) {
-    return this.contentService.publish(auth, contentId, request.requestId);
+    return this.contentService.publish(auth, contentId, request.requestId, body ?? {}, { requireAll: true });
   }
 
   @Post('contents/:contentId/archive')
-  @RequirePermission('content:publish')
+  @RequirePermission('content:publish', DataScope.ALL)
   @RequireIdempotency()
   archive(
     @Param('contentId', new ParseUUIDPipe()) contentId: string,
@@ -105,6 +109,19 @@ export class AdminContentController {
     @Req() request: Request,
   ) {
     return this.contentService.restore(auth, contentId, request.requestId);
+  }
+
+  @Post('contents/:contentId/import-license')
+  @RequirePermission('content:publish', DataScope.ALL)
+  @RequireIdempotency({ highRisk: true })
+  @ApiOperation({ summary: '解除导入小册版权限制' })
+  importLicense(
+    @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @Body() body: ImportLicenseDto,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Req() request: Request,
+  ) {
+    return this.contentService.importLicense(auth, contentId, body.note, request.requestId);
   }
 
   @Patch('contents/:contentId/featured')

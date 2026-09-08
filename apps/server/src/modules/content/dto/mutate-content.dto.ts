@@ -1,9 +1,10 @@
-import { ContentType, ContentVisibility } from '@prisma/client';
+import { ContentReviewStatus, ContentType, ContentVisibility } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNumber,
   IsObject,
   IsOptional,
@@ -12,6 +13,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
@@ -68,6 +70,14 @@ export class CreateContentDto {
   @IsArray()
   @IsString({ each: true })
   tagNames?: string[];
+
+  @IsOptional()
+  @IsUUID()
+  coverFileId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  primaryFileId?: string;
 }
 
 export class PatchContentDto {
@@ -113,6 +123,69 @@ export class PatchContentDto {
   @IsArray()
   @IsString({ each: true })
   tagNames?: string[];
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  coverFileId?: string | null;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsUUID()
+  primaryFileId?: string | null;
+}
+
+export class ImportLicenseDto {
+  /** 先去掉首尾空白，再交给服务层用业务错误码拒绝空说明。 */
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(500)
+  note!: string;
+}
+
+/** 发布可选体：OWN 用 requestedVisibility 写入审核；ALL 公开导入内容时带 copyrightNote。 */
+export class PublishContentDto {
+  @IsOptional()
+  @IsEnum(ContentVisibility)
+  requestedVisibility?: ContentVisibility;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  copyrightNote?: string;
+}
+
+export class ListContentReviewsQueryDto {
+  @IsOptional()
+  @IsEnum(ContentReviewStatus)
+  status?: ContentReviewStatus;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+}
+
+export class ApproveContentReviewDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  copyrightNote?: string;
+}
+
+export class RejectContentReviewDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  reason!: string;
 }
 
 export class UpsertReadingDto {

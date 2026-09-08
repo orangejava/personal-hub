@@ -1,7 +1,7 @@
 # Nest 内容域（4.1–4.5）
 
 > 状态：4.1–4.5 已落地
-> 最后更新：2026-09-07
+> 最后更新：2026-09-09
 > 契约：[内容阅读域 PRD](../../../../docs/prd/long-term/content-reading-domain-prd.md)、[Canonical API](../../../../docs/backend/canonical-api.md)、[数据模型](../../../../docs/backend/canonical-data-model.md)
 
 本文件只排 **Content HTTP** 的刀序与落地边界，不替代 Canonical。文件/ZIP/MinIO 是下一 Nest 阶段。
@@ -15,6 +15,7 @@
 | 4.3 | 工作区：草稿 CRUD、发布/归档/软删恢复；Markdown / LINK / PROJECT / RICH_TEXT 草稿 | ✅ |
 | 4.4 | 收藏、阅读进度、去重阅读计数、工作台内容统计 | ✅ |
 | 4.5 | 后台跨作者列表、精选、分类/标签 CRUD、软删与 purge | ✅ |
+| 内容审核 | `ContentReview` + 审核 API 已落地；管理端 UI 见 [content-review-and-uploads.md](../../../../docs/implementation/content/content-review-and-uploads.md) | ✅ |
 
 ## 调用链
 
@@ -44,14 +45,15 @@
 - 线上枚举 `UPPER_SNAKE_CASE`；React `shared-types` 旧枚举不改，映射在 `packages/api-client`。
 - 公开接口 `@Public()`：有合法 Bearer 则挂 `request.auth`，坏 Token 当匿名。
 - `keyword` 用标题/摘要 `ILIKE`；`search_document` 仍写入，不作为现网唯一检索。
-- 封面/主文件只存 UUID，`coverUrl`/`previewUrl` 本阶段为 `null`。
+- 封面/主文件存 UUID，公开/工作区详情的 `coverUrl` / `previewUrl` 为短时签名 URL（文件域 5.3）。
 - 已发布详情返回 `markdownSource` 或服务端净化的 `renderedHtml`；RICH_TEXT 的原始 `editorDocument` 仅工作区可见，净化后正文为空时不能发布。
 - 写入资源的 OWN/ALL 范围以各自动作权限为准；永久删除额外要求 `content:purge` ALL 和 `SUPER_ADMIN`。内容、分类和标签的受保护写接口均要求幂等键。
+- 编辑者公开发布进入审核；`approve`/`reject` 在事务内用 `PENDING` 条件更新抢占，任意并发只有一个终态。导入公开须非空白版权说明。
 - 工作区 PATCH 忽略 `isFeatured`。
 
-## 明确不做（下一阶段或后置）
+## 明确不做（已迁到文件域或二期）
 
-ZIP 导入、MinIO/`file_assets`、章节正文、封面真文件、物理清理 worker、Textbus 文档协议、`site.homepage` 精选 ID 列表。
+物理清理 worker、Textbus 文档协议、`site.homepage` 精选 ID 列表。ZIP / MinIO / 章节正文 / 封面真文件见 [file/README.md](../file/README.md)。
 
 ## 验证
 

@@ -1,7 +1,11 @@
 import { CanActivate, ExecutionContext, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { DataScope } from '@prisma/client';
 import type { Request } from 'express';
-import { REQUIRED_PERMISSION_KEY } from '../../common/decorators/require-permission.decorator';
+import {
+  REQUIRED_DATA_SCOPE_KEY,
+  REQUIRED_PERMISSION_KEY,
+} from '../../common/decorators/require-permission.decorator';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { AuthService } from './auth.service';
 import type { PermissionCode } from './rbac-catalog';
@@ -25,6 +29,10 @@ export class PermissionsGuard implements CanActivate {
     if (required === undefined) {
       return true;
     }
+    const requiredScope = this.reflector.getAllAndOverride<DataScope | undefined>(
+      REQUIRED_DATA_SCOPE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     const request = context.switchToHttp().getRequest<Request>();
     const auth = request.auth;
@@ -36,7 +44,11 @@ export class PermissionsGuard implements CanActivate {
       auth.userId,
       auth.permissionVersion,
     );
-    if (!snapshot.permissions.some((grant) => grant.code === required)) {
+    const grant = snapshot.permissions.find((item) => item.code === required);
+    if (!grant) {
+      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '没有执行该操作的权限');
+    }
+    if (requiredScope !== undefined && grant.dataScope !== requiredScope) {
       throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '没有执行该操作的权限');
     }
     return true;

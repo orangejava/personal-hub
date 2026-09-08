@@ -43,6 +43,9 @@ export interface NestContentListItem {
   updatedAt: string;
   createdAt: string;
   author: { id: string; nickname: string };
+  importRestriction?: 'NONE' | 'PRIVATE_UNTIL_LICENSED';
+  /** 最近一条审核状态；无记录时为 null。 */
+  reviewStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED' | null;
 }
 
 export interface NestContentDetail extends NestContentListItem {
@@ -152,6 +155,8 @@ export function mapNestContentItem(
     updatedAt: row.updatedAt,
     locked: row.locked,
     isFeatured: row.isFeatured,
+    importRestriction: row.importRestriction,
+    reviewStatus: row.reviewStatus ?? null,
   };
 }
 

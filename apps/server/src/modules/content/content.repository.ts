@@ -8,6 +8,8 @@ export const contentDetailInclude = {
   tags: { include: { tag: true } },
   body: true,
   _count: { select: { favorites: true } },
+  // 列表/详情只带最近一条审核，避免把历史驳回全量拉出来。
+  reviews: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { status: true } },
 } satisfies Prisma.ContentInclude;
 
 export type ContentDetailRow = Prisma.ContentGetPayload<{

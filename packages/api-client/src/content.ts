@@ -44,6 +44,77 @@ export interface NestContentListItem {
   updatedAt: string;
   createdAt: string;
   author: NestContentAuthor;
+  importRestriction?: 'NONE' | 'PRIVATE_UNTIL_LICENSED';
+  reviewStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED' | null;
+}
+
+export interface NestContentReviewItem {
+  id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
+  requestedVisibility: NestContentVisibility;
+  copyrightNote: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  decidedAt: string | null;
+  requester: NestContentAuthor;
+  reviewer: NestContentAuthor | null;
+  content: {
+    id: string;
+    type: NestContentType;
+    title: string;
+    status: NestContentStatus;
+    visibility: NestContentVisibility;
+    importRestriction: 'NONE' | 'PRIVATE_UNTIL_LICENSED';
+    author: NestContentAuthor;
+  };
+}
+
+export interface NestContentReviewPage {
+  list: NestContentReviewItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface NestBookletImportJob {
+  id: string;
+  status: string;
+  progress: number;
+  contentId: string | null;
+  totalChapters: number;
+  successCount: number;
+  failureCount: number;
+  errorCode: string | null;
+  errorMessage: string | null;
+  sourceFileId: string;
+  createdAt: string;
+  originalName: string | null;
+}
+
+export interface NestBookletImportPage {
+  list: NestBookletImportJob[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface NestAppFileListItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  contentId: string | null;
+}
+
+export interface NestAppFilePage {
+  list: NestAppFileListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface NestContentDetail extends NestContentListItem {
@@ -160,6 +231,8 @@ export function mapNestContentItem(
     updatedAt: row.updatedAt,
     locked: row.locked,
     isFeatured: row.isFeatured,
+    importRestriction: row.importRestriction,
+    reviewStatus: row.reviewStatus ?? null,
   };
 }
 

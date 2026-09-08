@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DataScope, RoleCode, UserStatus } from '@prisma/client';
+import { ContentType, DataScope, ImportRestriction, RoleCode, UserStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -180,7 +180,7 @@ describe('Content HTTP', () => {
     });
     await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
       method: 'POST',
-      token: editorToken,
+      token: ownerToken,
       headers: { 'Idempotency-Key': 'pub-login-md' },
     });
 
@@ -199,7 +199,7 @@ describe('Content HTTP', () => {
     });
     await json(`/api/v1/app/contents/${publicMd.data?.id}/publish`, {
       method: 'POST',
-      token: editorToken,
+      token: ownerToken,
       headers: { 'Idempotency-Key': 'pub-public-md' },
     });
 
@@ -249,7 +249,7 @@ describe('Content HTTP', () => {
     });
     await json(`/api/v1/app/contents/${tagged.data?.id}/publish`, {
       method: 'POST',
-      token: editorToken,
+      token: ownerToken,
       headers: { 'Idempotency-Key': 'pub-and-tags' },
     });
 
@@ -458,6 +458,387 @@ describe('Content HTTP', () => {
     expect(invalidId.status).toBe(400);
     expect(missingKey.status).toBe(400);
     expect(missingKey.body.error?.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+  });
+
+  it('同一幂等键并发只产生一次副作用并回放同一响应', async () => {
+    const body = {
+      type: 'MARKDOWN',
+      title: '幂等并发文章',
+      categorySlug: 'frontend',
+      visibility: 'PRIVATE',
+      markdownSource: '# 并发\n\n正文。',
+    };
+    const results = await Promise.all([
+      raw('/api/v1/app/contents', {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'concurrent-same-key-create' },
+        body,
+      }),
+      raw('/api/v1/app/contents', {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'concurrent-same-key-create' },
+        body,
+      }),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual([201, 201]);
+    const first = results[0]?.body.data as { id?: string } | undefined;
+    const second = results[1]?.body.data as { id?: string } | undefined;
+    expect(first?.id).toBeTruthy();
+    expect(first?.id).toBe(second?.id);
+    expect(await prisma.content.count({ where: { title: '幂等并发文章' } })).toBe(1);
+    const record = await prisma.idempotencyRecord.findFirstOrThrow({
+      where: { idempotencyKey: 'concurrent-same-key-create' },
+    });
+    expect(record.state).toBe('COMPLETED');
+    expect(record.completedAt).toBeTruthy();
+  });
+
+  it('过期幂等记录允许同键换请求体重新执行', async () => {
+    await json('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'ttl-expired-create' },
+      body: {
+        type: 'MARKDOWN',
+        title: 'TTL 过期前',
+        categorySlug: 'frontend',
+        markdownSource: '# 过期前',
+      },
+    });
+    await prisma.idempotencyRecord.updateMany({
+      where: { idempotencyKey: 'ttl-expired-create' },
+      data: { expiresAt: new Date(0) },
+    });
+
+    const reused = await json<{ title: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'ttl-expired-create' },
+      body: {
+        type: 'MARKDOWN',
+        title: 'TTL 过期后',
+        categorySlug: 'frontend',
+        markdownSource: '# 过期后',
+      },
+    });
+    expect(reused.data?.title).toBe('TTL 过期后');
+    expect(await prisma.content.count({ where: { title: { in: ['TTL 过期前', 'TTL 过期后'] } } })).toBe(
+      2,
+    );
+  });
+
+  it('同一幂等键搭配不同请求体返回指纹冲突', async () => {
+    await json('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'fingerprint-mismatch-create' },
+      body: {
+        type: 'MARKDOWN',
+        title: '指纹原文',
+        categorySlug: 'frontend',
+        markdownSource: '# 原文',
+      },
+    });
+    const conflict = await raw('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'fingerprint-mismatch-create' },
+      body: {
+        type: 'MARKDOWN',
+        title: '指纹改写',
+        categorySlug: 'frontend',
+        markdownSource: '# 改写',
+      },
+    });
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.error?.code).toBe('IDEMPOTENCY_KEY_REUSED');
+  });
+
+  it('导入版权闸拒绝空白授权说明', async () => {
+    const owner = await prisma.user.findUniqueOrThrow({ where: { email: 'owner@example.com' } });
+    const imported = await prisma.content.create({
+      data: {
+        type: ContentType.MARKDOWN,
+        title: '需要版权说明的导入内容',
+        authorId: owner.id,
+        importRestriction: ImportRestriction.PRIVATE_UNTIL_LICENSED,
+      },
+    });
+
+    const response = await raw(`/api/v1/admin/contents/${imported.id}/import-license`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'blank-import-license-note' },
+      body: { note: '   ' },
+    });
+
+    expect(response.status).toBe(422);
+    expect(response.body.error?.code).toBe('CONTENT_COPYRIGHT_NOTE_REQUIRED');
+    expect(
+      (await prisma.content.findUniqueOrThrow({ where: { id: imported.id } })).importRestriction,
+    ).toBe(ImportRestriction.PRIVATE_UNTIL_LICENSED);
+  });
+
+  it('并发审核只能有一个请求原子抢占 PENDING 状态', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-concurrent-review' },
+      body: {
+        type: 'MARKDOWN',
+        title: '并发审核文章',
+        categorySlug: 'frontend',
+        visibility: 'PUBLIC',
+        markdownSource: '# 审核\n\n正文。',
+      },
+    });
+    await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'submit-concurrent-review' },
+    });
+    const review = await prisma.contentReview.findFirstOrThrow({
+      where: { contentId: created.data?.id, status: 'PENDING' },
+    });
+
+    const results = await Promise.all([
+      raw(`/api/v1/admin/content-reviews/${review.id}/approve`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-concurrent-review-a' },
+      }),
+      raw(`/api/v1/admin/content-reviews/${review.id}/approve`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-concurrent-review-b' },
+      }),
+    ]);
+
+    expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
+    expect((await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status).toBe(
+      'APPROVED',
+    );
+    expect((await prisma.content.findUniqueOrThrow({ where: { id: created.data?.id } })).status).toBe(
+      'PUBLISHED',
+    );
+  });
+
+  it('并发通过与驳回只有一个终态', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-approve-reject-race' },
+      body: {
+        type: 'MARKDOWN',
+        title: '通过驳回竞态',
+        categorySlug: 'frontend',
+        visibility: 'PUBLIC',
+        markdownSource: '# 竞态\n\n正文。',
+      },
+    });
+    await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'submit-approve-reject-race' },
+    });
+    const review = await prisma.contentReview.findFirstOrThrow({
+      where: { contentId: created.data?.id, status: 'PENDING' },
+    });
+
+    const results = await Promise.all([
+      raw(`/api/v1/admin/content-reviews/${review.id}/approve`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-reject-race-a' },
+      }),
+      raw(`/api/v1/admin/content-reviews/${review.id}/reject`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-reject-race-b' },
+        body: { reason: '标题需要更具体' },
+      }),
+    ]);
+
+    const statuses = results.map((result) => result.status).sort((left, right) => left - right);
+    expect(statuses).toContain(409);
+    expect(statuses.some((status) => status === 200 || status === 201)).toBe(true);
+    const final = await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } });
+    expect(['APPROVED', 'REJECTED']).toContain(final.status);
+  });
+
+  it('驳回拒绝空白原因', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-blank-reject' },
+      body: {
+        type: 'MARKDOWN',
+        title: '空白驳回',
+        categorySlug: 'frontend',
+        visibility: 'PUBLIC',
+        markdownSource: '# 驳回\n\n正文。',
+      },
+    });
+    await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'submit-blank-reject' },
+    });
+    const review = await prisma.contentReview.findFirstOrThrow({
+      where: { contentId: created.data?.id, status: 'PENDING' },
+    });
+    const blank = await raw(`/api/v1/admin/content-reviews/${review.id}/reject`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'blank-reject-reason' },
+      body: { reason: '   ' },
+    });
+    expect(blank.status).toBe(422);
+    expect(blank.body.error?.code).toBe('CONTENT_REVIEW_REASON_REQUIRED');
+    expect((await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status).toBe(
+      'PENDING',
+    );
+  });
+
+  it('编辑者发布进入审核队列，管理员通过后才公开；驳回保持草稿', async () => {
+    const created = await json<{ id: string; status: string; reviewStatus: string | null }>(
+      '/api/v1/app/contents',
+      {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'create-review-md' },
+        body: {
+          type: 'MARKDOWN',
+          title: '待审核文章',
+          categorySlug: 'frontend',
+          visibility: 'PUBLIC',
+          markdownSource: '# 审核\n\n正文。',
+        },
+      },
+    );
+    const submitted = await json<{ status: string; reviewStatus: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'submit-review-md' },
+      },
+    );
+    expect(submitted.data?.status).toBe('DRAFT');
+    expect(submitted.data?.reviewStatus).toBe('PENDING');
+
+    const publicHidden = await raw(`/api/v1/public/contents/${created.data?.id}`);
+    expect(publicHidden.status).toBe(404);
+
+    const editorForbidden = await raw('/api/v1/admin/content-reviews', { token: editorToken });
+    expect(editorForbidden.status).toBe(403);
+
+    const listed = await json<{
+      list: Array<{ id: string; status: string; content: { id: string } }>;
+      total: number;
+    }>('/api/v1/admin/content-reviews?status=PENDING', { token: ownerToken });
+    const review = listed.data?.list.find((item) => item.content.id === created.data?.id);
+    expect(review).toBeTruthy();
+
+    const again = await json<{ reviewStatus: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'submit-review-md-again' },
+      },
+    );
+    expect(again.data?.reviewStatus).toBe('PENDING');
+    expect(
+      (
+        await json<{ total: number }>('/api/v1/admin/content-reviews?status=PENDING', {
+          token: ownerToken,
+        })
+      ).data?.total,
+    ).toBe(listed.data?.total);
+
+    const rejected = await json<{ status: string; rejectReason: string | null }>(
+      `/api/v1/admin/content-reviews/${review?.id}/reject`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'reject-review-md' },
+        body: { reason: '标题需要更具体' },
+      },
+    );
+    expect(rejected.data?.status).toBe('REJECTED');
+    expect(rejected.data?.rejectReason).toBe('标题需要更具体');
+    const rejectedAgain = await raw(`/api/v1/admin/content-reviews/${review?.id}/reject`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'reject-review-md-again' },
+      body: { reason: '不能重复处理' },
+    });
+    expect(rejectedAgain.status).toBe(409);
+    expect(rejectedAgain.body.error?.code).toBe('CONTENT_REVIEW_INVALID_STATE');
+    const afterReject = await json<{ status: string; reviewStatus: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}`,
+      { token: editorToken },
+    );
+    expect(afterReject.data?.status).toBe('DRAFT');
+    expect(afterReject.data?.reviewStatus).toBe('REJECTED');
+
+    const resubmit = await json<{ reviewStatus: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'resubmit-review-md' },
+      },
+    );
+    expect(resubmit.data?.reviewStatus).toBe('PENDING');
+    const pendingAgain = await json<{
+      list: Array<{ id: string; content: { id: string } }>;
+    }>('/api/v1/admin/content-reviews?status=PENDING', { token: ownerToken });
+    const nextReview = pendingAgain.data?.list.find((item) => item.content.id === created.data?.id);
+
+    const approved = await json<{ status: string; content: { status: string; visibility: string } }>(
+      `/api/v1/admin/content-reviews/${nextReview?.id}/approve`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-review-md' },
+      },
+    );
+    expect(approved.data?.status).toBe('APPROVED');
+    expect(approved.data?.content.status).toBe('PUBLISHED');
+    const publicDetail = await json<{ title: string }>(`/api/v1/public/contents/${created.data?.id}`);
+    expect(publicDetail.data?.title).toBe('待审核文章');
+  });
+
+  it('所有者发布仍即时生效，不进审核队列', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'owner-direct-publish' },
+      body: {
+        type: 'MARKDOWN',
+        title: '所有者直接发布',
+        categorySlug: 'frontend',
+        visibility: 'PUBLIC',
+        markdownSource: '# 直接发布',
+      },
+    });
+    const published = await json<{ status: string; reviewStatus: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'owner-direct-publish-go' },
+      },
+    );
+    expect(published.data?.status).toBe('PUBLISHED');
+    expect(published.data?.reviewStatus).toBeNull();
+    const publicDetail = await json<{ title: string }>(`/api/v1/public/contents/${created.data?.id}`);
+    expect(publicDetail.data?.title).toBe('所有者直接发布');
   });
 
   async function login(email: string): Promise<string> {

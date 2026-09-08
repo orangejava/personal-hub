@@ -14,6 +14,7 @@ export default [
       { path: '/admin/home', redirect: '/admin/dashboard' },
       { path: '/admin/dashboard', name: '运营概览', component: './admin/Dashboard' },
       { path: '/admin/content/list', name: '文档列表', component: './admin/ContentList' },
+      { path: '/admin/content/reviews', name: '内容审核', component: './admin/ContentReviews' },
       { path: '/admin/content/booklets', name: '小册管理', component: './admin/Booklets' },
       { path: '/admin/content/categories', name: '分类管理', component: './admin/Categories' },
       { path: '/admin/content/tags', name: '标签管理', component: './admin/Tags' },

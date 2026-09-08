@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
+  ContentReviewStatus,
+  ContentSourceType,
   ContentStatus,
   ContentType,
   ContentVisibility,
   DataScope,
+  FilePurpose,
   ImportRestriction,
   Prisma,
   RoleCode,
@@ -27,10 +30,13 @@ import {
   type ContentDetailRow,
 } from './content.repository';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { FileService } from '../file/file.service';
 import { PublicContentSort } from './dto/list-public-content.query.dto';
 import type {
   CreateContentDto,
+  ListContentReviewsQueryDto,
   PatchContentDto,
+  PublishContentDto,
   RichTextDocumentDto,
 } from './dto/mutate-content.dto';
 
@@ -40,7 +46,28 @@ const PUBLISHABLE_TYPES: ContentType[] = [
   ContentType.RICH_TEXT,
   ContentType.LINK,
   ContentType.PROJECT,
+  ContentType.PDF,
+  ContentType.WORD,
+  ContentType.BOOKLET,
 ];
+
+const contentReviewInclude = {
+  requester: { select: { id: true, nickname: true, email: true } },
+  reviewer: { select: { id: true, nickname: true, email: true } },
+  content: {
+    select: {
+      id: true,
+      type: true,
+      title: true,
+      status: true,
+      visibility: true,
+      importRestriction: true,
+      author: { select: { id: true, nickname: true, email: true } },
+    },
+  },
+} satisfies Prisma.ContentReviewInclude;
+
+type ContentReviewRow = Prisma.ContentReviewGetPayload<{ include: typeof contentReviewInclude }>;
 
 interface ContentActionScope {
   userId: string;
@@ -53,6 +80,7 @@ export class ContentService {
     private readonly prisma: PrismaService,
     private readonly contents: ContentRepository,
     private readonly auth: AuthService,
+    private readonly files: FileService,
   ) {}
 
   async resolveViewerFromAuth(auth?: {
@@ -95,7 +123,7 @@ export class ContentService {
     viewer: ContentViewer,
   ) {
     const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
+    const pageSize = query.pageSize ?? 10;
     const where = await this.buildPublicWhere(query);
     const orderBy: Prisma.ContentOrderByWithRelationInput =
       query.sort === PublicContentSort.POPULAR ? { viewCount: 'desc' } : { publishedAt: 'desc' };
@@ -104,7 +132,7 @@ export class ContentService {
       this.contents.count(where),
     ]);
     return {
-      list: list.map((row) => this.toListItem(row, viewer, true)),
+      list: await Promise.all(list.map((row) => this.toListItem(row, viewer, true))),
       total,
       page,
       pageSize,
@@ -127,7 +155,7 @@ export class ContentService {
         include: contentDetailInclude,
       });
     }
-    return list.map((row) => this.toListItem(row, viewer, true));
+    return Promise.all(list.map((row) => this.toListItem(row, viewer, true)));
   }
 
   async publicMeta(viewer: ContentViewer) {
@@ -188,6 +216,72 @@ export class ContentService {
     return { list: chapters };
   }
 
+  async getChapter(contentId: string, chapterId: string, viewer: ContentViewer) {
+    await this.publicDetail(contentId, viewer, 'skip-view');
+    const chapter = await this.prisma.contentChapter.findFirst({
+      where: { id: chapterId, contentId },
+    });
+    if (!chapter) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '章节不存在');
+    }
+    let markdown = '';
+    if (chapter.objectKey) {
+      try {
+        markdown = (await this.files.getStorage().getObject(chapter.objectKey)).toString('utf8');
+      } catch {
+        markdown = '';
+      }
+    }
+    const derived = markdown ? deriveMarkdown(markdown) : { html: '', toc: [], wordCount: 0 };
+    return {
+      id: chapter.id,
+      title: chapter.title,
+      chapterOrder: chapter.chapterOrder,
+      markdownSource: markdown,
+      renderedHtml: derived.html,
+      toc: derived.toc,
+      wordCount: chapter.wordCount ?? derived.wordCount,
+    };
+  }
+
+  async importLicense(
+    auth: { userId: string; permissionVersion: number },
+    id: string,
+    note: string,
+    requestId: string | null,
+  ) {
+    const grant = await this.assertPermission(auth, 'content:publish');
+    if (!grant.all) {
+      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '解除导入限制需要全站发布权限');
+    }
+    const trimmed = note.trim();
+    if (!trimmed) {
+      throw new DomainHttpException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'CONTENT_COPYRIGHT_NOTE_REQUIRED',
+        '解除导入限制需要填写版权说明',
+      );
+    }
+    const row = await this.contents.findById(id);
+    if (!row || row.deletedAt) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+    }
+    if (row.importRestriction !== ImportRestriction.PRIVATE_UNTIL_LICENSED) {
+      return this.toDetail(row, { userId: auth.userId, contentReadAll: true }, { publicView: false, favorited: false });
+    }
+    await this.contents.asTransaction(async (tx) => {
+      const licensed = await this.applyImportLicenseInTx(tx, row, auth.userId, trimmed, requestId);
+      if (!licensed) {
+        return;
+      }
+    });
+    const next = await this.contents.findById(id);
+    if (next === null) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+    }
+    return this.toDetail(next, { userId: auth.userId, contentReadAll: true }, { publicView: false, favorited: false });
+  }
+
   async listApp(
     auth: { userId: string; permissionVersion: number },
     query: {
@@ -203,7 +297,7 @@ export class ContentService {
     await this.assertPermission(auth, 'content:read');
     const viewer = await this.resolveViewerFromAuth(auth);
     const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
+    const pageSize = query.pageSize ?? 10;
     const where: Prisma.ContentWhereInput = {
       ...workspaceListWhere(viewer, query),
       ...(query.visibility ? { visibility: query.visibility } : {}),
@@ -215,7 +309,7 @@ export class ContentService {
       this.contents.count(where),
     ]);
     return {
-      list: list.map((row) => this.toListItem(row, viewer, false)),
+      list: await Promise.all(list.map((row) => this.toListItem(row, viewer, false))),
       total,
       page,
       pageSize,
@@ -234,8 +328,31 @@ export class ContentService {
 
   async create(auth: { userId: string; permissionVersion: number }, dto: CreateContentDto) {
     await this.assertPermission(auth, 'content:create');
+    if (dto.type === ContentType.BOOKLET) {
+      throw new DomainHttpException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'CONTENT_PUBLISH_VALIDATION_FAILED',
+        '小册请通过 ZIP 导入创建',
+      );
+    }
     const category = dto.categorySlug ? await this.requireEnabledCategory(dto.categorySlug) : null;
     const derived = this.deriveContentBody(dto.type, dto.markdownSource, dto.editorDocument);
+    const coverFileId = dto.coverFileId
+      ? (await this.files.requireReadyOwnedFile(auth.userId, dto.coverFileId, FilePurpose.COVER)).id
+      : undefined;
+    const primaryFileId = dto.primaryFileId
+      ? (await this.files.requireReadyOwnedFile(auth.userId, dto.primaryFileId, FilePurpose.CONTENT_FILE)).id
+      : undefined;
+    if (
+      (dto.type === ContentType.PDF || dto.type === ContentType.WORD) &&
+      !primaryFileId
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'FILE_NOT_READY',
+        'PDF / Word 需要先上传主文件',
+      );
+    }
     const created = await this.contents.asTransaction(async (tx) => {
       const content = await tx.content.create({
         data: {
@@ -248,6 +365,9 @@ export class ContentService {
           externalUrl: dto.externalUrl,
           extra: dto.extra as Prisma.InputJsonValue | undefined,
           wordCount: derived?.wordCount ?? 0,
+          coverFileId,
+          primaryFileId,
+          sourceType: primaryFileId ? ContentSourceType.UPLOAD : ContentSourceType.MANUAL,
           body: {
             create: {
               markdownSource: dto.markdownSource,
@@ -296,6 +416,35 @@ export class ContentService {
     if ('isFeatured' in dto) {
       delete (dto as { isFeatured?: unknown }).isFeatured;
     }
+    if (
+      current.importRestriction === ImportRestriction.PRIVATE_UNTIL_LICENSED &&
+      dto.visibility !== undefined &&
+      dto.visibility !== ContentVisibility.PRIVATE
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'CONTENT_IMPORT_RESTRICTION_ACTIVE',
+        '导入限制解除前不能公开',
+      );
+    }
+    const coverFileId =
+      dto.coverFileId === undefined
+        ? undefined
+        : dto.coverFileId === null
+          ? null
+          : (await this.files.requireReadyOwnedFile(auth.userId, dto.coverFileId, FilePurpose.COVER)).id;
+    const primaryFileId =
+      dto.primaryFileId === undefined
+        ? undefined
+        : dto.primaryFileId === null
+          ? null
+          : (
+              await this.files.requireReadyOwnedFile(
+                auth.userId,
+                dto.primaryFileId,
+                FilePurpose.CONTENT_FILE,
+              )
+            ).id;
     const category =
       dto.categorySlug === undefined
         ? undefined
@@ -320,6 +469,9 @@ export class ContentService {
           visibility: dto.visibility,
           externalUrl: dto.externalUrl === undefined ? undefined : dto.externalUrl,
           extra: dto.extra === undefined ? undefined : (dto.extra as Prisma.InputJsonValue),
+          coverFileId,
+          primaryFileId,
+          sourceType: primaryFileId ? ContentSourceType.UPLOAD : undefined,
           wordCount: updatesDerivedBody ? (derived?.wordCount ?? 0) : undefined,
           version: { increment: 1 },
           body: {
@@ -370,49 +522,194 @@ export class ContentService {
     return this.toDetail(row, viewer, { publicView: false, favorited: false });
   }
 
+  /**
+   * 发布内容。OWN 只写入待审核且保持草稿；ALL 仍即时发布。
+   * 导入内容若目标可见性为公开/登录，必须带版权说明并走同一套清闸逻辑。
+   */
   async publish(
     auth: { userId: string; permissionVersion: number },
     id: string,
     requestId: string | null,
+    dto: PublishContentDto = {},
+    options: { requireAll?: boolean } = {},
   ) {
     const grant = await this.assertPermission(auth, 'content:publish');
+    if (options.requireAll && !grant.all) {
+      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '代发布需要全站发布权限');
+    }
     const viewer: ContentViewer = { userId: auth.userId, contentReadAll: grant.all };
     const row = await this.requireOwned(
       id,
       { userId: auth.userId, all: grant.all },
       { allowDeleted: false },
     );
-    this.assertPublishable(row);
+    this.assertPublishable(row, { skipImportRestriction: true });
+    this.assertFileOrBookletReady(row);
+    const targetVisibility = dto.requestedVisibility ?? row.visibility;
+    if (!grant.all) {
+      return this.submitReview(auth, row, targetVisibility, viewer);
+    }
+    this.assertCopyrightNoteIfNeeded(row, targetVisibility, dto.copyrightNote);
     await this.contents.asTransaction(async (tx) => {
-      await tx.contentVersion.create({
-        data: {
-          contentId: id,
-          snapshotReason: 'PUBLISH_SNAPSHOT',
-          markdownSource: row.body?.markdownSource,
-          editorDocument: row.body?.editorDocument as Prisma.InputJsonValue | undefined,
-          renderedHtml: row.body?.renderedHtml,
-          toc: row.body?.toc as Prisma.InputJsonValue | undefined,
-          createdBy: auth.userId,
-        },
-      });
-      await tx.content.update({
-        where: { id },
-        data: {
-          status: ContentStatus.PUBLISHED,
-          publishedAt: row.publishedAt ?? new Date(),
-          version: { increment: 1 },
-        },
-      });
-      await this.contents.createAudit(
-        { action: 'content.publish', actorId: auth.userId, targetId: id, requestId },
-        tx,
-      );
+      if (this.needsImportLicense(row, targetVisibility)) {
+        await this.applyImportLicenseInTx(
+          tx,
+          row,
+          auth.userId,
+          dto.copyrightNote?.trim() ?? '',
+          requestId,
+        );
+      }
+      await this.cancelPendingReviewsInTx(tx, id, auth.userId);
+      await this.executePublishInTx(tx, row, auth.userId, requestId, dto.requestedVisibility);
     });
     const next = await this.contents.findById(id);
     if (next === null) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
     }
     return this.toDetail(next, viewer, { publicView: false, favorited: false });
+  }
+
+  /**
+   * 后台审核队列。权限码仍是 content:publish，但必须是 ALL。
+   */
+  async listReviews(
+    auth: { userId: string; permissionVersion: number },
+    query: ListContentReviewsQueryDto,
+  ) {
+    await this.assertPublishAll(auth);
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 10;
+    const where: Prisma.ContentReviewWhereInput = query.status ? { status: query.status } : {};
+    const [list, total] = await Promise.all([
+      this.prisma.contentReview.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: contentReviewInclude,
+      }),
+      this.prisma.contentReview.count({ where }),
+    ]);
+    return {
+      list: list.map((item) => this.toReviewItem(item)),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  /**
+   * 通过审核：必要时清导入版权闸，再按申请可见性发布。内容在通过前始终保持草稿。
+   */
+  async approveReview(
+    auth: { userId: string; permissionVersion: number },
+    reviewId: string,
+    copyrightNote: string | undefined,
+    requestId: string | null,
+  ) {
+    await this.assertPublishAll(auth);
+    await this.contents.asTransaction(async (tx) => {
+      await this.claimPendingReview(tx, reviewId, {
+        status: ContentReviewStatus.APPROVED,
+        reviewerId: auth.userId,
+        copyrightNote: copyrightNote?.trim() || null,
+      });
+      const review = await tx.contentReview.findUnique({
+        where: { id: reviewId },
+        include: contentReviewInclude,
+      });
+      if (review === null) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+      }
+      const row = await this.contents.findById(review.contentId, tx);
+      if (row === null || row.deletedAt) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+      }
+      this.assertPublishable(row, { skipImportRestriction: true });
+      await this.assertFileOrBookletReady(row, tx);
+      this.assertCopyrightNoteIfNeeded(row, review.requestedVisibility, copyrightNote);
+      if (this.needsImportLicense(row, review.requestedVisibility)) {
+        await this.applyImportLicenseInTx(
+          tx,
+          row,
+          auth.userId,
+          copyrightNote?.trim() ?? '',
+          requestId,
+        );
+      }
+      await this.executePublishInTx(tx, row, auth.userId, requestId, review.requestedVisibility);
+      await this.contents.createAudit(
+        {
+          action: 'content.review.approve',
+          actorId: auth.userId,
+          targetId: review.contentId,
+          requestId,
+          detail: { reviewId, requestedVisibility: review.requestedVisibility },
+        },
+        tx,
+      );
+    });
+    const next = await this.prisma.contentReview.findUnique({
+      where: { id: reviewId },
+      include: contentReviewInclude,
+    });
+    if (next === null) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+    }
+    return this.toReviewItem(next);
+  }
+
+  /**
+   * 驳回审核：内容保持草稿，记录原因供作者修改后再次提交。
+   */
+  async rejectReview(
+    auth: { userId: string; permissionVersion: number },
+    reviewId: string,
+    reason: string,
+    requestId: string | null,
+  ) {
+    await this.assertPublishAll(auth);
+    const trimmed = reason.trim();
+    if (!trimmed) {
+      throw new DomainHttpException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        'CONTENT_REVIEW_REASON_REQUIRED',
+        '驳回需要填写原因',
+      );
+    }
+    await this.contents.asTransaction(async (tx) => {
+      await this.claimPendingReview(tx, reviewId, {
+        status: ContentReviewStatus.REJECTED,
+        reviewerId: auth.userId,
+        rejectReason: trimmed,
+      });
+      const review = await tx.contentReview.findUnique({
+        where: { id: reviewId },
+        include: contentReviewInclude,
+      });
+      if (review === null) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+      }
+      await this.contents.createAudit(
+        {
+          action: 'content.review.reject',
+          actorId: auth.userId,
+          targetId: review.contentId,
+          requestId,
+          detail: { reviewId, reason: trimmed },
+        },
+        tx,
+      );
+    });
+    const next = await this.prisma.contentReview.findUnique({
+      where: { id: reviewId },
+      include: contentReviewInclude,
+    });
+    if (next === null) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+    }
+    return this.toReviewItem(next);
   }
 
   async archive(
@@ -593,7 +890,7 @@ export class ContentService {
     return { id };
   }
 
-  async listFavorites(auth: { userId: string }, page = 1, pageSize = 20) {
+  async listFavorites(auth: { userId: string }, page = 1, pageSize = 10) {
     const where = { userId: auth.userId, content: publicListWhere() };
     const [rows, total] = await Promise.all([
       this.prisma.favorite.findMany({
@@ -607,7 +904,7 @@ export class ContentService {
     ]);
     const viewer: ContentViewer = { userId: auth.userId, contentReadAll: false };
     return {
-      list: rows.map((item) => this.toListItem(item.content, viewer, true)),
+      list: await Promise.all(rows.map((item) => this.toListItem(item.content, viewer, true))),
       total,
       page,
       pageSize,
@@ -736,7 +1033,7 @@ export class ContentService {
       throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '没有执行该操作的权限');
     }
     const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
+    const pageSize = query.pageSize ?? 10;
     const where: Prisma.ContentWhereInput = {
       deletedAt: null,
       ...this.keywordWhere(query.keyword),
@@ -747,7 +1044,7 @@ export class ContentService {
       this.contents.count(where),
     ]);
     return {
-      list: list.map((row) => this.toListItem(row, viewer, false)),
+      list: await Promise.all(list.map((row) => this.toListItem(row, viewer, false))),
       total,
       page,
       pageSize,
@@ -1129,7 +1426,281 @@ export class ContentService {
     return row;
   }
 
-  private assertPublishable(row: ContentDetailRow) {
+  /**
+   * 编辑者提交审核：内容保持草稿；已有 PENDING 则更新申请可见性后原样返回。
+   */
+  private async submitReview(
+    auth: { userId: string },
+    row: ContentDetailRow,
+    requestedVisibility: ContentVisibility,
+    viewer: ContentViewer,
+  ) {
+    const pending = await this.prisma.contentReview.findFirst({
+      where: { contentId: row.id, status: ContentReviewStatus.PENDING },
+    });
+    if (pending) {
+      if (pending.requestedVisibility !== requestedVisibility) {
+        await this.prisma.contentReview.update({
+          where: { id: pending.id },
+          data: { requestedVisibility },
+        });
+      }
+      const next = await this.contents.findById(row.id);
+      if (next === null) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+      }
+      return this.toDetail(next, viewer, { publicView: false, favorited: false });
+    }
+    try {
+      await this.prisma.contentReview.create({
+        data: {
+          contentId: row.id,
+          requesterId: auth.userId,
+          requestedVisibility,
+          status: ContentReviewStatus.PENDING,
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
+        throw error;
+      }
+    }
+    const next = await this.contents.findById(row.id);
+    if (next === null) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+    }
+    return this.toDetail(next, viewer, { publicView: false, favorited: false });
+  }
+
+  /**
+   * 在已有事务内真正发布：写快照、改 PUBLISHED，可选套用申请的可见性。
+   */
+  private async executePublishInTx(
+    tx: Prisma.TransactionClient,
+    row: ContentDetailRow,
+    actorId: string,
+    requestId: string | null,
+    visibility?: ContentVisibility,
+  ) {
+    await tx.contentVersion.create({
+      data: {
+        contentId: row.id,
+        snapshotReason: 'PUBLISH_SNAPSHOT',
+        markdownSource: row.body?.markdownSource,
+        editorDocument: row.body?.editorDocument as Prisma.InputJsonValue | undefined,
+        renderedHtml: row.body?.renderedHtml,
+        toc: row.body?.toc as Prisma.InputJsonValue | undefined,
+        createdBy: actorId,
+      },
+    });
+    await tx.content.update({
+      where: { id: row.id },
+      data: {
+        status: ContentStatus.PUBLISHED,
+        publishedAt: row.publishedAt ?? new Date(),
+        visibility,
+        version: { increment: 1 },
+      },
+    });
+    await this.contents.createAudit(
+      { action: 'content.publish', actorId, targetId: row.id, requestId },
+      tx,
+    );
+  }
+
+  /**
+   * 清导入版权闸。必须在已有事务内调用，供审核通过与管理员直接发布复用。
+   * 用条件更新抢占 PRIVATE_UNTIL_LICENSED，避免两个清闸请求各自写一份快照。
+   *
+   * @returns 是否实际清闸；并发下第二人拿到 false 后应跳过快照。
+   */
+  private async applyImportLicenseInTx(
+    tx: Prisma.TransactionClient,
+    row: ContentDetailRow,
+    actorId: string,
+    note: string,
+    requestId: string | null,
+  ): Promise<boolean> {
+    const licensed = await tx.content.updateMany({
+      where: {
+        id: row.id,
+        importRestriction: ImportRestriction.PRIVATE_UNTIL_LICENSED,
+      },
+      data: { importRestriction: ImportRestriction.NONE, version: { increment: 1 } },
+    });
+    if (licensed.count !== 1) {
+      return false;
+    }
+    await tx.contentVersion.create({
+      data: {
+        contentId: row.id,
+        snapshotReason: 'IMPORT_SNAPSHOT',
+        markdownSource: row.body?.markdownSource,
+        createdBy: actorId,
+      },
+    });
+    await this.contents.createAudit(
+      {
+        action: 'content.import-license',
+        actorId,
+        targetId: row.id,
+        requestId,
+        detail: { note },
+      },
+      tx,
+    );
+    return true;
+  }
+
+  private async cancelPendingReviewsInTx(
+    tx: Prisma.TransactionClient,
+    contentId: string,
+    reviewerId: string,
+  ) {
+    await tx.contentReview.updateMany({
+      where: { contentId, status: ContentReviewStatus.PENDING },
+      data: {
+        status: ContentReviewStatus.CANCELED,
+        reviewerId,
+        decidedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * 用单条 SQL 抢占 PENDING 审核。PostgreSQL 会在行锁释放后重新检查 WHERE，
+   * 避免 Prisma updateMany 在交互事务里出现双写终态。
+   */
+  private async claimPendingReview(
+    tx: Prisma.TransactionClient,
+    reviewId: string,
+    data: {
+      status: ContentReviewStatus;
+      reviewerId: string;
+      copyrightNote?: string | null;
+      rejectReason?: string | null;
+    },
+  ): Promise<void> {
+    const count = await tx.$executeRaw`
+      UPDATE content_reviews
+      SET
+        status = CAST(${data.status} AS "ContentReviewStatus"),
+        reviewer_id = ${data.reviewerId}::uuid,
+        copyright_note = ${data.copyrightNote ?? null},
+        reject_reason = ${data.rejectReason ?? null},
+        decided_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${reviewId}::uuid
+        AND status = CAST(${ContentReviewStatus.PENDING} AS "ContentReviewStatus")
+    `;
+    if (count !== 1) {
+      throw this.reviewNotPending();
+    }
+  }
+
+  private reviewNotPending(): DomainHttpException {
+    return new DomainHttpException(
+      HttpStatus.CONFLICT,
+      'CONTENT_REVIEW_INVALID_STATE',
+      '只能处理待审核记录',
+    );
+  }
+
+  private async assertPublishAll(auth: { userId: string; permissionVersion: number }) {
+    const grant = await this.assertPermission(auth, 'content:publish');
+    if (!grant.all) {
+      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '内容审核需要全站发布权限');
+    }
+  }
+
+  private async assertFileOrBookletReady(
+    row: ContentDetailRow,
+    db: Prisma.TransactionClient | PrismaService = this.prisma,
+  ) {
+    if (row.type === ContentType.PDF || row.type === ContentType.WORD) {
+      if (!row.primaryFileId) {
+        throw new DomainHttpException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          'CONTENT_PUBLISH_VALIDATION_FAILED',
+          'PDF / Word 发布前需要主文件',
+        );
+      }
+    }
+    if (row.type === ContentType.BOOKLET) {
+      const chapterCount = await db.contentChapter.count({ where: { contentId: row.id } });
+      if (chapterCount < 1) {
+        throw new DomainHttpException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          'CONTENT_PUBLISH_VALIDATION_FAILED',
+          '小册发布前需要至少一个章节',
+        );
+      }
+    }
+  }
+
+  private needsImportLicense(row: ContentDetailRow, targetVisibility: ContentVisibility) {
+    return (
+      row.importRestriction === ImportRestriction.PRIVATE_UNTIL_LICENSED &&
+      targetVisibility !== ContentVisibility.PRIVATE
+    );
+  }
+
+  private assertCopyrightNoteIfNeeded(
+    row: ContentDetailRow,
+    targetVisibility: ContentVisibility,
+    copyrightNote: string | undefined,
+  ) {
+    if (!this.needsImportLicense(row, targetVisibility)) {
+      return;
+    }
+    if (!copyrightNote?.trim()) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'CONTENT_COPYRIGHT_NOTE_REQUIRED',
+        '导入内容公开或登录可见前需要填写版权说明',
+      );
+    }
+  }
+
+  private toReviewItem(row: ContentReviewRow) {
+    return {
+      id: row.id,
+      status: row.status,
+      requestedVisibility: row.requestedVisibility,
+      copyrightNote: row.copyrightNote,
+      rejectReason: row.rejectReason,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+      decidedAt: row.decidedAt?.toISOString() ?? null,
+      requester: {
+        id: row.requester.id,
+        nickname: displayName(row.requester.nickname, row.requester.email),
+      },
+      reviewer: row.reviewer
+        ? {
+            id: row.reviewer.id,
+            nickname: displayName(row.reviewer.nickname, row.reviewer.email),
+          }
+        : null,
+      content: {
+        id: row.content.id,
+        type: row.content.type,
+        title: row.content.title ?? '',
+        status: row.content.status,
+        visibility: row.content.visibility,
+        importRestriction: row.content.importRestriction,
+        author: {
+          id: row.content.author.id,
+          nickname: displayName(row.content.author.nickname, row.content.author.email),
+        },
+      },
+    };
+  }
+
+  private assertPublishable(
+    row: ContentDetailRow,
+    options: { skipImportRestriction?: boolean } = {},
+  ) {
     if (!PUBLISHABLE_TYPES.includes(row.type)) {
       throw new DomainHttpException(
         HttpStatus.UNPROCESSABLE_ENTITY,
@@ -1153,6 +1724,7 @@ export class ContentService {
       );
     }
     if (
+      !options.skipImportRestriction &&
       row.importRestriction === ImportRestriction.PRIVATE_UNTIL_LICENSED &&
       row.visibility !== ContentVisibility.PRIVATE
     ) {
@@ -1291,7 +1863,7 @@ export class ContentService {
     }
   }
 
-  private toListItem(row: ContentDetailRow, viewer: ContentViewer, publicView: boolean) {
+  private async toListItem(row: ContentDetailRow, viewer: ContentViewer, publicView: boolean) {
     const locked = publicView && isPublicListLocked(row.visibility, viewer);
     return {
       id: row.id,
@@ -1299,7 +1871,7 @@ export class ContentService {
       title: row.title ?? '',
       summary: row.summary ?? '',
       coverFileId: row.coverFileId,
-      coverUrl: null,
+      coverUrl: await this.files.signFileId(row.coverFileId),
       category: row.category ? { slug: row.category.slug, name: row.category.name } : null,
       tags: row.tags.map((item) => ({ slug: item.tag.slug, name: item.tag.name })),
       visibility: row.visibility,
@@ -1317,6 +1889,8 @@ export class ContentService {
         nickname: displayName(row.author.nickname, row.author.email),
       },
       version: row.version,
+      importRestriction: row.importRestriction,
+      reviewStatus: row.reviews[0]?.status ?? null,
       deletedAt: row.deletedAt?.toISOString() ?? null,
       restoreUntil: row.deletedAt
         ? new Date(row.deletedAt.getTime() + SOFT_DELETE_MS).toISOString()
@@ -1324,13 +1898,13 @@ export class ContentService {
     };
   }
 
-  private toDetail(
+  private async toDetail(
     row: ContentDetailRow,
     viewer: ContentViewer,
     options: { publicView: boolean; favorited: boolean },
   ) {
     return {
-      ...this.toListItem(row, viewer, options.publicView),
+      ...(await this.toListItem(row, viewer, options.publicView)),
       isFavorited: options.favorited,
       markdownSource: row.body?.markdownSource ?? null,
       renderedHtml: row.body?.renderedHtml ?? null,
@@ -1339,7 +1913,7 @@ export class ContentService {
       externalUrl: row.externalUrl,
       extra: row.extra,
       primaryFileId: row.primaryFileId,
-      previewUrl: null,
+      previewUrl: await this.files.signFileId(row.primaryFileId),
     };
   }
 }

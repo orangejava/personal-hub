@@ -30,6 +30,12 @@ export {
   type NestContentDetail,
   type NestContentListItem,
   type NestContentPage,
+  type NestContentReviewItem,
+  type NestContentReviewPage,
+  type NestBookletImportJob,
+  type NestBookletImportPage,
+  type NestAppFileListItem,
+  type NestAppFilePage,
 } from './content';
 export {
   mapPublicSiteConfig,

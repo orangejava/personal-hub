@@ -57,6 +57,11 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
     name: 'workspace.booklets',
     icon: 'book',
   },
+  'workspace.uploads': {
+    path: '/workspace/uploads',
+    name: 'workspace.uploads',
+    icon: 'cloudUpload',
+  },
   'workspace.favorites': {
     path: '/workspace/favorites',
     name: 'workspace.favorites',
@@ -96,6 +101,11 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
     path: '/admin/content/list',
     name: 'admin.content.list',
     icon: 'fileText',
+  },
+  'admin.content.reviews': {
+    path: '/admin/content/reviews',
+    name: 'admin.content.reviews',
+    icon: 'audit',
   },
   'admin.content.booklets': {
     path: '/admin/content/booklets',

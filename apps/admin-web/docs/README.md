@@ -12,3 +12,4 @@
 | [implementation/phase-4-5-planning.md](./implementation/phase-4-5-planning.md) | 4.5 规划 |
 | [implementation/phase-4-5-experience-deepening.md](./implementation/phase-4-5-experience-deepening.md) | 4.5 体验深化 |
 | [implementation/system-config-hub.md](./implementation/system-config-hub.md) | 系统配置中心（站点 / 首页 / 内容中心 / 关于我 / 项目） |
+| [content-review-and-uploads.md](../../../docs/implementation/content/content-review-and-uploads.md) | 内容审核与上传任务（跨端） |

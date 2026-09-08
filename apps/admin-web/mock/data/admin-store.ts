@@ -78,11 +78,13 @@ export const adminRoles: AdminRoleRecord[] = [
     code: UserRole.Admin,
     name: '管理员',
     description: '全部权限',
+    version: 1,
     permissions: [...allPermissions],
   },
   {
     code: UserRole.Editor,
     name: '编辑者',
+    version: 1,
     permissions: [
       'content:read',
       'content:write',
@@ -96,6 +98,7 @@ export const adminRoles: AdminRoleRecord[] = [
   {
     code: UserRole.Member,
     name: '普通会员',
+    version: 1,
     permissions: ['content:read', 'booklet:read', 'ai:use'],
   },
 ];

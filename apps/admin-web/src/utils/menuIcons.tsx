@@ -1,5 +1,6 @@
 import {
   AppstoreOutlined,
+  AuditOutlined,
   BookOutlined,
   BgColorsOutlined,
   CloudUploadOutlined,
@@ -47,6 +48,7 @@ const iconMap: Record<string, React.ReactNode> = {
   folder: <FolderOutlined />,
   tags: <TagsOutlined />,
   cloudUpload: <CloudUploadOutlined />,
+  audit: <AuditOutlined />,
   menu: <MenuOutlined />,
   fileSearch: <FileSearchOutlined />,
   tool: <ToolOutlined />,
