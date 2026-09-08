@@ -1,29 +1,33 @@
 import { ModalForm, ProFormText, ProTable } from '@ant-design/pro-components';
-import { message, Popconfirm } from 'antd';
+import { useIntl } from '@umijs/max';
+import { App, Popconfirm } from 'antd';
 import React, { useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
 import { createAdminTag, deleteAdminTag, fetchAdminTags } from '@/services/admin';
 
 /** 标签管理 */
 const Tags: React.FC = () => {
+  const intl = useIntl();
+  const { message } = App.useApp();
+  const format = (id: string) => intl.formatMessage({ id });
   const [reloadKey, setReloadKey] = useState(0);
   const [deletingId, setDeletingId] = useState<string>();
 
   return (
     <PageContainer
-      title="标签管理"
+      title={format('admin.tags.title')}
       extra={
         <ModalForm
-          title="新建标签"
-          trigger={<a>新建标签</a>}
+          title={format('admin.tags.new')}
+          trigger={<a>{format('admin.tags.new')}</a>}
           onFinish={async (values) => {
             await createAdminTag(values as { name: string; slug: string });
-            message.success('已创建');
+            message.success(format('admin.tags.created'));
             setReloadKey((k) => k + 1);
             return true;
           }}
         >
-          <ProFormText name="name" label="名称" rules={[{ required: true }]} />
+          <ProFormText name="name" label={format('admin.tags.name')} rules={[{ required: true }]} />
           <ProFormText name="slug" label="Slug" rules={[{ required: true }]} />
         </ModalForm>
       }
@@ -32,36 +36,43 @@ const Tags: React.FC = () => {
         key={reloadKey}
         rowKey="id"
         search={false}
+        pagination={false}
         locale={{
-          emptyText: <ResultState status="empty" description="暂无标签" />,
+          emptyText: <ResultState status="empty" description={format('admin.tags.empty')} />,
         }}
         request={async () => {
           const res = await fetchAdminTags();
           return { data: res ?? [], success: true };
         }}
         columns={[
-          { title: '名称', dataIndex: 'name' },
+          { title: format('admin.tags.name'), dataIndex: 'name' },
           { title: 'Slug', dataIndex: 'slug' },
-          { title: '使用次数', dataIndex: 'usageCount' },
+          { title: format('admin.tags.usageCount'), dataIndex: 'usageCount' },
           {
-            title: '操作',
+            title: format('admin.common.action'),
             valueType: 'option',
             render: (_, r) => [
               <Popconfirm
                 key="delete"
-                title="确认删除？"
+                title={format('admin.tags.deleteTitle')}
                 onConfirm={async () => {
                   setDeletingId(r.id);
                   try {
                     await deleteAdminTag(r.id);
-                    message.success('已删除');
+                    message.success(format('admin.tags.deleted'));
                     setReloadKey((k) => k + 1);
                   } finally {
                     setDeletingId(undefined);
                   }
                 }}
               >
-                <a>{deletingId === r.id ? '处理中' : '删除'}</a>
+                <a>
+                  {format(
+                    deletingId === r.id
+                      ? 'admin.common.processing'
+                      : 'admin.common.delete',
+                  )}
+                </a>
               </Popconfirm>,
             ],
           },

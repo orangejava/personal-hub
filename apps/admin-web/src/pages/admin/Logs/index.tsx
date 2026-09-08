@@ -1,6 +1,7 @@
 import { ProTable } from '@ant-design/pro-components';
 import React, { useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import { fetchAdminLogs } from '@/services/admin';
 
 /** 操作日志：只读列表 */
@@ -12,7 +13,8 @@ const Logs: React.FC = () => {
       <ProTable
         key={reloadKey}
         rowKey="id"
-        search={{ labelWidth: 'auto' }}
+        pagination={DEFAULT_TABLE_PAGINATION}
+        search={DEFAULT_TABLE_SEARCH}
         locale={{
           emptyText: <ResultState status="empty" description="暂无操作日志" />,
         }}

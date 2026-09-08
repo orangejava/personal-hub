@@ -53,7 +53,7 @@ const VerifyEmail: React.FC = () => {
       <div style={{ flex: 1, padding: '32px 0' }}>
         {status === 'loading' && (
           <div style={{ textAlign: 'center', paddingTop: 120 }}>
-            <Spin size="large" tip="正在验证邮箱…" />
+            <Spin size="large" description="正在验证邮箱…" />
           </div>
         )}
         {status === 'success' && (

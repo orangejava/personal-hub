@@ -13,6 +13,7 @@ export default {
   'workspace.content.new': '新建',
   'workspace.content.deleteConfirm': '确认删除该内容？',
   'workspace.contentNew.title': '新建内容',
+  'workspace.uploads.title': '上传任务',
   'workspace.markdown.newTitle': '新建 Markdown',
   'workspace.markdown.editTitle': '编辑 Markdown',
   'workspace.markdown.basicInfo': '基础信息',

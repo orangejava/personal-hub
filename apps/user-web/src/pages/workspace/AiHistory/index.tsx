@@ -1,9 +1,10 @@
 import { type ActionType, ProTable } from '@ant-design/pro-components';
 import type { AiConversation } from '@personal-hub/shared-types';
 import { history, Link, useIntl } from '@umijs/max';
-import { Button, Input, message, Modal, Popconfirm, Space, Tag } from 'antd';
+import { App, Button, Input, Modal, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   batchDeleteWorkspaceAiHistory,
   deleteWorkspaceAiHistory,
@@ -14,6 +15,7 @@ import {
 /** 工作区 AI 历史：复用 AI 会话 mock，并跳转到 AI 工作台继续对话。 */
 const AiHistory: React.FC = () => {
   const intl = useIntl();
+  const { message } = App.useApp();
   const actionRef = useRef<ActionType>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [renaming, setRenaming] = useState<AiConversation | null>(null);
@@ -83,7 +85,8 @@ const AiHistory: React.FC = () => {
       <ProTable<AiConversation>
         actionRef={actionRef}
         rowKey="id"
-        search={{ labelWidth: 'auto' }}
+        pagination={DEFAULT_TABLE_PAGINATION}
+        search={DEFAULT_TABLE_SEARCH}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

@@ -6,7 +6,7 @@ import {
   FullscreenOutlined,
 } from '@ant-design/icons';
 import { history, useIntl, useModel, useParams } from '@umijs/max';
-import { Button, Drawer, Form, Input, Select, Tooltip, message, Space } from 'antd';
+import { App, Button, Drawer, Form, Input, Select, Tooltip, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { PageContainer } from '@/components/shared';
 import { useRequest } from '@/hooks/useRequest';
@@ -26,6 +26,7 @@ const visibilityOptions = Object.values(ContentVisibility).map((value) => ({
 /** Markdown 编辑：左右分栏 + 标题 + 基础信息抽屉 + 保存草稿/发布 */
 const Markdown: React.FC = () => {
   const intl = useIntl();
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
   const isEdit = !!params.id;
   const { initialState, setInitialState } = useModel('@@initialState');
@@ -141,9 +142,11 @@ const Markdown: React.FC = () => {
       }
       // 草稿写入成功后才发发布请求；发布失败仍能用已保存的 ID 继续编辑和重试。
       if (status === 'published') {
-        await publishContent(saved.id);
+        const published = await publishContent(saved.id);
+        message.success(published.reviewStatus === 'PENDING' ? '已提交审核' : '已发布');
+      } else {
+        message.success('已保存草稿');
       }
-      message.success(status === 'published' ? '已发布' : '已保存草稿');
       setDirty(false);
     } catch {
       // 失败 toast 由全局 errorHandler 读 Nest error.message

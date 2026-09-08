@@ -162,14 +162,11 @@ export const layout: RunTimeLayoutConfig = ({
         dom
       ),
     actionsRender: () => [
-      <Button
-        key="user-web"
-        type="link"
-        onClick={() => {
-          window.location.href = getUserWebOrigin();
-        }}
-      >
+      <Button key="user-web" type="link" href={getUserWebOrigin()}>
         返回前台
+      </Button>,
+      <Button key="workspace" type="link" href={`${getUserWebOrigin()}/workspace`}>
+        返回工作区
       </Button>,
       <LangDropdown key="lang" />,
       <ThemeSettingButton key="theme" />,

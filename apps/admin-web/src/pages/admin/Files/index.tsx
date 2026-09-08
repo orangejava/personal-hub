@@ -1,8 +1,10 @@
 import { type ActionType, ProTable } from '@ant-design/pro-components';
 import type { AdminFileRecord } from '@personal-hub/shared-types';
-import { message, Popconfirm, Space, Tag } from 'antd';
+import { useIntl } from '@umijs/max';
+import { App, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   batchDeleteAdminFiles,
   deleteAdminFile,
@@ -16,8 +18,19 @@ const mimeGroupEnum = {
   other: { text: '其他' },
 };
 
+function formatFileSize(size: number): string {
+  if (size < 1024) {
+    return `${size} B`;
+  }
+  return `${Math.round(size / 1024)} KB`;
+}
+
 /** 文件管理：文件样例、引用占用校验与批量删除。 */
 const Files: React.FC = () => {
+  const intl = useIntl();
+  const { message } = App.useApp();
+  const format = (id: string, values?: Record<string, number>) =>
+    intl.formatMessage({ id }, values);
   const actionRef = useRef<ActionType>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [deletingId, setDeletingId] = useState<string>();
@@ -29,7 +42,7 @@ const Files: React.FC = () => {
     setDeletingId(id);
     try {
       await deleteAdminFile(id);
-      message.success('已删除');
+      message.success(format('admin.files.deleted'));
       reload();
     } finally {
       setDeletingId(undefined);
@@ -42,8 +55,8 @@ const Files: React.FC = () => {
       const res = await batchDeleteAdminFiles(selectedRowKeys.map(String));
       const deleted = res.deleted.length ?? 0;
       const failed = res.failed.length ?? 0;
-      if (deleted) message.success(`已删除 ${deleted} 个文件`);
-      if (failed) message.warning(`${failed} 个文件因被引用或不存在未删除`);
+      if (deleted) message.success(format('admin.files.batchDeleted', { count: deleted }));
+      if (failed) message.warning(format('admin.files.batchSkipped', { count: failed }));
       setSelectedRowKeys([]);
       reload();
     } finally {
@@ -52,13 +65,14 @@ const Files: React.FC = () => {
   };
 
   return (
-    <PageContainer title="文件管理">
+    <PageContainer title={format('admin.files.title')}>
       <ProTable<AdminFileRecord>
         actionRef={actionRef}
         rowKey="id"
-        search={{ labelWidth: 'auto' }}
+        pagination={DEFAULT_TABLE_PAGINATION}
+        search={DEFAULT_TABLE_SEARCH}
         locale={{
-          emptyText: <ResultState status="empty" description="暂无文件" />,
+          emptyText: <ResultState status="empty" description={format('admin.files.empty')} />,
         }}
         rowSelection={{
           selectedRowKeys,
@@ -70,26 +84,38 @@ const Files: React.FC = () => {
         tableAlertOptionRender={() => (
           <Space>
             <Popconfirm
-              title="确认批量删除？"
-              description="被内容引用的文件会被自动跳过。"
+              title={format('admin.files.batchDeleteTitle')}
+              description={format('admin.files.batchDeleteDescription')}
               onConfirm={removeBatch}
             >
-              <a>{batchDeleting ? '批量删除中' : '批量删除'}</a>
+              <a>
+                {batchDeleting
+                  ? format('admin.files.batchDeleting')
+                  : format('admin.files.batchDelete')}
+              </a>
             </Popconfirm>
-            <a onClick={() => setSelectedRowKeys([])}>取消选择</a>
+            <a onClick={() => setSelectedRowKeys([])}>
+              {format('admin.files.clearSelection')}
+            </a>
           </Space>
         )}
         request={async (params) => {
           const res = await fetchAdminFiles({
             keyword: params.keyword as string,
             mimeGroup: params.mimeGroup as 'image' | 'pdf' | 'word' | 'other',
+            page: params.current,
+            pageSize: params.pageSize,
           });
-          return { data: res ?? [], success: true };
+          return { data: res.list ?? [], success: true, total: res.total };
         }}
         columns={[
-          { title: '关键字', dataIndex: 'keyword', hideInTable: true },
           {
-            title: '文件名',
+            title: format('admin.files.keyword'),
+            dataIndex: 'keyword',
+            hideInTable: true,
+          },
+          {
+            title: format('admin.files.name'),
             dataIndex: 'name',
             render: (_, record) => (
               <Space orientation="vertical" size={0}>
@@ -99,62 +125,72 @@ const Files: React.FC = () => {
             ),
           },
           {
-            title: '类型',
+            title: format('admin.files.type'),
             dataIndex: 'mimeGroup',
             valueType: 'select',
             valueEnum: mimeGroupEnum,
             render: (_, record) => <Tag>{record.mimeType}</Tag>,
           },
           {
-            title: '用途',
+            title: format('admin.files.usage'),
             dataIndex: 'usage',
             search: false,
-            render: (_, record) => <Tag color="blue">{record.usage ?? 'attachment'}</Tag>,
+            render: (_, record) => (
+              <Tag color="blue">{record.purpose ?? record.usage ?? 'attachment'}</Tag>
+            ),
           },
           {
-            title: '大小',
+            title: format('admin.files.size'),
             dataIndex: 'size',
             search: false,
-            render: (_, record) => `${Math.round(record.size / 1024)} KB`,
+            render: (_, record) => formatFileSize(record.size),
           },
           {
-            title: '引用',
+            title: format('admin.files.reference'),
             dataIndex: 'referencedBy',
             search: false,
             render: (_, record) =>
               record.referencedBy?.length ? (
-                <Tag color="warning">{record.referencedBy.length} 个内容</Tag>
+                <Tag color="warning">
+                  {format('admin.files.referenced', {
+                    count: record.referencedBy.length,
+                  })}
+                </Tag>
               ) : (
-                <Tag color="success">未引用</Tag>
+                <Tag color="success">{format('admin.files.unreferenced')}</Tag>
               ),
           },
           {
-            title: '链接',
+            title: format('admin.files.link'),
             dataIndex: 'url',
             search: false,
             ellipsis: true,
             render: (_, record) => (
               <a href={record.url} target="_blank" rel="noreferrer">
-                预览
+                {format('admin.files.preview')}
               </a>
             ),
           },
           {
-            title: '操作',
+            title: format('admin.common.action'),
             valueType: 'option',
             render: (_, record) => [
               <Popconfirm
                 key="delete"
-                title="确认删除？"
+                title={format('admin.files.deleteTitle')}
                 description={
                   record.referencedBy?.length
-                    ? '该文件被内容引用，当前不能删除。'
-                    : '删除后 mock 列表中将移除该文件。'
+                    ? format('admin.files.deleteReferenced')
+                    : format('admin.files.deleteAvailable')
                 }
                 onConfirm={() => removeOne(record.id)}
               >
                 <a style={{ color: '#ff4d4f' }}>
-                  {deletingId === record.id ? '处理中' : '删除'}
+                  {format(
+                    deletingId === record.id
+                      ? 'admin.common.processing'
+                      : 'admin.common.delete',
+                  )}
                 </a>
               </Popconfirm>,
             ],

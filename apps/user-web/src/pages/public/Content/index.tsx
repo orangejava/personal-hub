@@ -3,6 +3,7 @@ import { useRequest } from '@/hooks/useRequest';
 import { Button, Col, Input, Pagination, Row, Select, Space, Tag } from 'antd';
 import React, { useEffect } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
+import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import {
   ContentCard,
   ErrorState,
@@ -21,8 +22,6 @@ const sortOptions = [
   { label: '阅读最多', value: 'views' },
 ];
 
-const DEFAULT_PAGE_SIZE = 10;
-
 /** 内容中心：筛选 + 卡片列表 + 分页 */
 const Content: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -32,7 +31,7 @@ const Content: React.FC = () => {
   const tag = searchParams.get('tag') ?? '';
   const sort = (searchParams.get('sort') as ContentListQuery['sort']) ?? 'latest';
   const page = Number(searchParams.get('page') ?? 1);
-  const pageSize = Number(searchParams.get('pageSize') ?? DEFAULT_PAGE_SIZE);
+  const pageSize = Number(searchParams.get('pageSize') ?? DEFAULT_TABLE_PAGE_SIZE);
 
   const query: ContentListQuery = { keyword, type, category, tag, sort, page, pageSize };
   const { data, loading, error, run } = useRequest(() => fetchContentList(query));
@@ -138,15 +137,13 @@ const Content: React.FC = () => {
           </Row>
           <div style={{ textAlign: 'center', marginTop: 24 }}>
             <Pagination
+              {...DEFAULT_TABLE_PAGINATION}
               current={result.page}
               pageSize={result.pageSize}
               total={result.total}
-              showSizeChanger
-              pageSizeOptions={[10, 20, 50, 100]}
               onChange={(p, size) =>
                 update({ page: String(p), pageSize: String(size) })
               }
-              showTotal={(t) => `共 ${t} 篇`}
             />
           </div>
         </>

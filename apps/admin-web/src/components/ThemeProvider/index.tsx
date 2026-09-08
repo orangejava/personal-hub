@@ -1,6 +1,7 @@
-import { ConfigProvider, theme } from 'antd';
+import { App, ConfigProvider, theme } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
+import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import {
   getWorkspaceThemeSettings,
   subscribeThemeRuntime,
@@ -28,6 +29,7 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <ConfigProvider
+      pagination={DEFAULT_TABLE_PAGINATION}
       theme={{
         algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
         token: {
@@ -35,7 +37,7 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         },
       }}
     >
-      {children}
+      <App>{children}</App>
     </ConfigProvider>
   );
 };

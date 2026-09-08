@@ -4,6 +4,7 @@ import { Link, useIntl } from '@umijs/max';
 import { Tag } from 'antd';
 import React from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { fetchFavorites } from '@/services/workspace';
 
 /** 我的收藏 */
@@ -14,6 +15,7 @@ const Favorites: React.FC = () => {
     <ProTable
       rowKey="id"
       search={false}
+      pagination={DEFAULT_TABLE_PAGINATION}
       locale={{
         emptyText: (
           <ResultState

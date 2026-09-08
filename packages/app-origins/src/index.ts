@@ -32,6 +32,16 @@ export function buildAdminWebUrl(path = '/admin/dashboard'): string {
 }
 
 /**
+ * 用户端工作区地址，供管理端「返回工作区」跳转。
+ *
+ * @param path 工作区路径，默认工作区根
+ */
+export function buildWorkspaceUrl(path = '/workspace'): string {
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  return `${getUserWebOrigin()}${normalized}`;
+}
+
+/**
  * 用户端登录地址。管理端未登录时整页跳到这里，redirect 用绝对 URL 方便登录后回来。
  *
  * @param redirectAbsoluteUrl 登录成功后要打开的完整地址

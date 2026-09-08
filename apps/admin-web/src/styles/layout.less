@@ -74,8 +74,18 @@
   max-width: 100%;
 }
 
-.ant-table-wrapper {
-  overflow-x: auto;
+/* 列表随页面滚动。overflow:auto 即使内容没溢出也会挂一条空滚动条。 */
+.ant-table-wrapper,
+.ant-table-wrapper .ant-table-container,
+.ant-table-wrapper .ant-table-content,
+.ant-table-wrapper .ant-table-body,
+.ant-pro-table .ant-table-wrapper,
+.ant-pro-table .ant-table-container,
+.ant-pro-table .ant-table-content,
+.ant-pro-table .ant-table-body {
+  overflow: hidden !important;
+  max-height: none !important;
+  height: auto !important;
 }
 
 @media (max-width: 768px) {

@@ -10,13 +10,13 @@ export class AdminUserQueryDto {
   @Min(1)
   page = 1;
 
-  @ApiPropertyOptional({ default: 20 })
+  @ApiPropertyOptional({ default: 10 })
   @Type(() => Number)
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(100)
-  pageSize = 20;
+  pageSize = 10;
 
   @ApiPropertyOptional()
   @IsOptional()

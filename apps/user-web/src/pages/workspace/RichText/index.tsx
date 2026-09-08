@@ -9,7 +9,7 @@ import {
   FullscreenOutlined,
 } from '@ant-design/icons';
 import { history, useModel, useParams } from '@umijs/max';
-import { Button, Drawer, Form, Input, message, Select, Space, Tooltip } from 'antd';
+import { App, Button, Drawer, Form, Input, Select, Space, Tooltip } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
 import TextbusEditor, {
   type TextbusEditorHandle,
@@ -33,6 +33,7 @@ const visibilityOptions = Object.values(ContentVisibility).map((value) => ({
 
 /** 富文本编辑：Textbus 编辑器 + 草稿/发布。文档协议仍用 { html } 占位。 */
 const RichText: React.FC = () => {
+  const { message } = App.useApp();
   const params = useParams<{ id: string }>();
   const isEdit = !!params.id;
   const editorRef = useRef<TextbusEditorHandle>(null);
@@ -137,9 +138,11 @@ const RichText: React.FC = () => {
       }
       // 先保留创建得到的 ID，发布失败时下次保存仍更新同一份草稿。
       if (status === 'published') {
-        await publishContent(saved.id);
+        const published = await publishContent(saved.id);
+        message.success(published.reviewStatus === 'PENDING' ? '已提交审核' : '已发布');
+      } else {
+        message.success('已保存草稿');
       }
-      message.success(status === 'published' ? '已发布' : '已保存草稿');
     } catch {
       // 失败 toast 由全局 errorHandler 读 Nest error.message
     }

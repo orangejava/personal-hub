@@ -10,12 +10,15 @@ export function localizeMenu(menu: MenuItem[] | undefined): MenuItem[] {
   const intl = getIntl();
   return menu.map((m) => {
     const localeId = m.localeKey ?? m.name;
+    const id = `menu.${localeId}`;
+    // 没有译文时直接用展示名，避免 React Intl 对每个菜单项刷 Missing message。
+    const name =
+      Object.hasOwn(intl.messages, id) && intl.messages[id]
+        ? intl.formatMessage({ id, defaultMessage: m.name })
+        : m.name;
     return {
       ...m,
-      name: intl.formatMessage({
-        id: `menu.${localeId}`,
-        defaultMessage: m.name,
-      }),
+      name,
       children: m.children ? localizeMenu(m.children) : undefined,
     };
   }) as MenuItem[];

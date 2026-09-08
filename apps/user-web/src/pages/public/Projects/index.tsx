@@ -1,7 +1,7 @@
-import { Col, Row, Typography } from 'antd';
+import { Col, Pagination, Row, Typography } from 'antd';
 import { useRequest } from '@/hooks/useRequest';
 import { useModel } from '@umijs/max';
-import React from 'react';
+import React, { useState } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import {
   AnimatedList,
@@ -10,6 +10,7 @@ import {
   ResultState,
   SectionSkeleton,
 } from '@/components/shared';
+import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { fetchContentList } from '@/services/content';
 import { fetchPublicConfig } from '@/services/system';
 import { ContentType } from '@personal-hub/shared-types';
@@ -23,10 +24,19 @@ const Projects: React.FC = () => {
   const layout = liveConfig?.layout ?? initialState?.systemConfig?.layout;
   const title = layout?.projectsTitle?.trim() || '项目';
   const intro = layout?.projectsIntro?.trim();
-  const { data, loading, error, run } = useRequest(() =>
-    fetchContentList({ type: ContentType.Project, page: 1, pageSize: 50 }),
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE);
+  const { data, loading, error, run } = useRequest(
+    () => fetchContentList({ type: ContentType.Project, page, pageSize }),
+    { refreshDeps: [page, pageSize] },
   );
   const list = data?.list ?? [];
+  const total = data?.total ?? 0;
+
+  const handlePageChange = (nextPage: number, nextSize: number) => {
+    setPage(nextPage);
+    setPageSize(nextSize);
+  };
 
   return (
     <PublicLayout>
@@ -42,18 +52,29 @@ const Projects: React.FC = () => {
       {loading ? (
         <SectionSkeleton variant="card" count={3} columns={3} />
       ) : list.length > 0 ? (
-        <Row gutter={16}>
-          <AnimatedList
-            items={list}
-            getKey={(item) => item.id}
-            wrapItem={false}
-            renderItem={(item) => (
-              <Col xs={24} md={12} lg={8}>
-                <ContentCard item={item} />
-              </Col>
-            )}
-          />
-        </Row>
+        <>
+          <Row gutter={16}>
+            <AnimatedList
+              items={list}
+              getKey={(item) => item.id}
+              wrapItem={false}
+              renderItem={(item) => (
+                <Col xs={24} md={12} lg={8}>
+                  <ContentCard item={item} />
+                </Col>
+              )}
+            />
+          </Row>
+          <div style={{ textAlign: 'center', marginTop: 24 }}>
+            <Pagination
+              {...DEFAULT_TABLE_PAGINATION}
+              current={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={handlePageChange}
+            />
+          </div>
+        </>
       ) : (
         <ResultState status="empty" description="暂无项目，将在后续补充" />
       )}

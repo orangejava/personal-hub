@@ -2,6 +2,7 @@ import { type ActionType, ProTable } from '@ant-design/pro-components';
 import { App, Button, Drawer, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   fetchNestAdminUserSessions,
   fetchNestAdminUsers,
@@ -72,7 +73,8 @@ const Users: React.FC = () => {
       <ProTable<NestAdminUser>
         actionRef={actionRef}
         rowKey="id"
-        search={{ labelWidth: 'auto' }}
+        pagination={DEFAULT_TABLE_PAGINATION}
+        search={DEFAULT_TABLE_SEARCH}
         locale={{
           emptyText: <ResultState status="empty" description="暂无用户" />,
         }}
@@ -137,7 +139,7 @@ const Users: React.FC = () => {
         onClose={() => setSessionUser(null)}
         size={480}
       >
-        <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
           {sessionsLoading ? (
             <span>加载中…</span>
           ) : sessions.length === 0 ? (

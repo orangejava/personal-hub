@@ -13,6 +13,7 @@ export default {
   'workspace.content.new': 'New',
   'workspace.content.deleteConfirm': 'Delete this content?',
   'workspace.contentNew.title': 'New Content',
+  'workspace.uploads.title': 'Uploads',
   'workspace.markdown.newTitle': 'New Markdown',
   'workspace.markdown.editTitle': 'Edit Markdown',
   'workspace.markdown.basicInfo': 'Basic Info',

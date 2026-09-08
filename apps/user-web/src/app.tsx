@@ -258,7 +258,7 @@ export const layout: RunTimeLayoutConfig = ({
     splitMenus: false,
     menuHeaderRender: undefined,
     headerRender: workspaceEditorFullscreen ? false : undefined,
-    headerContentRender: workspaceEditorFullscreen ? false : false,
+    headerContentRender: false,
     menuRender: workspaceEditorFullscreen ? false : undefined,
     siderWidth: workspaceEditorFullscreen ? 0 : undefined,
     menuDataRender: (routeMenus) =>
