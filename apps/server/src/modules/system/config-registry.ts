@@ -12,9 +12,19 @@ export const SYSTEM_CONFIG_GROUPS = [
   'site.navigation',
   'site.layout',
   'ai.branding',
+  'file.policies',
 ] as const;
 
 export type SystemConfigGroup = (typeof SYSTEM_CONFIG_GROUPS)[number];
+
+/** 公开接口不得拼装这些组；一期也没有独立「文件策略」后台页。 */
+export const PRIVATE_SYSTEM_CONFIG_GROUPS: ReadonlySet<SystemConfigGroup> = new Set([
+  'file.policies',
+]);
+
+export function isPublicSystemConfigGroup(group: SystemConfigGroup): boolean {
+  return !PRIVATE_SYSTEM_CONFIG_GROUPS.has(group);
+}
 
 const hexColor = z
   .string()
@@ -119,6 +129,20 @@ export const aiBrandingSchema = z.object({
   aiEnabled: z.boolean(),
 });
 
+const filePurposePolicySchema = z.object({
+  mimeTypes: z.array(z.string().max(127)).max(20).optional(),
+  maxBytes: z.number().int().positive().max(500 * 1024 * 1024).optional(),
+});
+
+export const filePoliciesSchema = z.object({
+  AVATAR: filePurposePolicySchema.optional(),
+  COVER: filePurposePolicySchema.optional(),
+  CONTENT_FILE: filePurposePolicySchema.optional(),
+  BOOKLET_SOURCE: filePurposePolicySchema.optional(),
+  TEMPORARY_IMPORT: filePurposePolicySchema.optional(),
+  AI_ASSET: filePurposePolicySchema.optional(),
+});
+
 export const GROUP_SCHEMAS = {
   'site.general': siteGeneralSchema,
   'site.theme': siteThemeSchema,
@@ -127,6 +151,7 @@ export const GROUP_SCHEMAS = {
   'site.navigation': siteNavigationSchema,
   'site.layout': siteLayoutSchema,
   'ai.branding': aiBrandingSchema,
+  'file.policies': filePoliciesSchema,
 } as const;
 
 export type SiteGeneral = z.infer<typeof siteGeneralSchema>;
@@ -136,12 +161,14 @@ export type SiteAbout = z.infer<typeof siteAboutSchema>;
 export type SiteNavigation = z.infer<typeof siteNavigationSchema>;
 export type SiteLayout = z.infer<typeof siteLayoutSchema>;
 export type AiBranding = z.infer<typeof aiBrandingSchema>;
+export type FilePolicies = z.infer<typeof filePoliciesSchema>;
 
 export interface PublicSiteConfig {
   siteName: string;
   siteDescription: string;
   keywords: string;
   logoFileId: string | null;
+  logoUrl: string | null;
   faviconFileId: string | null;
   avatarFileId: string | null;
   ownerName: string;
@@ -234,6 +261,7 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
   'ai.branding': {
     aiEnabled: false,
   } satisfies AiBranding,
+  'file.policies': {} satisfies FilePolicies,
 };
 
 export function isSystemConfigGroup(value: string): value is SystemConfigGroup {
@@ -274,6 +302,7 @@ export function assemblePublicSiteConfig(
     siteDescription: general.siteDescription,
     keywords: general.keywords,
     logoFileId: general.logoFileId,
+    logoUrl: null,
     faviconFileId: general.faviconFileId,
     avatarFileId: general.avatarFileId,
     ownerName: general.ownerName,

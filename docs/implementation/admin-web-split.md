@@ -1,7 +1,7 @@
 # 用户端 / 管理端拆分为两个前端
 
 > 状态：✅ 已落地（批次 0–3 + 优化 A/B/C/D）
-> 最后更新：2026-08-29
+> 最后更新：2026-09-09
 > 范围：Nest Origin 白名单、`apps/admin-web`、用户端 `apps/user-web`、共享包、生产 Compose 骨架
 
 ## 1. 目标与范围
@@ -87,7 +87,7 @@
 | 前端静态 | `deploy/nginx/Dockerfile`：用户端 `/`；管理端 `PUBLIC_PATH=/admin/` 挂 `/admin` |
 | `compose.prod.yml` | Nginx + 两份静态 + `server` + `server-worker` + Postgres + Redis；**不要 PM2** |
 | 生产 env | 模板 `.env.prod.example`（复制为 `.env.prod`）；`CORS_ORIGIN` 可留空 |
-| `server-worker` | `apps/server/src/worker.ts` 目前是占位进程，Outbox/BullMQ 尚未落地 |
+| `server-worker` | **不是 stub**。`apps/server/src/worker.ts` 独立进程：Outbox dispatcher + BullMQ 消费 `booklet-import`；本地 `pnpm dev:worker` |
 | 域名 / 镜像仓库 | 仍不虚构；实际部署再填 |
 
 ### D. 拆分留下的边角 ✅

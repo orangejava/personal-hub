@@ -12,6 +12,7 @@ export interface NestPublicSiteConfig {
   siteDescription?: string;
   keywords?: string;
   logoFileId?: string | null;
+  logoUrl?: string | null;
   theme: {
     colorPrimary: string;
     colorSuccess?: string;
@@ -77,6 +78,7 @@ export function mapPublicSiteConfig(
   return {
     siteName: payload.siteName,
     siteDescription: payload.siteDescription,
+    logo: payload.logoUrl ?? undefined,
     heroTitle: payload.homepage?.hero?.title,
     heroSubtitle: payload.homepage?.hero?.subtitle,
     navigation: payload.navigation?.publicPosition ?? 'top',

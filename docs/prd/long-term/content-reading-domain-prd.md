@@ -204,7 +204,7 @@ stateDiagram-v2
 - `tagSlugs`：多标签 AND 筛选。
 - `types`：内容类型列表。
 - `sort`：`LATEST` / `POPULAR`。
-- `page`、`pageSize`：统一分页，默认 20，最大 100。
+- `page`、`pageSize`：统一分页。实现默认以 Canonical 为准（`page=1&pageSize=10`，最大 100）；本节历史草案中的 20 不再作为实现依据。
 
 查询必须在 SQL 层添加可见性条件，不能先查全量再由 Node 内存过滤。
 

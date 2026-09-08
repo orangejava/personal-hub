@@ -2,6 +2,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { MenuScope, MenuType, Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
+import { FileService } from '../file/file.service';
 import { RedisService } from '../../infrastructure/redis/redis.service';
 import {
   buildFilteredMenuTree,
@@ -11,6 +12,7 @@ import {
 import {
   assemblePublicSiteConfig,
   DEFAULT_SYSTEM_CONFIGS,
+  isPublicSystemConfigGroup,
   isSystemConfigGroup,
   parseGroupValue,
   SYSTEM_CONFIG_GROUPS,
@@ -82,6 +84,7 @@ export class SystemService {
   constructor(
     private readonly repository: SystemRepository,
     private readonly redis: RedisService,
+    private readonly files: FileService,
   ) {}
 
   async getPublicSiteConfig(): Promise<PublicSiteConfig> {
@@ -121,7 +124,7 @@ export class SystemService {
       return {
         group: item,
         version: row?.version ?? 1,
-        isPublic: row?.isPublic ?? true,
+        isPublic: row?.isPublic ?? isPublicSystemConfigGroup(item),
         value,
         updatedAt: (row?.updatedAt ?? new Date()).toISOString(),
       };
@@ -450,7 +453,11 @@ export class SystemService {
         map.set(row.group, row.value);
       }
     }
-    return assemblePublicSiteConfig(map);
+    const assembled = assemblePublicSiteConfig(map);
+    return {
+      ...assembled,
+      logoUrl: await this.files.signFileId(assembled.logoFileId),
+    };
   }
 
   private async loadPublicNavigation(): Promise<MenuTreeNode[]> {

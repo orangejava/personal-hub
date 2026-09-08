@@ -17,6 +17,8 @@
     "dev:web": "turbo dev --filter=user-web --filter=admin-web",
     "dev:web:mock": "turbo run dev:mock --filter=user-web --filter=admin-web",
     "dev:server": "pnpm --filter server dev",
+    "dev:worker": "pnpm --filter server dev:worker",
+    "booklet:import-local": "pnpm --filter server booklet:import-local",
     "build": "turbo build",
     "build:react": "pnpm --filter user-web build",
     "build:user": "pnpm --filter user-web build",

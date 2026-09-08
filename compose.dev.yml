@@ -54,7 +54,9 @@ services:
       /bin/sh -c "
       mc alias set local http://minio:9000 personal_hub_minio personal_hub_minio_dev_secret &&
       mc mb --ignore-existing local/personal-hub-dev &&
-      mc anonymous set none local/personal-hub-dev
+      mc anonymous set none local/personal-hub-dev &&
+      printf '%s' '{"CORSRules":[{"AllowedOrigins":["http://localhost:8000","http://localhost:8001"],"AllowedMethods":["GET","PUT","HEAD"],"AllowedHeaders":["*"],"ExposeHeaders":["ETag","Content-Length"],"MaxAgeSeconds":3600}]}' > /tmp/cors.json &&
+      mc cors set /tmp/cors.json local/personal-hub-dev
       "
 
   mailpit:

@@ -63,6 +63,12 @@ export const MENU_ROUTE_OPTIONS: readonly MenuRouteOption[] = [
     scopes: ['WORKSPACE'],
   },
   {
+    routeKey: 'workspace.uploads',
+    localeKey: 'workspace.uploads',
+    icon: 'cloudUpload',
+    scopes: ['WORKSPACE'],
+  },
+  {
     routeKey: 'workspace.favorites',
     localeKey: 'workspace.favorites',
     icon: 'star',
@@ -108,6 +114,12 @@ export const MENU_ROUTE_OPTIONS: readonly MenuRouteOption[] = [
     routeKey: 'admin.content.list',
     localeKey: 'admin.content.list',
     icon: 'fileText',
+    scopes: ['ADMIN'],
+  },
+  {
+    routeKey: 'admin.content.reviews',
+    localeKey: 'admin.content.reviews',
+    icon: 'audit',
     scopes: ['ADMIN'],
   },
   {

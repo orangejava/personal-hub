@@ -106,6 +106,64 @@ enum AiQuotaTransactionType {
   ADJUSTMENT
 }
 
+enum FilePurpose {
+  AVATAR
+  COVER
+  CONTENT_FILE
+  BOOKLET_SOURCE
+  TEMPORARY_IMPORT
+  AI_ASSET
+}
+
+enum FileAssetStatus {
+  UPLOADING
+  PENDING_VALIDATION
+  READY
+  FAILED
+  DELETED
+}
+
+enum FileScanStatus {
+  NONE
+  PENDING
+  CLEAN
+  BLOCKED
+}
+
+enum StorageProviderKind {
+  MINIO
+  COS
+}
+
+enum UploadMode {
+  SINGLE
+  MULTIPART
+}
+
+enum BookletImportStatus {
+  QUEUED
+  VALIDATING
+  IMPORTING
+  SUCCEEDED
+  PARTIAL_SUCCESS
+  FAILED
+  CANCELED
+}
+
+/// 编辑者（content:publish OWN）提交发布后进入此队列；管理员 ALL 直接发布不写记录。
+enum ContentReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+}
+
+/// 幂等键已被原子声明但业务响应尚未持久化时，后续同键请求等待回放，不得再次进入业务层。
+enum IdempotencyRecordState {
+  PROCESSING
+  COMPLETED
+}
+
 /// 身份账号的唯一来源。首版通过 roleId 建立单角色关联，未来多角色再引入关联表。
 model User {
   id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -141,6 +199,12 @@ model User {
   contentVersions         ContentVersion[]
   favorites               Favorite[]
   readingRecords          ReadingRecord[]
+  uploadedFiles           FileAsset[]
+  uploadSessions          UploadSession[]
+  bookletImportJobs       BookletImportJob[]
+  contentReviewsRequested ContentReview[]      @relation("ContentReviewRequester")
+  contentReviewsReviewed  ContentReview[]      @relation("ContentReviewReviewer")
+  migrationRuns           MigrationRun[]
 
   @@index([roleId, status])
   @@map("users")
@@ -352,10 +416,16 @@ model IdempotencyRecord {
   pathHash            String   @map("path_hash") @db.VarChar(64)
   idempotencyKey      String   @map("idempotency_key") @db.VarChar(128)
   requestFingerprint  String   @map("request_fingerprint") @db.VarChar(64)
-  responseStatus      Int      @map("response_status")
-  responseBody        Json     @map("response_body")
+  /// PROCESSING 先占住唯一键；只有 COMPLETED 才能安全回放已存响应。
+  state               IdempotencyRecordState @default(PROCESSING)
+  responseStatus      Int?     @map("response_status")
+  responseBody        Json?    @map("response_body")
+  /// 业务响应写入时刻；PROCESSING 行保持为空，便于区分“仍在飞”和“可回放”。
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
   expiresAt           DateTime @map("expires_at") @db.Timestamptz(6)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// 处理中心跳；进程崩溃后超过阈值即可释放占位，让同键重试。
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([subjectType, subjectIdOrHash, httpMethod, pathHash, idempotencyKey], map: "idempotency_records_subject_key")
   @@index([expiresAt])
@@ -506,11 +576,38 @@ model Content {
   favorites          Favorite[]
   readingRecords     ReadingRecord[]
   viewDays           ContentViewDay[]
+  coverFile          FileAsset?         @relation("ContentCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  primaryFile        FileAsset?         @relation("ContentPrimary", fields: [primaryFileId], references: [id], onDelete: SetNull)
+  bookletImportJobs  BookletImportJob[]
+  reviews            ContentReview[]
 
   @@index([status, visibility, deletedAt, publishedAt])
   @@index([authorId, deletedAt, updatedAt])
   @@index([categoryId, status, visibility])
   @@map("contents")
+}
+
+/// 编辑者发布申请。同一内容同时只允许一条 PENDING（由部分唯一索引保证）。
+model ContentReview {
+  id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentId            String              @map("content_id") @db.Uuid
+  requesterId          String              @map("requester_id") @db.Uuid
+  reviewerId           String?             @map("reviewer_id") @db.Uuid
+  status               ContentReviewStatus @default(PENDING)
+  requestedVisibility  ContentVisibility   @map("requested_visibility")
+  copyrightNote        String?             @map("copyright_note") @db.VarChar(500)
+  rejectReason         String?             @map("reject_reason") @db.VarChar(500)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  decidedAt            DateTime?           @map("decided_at") @db.Timestamptz(6)
+  content              Content             @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  requester            User                @relation("ContentReviewRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  reviewer             User?               @relation("ContentReviewReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([contentId, createdAt])
+  @@index([requesterId, createdAt])
+  @@map("content_reviews")
 }
 
 model ContentBody {
@@ -607,4 +704,111 @@ model ContentViewDay {
 
   @@id([contentId, subjectHash, viewDate])
   @@map("content_view_days")
+}
+
+model FileAsset {
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uploaderId      String              @map("uploader_id") @db.Uuid
+  originalName    String              @map("original_name") @db.VarChar(255)
+  objectKey       String              @unique @map("object_key") @db.VarChar(512)
+  storageProvider StorageProviderKind @map("storage_provider")
+  mimeType        String              @map("mime_type") @db.VarChar(127)
+  size            Int
+  sha256          String?             @db.Char(64)
+  purpose         FilePurpose
+  status          FileAssetStatus     @default(UPLOADING)
+  scanStatus      FileScanStatus      @default(NONE) @map("scan_status")
+  deletedAt       DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  /** 从工作区上传任务列表隐藏；不删文件、不删关联内容。 */
+  hiddenFromTaskList Boolean          @default(false) @map("hidden_from_task_list")
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  uploader        User                @relation(fields: [uploaderId], references: [id], onDelete: Restrict)
+  uploadSessions  UploadSession[]
+  coverContents   Content[]           @relation("ContentCover")
+  primaryContents Content[]           @relation("ContentPrimary")
+  importJobs      BookletImportJob[]
+
+  @@index([uploaderId, createdAt])
+  @@index([purpose, status, deletedAt])
+  @@map("file_assets")
+}
+
+model UploadSession {
+  id             String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uploaderId     String     @map("uploader_id") @db.Uuid
+  fileId         String     @map("file_id") @db.Uuid
+  uploadMode     UploadMode @map("upload_mode")
+  objectKey      String     @map("object_key") @db.VarChar(512)
+  uploadId       String?    @map("multipart_upload_id") @db.VarChar(255)
+  expiresAt      DateTime   @map("expires_at") @db.Timestamptz(6)
+  completedAt    DateTime?  @map("completed_at") @db.Timestamptz(6)
+  idempotencyKey String     @map("idempotency_key") @db.VarChar(128)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  uploader       User       @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  file           FileAsset  @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([uploaderId, idempotencyKey])
+  @@index([fileId])
+  @@map("upload_sessions")
+}
+
+model BookletImportJob {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requesterId    String               @map("requester_id") @db.Uuid
+  sourceFileId   String               @map("source_file_id") @db.Uuid
+  contentId      String?              @map("content_id") @db.Uuid
+  status         BookletImportStatus  @default(QUEUED)
+  progress       Int                  @default(0)
+  totalChapters  Int                  @default(0) @map("total_chapters")
+  successCount   Int                  @default(0) @map("success_count")
+  failureCount   Int                  @default(0) @map("failure_count")
+  warnings       Json?
+  failedItems    Json?                @map("failed_items")
+  errorCode      String?              @map("error_code") @db.VarChar(80)
+  errorMessage   String?              @map("error_message") @db.VarChar(500)
+  idempotencyKey String               @map("idempotency_key") @db.VarChar(128)
+  startedAt      DateTime?            @map("started_at") @db.Timestamptz(6)
+  finishedAt     DateTime?            @map("finished_at") @db.Timestamptz(6)
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Worker 存活心跳；中途被杀后超过阈值允许其它消费者重新认领。
+  heartbeatAt    DateTime?            @map("heartbeat_at") @db.Timestamptz(6)
+  /** 从工作区上传任务列表隐藏；不删内容、不删源文件。 */
+  hiddenFromTaskList Boolean          @default(false) @map("hidden_from_task_list")
+  requester      User                 @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  sourceFile     FileAsset            @relation(fields: [sourceFileId], references: [id], onDelete: Restrict)
+  content        Content?             @relation(fields: [contentId], references: [id], onDelete: SetNull)
+
+  @@unique([requesterId, idempotencyKey])
+  @@index([status, createdAt])
+  @@map("booklet_import_jobs")
+}
+
+model MigrationRun {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  operatorId   String   @map("operator_id") @db.Uuid
+  sourcePath   String   @map("source_path") @db.VarChar(1024)
+  sourceDigest String   @map("source_digest") @db.VarChar(128)
+  dryRun       Boolean  @default(true) @map("dry_run")
+  summary      Json?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  operator     User     @relation(fields: [operatorId], references: [id], onDelete: Restrict)
+
+  @@index([sourceDigest])
+  @@map("migration_runs")
+}
+
+model OutboxEvent {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aggregateType String    @map("aggregate_type") @db.VarChar(80)
+  aggregateId   String    @map("aggregate_id") @db.Uuid
+  eventType     String    @map("event_type") @db.VarChar(80)
+  payload       Json
+  occurredAt    DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  dispatchedAt  DateTime? @map("dispatched_at") @db.Timestamptz(6)
+  failCount     Int       @default(0) @map("fail_count")
+  lastError     String?   @map("last_error") @db.VarChar(500)
+
+  @@index([dispatchedAt, occurredAt])
+  @@map("outbox_events")
 }

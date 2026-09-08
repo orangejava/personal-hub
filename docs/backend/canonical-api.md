@@ -1,7 +1,7 @@
 # Canonical Nest API 契约
 
 > 状态：🟢 已确认，后续 NestJS、React 对接与 Next 迁移的唯一 API 来源
-> 最后更新：2026-08-26
+> 最后更新：2026-09-09
 > 基础路径：`/api/v1`
 > 关联：[后端实现约定](./conventions.md)、[数据模型](./canonical-data-model.md)、[React Mock 对照](./react-mock-migration.md)
 
@@ -11,7 +11,7 @@
 
 - 成功使用 `2xx`，响应 `{ data, requestId }`；失败使用 `4xx/5xx`，响应 `{ error, requestId }`。
 - 所有字段为 `camelCase`，固定枚举为 `UPPER_SNAKE_CASE`。
-- 普通列表默认 `page=1&pageSize=20`，最大 `100`；滚动时间序列使用 `pageSize` 和不透明 `cursor`。
+- 普通列表默认 `page=1&pageSize=10`，最大 `100`；滚动时间序列使用 `pageSize` 和不透明 `cursor`。工作区与后台表格默认页大小与此对齐。
 - 受保护写接口接受 `Idempotency-Key`；标记 `必填` 的接口缺失时返回 `400 IDEMPOTENCY_KEY_REQUIRED`。
 - 同一主体、方法、路径和幂等键携带不同请求体时返回 `409 IDEMPOTENCY_KEY_REUSED`；普通写操作记录保留 24 小时，AI、上传完成、导入、批量和其他高风险异步写操作保留 7 天。
 - Web Access Token 通过 `Authorization: Bearer` 发送；Refresh Cookie 仅用于 Web 的 Auth 接口。
@@ -295,7 +295,7 @@ Web 登录、MFA 登录完成或刷新成功：
 | POST   | `/app/contents`                    | `content:create`，必填幂等键          | 创建草稿                              |
 | GET    | `/app/contents/:contentId`         | `content:read` OWN/ALL                | 工作区详情，含编辑源数据              |
 | PATCH  | `/app/contents/:contentId`         | `content:update` OWN/ALL              | 更新元信息/正文                       |
-| POST   | `/app/contents/:contentId/publish` | `content:publish` OWN/ALL，必填幂等键 | 校验、快照、发布                      |
+| POST   | `/app/contents/:contentId/publish` | `content:publish` OWN/ALL，必填幂等键 | OWN：提交审核（内容保持 `DRAFT`，列表 `reviewStatus=PENDING`）；ALL：校验、快照、即时发布。可选 `{ requestedVisibility, copyrightNote }` |
 | POST   | `/app/contents/:contentId/archive` | `content:publish` OWN/ALL             | 归档                                  |
 | DELETE | `/app/contents/:contentId`         | `content:delete` OWN/ALL              | 软删除                                |
 | POST   | `/app/contents/:contentId/restore` | `content:restore` OWN/ALL             | 30 天内恢复                           |
@@ -322,18 +322,19 @@ Web 登录、MFA 登录完成或刷新成功：
         "title": "…",
         "status": "PUBLISHED",
         "visibility": "PUBLIC",
+        "reviewStatus": null,
         "updatedAt": "2026-08-02T00:00:00.000Z"
       }
     ],
     "total": 1,
     "page": 1,
-    "pageSize": 20
+    "pageSize": 10
   },
   "requestId": "uuid"
 }
 ```
 
-详情在列表字段基础上按内容类型附加唯一编辑源：`markdownSource`、`editorDocument`、`primaryFileId`、`externalUrl` 或小册章节索引；回收站条目额外返回 `deletedAt` 与可恢复截止时间。字段缺失不代表客户端猜测默认值，DTO/OpenAPI 必须显式声明可选性。
+详情在列表字段基础上按内容类型附加唯一编辑源：`markdownSource`、`editorDocument`、`primaryFileId`、`externalUrl` 或小册章节索引；回收站条目额外返回 `deletedAt` 与可恢复截止时间。工作区/后台列表项额外返回最近一条 `reviewStatus`（`PENDING` / `APPROVED` / `REJECTED` / `CANCELED` / `null`）。字段缺失不代表客户端猜测默认值，DTO/OpenAPI 必须显式声明可选性。
 
 ### 4.3 收藏与阅读
 
@@ -362,11 +363,16 @@ Web 登录、MFA 登录完成或刷新成功：
 | 方法 | 路径                                | 权限                                 | 说明                                 |
 | ---- | ----------------------------------- | ------------------------------------ | ------------------------------------ |
 | POST | `/app/uploads`                      | 登录，必填幂等键                     | 创建单 PUT 或 Multipart 上传会话     |
-| POST | `/app/uploads/:uploadId/complete`   | 登录，必填幂等键                     | 校验对象元数据并创建 READY FileAsset |
-| GET  | `/app/files/:fileId/download-url`   | own / all                            | 校验后签发短时 URL                   |
-| POST | `/app/booklet-imports`              | `booklet:import` OWN/ALL，必填幂等键 | 基于 ZIP FileAsset 创建导入任务      |
-| GET  | `/app/booklet-imports/:jobId`       | own / all                            | 轮询导入任务                         |
-| POST | `/app/booklet-imports/:jobId/retry` | own / all，必填幂等键                | 重试失败导入                         |
+| POST | `/app/uploads/:uploadId/complete`   | 登录，必填幂等键，高风险 7 天         | 校验对象前缀魔数与流式 SHA-256，创建 READY FileAsset |
+| GET    | `/app/upload-tasks`                 | 登录                                 | 文件与小册导入按 `createdAt` 真分页；不接受 `mimeKind`；可选 `taskKind=booklet\|pdf\|word\|zip` 服务端过滤；`hasActiveBookletImports` 表示存在 `QUEUED`/`VALIDATING`/`IMPORTING` |
+| GET    | `/app/files`                        | 登录                                 | 当前用户上传任务文件分页；默认不按 MIME 裁剪；`hiddenFromTaskList=false`；已挂导入任务的源文件由 booklet-imports 展示 |
+| DELETE | `/app/files/:fileId`                | 登录且为上传者                       | 从上传任务列表隐藏，不删文件与内容 |
+| GET    | `/app/files/:fileId/download-url`   | own / all                            | 校验后签发短时 URL                   |
+| POST   | `/app/booklet-imports`              | `booklet:import` OWN/ALL，必填幂等键，高风险 7 天 | 基于 ZIP FileAsset 创建导入任务      |
+| GET    | `/app/booklet-imports`              | `booklet:import` OWN                 | 当前用户导入任务分页；排除已隐藏条目 |
+| GET    | `/app/booklet-imports/:jobId`       | own / all                            | 轮询导入任务                         |
+| POST   | `/app/booklet-imports/:jobId/retry` | own / all，必填幂等键，高风险 7 天   | 重试同一条失败任务，不新建内容       |
+| DELETE | `/app/booklet-imports/:jobId`       | own                                  | 从上传任务列表隐藏，不删草稿与源 ZIP |
 
 上传小于等于 20 MiB 时返回单 PUT 签名 URL；超过时返回 S3 Multipart 分片计划。导入任务不在 HTTP 请求中同步解压。
 
@@ -439,14 +445,15 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 | POST         | `/admin/users/:userId/quota-adjustments`   | `ai:quota:adjust` ALL，必填幂等键    |
 | GET/POST     | `/admin/roles`                             | `role:read` / `role:manage`          |
 | PATCH/DELETE | `/admin/roles/:roleId`                     | `role:manage`                        |
-| PUT          | `/admin/roles/:roleId/permissions`         | `role:permission:manage`，必填幂等键 |
+| PUT          | `/admin/roles/:roleCode/permissions`      | `role:permission:manage`，必填幂等键；body `{ permissions, version }`，`version` 为列表返回的乐观锁；冲突 `409 ROLE_VERSION_CONFLICT` |
 | GET          | `/admin/permissions`                       | `role:read`                          |
 | GET          | `/admin/audit-logs`                        | `audit:read` ALL                     |
 | GET          | `/admin/audit-logs/:logId`                 | `audit:read` ALL                     |
 
 - 用户首版只有一个角色；`super_admin` 受不可降级/不可禁用/至少保留一名 active 约束。
 - 禁用用户、改角色、改权限必须使现有 Token 下一次受保护请求失效。
-- 约束刀已落地：`GET /admin/users`、`GET /admin/users/:userId/sessions`、`POST /admin/users/:userId/sessions/revoke-all`。`admin` 不能踢 `admin` / `super_admin`，也不能踢自己。禁用/改角色/额度仍后置。
+- 约束刀已落地：`GET /admin/users`、`GET /admin/users/:userId/sessions`、`POST /admin/users/:userId/sessions/revoke-all`。`admin` 不能踢 `admin` / `super_admin`，也不能踢自己。禁用用户 / 改用户角色 / 额度仍后置。
+- 角色权限已落地：`GET /admin/roles` 返回 `version`；`PUT /admin/roles/:roleCode/permissions` 必填 `version` 与幂等键。不能改 `SUPER_ADMIN`；创建自定义角色、按权限配 `OWN`/`ALL` 仍后置。
 
 ### 5.2 内容、分类、标签与文件
 
@@ -454,12 +461,15 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 | ------------ | ------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
 | GET          | `/admin/contents`                           | `content:read` ALL                                    | 跨作者列表和筛选               |
 | GET          | `/admin/contents/:contentId`                | `content:read` ALL                                    | 后台详情                       |
-| POST         | `/admin/contents/:contentId/publish`        | `content:publish` ALL，必填幂等键                     | 代发布                         |
+| POST         | `/admin/contents/:contentId/publish`        | `content:publish` ALL，必填幂等键                     | 代发布（即时，不进审核队列） |
 | POST         | `/admin/contents/:contentId/archive`        | `content:publish` ALL                                 | 代归档                         |
 | PATCH        | `/admin/contents/:contentId/featured`       | `content:featured` ALL，必填幂等键                    | 设置精选                       |
 | POST         | `/admin/contents/:contentId/restore`        | `content:restore` ALL，必填幂等键                     | 恢复软删除内容                 |
 | DELETE       | `/admin/contents/:contentId/purge`          | `content:purge` ALL；仅 super_admin，必填幂等键和原因 | 永久删除                       |
-| POST         | `/admin/contents/:contentId/import-license` | `content:publish` ALL，必填幂等键                     | 解除导入小册限制；必填授权说明 |
+| POST         | `/admin/contents/:contentId/import-license` | `content:publish` ALL，必填幂等键                     | 内部清闸实现；UI 走内容审核。必填授权说明 |
+| GET          | `/admin/content-reviews`                    | `content:publish` ALL                                 | 审核队列；`?status=&page=&pageSize=` |
+| POST         | `/admin/content-reviews/:reviewId/approve`  | `content:publish` ALL，必填幂等键                     | 通过并发布；导入且目标为公开/登录时 body `{ copyrightNote }` 必填 |
+| POST         | `/admin/content-reviews/:reviewId/reject`   | `content:publish` ALL，必填幂等键                     | 驳回，body `{ reason }` 必填   |
 | GET/POST     | `/admin/categories`                         | `category:manage` ALL                                 | 分类树/创建                    |
 | PATCH/DELETE | `/admin/categories/:categoryId`             | `category:manage` ALL                                 | 更新/删除                      |
 | PATCH        | `/admin/categories/sort`                    | `category:manage` ALL，必填幂等键                     | 同父节点批量排序               |
@@ -469,7 +479,7 @@ data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":
 | DELETE       | `/admin/files/:fileId`                      | `file:delete` ALL，必填幂等键                         | 逻辑删除并异步引用检查         |
 | DELETE       | `/admin/files`                              | `file:delete` ALL，必填幂等键                         | 批量删除，返回逐项结果         |
 
-导入版权限制状态仅为 `NONE` 或 `PRIVATE_UNTIL_LICENSED`。ZIP 导入创建的内容固定为后者，且必须保持 `PRIVATE`；`import-license` 在同一事务记录授权说明、操作者、审计和 `ContentVersion`，才可切换为 `NONE` 并允许后续发布可见性变更。
+导入版权限制状态仅为 `NONE` 或 `PRIVATE_UNTIL_LICENSED`。ZIP 导入创建的内容固定为后者。`import-license` 仍作为内部清闸路径保留（同一事务写授权说明、操作者、审计和 `ContentVersion`），审核通过或所有者/管理员直接发布且目标可见性为 `PUBLIC`/`LOGIN` 时复用该逻辑。编辑者（`content:publish` OWN）发布只创建 `ContentReview`（`PENDING`），内容保持 `DRAFT`，不能自己公开。
 
 ### 5.3 系统、菜单与 AI 配置
 

@@ -234,7 +234,7 @@ system:config:manage
 - 任务最终失败后，业务任务表保存状态、错误分类、脱敏摘要；用户可重试自己的任务，管理员可筛选/重放。
 - 关键定时任务使用 BullMQ 持久化重复任务；仅轻量进程内维护才使用 `@nestjs/schedule`。
 - 任务状态至少使用 `QUEUED`、`PROCESSING`、`SUCCEEDED`、`FAILED`、`CANCELED`；对外以业务资源端点查询，不提供万能队列 API。
-- Outbox Dispatcher 和 BullMQ Consumer 生产环境运行于独立 `server-worker` Compose 服务，与 HTTP `server` 使用同一镜像但不同启动命令；开发期可由显式 `worker` 脚本启动，不得让 HTTP 进程隐式吞掉所有后台任务。
+- Outbox Dispatcher 和 BullMQ Consumer 生产环境运行于独立 `server-worker` Compose 服务（**不是 stub**），与 HTTP `server` 使用同一镜像但不同启动命令；开发期可由显式 `worker` 脚本启动，不得让 HTTP 进程隐式吞掉所有后台任务。
 
 ## 8. 文件与对象存储
 
@@ -243,7 +243,7 @@ system:config:manage
 - Bucket 默认私有。Nest 校验归属和内容可见性后签发短时下载/预览 URL。
 - 浏览器只使用预签名 URL；不可获得永久 COS/MinIO 凭证。
 - 小于等于 20 MiB 的文件使用预签名单 PUT；超过 20 MiB 使用 S3 Multipart；单文件上限 500 MiB。
-- 上传对象先处于 `UPLOADING/PENDING`，完成时校验大小、扩展名、MIME、魔数和对象元数据后才可变为 `READY`。
+- 上传对象先处于 `UPLOADING/PENDING`，完成时校验大小、扩展名、MIME、对象前缀魔数，并以流式 SHA-256 计算完整哈希后才可变为 `READY`。魔数不符则标 `FAILED`。
 - 首版允许类型和每类上限由 File 模块 DTO/配置白名单定义；禁止可执行文件、未处理 HTML 和不安全 SVG。
 - 文件软删除后保留 7 天，异步任务确认无引用后物理删除。
 

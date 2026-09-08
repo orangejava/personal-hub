@@ -1,7 +1,7 @@
 # Canonical PostgreSQL / Prisma 数据模型
 
 > 状态：🟢 已确认，Nest Prisma Schema 的实现基线
-> 最后更新：2026-08-22
+> 最后更新：2026-09-09
 > 关联：[后端实现约定](./conventions.md)、[Canonical API](./canonical-api.md)
 
 ---
@@ -12,7 +12,7 @@
 - 物理表/字段为复数 `snake_case`；Prisma Model/字段通过映射使用单数 `PascalCase` / `camelCase`。
 - 所有时间存 `timestamptz`；服务端以 UTC 写入和返回。
 - `created_at`、`updated_at` 为常规业务表标准字段；可恢复实体增加 `deleted_at`、`deleted_by`。
-- 可编辑实体增加整数 `version` 并在每次更新递增；首版不要求客户端带 version，后续乐观锁可直接启用。
+- 可编辑实体增加整数 `version` 并在每次更新递增。系统配置与角色权限写接口**必须**带客户端读到的 `version`；冲突返回 `409`。其它实体仍可按字段演进后再启用乐观锁。
 - 全部生产 Schema 变化通过 Prisma migration；本文是逻辑模型，不是可直接复制的 Schema。
 
 ## 2. 身份、会话与 RBAC
@@ -50,6 +50,7 @@
 - 权限码不包含范围；范围写在 `role_permissions.data_scope`。
 - `TEAM` 仅是未来枚举预留，首版不可配置。
 - `super_admin` 为受保护系统角色；事务内必须始终至少保留一个 active super_admin。
+- `roles.version` 是权限配置乐观锁：`GET /admin/roles` 返回该字段，`PUT /admin/roles/:roleCode/permissions` 必带同一 `version`；过期保存返回 `409 ROLE_VERSION_CONFLICT`。
 - 首版无 `user_role_assignments`、无 `user_permissions`；未来多角色扩展时新增 `user_role_assignments` 关联表并平滑迁移 `users.role_id`。
 
 ### 2.3 会话和凭证
@@ -103,6 +104,7 @@ users(email_normalized) UNIQUE
 | `content_bodies`   | `content_id` 唯一、`markdown_source`、`editor_document` JSONB、`rendered_html`、`toc` JSONB、`render_version`                                                                                                                                                                     |
 | `content_versions` | `content_id`、`snapshot_reason`、源正文/HTML/目录快照、`created_by`、`created_at`                                                                                                                                                                                                 |
 | `content_chapters` | `content_id`、`title`、`chapter_order`、`object_key`、`toc`、字数/阅读时间、`version`                                                                                                                                                                                             |
+| `content_reviews`  | `content_id`、`requester_id`、`reviewer_id`、`status`（`PENDING`/`APPROVED`/`REJECTED`/`CANCELED`）、`requested_visibility`、`copyright_note`、`reject_reason`、`decided_at`                                                                                                          |
 
 `contents.type`：
 
@@ -116,7 +118,7 @@ MARKDOWN | RICH_TEXT | BOOKLET | PDF | WORD | LINK | PROJECT
 - Markdown 正文存 `markdown_source`；富文本存编辑器 JSON，HTML 是净化后的派生产物。
 - PDF/WORD 使用 `primary_file_id`；LINK/PROJECT 使用已校验 `external_url`。
 - 发布前写 `content_versions` 快照，草稿保存不为每次输入创建历史。
-- `import_restriction` 固定为 `NONE` 或 `PRIVATE_UNTIL_LICENSED`；后者仅由导入流程写入，限制存在期间内容必须为 `PRIVATE`。
+- `import_restriction` 固定为 `NONE` 或 `PRIVATE_UNTIL_LICENSED`；后者仅由导入流程写入。编辑者发布写入 `content_reviews` 且内容保持草稿；管理员通过（或所有者直接发布）且目标可见性为公开/登录时，复用 `import-license` 清闸。
 - `search_document` 是由标题、摘要和允许检索的派生正文生成的 PostgreSQL `tsvector`；写入时更新，公开查询使用 GIN 索引且始终先施加可见性过滤。
 - 内容软删除保留 30 天；仅 super_admin 可提前 purge，必须传原因。
 
@@ -130,6 +132,7 @@ contents(is_featured) WHERE is_featured = true AND deleted_at IS NULL
 contents(search_document) USING GIN
 content_chapters(content_id, chapter_order) UNIQUE
 content_tags(content_id, tag_id) UNIQUE
+content_reviews(content_id) UNIQUE WHERE status = PENDING
 ```
 
 ### 3.3 收藏、进度和阅读量
@@ -165,11 +168,12 @@ content_tags(content_id, tag_id) UNIQUE
 | 表                    | 核心字段                                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `upload_sessions`     | `uploader_id`、`file_id`、`upload_mode` (`SINGLE` / `MULTIPART`)、`object_key`、`expires_at`、`completed_at`、`idempotency_key` |
-| `booklet_import_jobs` | `requester_id`、`source_file_id`、`content_id`、`status`、进度/计数、警告、错误码、`idempotency_key`、时间                      |
+| `booklet_import_jobs` | `requester_id`、`source_file_id`、`content_id`、`status`、进度/计数、警告、错误码、`idempotency_key`、`heartbeat_at`、时间                      |
 | `migration_runs`      | CLI 迁移源指纹、操作者、结果摘要、时间                                                                                          |
 
-- ZIP 导入创建 BOOKLET 后默认为 `DRAFT + PRIVATE` 并写 `import_restriction=PRIVATE_UNTIL_LICENSED`。
-- 异步任务状态和 FileAsset 生命周期是业务事实；BullMQ 仅负责执行。
+- ZIP 导入创建 BOOKLET 后默认为 `DRAFT + PRIVATE` 并写 `import_restriction=PRIVATE_UNTIL_LICENSED`。源 ZIP 只在内容/章节数据库提交成功后才 `moveObject` 归档；失败任务重试仍读原对象。
+- 工作区统一任务列表是查询契约，不是新表：`GET /app/upload-tasks` 按 `createdAt` 合并当前用户的文件与导入任务并真分页，默认 `pageSize=10`，不接受 `mimeKind`，可选 `taskKind=booklet|pdf|word|zip`。
+- 异步任务状态和 FileAsset 生命周期是业务事实；独立 `server-worker` 扫 `outbox_events` 投递 BullMQ，HTTP `server` 不消费队列。
 
 ## 5. 配置、菜单、审计和 Outbox
 
@@ -180,7 +184,7 @@ content_tags(content_id, tag_id) UNIQUE
 | `menu_permissions`    | `menu_id`、`permission_id` 复合唯一                                                                                           |
 | `audit_logs`          | `category`、`action`、`actor_id`、目标、`request_id`、`ip_hash`、结果、白名单 `detail`、`expires_at`                          |
 | `outbox_events`       | `aggregate_type`、`aggregate_id`、`event_type`、JSON `payload`、`occurred_at`、`dispatched_at`、失败信息                      |
-| `idempotency_records` | 主体、方法、路径 hash、key、请求指纹、响应状态/JSON、`expires_at`                                                             |
+| `idempotency_records` | 主体、方法、路径 hash、key、请求指纹、`state`（`PROCESSING` 占位 / `COMPLETED` 回放）、响应状态/JSON、`completed_at`、`updated_at` 心跳、`expires_at` |
 
 `system_configs` 的 `value` 为经过 DTO 校验的 JSON，示例 key：
 
@@ -199,6 +203,7 @@ ai.branding
 `idempotency_records` 约束：
 
 - 唯一范围为 `(subject_type, subject_id_or_hash, http_method, path_hash, idempotency_key)`；匿名请求使用签名匿名主体哈希，不保存 Cookie 原文。
+- 先原子写入 `PROCESSING` 占住唯一键；未过期的 `COMPLETED` 记录回放原响应，处理中记录等待完成后回放，不再进入业务层。等待超时或占位已释放则返回 `409 IDEMPOTENCY_REQUEST_IN_PROGRESS`。`completed_at` 仅在完成后写入。请求执行期间刷新 `updated_at`；超过 30 秒无心跳的 `PROCESSING` 视为进程已死，允许同键重新声明。
 - 保存请求指纹以检测同一 Key 携带不同请求体：此情况返回 `409 IDEMPOTENCY_KEY_REUSED`，不能复用原结果。
 - 普通写操作记录保留 24 小时；AI 发起、上传完成、导入、批量和其他高风险异步写操作保留 7 天。过期记录由定时任务批量清理。
 - 响应 JSON 必须经过字段白名单，不能把 Token、密钥、完整 AI 正文或敏感错误上下文写入幂等记录。

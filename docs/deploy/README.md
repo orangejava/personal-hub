@@ -25,6 +25,6 @@ Nest 本地启动不使用上述 PM2 速查：按 [`apps/server/README.md`](../.
 ## 当前阶段结论
 
 - **阶段 A（个人远程阅读）**：必须跑 `user-web` 的 Umi dev 才能保留 mock，使用 `pm2 start ecosystem.config.js --only personal-hub-dev`。这一套**不包含**管理端，也不适用于 Nest 生产。
-- **Nest / 生产**：Compose 编排 Nginx + 用户端静态 + 管理端静态 + `server` + `server-worker`；不要用 PM2 起第二套前端。策略见 [nest-compose-strategy.md](./nest-compose-strategy.md)，骨架见 `compose.prod.yml`。`server-worker` 目前只是占位进程（Outbox/BullMQ 入口尚未落地）。
+- **Nest / 生产**：Compose 编排 Nginx + 用户端静态 + 管理端静态 + `server` + `server-worker`；不要用 PM2 起第二套前端。策略见 [nest-compose-strategy.md](./nest-compose-strategy.md)，骨架见 `compose.prod.yml`。`server-worker` **不是 stub**：独立进程运行 Outbox dispatcher 与 BullMQ 小册导入消费（`apps/server/src/worker.ts`）。
 - 阶段 A 服务器内通过 `127.0.0.1:8000` 验证；公网通过 `http://<服务器公网 IPv4>:8000` 访问，并额外受云安全组控制。
 - 安全组来源优先使用客户端真实公网出口 IP `/32`；`0.0.0.0/0` 仅用于短时排障，不能作为 dev + mock 的长期开放策略。

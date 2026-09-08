@@ -56,3 +56,4 @@
 - [nest-system-config-menu.md](./nest-system-config-menu.md)：类型化系统配置、公开导航与 HTTP 幂等。
 - [admin-system-config-hub.md](./admin-system-config-hub.md)：后台系统配置中心、配置组 merge 与公开页接线。
 - [nest-content-domain.md](./nest-content-domain.md)：内容域可见性、枚举映射与公开读。
+- [nest-file-booklet.md](./nest-file-booklet.md)：预签名上传、purpose 白名单与 Outbox Worker。

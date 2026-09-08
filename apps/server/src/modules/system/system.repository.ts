@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MenuScope, MenuType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import type { SystemConfigGroup } from './config-registry';
+import { isPublicSystemConfigGroup, type SystemConfigGroup } from './config-registry';
 
 type DbClient = Prisma.TransactionClient | PrismaService;
 
@@ -33,7 +33,7 @@ export class SystemRepository {
         key: input.group,
         group: input.group,
         value: input.value,
-        isPublic: true,
+        isPublic: isPublicSystemConfigGroup(input.group),
         version: 1,
         updatedBy: input.updatedBy,
       },

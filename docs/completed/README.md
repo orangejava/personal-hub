@@ -26,6 +26,8 @@
 | M2 Auth HTTP + React 登录切片 | ✅ 第 1–8 刀已落地 | 2026-08-22 | [切片划分](../../apps/server/docs/implementation/auth/README.md) · [登录](../../apps/server/docs/implementation/auth/auth-login-slice.md) · [权限](../../apps/server/docs/implementation/auth/auth-permissions-slice.md) · [注册](../../apps/server/docs/implementation/auth/auth-register-slice.md) · [验证码](../../apps/server/docs/implementation/auth/auth-captcha-slice.md) · [会话](../../apps/server/docs/implementation/auth/auth-sessions-slice.md) · [改密](../../apps/server/docs/implementation/auth/auth-change-password-slice.md) · [忘记密码](../../apps/server/docs/implementation/auth/auth-forgot-password-slice.md) · [后台踢人](../../apps/server/docs/implementation/auth/auth-admin-sessions-slice.md) | [登录](../../study/features/nest-auth-login-slice.md) · [权限菜单](../../study/features/nest-auth-permissions.md) · [注册验证](../../study/features/nest-auth-register.md) · [验证码/会话/改密](../../study/features/nest-auth-captcha-sessions-password.md) |
 | M3 系统配置与菜单 | ✅ 3.1–3.3 已落地 | 2026-08-31 | [切片划分](../../apps/server/docs/implementation/system/README.md) | [类型化配置与幂等](../../study/features/nest-system-config-menu.md) |
 | M4 内容域 | ✅ 4.1–4.5 已落地 | 2026-09-07 | [切片划分](../../apps/server/docs/implementation/content/README.md) | [可见性与枚举映射](../../study/features/nest-content-domain.md) |
+| M5 文件/小册 | ✅ 5.1–5.7 已落地 | 2026-09-08 | [切片划分](../../apps/server/docs/implementation/file/README.md) | [预签名与 Outbox](../../study/features/nest-file-booklet.md) |
+| 审查修复收口 | ✅ 并发/上传/任务分页 | 2026-09-09 | [review-remediation.md](../implementation/review-remediation.md) · [审核与上传 UI](../implementation/content/content-review-and-uploads.md) | — |
 
 ### Nest M3 系统配置与菜单
 
@@ -37,7 +39,15 @@
 
 - 匿名首页/内容中心读 `GET /api/v1/public/contents*`；LOGIN 锁定卡片，详情未登录 `401 AUTH_REQUIRED`。
 - 工作区 Markdown / 外链 / 项目可创建、发布、归档、软删；收藏与阅读进度只要求登录。
-- 后台可跨作者列表、精选、分类/标签 CRUD。ZIP、封面真文件、章节正文仍后置。
+- 后台可跨作者列表、精选、分类/标签 CRUD。ZIP、封面真文件、章节正文见 M5。
+
+### Nest M5 文件/小册
+
+- 浏览器预签名上传 MinIO；complete 只读魔数前缀并流式计算 SHA-256；>20MiB 走 multipart parts/ETag。
+- ZIP 导入走独立 `server-worker`（Outbox dispatcher + BullMQ，不是 stub）；数据库提交成功后再归档源 ZIP，失败可 retry。
+- 工作区任务列表走 `GET /app/upload-tasks` 真分页，默认 `pageSize=10`。
+- 章节列表不含正文；阅读页按章拉取 `markdownSource`。
+- 封面/Logo/PDF 预览返回短时签名 URL。存量目录用 CLI，不把服务器目录暴露成 HTTP。
 
 ### Nest 阶段 0 Express 运行底座
 

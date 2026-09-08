@@ -1,0 +1,28 @@
+diff --git a/es/Pagination.js b/es/Pagination.js
+index 7fb6611f50736b7f42f35c51c39b5506a212c290..0688d1244de05f383d40a8fa358de4f4a59a1ba2 100644
+--- a/es/Pagination.js
++++ b/es/Pagination.js
+@@ -98,7 +98,8 @@ const Pagination = props => {
+   function isValid(page) {
+     return isInteger(page) && page !== current && isInteger(total) && total > 0;
+   }
+-  const shouldDisplayQuickJumper = total > pageSize ? showQuickJumper : false;
++  // 显式打开跳转时始终显示；不要在 total <= pageSize 时拆掉 DOM。
++  const shouldDisplayQuickJumper = showQuickJumper || false;
+ 
+   /**
+    * prevent "up arrow" key reseting cursor position within textbox
+diff --git a/lib/Pagination.js b/lib/Pagination.js
+index 70b9cfa0934a14a7b27f57cedc89e4390e4b45f2..9f69e62cc2fa61f724614919743102214f520cae 100644
+--- a/lib/Pagination.js
++++ b/lib/Pagination.js
+@@ -107,7 +107,8 @@ const Pagination = props => {
+   function isValid(page) {
+     return isInteger(page) && page !== current && isInteger(total) && total > 0;
+   }
+-  const shouldDisplayQuickJumper = total > pageSize ? showQuickJumper : false;
++  // 显式打开跳转时始终显示；不要在 total <= pageSize 时拆掉 DOM。
++  const shouldDisplayQuickJumper = showQuickJumper || false;
+ 
+   /**
+    * prevent "up arrow" key reseting cursor position within textbox

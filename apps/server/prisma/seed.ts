@@ -8,6 +8,7 @@ import {
 } from '../src/modules/auth/rbac-catalog';
 import {
   DEFAULT_SYSTEM_CONFIGS,
+  isPublicSystemConfigGroup,
   SYSTEM_CONFIG_GROUPS,
 } from '../src/modules/system/config-registry';
 import { MENU_ROUTE_META } from '../src/modules/system/route-registry';
@@ -136,6 +137,15 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     permissionCodes: ['booklet:import'],
   },
   {
+    routeKey: 'workspace.uploads',
+    scope: MenuScope.WORKSPACE,
+    type: MenuType.INTERNAL,
+    name: '上传任务',
+    parentRouteKey: 'workspace.content.group',
+    sortOrder: 55,
+    permissionCodes: ['content:read'],
+  },
+  {
     routeKey: 'workspace.favorites',
     scope: MenuScope.WORKSPACE,
     type: MenuType.INTERNAL,
@@ -199,6 +209,15 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     name: '文档列表',
     parentRouteKey: 'admin.content.group',
     sortOrder: 10,
+    permissionCodes: ['content:featured'],
+  },
+  {
+    routeKey: 'admin.content.reviews',
+    scope: MenuScope.ADMIN,
+    type: MenuType.INTERNAL,
+    name: '内容审核',
+    parentRouteKey: 'admin.content.group',
+    sortOrder: 15,
     permissionCodes: ['content:featured'],
   },
   {
@@ -516,7 +535,7 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
           key: group,
           group,
           value: DEFAULT_SYSTEM_CONFIGS[group] as object,
-          isPublic: true,
+          isPublic: isPublicSystemConfigGroup(group),
           version: 1,
         },
         update: {},
