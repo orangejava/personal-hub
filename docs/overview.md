@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + **M4 内容域 4.1–4.5** 已落地；下一步为文件/小册 ZIP
-> 最后更新：2026-09-08
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + **M5 文件/小册 5.1–5.7** 已落地；下一步为 AI 域
+> 最后更新：2026-09-09
 
 ---
 
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M4 内容域已落地**；下一阶段为文件/小册（ZIP、对象存储）。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M5 文件/小册已落地**。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -81,6 +81,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [product/content-system.md](./product/content-system.md)   | 知识内容模型、格式与导入（已与 Canonical 后端契约同步）   | ✅ 已完成 |
 | [product/ai-tools.md](./product/ai-tools.md)               | AI 工具平台功能与接入策略（已与 Canonical 后端契约同步）  | ✅ 已完成 |
 | [product/flutter.md](./product/flutter.md)                 | Flutter App 范围与接入                                    | 📋 范围已定，实施后置 |
+| [product/phase-2/README.md](./product/phase-2/README.md)   | 二期想法：编辑器、文件策略后台页、清理 worker 等           | 💡 不进当前主线       |
 
 ### 后端接口与数据
 
@@ -102,6 +103,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [engineering/git-commit-convention.md](./engineering/git-commit-convention.md)     | Git 提交入口（stub → `.agents/skills/git-commit`） | ✅ 已迁移   |
 | [../.agents/skills/git-commit/SKILL.md](../.agents/skills/git-commit/SKILL.md)     | Git 提交权威规范（跨工具 skill）                   | ✅ 已完成   |
 | [../.agents/skills/tsx-structure/SKILL.md](../.agents/skills/tsx-structure/SKILL.md) | TSX 方法放置（纯函数上提 / 长回调具名）            | ✅ 已完成   |
+| [../.agents/skills/fullstack-code-review/SKILL.md](../.agents/skills/fullstack-code-review/SKILL.md) | 全栈 diff/PR 审查（用户级镜像 `~/.agents/skills/`） | ✅ 已完成   |
 | [engineering/dev-credentials.md](./engineering/dev-credentials.md)                 | 本地常用信息：账号、端口、Compose、Mailpit         | ✅ 已确定   |
 | [history/development-plan.md](./history/development-plan.md)                       | React-first 历史执行手册                           | 📚 历史资料 |
 | [history/mvp-roadmap.md](./history/mvp-roadmap.md)                                 | MVP 历史排期与阶段目标                             | 📚 历史资料 |
@@ -115,7 +117,8 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [completed/README.md](./completed/README.md)                                                                   | 已完成功能进度台账（阶段状态与验收入口） | ✅ 已完成 |
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
 | [implementation/admin-web-split.md](./implementation/admin-web-split.md)                                       | 用户端 / 管理端拆分与跨 Origin 会话      | ✅ 已完成 |
-| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 系统配置 / M4 内容域   | ✅ 已完成 |
+| [implementation/review-remediation.md](./implementation/review-remediation.md)                                 | 审查修复：幂等/审核/上传任务分页         | ✅ 已完成 |
+| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 系统配置 / M4 内容域 / M5 文件小册 | ✅ 已完成 |
 | [../apps/user-web/docs/README.md](../apps/user-web/docs/README.md)                                           | 用户端实现说明                           | ✅ 已完成 |
 | [../apps/admin-web/docs/README.md](../apps/admin-web/docs/README.md)                                           | 管理端实现说明                           | ✅ 已完成 |
 
@@ -194,12 +197,12 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-09-07）
+## 当前开发主线（2026-09-08）
 
-1. **已落地**：Nest **M2 Auth HTTP** 第 1–8 刀；**M3 系统配置与菜单** 3.1–3.3；**M4 内容域** 4.1–4.5（公开阅读、工作区 Markdown/外链/项目、收藏与进度、后台分类/精选）。Web 已拆为用户端 `:8000` 与管理端 `:8001`。本地前端默认 `MOCK=none`。失败 toast 已读 Nest `error.message`。
-2. **接下来**：Nest **文件/小册**（MinIO/`file_assets`、ZIP 导入、章节正文、封面真文件）。本地 71 本小册继续只走 `dev:user:mock`。
+1. **已落地**：Nest **M2–M5**：Auth、系统配置菜单、内容域、**文件/小册**（预签名上传、ZIP 异步导入、单章正文、封面/Logo 签名 URL、CLI 存量迁移）。Web 已拆为用户端 `:8000` 与管理端 `:8001`。本地前端默认 `MOCK=none`。
+2. **接下来**：Nest **AI 域**。存量小册用 `pnpm booklet:import-local`，不再依赖 `dev:user:mock` 扫描目录。
 3. **明确跳过**：阶段 5.5 Next API Bridge。
-4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余 UI、域名与站点名、Flutter。
+4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余 UI、域名与站点名、Flutter；二期编辑器等见 [product/phase-2](./product/phase-2/README.md)。
 
 ---
 
@@ -221,11 +224,13 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
 - [x] 阶段 5.5 Next API Bridge：已确认跳过，直接走 Nest
 - [x] Nest M2 Auth 第 1–8 刀：登录、权限菜单、注册验证、验证码、设备会话、强制改密、忘记密码、后台踢全部设备（见 [implementation/auth/README.md](./implementation/auth/README.md)）。改邮箱 / TOTP / 真实 SMTP / 禁用改角色仍后置。
-- [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。Logo 真文件、左/右导航 UI 仍后置。About Markdown 已由系统配置中心 `site.about` 接线。
-- [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。ZIP、封面真文件、章节正文仍后置。
+- [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。左/右导航 UI 仍后置。Logo 签名 URL 已在 M5 接线；Logo 上传控件仍可后置。
+- [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。
+- [x] Nest M5 文件/小册 5.1–5.7（见 [apps/server/docs/implementation/file/README.md](../apps/server/docs/implementation/file/README.md)）。站内 PDF/Word 编辑器与文件策略后台页见二期。
 
 ### 后置待办（不阻塞文件/小册域）
 
 - [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`；站点名已可由 Nest `system_configs` 改）
 - [ ] 主题与导航剩余 UI：公开区左/右导航布局、后台主题表单补齐（Logo 文件 / SEO / 功能开关 / 预览）（见 `prd/react-first/theme-navigation-config-prd.md`）
 - [ ] Flutter App（Web 主链路稳定后再补 `prd/long-term/flutter-app-prd.md`）
+- [ ] 二期产品想法（编辑器、文件策略后台页、物理清理等）见 [product/phase-2/README.md](./product/phase-2/README.md)

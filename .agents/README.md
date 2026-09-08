@@ -21,6 +21,8 @@
     │   └── SKILL.md          # Nest/API：计划门槛、Umi 解包、失败 toast、调用方清单
     ├── tsx-structure/
     │   └── SKILL.md          # 页面/组件：纯函数上提、长 JSX 回调具名、禁止乱抽 utils
+    ├── fullstack-code-review/
+    │   └── SKILL.md          # 全栈 diff/PR 审查；用户级镜像见 ~/.agents/skills/
     └── task-quality-review/
         └── SKILL.md          # 手动触发的 AI 开发任务质量评分
 ```
@@ -32,6 +34,7 @@
 | `AGENTS.md` | 项目入口；**强制**要求先读本目录 |
 | `.agents/rules/` | 跨工具短规则（文档放置、开发流程） |
 | `.agents/skills/` | 可调用的完整工作流（如 git-commit） |
+| `~/.agents/skills/` | 用户级镜像（如 `fullstack-code-review`）；本仓库同名 skill **以仓库副本为准** |
 | `.cursor/rules/` | 仅 Cursor：薄包装，指向本目录，避免双源 |
 | `apps/*/.agent/` | 包内模块细则（非 Skills 规范），继续保留 |
 | `docs/` | 给人读的产品/架构/部署长文，**不是** commit 权威源 |
@@ -43,3 +46,4 @@
 3. 涉及 commit / push 时，**必须**加载 `skills/git-commit/SKILL.md`
 4. 涉及 Nest / Canonical API / Prisma / api-client / Umi services / mock 回落时，**必须**加载 `skills/fullstack-impact/SKILL.md`
 5. 涉及新增或修改 `apps/*/src/**/*.tsx` 时，**必须**加载 `skills/tsx-structure/SKILL.md`
+6. 要求审查 diff / PR / 安全 / 性能 / 废弃 API / 测试覆盖时，加载 `skills/fullstack-code-review/SKILL.md`（用户级镜像：`~/.agents/skills/fullstack-code-review/`；本仓库以本目录副本为准）

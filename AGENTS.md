@@ -10,6 +10,7 @@
    - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
    - 涉及 Nest / Canonical API / Prisma / `api-client` / Umi services / mock 回落 → **必须**加载 [`.agents/skills/fullstack-impact/SKILL.md`](.agents/skills/fullstack-impact/SKILL.md)
    - 涉及新增或修改 `apps/*/src/**/*.tsx` 页面 / 布局 / 组件 → **必须**加载 [`.agents/skills/tsx-structure/SKILL.md`](.agents/skills/tsx-structure/SKILL.md)
+   - 涉及审查 diff / PR / 安全 / 性能 / 废弃 API / 测试覆盖 → 加载 [`.agents/skills/fullstack-code-review/SKILL.md`](.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/fullstack-code-review/`；本仓库以仓库副本为准）
 
 说明见 [`.agents/README.md`](.agents/README.md)。
 

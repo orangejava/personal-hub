@@ -16,6 +16,7 @@
 | Git 提交工作流（权威） | `.agents/skills/git-commit/` |
 | 前后端 API 影响面评估 | `.agents/skills/fullstack-impact/` |
 | TSX 方法放置（页面/组件） | `.agents/skills/tsx-structure/` |
+| 全栈 diff/PR 审查 | `.agents/skills/fullstack-code-review/`（用户级镜像 `~/.agents/skills/fullstack-code-review/`，更新时两处同步） |
 | 学习笔记 | `study/features/` 或 `study/` |
 
 ## 硬性禁止
