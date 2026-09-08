@@ -35,6 +35,7 @@ import {
   type MenuSnapshotRecord,
   type PermissionSnapshot,
 } from './permission-snapshot';
+import { PERMISSION_CATALOG, SYSTEM_ROLE_DATA_SCOPE } from './rbac-catalog';
 import type {
   AuthLoginResult,
   AuthPermissionSnapshot,
@@ -690,6 +691,161 @@ export class AuthService {
       total: result.total,
       page,
       pageSize,
+    };
+  }
+
+  /** 后台角色列表，权限码来自当前 `role_permissions`，不是 mock 那套 `content:write`。 */
+  async listAdminRoles() {
+    const roles = await this.prisma.role.findMany({
+      orderBy: { code: 'asc' },
+      include: {
+        permissions: {
+          select: { permission: { select: { code: true } } },
+        },
+      },
+    });
+    return roles.map((role) => this.mapAdminRole(role));
+  }
+
+  /** 受控权限目录，给角色页按组勾选。 */
+  listAdminPermissions() {
+    return PERMISSION_CATALOG.map(({ code, group, label, description }) => ({
+      code,
+      group,
+      label,
+      description,
+    }));
+  }
+
+  /**
+   * 替换非受保护角色的权限关联。
+   * 提升该角色用户的 permissionVersion 并清会话缓存，让旧 Access Token 下次请求失效。
+   */
+  async replaceRolePermissions(input: {
+    actorId: string;
+    roleCode: RoleCode;
+    permissions: string[];
+    version: number;
+    requestId: string;
+    ip: string;
+  }) {
+    const catalogCodes = new Set<string>(PERMISSION_CATALOG.map((item) => item.code));
+    const unique = [...new Set(input.permissions)];
+    const unknown = unique.filter((code) => !catalogCodes.has(code));
+    if (unknown.length > 0) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AUTH_PERMISSION_UNKNOWN',
+        `未知权限：${unknown.join(', ')}`,
+      );
+    }
+
+    const role = await this.prisma.role.findUnique({ where: { code: input.roleCode } });
+    if (role === null) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AUTH_ROLE_NOT_FOUND', '角色不存在');
+    }
+    if (role.isProtected) {
+      throw new DomainHttpException(
+        HttpStatus.FORBIDDEN,
+        'AUTH_ROLE_PROTECTED',
+        '不能修改系统所有者权限',
+      );
+    }
+
+    const permissionRows =
+      unique.length === 0
+        ? []
+        : await this.prisma.permission.findMany({
+            where: { code: { in: unique } },
+            select: { id: true, code: true },
+          });
+    if (permissionRows.length !== unique.length) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AUTH_PERMISSION_UNKNOWN',
+        '权限目录未同步，请先执行 seed',
+      );
+    }
+
+    const userIds = await this.prisma.$transaction(async (tx) => {
+      // 先按客户端读取到的 version 抢占角色，失败时整个事务不会覆盖别人的权限选择。
+      const versionUpdated = await tx.role.updateMany({
+        where: { id: role.id, version: input.version },
+        data: { version: { increment: 1 } },
+      });
+      if (versionUpdated.count !== 1) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'ROLE_VERSION_CONFLICT',
+          '角色权限已被更新，请刷新后重试',
+        );
+      }
+      await tx.rolePermission.deleteMany({ where: { roleId: role.id } });
+      if (permissionRows.length > 0) {
+        await tx.rolePermission.createMany({
+          data: permissionRows.map((item) => ({
+            roleId: role.id,
+            permissionId: item.id,
+            dataScope: SYSTEM_ROLE_DATA_SCOPE[input.roleCode],
+          })),
+        });
+      }
+      const users = await tx.user.findMany({
+        where: { roleId: role.id },
+        select: { id: true },
+      });
+      if (users.length > 0) {
+        await tx.user.updateMany({
+          where: { roleId: role.id },
+          data: { permissionVersion: { increment: 1 } },
+        });
+      }
+      await this.authRepository.createAuditLog(
+        {
+          action: 'ADMIN_ROLE_PERMISSIONS_UPDATED',
+          actorId: input.actorId,
+          targetId: role.id,
+          requestId: input.requestId,
+          ipHash: this.tokenService.hashIdentifier(input.ip),
+          result: 'SUCCEEDED',
+          detail: { roleCode: input.roleCode, permissions: unique },
+        },
+        tx,
+      );
+      return users.map((user) => user.id);
+    });
+
+    const sessionIds = (
+      await Promise.all(
+        userIds.map((userId) => this.authRepository.findActiveSessionsByUserId(userId)),
+      )
+    ).flatMap((sessions) => sessions.map((session) => session.id));
+    await Promise.all(sessionIds.map((sessionId) => this.redis.del(this.sessionCacheKey(sessionId))));
+
+    const updated = await this.prisma.role.findUniqueOrThrow({
+      where: { id: role.id },
+      include: {
+        permissions: {
+          select: { permission: { select: { code: true } } },
+        },
+      },
+    });
+    return this.mapAdminRole(updated);
+  }
+
+  private mapAdminRole(role: {
+    code: RoleCode;
+    label: string;
+    isProtected: boolean;
+    version: number;
+    permissions: Array<{ permission: { code: string } }>;
+  }) {
+    return {
+      code: role.code,
+      name: role.label,
+      isProtected: role.isProtected,
+      version: role.version,
+      permissions: role.permissions.map((item) => item.permission.code),
     };
   }
 

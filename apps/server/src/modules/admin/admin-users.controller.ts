@@ -17,7 +17,7 @@ import type { RequestAuthContext } from '../../common/types/request-id';
 import { AuthService } from '../auth/auth.service';
 import { AdminUserQueryDto } from './dto/admin-user-query.dto';
 
-/** 约束刀：只读用户与踢会话。禁用/改角色仍走 mock，避免 Nest UUID 打到旧接口。 */
+/** 约束刀：只读用户与踢会话。禁用/改角色/额度仍走后续切片。 */
 @ApiTags('Admin Users')
 @ApiBearerAuth()
 @Controller('admin/users')

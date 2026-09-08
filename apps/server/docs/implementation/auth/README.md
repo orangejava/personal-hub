@@ -24,12 +24,14 @@
 | 6 | 临时密码首次强制改密 | ✅ [auth-change-password-slice.md](./auth-change-password-slice.md) |
 | 7 | 忘记密码 / 邮件链接重置 | ✅ [auth-forgot-password-slice.md](./auth-forgot-password-slice.md) |
 | 8 | 后台只读用户 + 踢全部设备 | ✅ [auth-admin-sessions-slice.md](./auth-admin-sessions-slice.md) |
+| 9 | 后台角色列表 + 替换非受保护角色权限 | ✅ 见 `AdminRbacController` |
 
 ## M2 Auth HTTP 仍不做
 
 - 改邮箱
 - TOTP / MFA
 - 真实 SMTP（本地继续 Mailpit）
-- 后台禁用用户 / 改角色 / 额度调整
+- 后台禁用用户 / 改用户角色 / 额度调整
+- 创建自定义角色、按权限单独配 `OWN` / `ALL`（当前写接口用角色级 `SYSTEM_ROLE_DATA_SCOPE`）
 - 管理员踢单设备（本次只做踢全部）
 - OAuth、Flutter

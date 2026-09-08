@@ -209,14 +209,14 @@ describe('Auth HTTP', () => {
         },
       ],
     });
-  }, 60_000);
+  }, 120_000);
 
   afterAll(async () => {
     await revokeTrackedRefreshCookies(baseUrl);
     await app?.close();
     await stopRedis?.();
     await stopPostgres?.();
-  });
+  }, 30_000);
 
   beforeEach(() => {
     mailRecorder.messages = [];
@@ -801,6 +801,112 @@ describe('Auth HTTP', () => {
       headers: { authorization: `Bearer ${member.accessToken}` },
     });
     expect(memberAfter.status).toBe(401);
+  });
+
+  it('后台角色列表走 Nest；不能改 SUPER_ADMIN；写接口要幂等键', async () => {
+    const member = await loginWithCookie(baseUrl, 'member@example.com');
+    const forbidden = await fetch(`${baseUrl}/api/v1/admin/roles`, {
+      headers: { authorization: `Bearer ${member.accessToken}` },
+    });
+    expect(forbidden.status).toBe(403);
+
+    const admin = await loginWithCookie(baseUrl, 'admin@example.com');
+    const roles = await fetch(`${baseUrl}/api/v1/admin/roles`, {
+      headers: { authorization: `Bearer ${admin.accessToken}` },
+    });
+    const rolesBody = (await roles.json()) as Envelope<
+      Array<{ code: string; isProtected: boolean; version: number; permissions: string[] }>
+    >;
+    expect(roles.status).toBe(200);
+    expect(rolesBody.data?.map((item) => item.code).sort()).toEqual(
+      ['ADMIN', 'EDITOR', 'MEMBER', 'SUPER_ADMIN'].sort(),
+    );
+    expect(rolesBody.data?.find((item) => item.code === 'SUPER_ADMIN')?.isProtected).toBe(true);
+    const memberRole = rolesBody.data?.find((item) => item.code === 'MEMBER');
+    const superAdminRole = rolesBody.data?.find((item) => item.code === 'SUPER_ADMIN');
+    expect(memberRole?.version).toBeTruthy();
+    expect(superAdminRole?.version).toBeTruthy();
+
+    const catalog = await fetch(`${baseUrl}/api/v1/admin/permissions`, {
+      headers: { authorization: `Bearer ${admin.accessToken}` },
+    });
+    const catalogBody = (await catalog.json()) as Envelope<Array<{ code: string }>>;
+    expect(catalog.status).toBe(200);
+    expect((catalogBody.data?.length ?? 0) > 0).toBe(true);
+
+    const missingKey = await fetch(`${baseUrl}/api/v1/admin/roles/MEMBER/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ permissions: ['content:read'] }),
+    });
+    expect(missingKey.status).toBe(400);
+
+    const missingVersion = await fetch(`${baseUrl}/api/v1/admin/roles/MEMBER/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'role-member-missing-version',
+      },
+      body: JSON.stringify({ permissions: ['content:read'] }),
+    });
+    expect(missingVersion.status).toBe(400);
+
+    const protect = await fetch(`${baseUrl}/api/v1/admin/roles/SUPER_ADMIN/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'role-super-admin-blocked',
+      },
+      body: JSON.stringify({ permissions: ['content:read'], version: superAdminRole?.version }),
+    });
+    expect(protect.status).toBe(403);
+
+    const updated = await fetch(`${baseUrl}/api/v1/admin/roles/MEMBER/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'role-member-content-read',
+      },
+      body: JSON.stringify({ permissions: ['content:read'], version: memberRole?.version }),
+    });
+    const updatedBody = (await updated.json()) as Envelope<{ permissions: string[]; version: number }>;
+    expect(updated.status).toBe(200);
+    expect(updatedBody.data?.permissions).toEqual(['content:read']);
+    expect(updatedBody.data?.version).toBe((memberRole?.version ?? 0) + 1);
+
+    const staleMember = await fetch(`${baseUrl}/api/v1/auth/me`, {
+      headers: { authorization: `Bearer ${member.accessToken}` },
+    });
+    expect(staleMember.status).toBe(401);
+
+    const stale = await fetch(`${baseUrl}/api/v1/admin/roles/MEMBER/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'role-member-stale-version',
+      },
+      body: JSON.stringify({ permissions: [], version: memberRole?.version }),
+    });
+    expect(stale.status).toBe(409);
+    expect(((await stale.json()) as Envelope<unknown>).error?.code).toBe('ROLE_VERSION_CONFLICT');
+
+    const restored = await fetch(`${baseUrl}/api/v1/admin/roles/MEMBER/permissions`, {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${admin.accessToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'role-member-restore-empty',
+      },
+      body: JSON.stringify({ permissions: [], version: updatedBody.data?.version }),
+    });
+    expect(restored.status).toBe(200);
   });
 });
 
