@@ -6,8 +6,7 @@ import type {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createAiSession, deleteAiSession, updateAiSession } from '@/services/ai';
 
-const defaultSessionSettings = {
-  modelId: 'qwen-turbo',
+const defaultSessionSettings: AiConversationSettings = {
   systemPrompt:
     '你是 Personal Hub AI，回答时先理解用户目标，再给出结构清晰、可执行的建议。',
   contextLimit: 20,
@@ -55,6 +54,7 @@ export function useAiChatSessionsMock({
     setMessagesBySession((current) => {
       const next = { ...current };
       for (const message of initialMessages) {
+        if (!message.sessionId) continue;
         if (!next[message.sessionId]) {
           next[message.sessionId] = [];
         }
@@ -90,10 +90,10 @@ export function useAiChatSessionsMock({
     [currentSessionId, messagesBySession],
   );
 
-  const createNewSession = useCallback(async () => {
+  const createNewSession = useCallback(async (settings?: AiConversationSettings) => {
     const res = await createAiSession({
       title: '新对话',
-      settings: defaultSessionSettings,
+      settings: { ...defaultSessionSettings, ...settings },
     });
     const session = res;
     setSessions((current) => [session, ...current.filter((item) => item.id !== session.id)]);

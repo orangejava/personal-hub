@@ -54,8 +54,7 @@ export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions 
   const [output, setOutput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastSubmittedDraft, setLastSubmittedDraft] = useState<AiTextDraft>();
-  const timerRef = useRef<number | undefined>(undefined);
-  const partsRef = useRef<string[]>([]);
+  const abortRef = useRef<AbortController | undefined>(undefined);
   const outputRef = useRef('');
 
   const scenarioHint = scenarioHints[draft.scenario];
@@ -66,11 +65,9 @@ export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions 
     return Math.max(180, Math.ceil(draft.input.length * lengthRatio + 160));
   }, [draft.input.length, draft.length]);
 
-  const clearTimer = useCallback(() => {
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = undefined;
-    }
+  const abortLocal = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = undefined;
   }, []);
 
   const updateDraft = useCallback((patch: Partial<AiTextDraft>) => {
@@ -79,40 +76,27 @@ export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions 
 
   const startStream = useCallback(
     async (submittedDraft: AiTextDraft) => {
-      clearTimer();
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
       setOutput('');
       outputRef.current = '';
       setIsGenerating(true);
       setLastSubmittedDraft(submittedDraft);
-      let generatedOutput = '';
-      let consumedTokens = tokenEstimate;
       try {
-        const response = await generateAiText(submittedDraft);
-        generatedOutput = response.output ?? '';
-        consumedTokens = response.estimatedTokens ?? tokenEstimate;
-      } catch (_error) {
-        generatedOutput = '文本生成 mock 请求失败，请稍后重试。';
+        const response = await generateAiText(submittedDraft, controller.signal);
+        outputRef.current = response.output ?? '';
+        setOutput(response.output ?? '');
+        onComplete?.(submittedDraft, outputRef.current, response.estimatedTokens ?? tokenEstimate);
+      } catch (error) {
+        const failed = error instanceof Error ? error.message : '文本生成失败，请稍后重试。';
+        outputRef.current = failed;
+        setOutput(failed);
+      } finally {
+        setIsGenerating(false);
       }
-      partsRef.current = generatedOutput.split('\n').map((part) => `${part}\n`);
-
-      const tick = () => {
-        const nextPart = partsRef.current.shift();
-        if (!nextPart) {
-          setIsGenerating(false);
-          onComplete?.(submittedDraft, outputRef.current, consumedTokens);
-          return;
-        }
-        setOutput((current) => {
-          const nextOutput = `${current}${nextPart}`;
-          outputRef.current = nextOutput;
-          return nextOutput;
-        });
-        timerRef.current = window.setTimeout(tick, 260);
-      };
-
-      timerRef.current = window.setTimeout(tick, 220);
     },
-    [clearTimer, onComplete, tokenEstimate],
+    [onComplete, tokenEstimate],
   );
 
   const generate = useCallback(() => {
@@ -128,16 +112,16 @@ export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions 
 
   const stop = useCallback(() => {
     if (!isGenerating) return;
-    clearTimer();
+    abortLocal();
     setOutput((current) => {
       const stoppedOutput = `${current}\n\n（已停止生成）`;
       outputRef.current = stoppedOutput;
       return stoppedOutput;
     });
     setIsGenerating(false);
-  }, [clearTimer, isGenerating]);
+  }, [abortLocal, isGenerating]);
 
-  useEffect(() => () => clearTimer(), [clearTimer]);
+  useEffect(() => () => abortLocal(), [abortLocal]);
 
   return {
     draft,

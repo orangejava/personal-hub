@@ -59,18 +59,6 @@ const AiChatPage: React.FC = () => {
     refreshDeps: [quotedContentId, isQuoteMode],
   });
   const initialSessions = useMemo(() => sessionsData ?? [], [sessionsData]);
-  const firstSessionId =
-    initialSessionId && initialSessions.some((session) => session.id === initialSessionId)
-      ? initialSessionId
-      : initialSessions[0]?.id;
-  const { data: messagesData, loading: messagesLoading } = useRequest(
-    () => fetchAiMessages(firstSessionId),
-    {
-      ready: Boolean(firstSessionId),
-      refreshDeps: [firstSessionId],
-    },
-  );
-  const initialMessages = useMemo(() => messagesData ?? [], [messagesData]);
   const {
     sessions,
     currentSessionId,
@@ -85,9 +73,10 @@ const AiChatPage: React.FC = () => {
     setSessionMessages,
   } = useAiChatSessionsMock({
     initialSessions,
-    initialMessages,
+    initialMessages: [],
     initialSessionId,
   });
+  const [messagesLoading, setMessagesLoading] = useState(false);
   const currentSession = useMemo(
     () => sessions.find((session) => session.id === currentSessionId),
     [currentSessionId, sessions],
@@ -143,6 +132,11 @@ const AiChatPage: React.FC = () => {
     },
     [syncSessionAfterMessagesChange, updateCurrentMessages],
   );
+  const handleCreateSession = useCallback(async () => {
+    await createNewSession({
+      modelId: currentSettings.modelId ?? modelState.defaultModel?.id,
+    });
+  }, [createNewSession, currentSettings.modelId, modelState.defaultModel?.id]);
   const handleChatComplete = useCallback(
     async (_completedMessages: AiMessage[], tokenCount: number) => {
       const result = await consumeQuota({
@@ -307,12 +301,28 @@ const AiChatPage: React.FC = () => {
   }, [quotedContent]);
 
   useEffect(() => {
-    if (!currentSessionId) return;
-    fetchAiMessages(currentSessionId).then((res) => {
-      const nextMessages = res ?? [];
-      setSessionMessages(currentSessionId, nextMessages);
-      syncSessionAfterMessagesChange(nextMessages);
-    });
+    if (!currentSessionId) {
+      setMessagesLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setMessagesLoading(true);
+    fetchAiMessages(currentSessionId)
+      .then((res) => {
+        if (cancelled) return;
+        const nextMessages = res ?? [];
+        setSessionMessages(currentSessionId, nextMessages);
+        syncSessionAfterMessagesChange(nextMessages);
+      })
+      .catch(() => {
+        // 全局请求层已负责错误提示；这里仅避免 effect 里留下未处理 Promise。
+      })
+      .finally(() => {
+        if (!cancelled) setMessagesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [currentSessionId, setSessionMessages, syncSessionAfterMessagesChange]);
 
   const messageAutoScrollKey = useMemo(
@@ -334,7 +344,7 @@ const AiChatPage: React.FC = () => {
             loading={sessionsLoading}
             sessions={sessions}
             onActiveChange={setActiveSessionId}
-            onCreate={createNewSession}
+            onCreate={handleCreateSession}
             onDelete={(sessionId, title) => {
               modal.confirm({
                 title: '删除对话',

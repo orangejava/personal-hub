@@ -164,6 +164,122 @@ enum IdempotencyRecordState {
   COMPLETED
 }
 
+enum AiOwnerType {
+  USER
+  ANONYMOUS
+}
+
+enum AiModality {
+  TEXT
+  IMAGE
+  VIDEO
+  MULTIMODAL
+}
+
+enum AiToolCode {
+  CHAT
+  TEXT
+  IMAGE
+  VIDEO
+}
+
+enum AiToolStatus {
+  ENABLED
+  DISABLED
+  COMING_SOON
+}
+
+enum AiToolGroup {
+  HOME
+  CREATE
+  ASSETS
+  PROFILE
+  COMMERCE
+  HELP
+  OPEN
+}
+
+enum AiConversationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum AiTitleSource {
+  AUTO
+  USER
+}
+
+enum AiMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum AiMessageStatus {
+  STREAMING
+  DONE
+  STOPPED
+  FAILED
+  BLOCKED
+}
+
+enum AiFinishReason {
+  STOP
+  LENGTH
+  CONTENT_FILTER
+  CANCELLED
+  ERROR
+}
+
+enum AiStoppedBy {
+  USER
+  SYSTEM_TIMEOUT
+}
+
+enum AiFeedback {
+  DISLIKE
+}
+
+enum AiReservationStatus {
+  PENDING
+  SETTLED
+  RELEASED
+  EXPIRED
+}
+
+enum AiGenerationJobStatus {
+  QUEUED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum AiAssetType {
+  IMAGE
+  VIDEO
+  TEXT
+  CONVERSATION
+  ATTACHMENT
+}
+
+enum AiAssetSource {
+  GENERATED
+  UPLOADED
+  CONTENT_REFERENCE
+}
+
+enum AiAssetStatus {
+  DRAFT
+  SAVED
+  TRASHED
+}
+
+enum AiTemplateStatus {
+  ENABLED
+  DISABLED
+}
+
 /// 身份账号的唯一来源。首版通过 roleId 建立单角色关联，未来多角色再引入关联表。
 model User {
   id                      String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -192,6 +308,12 @@ model User {
   totpFactor              TotpFactor?
   auditLogs               AuditLog[]               @relation("AuditActor")
   quotaAccount            AiQuotaAccount?
+  quotaReservations       AiQuotaReservation[]
+  usageRecords            AiUsageRecord[]
+  generationJobs          AiGenerationJob[]
+  aiAssets                AiAsset[]
+  aiTemplates             AiTemplate[]
+  claimedAnonymousSubjects AiAnonymousSubject[]
   systemConfigUpdates     SystemConfig[]
   authoredContents        Content[]               @relation("ContentAuthor")
   deletedContents         Content[]               @relation("ContentDeletedBy")
@@ -463,11 +585,20 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-/// M1 只落地角色权益和验证赠额金额，模型/工具授权细节由后续 AI 模块扩展。
+/// 角色权益。套餐 planCode 预留给支付；首版只用 roleId。
 model AiEntitlement {
   id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   roleId                  String   @unique @map("role_id") @db.Uuid
+  planCode                String?  @map("plan_code") @db.VarChar(80)
   verificationGrantAmount BigInt   @default(10000) @map("verification_grant_amount")
+  maxConcurrent           Int      @default(1) @map("max_concurrent")
+  rpm                     Int      @default(20)
+  rpd                     Int      @default(200)
+  guestRpm                Int      @default(5) @map("guest_rpm")
+  guestRpd                Int      @default(20) @map("guest_rpd")
+  dailyTokenCap           BigInt?  @map("daily_token_cap")
+  allowedModelIds         Json     @default("[]") @map("allowed_model_ids")
+  allowedToolCodes        Json     @default("[]") @map("allowed_tool_codes")
   rules                   Json?    @map("rules")
   createdAt               DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -487,6 +618,7 @@ model AiQuotaAccount {
   updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
   user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions    AiQuotaTransaction[]
+  reservations    AiQuotaReservation[]
 
   @@map("ai_quota_accounts")
 }
@@ -728,6 +860,7 @@ model FileAsset {
   coverContents   Content[]           @relation("ContentCover")
   primaryContents Content[]           @relation("ContentPrimary")
   importJobs      BookletImportJob[]
+  aiAssets        AiAsset[]
 
   @@index([uploaderId, createdAt])
   @@index([purpose, status, deletedAt])
@@ -811,4 +944,336 @@ model OutboxEvent {
 
   @@index([dispatchedAt, occurredAt])
   @@map("outbox_events")
+}
+
+model AiProvider {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code         String     @unique @db.VarChar(40)
+  label        String     @db.VarChar(80)
+  baseUrl      String?    @map("base_url") @db.VarChar(500)
+  enabled      Boolean    @default(true)
+  authEnvKey   String?    @map("auth_env_key") @db.VarChar(80)
+  timeoutMs    Int        @default(60000) @map("timeout_ms")
+  extraHeaders Json?      @map("extra_headers")
+  healthStatus String?    @map("health_status") @db.VarChar(40)
+  lastErrorCode String?   @map("last_error_code") @db.VarChar(80)
+  version      Int        @default(1)
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  models       AiModel[]
+
+  @@map("ai_providers")
+}
+
+model AiModel {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  providerId           String      @map("provider_id") @db.Uuid
+  modelKey             String      @map("model_key") @db.VarChar(120)
+  displayName          String      @map("display_name") @db.VarChar(120)
+  toolTypes            AiToolCode[] @map("tool_types")
+  modality             AiModality  @default(TEXT)
+  enabled              Boolean     @default(true)
+  userVisible          Boolean     @default(true) @map("user_visible")
+  guestAllowed         Boolean     @default(false) @map("guest_allowed")
+  isDefault            Boolean     @default(false) @map("is_default")
+  contextWindowTokens  Int         @default(8192) @map("context_window_tokens")
+  maxOutputTokens      Int         @default(2048) @map("max_output_tokens")
+  supportsStreaming    Boolean     @default(true) @map("supports_streaming")
+  supportsVision       Boolean     @default(false) @map("supports_vision")
+  supportsTools        Boolean     @default(false) @map("supports_tools")
+  supportsReasoning    Boolean     @default(false) @map("supports_reasoning")
+  inputPricePer1k      Int         @default(1) @map("input_price_per_1k")
+  outputPricePer1k     Int         @default(2) @map("output_price_per_1k")
+  fixedPlatformCost    Int?        @map("fixed_platform_cost")
+  maxReserveAmount     Int         @default(2000) @map("max_reserve_amount")
+  deprecatedAt         DateTime?   @map("deprecated_at") @db.Timestamptz(6)
+  version              Int         @default(1)
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider             AiProvider  @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  defaultForTools      AiTool[]
+  conversations        AiConversation[]
+  messages             AiMessage[]
+  jobs                 AiGenerationJob[]
+  assets               AiAsset[]
+  templates            AiTemplate[]
+  usageRecords         AiUsageRecord[]
+
+  @@unique([providerId, modelKey])
+  @@index([enabled, userVisible])
+  @@map("ai_models")
+}
+
+model AiTool {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             AiToolCode   @unique
+  name             String       @db.VarChar(80)
+  description      String       @db.VarChar(300)
+  icon             String       @db.VarChar(40)
+  status           AiToolStatus @default(ENABLED)
+  sortOrder        Int          @default(0) @map("sort_order")
+  requiresLogin    Boolean      @default(false) @map("requires_login")
+  guestTrialEnabled Boolean     @default(false) @map("guest_trial_enabled")
+  groupName        AiToolGroup  @default(CREATE) @map("group_name")
+  defaultModelId   String?      @map("default_model_id") @db.Uuid
+  version          Int          @default(1)
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  defaultModel     AiModel?     @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
+
+  @@index([sortOrder])
+  @@map("ai_tools")
+}
+
+model AiTemplate {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId     String?           @map("owner_id") @db.Uuid
+  isSystem    Boolean           @default(false) @map("is_system")
+  toolType    AiToolCode        @map("tool_type")
+  title       String            @db.VarChar(120)
+  description String?           @db.VarChar(300)
+  prompt      String
+  params      Json?
+  textScenario String?          @map("text_scenario") @db.VarChar(40)
+  status      AiTemplateStatus  @default(ENABLED)
+  sortOrder   Int               @default(0) @map("sort_order")
+  modelId     String?           @map("model_id") @db.Uuid
+  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner       User?             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  model       AiModel?          @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, deletedAt, createdAt])
+  @@index([isSystem, toolType, status])
+  @@map("ai_templates")
+}
+
+model AiAnonymousSubject {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(6)
+  claimedUserId String?  @map("claimed_user_id") @db.Uuid
+  claimedAt    DateTime? @map("claimed_at") @db.Timestamptz(6)
+  lastIpHash   String?   @map("last_ip_hash") @db.VarChar(128)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  claimedUser  User?     @relation(fields: [claimedUserId], references: [id], onDelete: SetNull)
+
+  @@index([expiresAt])
+  @@index([claimedUserId])
+  @@map("ai_anonymous_subjects")
+}
+
+model AiConversation {
+  id                       String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerType                AiOwnerType            @map("owner_type")
+  ownerId                  String                 @map("owner_id") @db.Uuid
+  title                    String                 @db.VarChar(160)
+  titleSource              AiTitleSource          @default(AUTO) @map("title_source")
+  status                   AiConversationStatus   @default(ACTIVE)
+  pinnedAt                 DateTime?              @map("pinned_at") @db.Timestamptz(6)
+  folderId                 String?                @map("folder_id") @db.Uuid
+  modelId                  String                 @map("model_id") @db.Uuid
+  systemPrompt             String?                @map("system_prompt")
+  temperature              Decimal?               @db.Decimal(3, 2)
+  topP                     Decimal?               @map("top_p") @db.Decimal(3, 2)
+  maxOutputTokens          Int?                   @map("max_output_tokens")
+  contextLimit             Int                    @default(20) @map("context_limit")
+  enableKnowledgeReference Boolean                @default(true) @map("enable_knowledge_reference")
+  locale                   String?                @db.VarChar(16)
+  messageCount             Int                    @default(0) @map("message_count")
+  totalInputTokens         Int                    @default(0) @map("total_input_tokens")
+  totalOutputTokens        Int                    @default(0) @map("total_output_tokens")
+  lastMessageAt            DateTime?              @map("last_message_at") @db.Timestamptz(6)
+  lastMessagePreview       String?                @map("last_message_preview") @db.VarChar(200)
+  activeMessageId          String?                @map("active_message_id") @db.Uuid
+  deletedAt                DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  version                  Int                    @default(1)
+  createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  model                    AiModel                @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  messages                 AiMessage[]
+
+  @@index([ownerType, ownerId, deletedAt, lastMessageAt])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId    String           @map("conversation_id") @db.Uuid
+  role              AiMessageRole
+  status            AiMessageStatus  @default(DONE)
+  parentMessageId   String?          @map("parent_message_id") @db.Uuid
+  variantGroupId    String?          @map("variant_group_id") @db.Uuid
+  isCurrentVariant  Boolean          @default(true) @map("is_current_variant")
+  modelId           String?          @map("model_id") @db.Uuid
+  modelKeySnapshot  String?          @map("model_key_snapshot") @db.VarChar(120)
+  content           String           @default("")
+  contentParts      Json?            @map("content_parts")
+  inputTokens       Int              @default(0) @map("input_tokens")
+  outputTokens      Int              @default(0) @map("output_tokens")
+  finishReason      AiFinishReason?  @map("finish_reason")
+  errorCode         String?          @map("error_code") @db.VarChar(80)
+  blockedCategory   String?          @map("blocked_category") @db.VarChar(80)
+  feedback          AiFeedback?
+  feedbackAt        DateTime?        @map("feedback_at") @db.Timestamptz(6)
+  stopRequestedAt   DateTime?        @map("stop_requested_at") @db.Timestamptz(6)
+  stoppedBy         AiStoppedBy?     @map("stopped_by")
+  reservationId     String?          @map("reservation_id") @db.Uuid
+  requestId         String?          @map("request_id") @db.Uuid
+  idempotencyKey    String?          @map("idempotency_key") @db.VarChar(128)
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  conversation      AiConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  model             AiModel?         @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  parent            AiMessage?       @relation("MessageTree", fields: [parentMessageId], references: [id], onDelete: SetNull)
+  children          AiMessage[]      @relation("MessageTree")
+  references        AiMessageReference[]
+  reservation       AiQuotaReservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId, createdAt, id])
+  @@index([variantGroupId])
+  @@map("ai_messages")
+}
+
+model AiMessageReference {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  messageId       String    @map("message_id") @db.Uuid
+  contentId       String?   @map("content_id") @db.Uuid
+  titleSnapshot   String    @map("title_snapshot") @db.VarChar(200)
+  excerptSnapshot String    @map("excerpt_snapshot") @db.VarChar(2000)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  message         AiMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("ai_message_references")
+}
+
+model AiQuotaReservation {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId       String               @map("account_id") @db.Uuid
+  userId          String               @map("user_id") @db.Uuid
+  status          AiReservationStatus  @default(PENDING)
+  reservedAmount  BigInt               @map("reserved_amount")
+  settledAmount   BigInt               @default(0) @map("settled_amount")
+  messageId       String?              @map("message_id") @db.Uuid
+  jobId           String?              @map("job_id") @db.Uuid
+  requestId       String?              @map("request_id") @db.Uuid
+  expiresAt       DateTime             @map("expires_at") @db.Timestamptz(6)
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  account         AiQuotaAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user            User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        AiMessage[]
+  jobs            AiGenerationJob[]
+
+  @@index([status, expiresAt])
+  @@index([userId, createdAt])
+  @@map("ai_quota_reservations")
+}
+
+model AiUsageRecord {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String?    @map("user_id") @db.Uuid
+  ownerType     AiOwnerType @map("owner_type")
+  ownerId       String     @map("owner_id") @db.Uuid
+  toolType      AiToolCode @map("tool_type")
+  modelId       String?    @map("model_id") @db.Uuid
+  inputTokens   Int        @default(0) @map("input_tokens")
+  outputTokens  Int        @default(0) @map("output_tokens")
+  platformCost  Int        @default(0) @map("platform_cost")
+  providerCost  Int?       @map("provider_cost")
+  messageId     String?    @map("message_id") @db.Uuid
+  jobId         String?    @map("job_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  model         AiModel?   @relation(fields: [modelId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([ownerType, ownerId, createdAt])
+  @@map("ai_usage_records")
+}
+
+model AiGenerationJob {
+  id                 String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String                 @map("user_id") @db.Uuid
+  toolType           AiToolCode             @map("tool_type")
+  status             AiGenerationJobStatus  @default(QUEUED)
+  progress           Int                    @default(0)
+  modelId            String                 @map("model_id") @db.Uuid
+  modelKeySnapshot   String                 @map("model_key_snapshot") @db.VarChar(120)
+  prompt             String
+  negativePrompt     String?                @map("negative_prompt")
+  params             Json?
+  seed               Int?
+  parentJobId        String?                @map("parent_job_id") @db.Uuid
+  resultFileIds      Json                   @default("[]") @map("result_file_ids")
+  errorCode          String?                @map("error_code") @db.VarChar(80)
+  errorSummary       String?                @map("error_summary") @db.VarChar(300)
+  idempotencyKey     String                 @map("idempotency_key") @db.VarChar(128)
+  reservationId      String?                @map("reservation_id") @db.Uuid
+  startedAt          DateTime?              @map("started_at") @db.Timestamptz(6)
+  finishedAt         DateTime?              @map("finished_at") @db.Timestamptz(6)
+  cancelRequestedAt  DateTime?              @map("cancel_requested_at") @db.Timestamptz(6)
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user               User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model              AiModel                @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  reservation        AiQuotaReservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  assets             AiAsset[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("ai_generation_jobs")
+}
+
+model AiAssetFolder {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId   String          @map("owner_id") @db.Uuid
+  name      String          @db.VarChar(80)
+  parentId  String?         @map("parent_id") @db.Uuid
+  sortOrder Int             @default(0) @map("sort_order")
+  deletedAt DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  parent    AiAssetFolder?  @relation("AssetFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  AiAssetFolder[] @relation("AssetFolderTree")
+  assets    AiAsset[]
+
+  @@index([ownerId, deletedAt, createdAt])
+  @@map("ai_asset_folders")
+}
+
+model AiAsset {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerId      String         @map("owner_id") @db.Uuid
+  fileId       String?        @map("file_id") @db.Uuid
+  folderId     String?        @map("folder_id") @db.Uuid
+  type         AiAssetType
+  source       AiAssetSource  @default(GENERATED)
+  status       AiAssetStatus  @default(SAVED)
+  title        String         @db.VarChar(160)
+  prompt       String?
+  modelId      String?        @map("model_id") @db.Uuid
+  width        Int?
+  height       Int?
+  durationMs   Int?           @map("duration_ms")
+  seed         Int?
+  params       Json?
+  sourceJobId  String?        @map("source_job_id") @db.Uuid
+  favoriteAt   DateTime?      @map("favorite_at") @db.Timestamptz(6)
+  lastUsedAt   DateTime?      @map("last_used_at") @db.Timestamptz(6)
+  trashedAt    DateTime?      @map("trashed_at") @db.Timestamptz(6)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner        User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  file         FileAsset?     @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  folder       AiAssetFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  model        AiModel?       @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  sourceJob    AiGenerationJob? @relation(fields: [sourceJobId], references: [id], onDelete: SetNull)
+
+  @@index([ownerId, deletedAt, createdAt])
+  @@index([folderId])
+  @@map("ai_assets")
 }

@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Footer } from '@/components';
 import { AuthPageShell } from '@/pages/user/AuthPageShell';
 import { nestError, register as registerService } from '@/services/auth';
+import { buildLoginPath } from '@/utils/loginPath';
 
 const MAILPIT_UI = 'http://localhost:8025';
 const PASSWORD_POLICY =
@@ -53,7 +54,7 @@ const Register: React.FC = () => {
               >
                 打开 Mailpit
               </Button>,
-              <Button key="login" onClick={() => history.push('/user/login')}>
+              <Button key="login" onClick={() => history.push(buildLoginPath())}>
                 返回登录
               </Button>,
             ]}
@@ -111,7 +112,7 @@ const Register: React.FC = () => {
               ]}
             />
             <div style={{ marginBottom: 16, textAlign: 'center' }}>
-              <a href="/user/login">已有账号？去登录</a>
+              <a href={buildLoginPath()}>已有账号？去登录</a>
             </div>
           </LoginForm>
         )}

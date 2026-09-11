@@ -71,13 +71,13 @@ export class IdempotencyInterceptor implements NestInterceptor {
       );
     }
 
-    const subjectId = request.auth?.userId;
+    const subjectId = request.auth?.userId ?? request.aiAnonymousId;
     if (!subjectId) {
       throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
     }
 
     const lookup = {
-      subjectType: 'user',
+      subjectType: request.auth?.userId ? 'user' : 'anonymous',
       subjectIdOrHash: subjectId,
       httpMethod: request.method.toUpperCase(),
       pathHash: hashValue(request.path),

@@ -14,6 +14,8 @@ declare global {
       requestId: string;
       /** JwtAuthGuard 校验通过后写入的会话上下文。 */
       auth?: RequestAuthContext;
+      /** 匿名 AI 主体 UUID，仅 /public/ai 写入。 */
+      aiAnonymousId?: string;
     }
   }
 }

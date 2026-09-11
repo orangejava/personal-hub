@@ -12,6 +12,7 @@ import {
   SYSTEM_CONFIG_GROUPS,
 } from '../src/modules/system/config-registry';
 import { MENU_ROUTE_META } from '../src/modules/system/route-registry';
+import { seedAiCatalog } from './seed-ai';
 import { seedContentTaxonomy, seedSampleContents } from './seed-content';
 
 const prisma = new PrismaClient();
@@ -160,7 +161,7 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     type: MenuType.INTERNAL,
     name: 'AI 历史',
     sortOrder: 30,
-    permissionCodes: [],
+    permissionCodes: ['ai:use'],
   },
   {
     routeKey: 'workspace.usage',
@@ -543,12 +544,13 @@ export async function runBaselineSeed(client: PrismaClient): Promise<void> {
     }
   });
   await seedContentTaxonomy(client);
+  await seedAiCatalog(client);
 }
 
 async function main(): Promise<void> {
   await runBaselineSeed(prisma);
   await seedSampleContents(prisma);
-  console.info('M1/M3 基线与内容分类/样例 seed 已完成。');
+  console.info('M1/M3 基线、内容分类/样例与 AI 目录 seed 已完成。');
 }
 
 if (require.main === module) {

@@ -58,7 +58,7 @@ describe('Auth/RBAC M1 数据基线', () => {
     const member = roles.find((role) => role.code === RoleCode.MEMBER);
     const editor = roles.find((role) => role.code === RoleCode.EDITOR);
     const superAdmin = roles.find((role) => role.code === RoleCode.SUPER_ADMIN);
-    expect(member?.permissions).toHaveLength(0);
+    expect(member?.permissions).toHaveLength(1);
     expect(member?.aiEntitlement?.verificationGrantAmount).toBe(10000n);
     expect(editor?.permissions).toHaveLength(SYSTEM_ROLE_PERMISSIONS[RoleCode.EDITOR].length);
     expect(editor?.permissions.every((permission) => permission.dataScope === DataScope.OWN)).toBe(

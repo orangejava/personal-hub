@@ -10,6 +10,7 @@ import { SystemModule } from './modules/system/system.module';
 import { ContentModule } from './modules/content/content.module';
 import { FileModule } from './modules/file/file.module';
 import { BookletModule } from './modules/booklet/booklet.module';
+import { AiModule } from './modules/ai/ai.module';
 import { StorageModule } from './infrastructure/storage/storage.module';
 
 @Module({
@@ -57,6 +58,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
     ContentModule,
     FileModule,
     BookletModule,
+    AiModule,
     AdminModule,
   ],
 })

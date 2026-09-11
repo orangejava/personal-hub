@@ -61,7 +61,7 @@ export class MemoryStorageProvider implements StorageProvider {
     this.objects.delete(key);
   }
 
-  async createSignedDownloadUrl(key: string): Promise<string> {
+  async createSignedDownloadUrl(key: string, _expiresInSeconds?: number): Promise<string> {
     return `memory://download/${encodeURIComponent(key)}`;
   }
 

@@ -1,7 +1,7 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + **M5 文件/小册 5.1–5.7** 已落地；下一步为 AI 域
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + M5 文件/小册 + **M6 AI 域（Fake Provider）** 已落地
 > 最后更新：2026-09-09
 
 ---
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M5 文件/小册已落地**。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M6 AI 域已落地（Fake Provider）**。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -118,7 +118,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
 | [implementation/admin-web-split.md](./implementation/admin-web-split.md)                                       | 用户端 / 管理端拆分与跨 Origin 会话      | ✅ 已完成 |
 | [implementation/review-remediation.md](./implementation/review-remediation.md)                                 | 审查修复：幂等/审核/上传任务分页         | ✅ 已完成 |
-| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 系统配置 / M4 内容域 / M5 文件小册 | ✅ 已完成 |
+| [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 / M4 / M5 文件小册 / M6 AI | ✅ 已完成 |
 | [../apps/user-web/docs/README.md](../apps/user-web/docs/README.md)                                           | 用户端实现说明                           | ✅ 已完成 |
 | [../apps/admin-web/docs/README.md](../apps/admin-web/docs/README.md)                                           | 管理端实现说明                           | ✅ 已完成 |
 
@@ -227,8 +227,9 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。左/右导航 UI 仍后置。Logo 签名 URL 已在 M5 接线；Logo 上传控件仍可后置。
 - [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。
 - [x] Nest M5 文件/小册 5.1–5.7（见 [apps/server/docs/implementation/file/README.md](../apps/server/docs/implementation/file/README.md)）。站内 PDF/Word 编辑器与文件策略后台页见二期。
+- [x] Nest M6 AI 域（见 [apps/server/docs/implementation/ai/README.md](../apps/server/docs/implementation/ai/README.md)）。真实厂商、品牌名写库、新增/删除模型后置。
 
-### 后置待办（不阻塞文件/小册域）
+### 后置待办（不阻塞 AI 域）
 
 - [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`；站点名已可由 Nest `system_configs` 改）
 - [ ] 主题与导航剩余 UI：公开区左/右导航布局、后台主题表单补齐（Logo 文件 / SEO / 功能开关 / 预览）（见 `prd/react-first/theme-navigation-config-prd.md`）

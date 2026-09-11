@@ -12,6 +12,7 @@ import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import { setThemePreference } from '@/utils/clientPreferences';
+import { buildLoginPath } from '@/utils/loginPath';
 import { loginOut } from '@/utils/loginOut';
 import { getPageTransitionKey } from '@/utils/pageTransitionKey';
 
@@ -62,7 +63,7 @@ const PublicLayout: React.FC<{
               : []),
             { key: 'logout', label: '退出登录' },
           ]
-        : [{ key: 'login', label: <Link to="/user/login">登录</Link> }]),
+        : [{ key: 'login', label: <Link to={buildLoginPath()}>登录</Link> }]),
     ],
     onClick: ({ key }) => {
       if (key === 'logout') {

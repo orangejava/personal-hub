@@ -8,7 +8,7 @@
 
 应用专属实现说明已迁入对应 `apps/*/docs/`，本目录只保留索引规则。
 
-- Nest 阶段 0 / Auth 切片 / 系统配置菜单 / 内容域 / 文件小册 → [apps/server/docs](../../apps/server/docs/README.md)
+- Nest 阶段 0 / Auth 切片 / 系统配置菜单 / 内容域 / 文件小册 / AI 域 → [apps/server/docs](../../apps/server/docs/README.md)
 - 用户端阶段 0–3、5 → [apps/user-web/docs](../../apps/user-web/docs/README.md)
 - 管理端阶段 4 → [apps/admin-web/docs](../../apps/admin-web/docs/README.md)
 - 用户端 / 管理端拆分 → [admin-web-split.md](./admin-web-split.md)

@@ -271,6 +271,8 @@ export interface AiGenerationParams {
   resolution?: string;
   seed?: number;
   attachments?: string[];
+  /** 图/视频负向提示词，由前端 params 透传到 Nest job。 */
+  negativePrompt?: string;
 }
 
 export interface AiGenerationTask {

@@ -228,7 +228,7 @@ const AiConfig: React.FC = () => {
     const values = await providerForm.validateFields();
     setSavingProvider(true);
     try {
-      await updateAdminAiProviderConfig(editingProvider.code, {
+      await updateAdminAiProviderConfig(editingProvider.id, {
         name: values.name,
         baseUrl: values.baseUrl,
         apiKey: values.apiKey,
@@ -296,6 +296,8 @@ const AiConfig: React.FC = () => {
       await run();
       message.success(creatingModel ? 'AI 模型已新增' : 'AI 模型配置已保存');
       closeModelDrawer();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '保存失败');
     } finally {
       setSavingModel(false);
     }
@@ -308,6 +310,8 @@ const AiConfig: React.FC = () => {
       await deleteAdminAiModelConfig(model.id);
       await run();
       message.success('AI 模型已删除');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '删除失败');
     } finally {
       setDeletingModelId(undefined);
     }

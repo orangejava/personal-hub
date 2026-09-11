@@ -172,6 +172,7 @@ export interface AdminFilePage {
 
 /** 后台 AI 厂商配置。API Key 只返回脱敏值，明文只允许后端保存。 */
 export interface AdminAiProviderConfig {
+  id: string;
   code: string;
   name: string;
   baseUrl: string;
@@ -231,6 +232,7 @@ export interface AdminAiModelMutationInput {
 
 /** 后台 AI 工具配置，阶段 5 先用于 mock 启停和默认模型展示。 */
 export interface AdminAiToolConfig {
+  id: string;
   code: AiToolType;
   name: string;
   status: AiToolStatus;

@@ -6,6 +6,7 @@ import React, { useMemo, useState } from 'react';
 import { Footer } from '@/components';
 import { AuthPageShell } from '@/pages/user/AuthPageShell';
 import { nestError, resetPassword } from '@/services/auth';
+import { buildLoginPath } from '@/utils/loginPath';
 
 const PASSWORD_POLICY = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
 
@@ -51,7 +52,7 @@ const ResetPassword: React.FC = () => {
             status="success"
             title="密码已更新"
             extra={
-              <Button type="primary" onClick={() => history.replace('/user/login')}>
+              <Button type="primary" onClick={() => history.replace(buildLoginPath())}>
                 去登录
               </Button>
             }

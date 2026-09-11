@@ -94,6 +94,12 @@ export const PERMISSION_CATALOG = [
     description: '读取后台统计概览',
   },
   {
+    code: 'ai:use',
+    group: 'AI',
+    label: '使用 AI 工具',
+    description: '登录后使用 Chat / 文本 / 图片等 AI 能力',
+  },
+  {
     code: 'ai:quota:adjust',
     group: 'AI',
     label: '调整 AI 额度',
@@ -141,6 +147,7 @@ export const SYSTEM_ROLE_DEFINITIONS = [
 ] as const;
 
 const editorPermissions = [
+  'ai:use',
   'content:create',
   'content:read',
   'content:update',
@@ -155,10 +162,10 @@ const adminPermissions = PERMISSION_CATALOG.map(({ code }) => code).filter(
 ) as PermissionCode[];
 
 /**
- * 系统角色的固定授权。MEMBER 故意为空，个人登录能力不需要内容创作或后台动作权限。
+ * 系统角色的固定授权。MEMBER 仅有 `ai:use`，内容创作仍走 EDITOR。
  */
 export const SYSTEM_ROLE_PERMISSIONS: Readonly<Record<RoleCode, readonly PermissionCode[]>> = {
-  [RoleCode.MEMBER]: [],
+  [RoleCode.MEMBER]: ['ai:use'],
   [RoleCode.EDITOR]: editorPermissions,
   [RoleCode.ADMIN]: adminPermissions,
   [RoleCode.SUPER_ADMIN]: PERMISSION_CATALOG.map(({ code }) => code),

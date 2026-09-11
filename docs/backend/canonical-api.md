@@ -388,13 +388,16 @@ Web 登录、MFA 登录完成或刷新成功：
 | PATCH/DELETE | `/app/ai/sessions/:sessionId`            | 重命名/软删除会话                             |
 | GET          | `/app/ai/sessions/:sessionId/messages`   | cursor 加载历史消息                           |
 | POST         | `/app/ai/sessions/:sessionId/messages`   | SSE 发送 Chat 消息，必填幂等键                |
+| POST         | `/app/ai/messages/:messageId/stop`       | 显式停止当前流，必填幂等键                    |
 | POST         | `/app/ai/messages/:messageId/regenerate` | SSE 生成新 variant，必填幂等键                |
 | PATCH        | `/app/ai/messages/:messageId/feedback`   | 反馈                                          |
 | POST         | `/app/ai/text-generations`               | SSE 文本生成，必填幂等键                      |
 | POST         | `/app/ai/image-generations`              | `202` 创建图片任务，必填幂等键                |
 | GET          | `/app/ai/image-generations/:jobId`       | 轮询图片任务                                  |
+| POST         | `/app/ai/image-generations/:jobId/cancel` | 取消图片任务，必填幂等键                     |
 | POST         | `/app/ai/video-generations`              | `202` 创建 MockVideoProvider 任务，必填幂等键 |
 | GET          | `/app/ai/video-generations/:jobId`       | 轮询视频 Mock 任务                            |
+| POST         | `/app/ai/video-generations/:jobId/cancel` | 取消视频任务，必填幂等键                     |
 | GET/POST     | `/app/ai/assets`                         | AI 资产列表/创建元数据                        |
 | PATCH/DELETE | `/app/ai/assets/:assetId`                | 移动、软删除、恢复、永久删除                  |
 | GET/POST     | `/app/ai/asset-folders`                  | 资产文件夹列表/创建                           |
@@ -405,29 +408,38 @@ Chat/Text SSE 事件：
 
 ```text
 event: message
-data: {"type":"STARTED","assistantMessageId":"uuid"}
+data: {"type":"STARTED","assistantMessageId":"uuid","sessionId":"uuid"}
 
 event: message
 data: {"type":"DELTA","content":"增量文本"}
 
 event: message
 data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":32}}
+
+event: message
+data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 ```
 
-- 连接中断或用户停止：终止厂商流，保存已产生部分并标记 `STOPPED`，按实际使用结算。
+- SSE 使用 `@SkipResponseEnvelope`，成功不是 `{ data }` 信封。
+- 停止只认显式 `POST .../stop` 或 `.../cancel`；关页不自动 stop，未结算预占靠 5 分钟 TTL 释放。
+- 额度不足 `409 AI_QUOTA_INSUFFICIENT`；并发/RPM `429 AI_CONCURRENCY_LIMITED`；会话互斥 `409 AI_GENERATION_IN_PROGRESS`。
 - 重新生成保留旧回复，使用 `variantGroupId` 关联候选，默认展示最新候选。
-- 图片/视频/导入任务只轮询资源，不复用 Chat SSE。
+- 图片/视频走 Outbox + `server-worker`，HTTP 进程不消费队列；测试可直调 `AiService.processJob`。
 
 ### 4.6 匿名 AI
 
 匿名接口位于 `/public/ai/*`，只允许 Chat/Text：
 
-| 方法 | 路径                          | 说明             |
-| ---- | ----------------------------- | ---------------- |
-| POST | `/public/ai/chat`             | SSE 访客 Chat    |
-| POST | `/public/ai/text-generations` | SSE 访客文本生成 |
+| 方法 | 路径                              | 说明                |
+| ---- | --------------------------------- | ------------------- |
+| GET  | `/public/ai/home`                 | 访客可见工具与模型  |
+| GET  | `/public/ai/models`               | 访客可选模型        |
+| POST | `/public/ai/sessions`             | 创建访客会话        |
+| POST | `/public/ai/chat`                 | SSE 访客 Chat       |
+| POST | `/public/ai/text-generations`     | SSE 访客文本生成    |
+| POST | `/public/ai/messages/:messageId/stop` | 停止访客生成    |
 
-服务端管理签名 HttpOnly 匿名 Cookie，并叠加 IP Hash 限流。匿名历史保存 30 天；首次登录自动认领同浏览器尚未过期历史。图片必须登录。
+匿名主体 Cookie：`ph_ai_anon`（HMAC 签名，密钥 `JWT_REFRESH_SECRET`）。登录时读取 Cookie 认领未过期历史，失败不阻断登录。图片必须登录。
 
 ## 5. Admin：`/admin`
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Footer } from '@/components';
 import { AuthPageShell } from '@/pages/user/AuthPageShell';
 import { nestError, verifyEmail } from '@/services/auth';
+import { buildLoginPath } from '@/utils/loginPath';
 
 type VerifyStatus = 'loading' | 'success' | 'error' | 'missing';
 
@@ -64,7 +65,7 @@ const VerifyEmail: React.FC = () => {
             extra={
               <Button
                 type="primary"
-                onClick={() => history.push('/user/login')}
+                onClick={() => history.push(buildLoginPath())}
               >
                 去登录
               </Button>
@@ -81,7 +82,7 @@ const VerifyEmail: React.FC = () => {
                 : errorText
             }
             extra={
-              <Button onClick={() => history.push('/user/login')}>
+              <Button onClick={() => history.push(buildLoginPath())}>
                 返回登录
               </Button>
             }

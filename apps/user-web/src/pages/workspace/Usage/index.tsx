@@ -63,7 +63,7 @@ const Usage: React.FC = () => {
           status={percent > 80 ? 'exception' : 'normal'}
         />
         <div style={{ color: 'rgba(0,0,0,0.45)', marginTop: 8 }}>
-          AI 用量将在阶段 5 接入真实统计，本阶段为 mock 占位。
+          AI 用量来自 Nest 额度账本，刷新本页即可看到最近结算结果。
         </div>
       </Card>
     </PageContainer>

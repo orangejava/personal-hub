@@ -32,6 +32,7 @@ import {
   setRefreshCookie,
 } from '../../infrastructure/http/refresh-cookie';
 import { AuthService } from './auth.service';
+import type { AuthLoginResult } from './token.types';
 import { CaptchaChallengeDto } from './dto/captcha-challenge.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -42,7 +43,7 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { RevokeAllSessionsDto } from './dto/revoke-all-sessions.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
 import { assertSameOrigin } from './origin';
-import type { AuthLoginResult } from './token.types';
+import { readSignedAnonymousId } from '../ai/ai-anonymous';
 
 /** Cookie 类接口（login/refresh/logout）必须 assertSameOrigin，Access 仍只走 Bearer。 */
 @ApiTags('Auth')
@@ -170,6 +171,10 @@ export class AuthController {
       ip: this.clientIp(request),
       userAgent: request.get('user-agent') ?? null,
       requestId: request.requestId,
+      anonymousSubjectId: readSignedAnonymousId(
+        request,
+        this.config.getOrThrow('JWT_REFRESH_SECRET'),
+      ),
     });
     this.writeRefreshCookie(response, result.refreshToken);
     return this.toLoginBody(result);

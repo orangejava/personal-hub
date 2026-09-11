@@ -64,9 +64,9 @@ export default function AiModel() {
   }, [updateRuntimeConfig]);
 
   /**
-   * 消耗 AI Token 并同步运行时余额。
+   * 刷新 AI Token 摘要到运行时。
    *
-   * 阶段 5 仍是 mock 扣减，但入口集中在 model，页面无需关心真实接口后续怎么换。
+   * 真正扣减在 Nest 预占/结算；这里只同步首页余额展示。
    */
   const consumeQuota = useCallback(
     async (input: AiQuotaConsumeInput) => {

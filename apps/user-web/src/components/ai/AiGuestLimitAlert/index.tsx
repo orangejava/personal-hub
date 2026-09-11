@@ -1,6 +1,7 @@
-import { Link } from '@umijs/max';
+import { Link, useLocation } from '@umijs/max';
 import { Alert, Button, Space, Typography } from 'antd';
 import React from 'react';
+import { buildLoginPath } from '@/utils/loginPath';
 
 export interface AiGuestLimitAlertProps {
   isGuest: boolean;
@@ -23,6 +24,7 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
   dailyLimit = 3,
   remainingUses = 1,
 }) => {
+  const location = useLocation();
   if (!isGuest) return null;
 
   return (
@@ -44,7 +46,11 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
         </Space>
       }
       action={
-        <Link to="/user/login">
+        <Link
+          to={buildLoginPath(
+            `${location.pathname}${location.search}${location.hash}`,
+          )}
+        >
           <Button size="small" type={exceeded ? 'primary' : 'default'}>
             去登录
           </Button>

@@ -4,8 +4,7 @@ import { clearAuthSession, isNestAuthEnabled } from '@personal-hub/api-client';
 import { publicMenu } from '@/config/publicMenu';
 import { logout as logoutService, nestError, nestHttpStatus } from '@/services/auth';
 import type { InitialState } from '@/types/app';
-
-const loginPath = '/user/login';
+import { buildLoginPath } from '@/utils/loginPath';
 
 type SetInitialState = (
   updater: (s: InitialState | undefined) => InitialState,
@@ -29,12 +28,7 @@ function clearLocalLoginState(setInitialState?: SetInitialState) {
 }
 
 function redirectToLogin() {
-  const { search, pathname } = window.location;
-  if (pathname !== loginPath) {
-    history.replace(
-      `${loginPath}?redirect=${encodeURIComponent(pathname + search)}`,
-    );
-  }
+  history.replace(buildLoginPath());
 }
 
 /**

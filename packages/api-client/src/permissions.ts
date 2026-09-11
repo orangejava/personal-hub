@@ -98,7 +98,9 @@ export function adaptNestPermissions(
     permissions.add('ai:manage');
   }
 
-  permissions.add('ai:use');
+  if (codes.has('ai:use')) {
+    permissions.add('ai:use');
+  }
   if (hasMenuPath(menu, '/workspace')) {
     permissions.add('workspace:access');
   }

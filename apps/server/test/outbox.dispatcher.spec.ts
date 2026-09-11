@@ -95,6 +95,6 @@ function dispatcherFor(input: {
       ? vi.fn().mockRejectedValue(input.addError)
       : vi.fn().mockResolvedValue({ id: 'bull-1' }),
   } as unknown as Queue;
-  const dispatcher = new OutboxDispatcher(outbox, queue);
+  const dispatcher = new OutboxDispatcher(outbox, queue, queue, queue);
   return { dispatcher, outbox, queue };
 }

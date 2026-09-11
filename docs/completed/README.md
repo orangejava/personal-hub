@@ -27,6 +27,7 @@
 | M3 系统配置与菜单 | ✅ 3.1–3.3 已落地 | 2026-08-31 | [切片划分](../../apps/server/docs/implementation/system/README.md) | [类型化配置与幂等](../../study/features/nest-system-config-menu.md) |
 | M4 内容域 | ✅ 4.1–4.5 已落地 | 2026-09-07 | [切片划分](../../apps/server/docs/implementation/content/README.md) | [可见性与枚举映射](../../study/features/nest-content-domain.md) |
 | M5 文件/小册 | ✅ 5.1–5.7 已落地 | 2026-09-08 | [切片划分](../../apps/server/docs/implementation/file/README.md) | [预签名与 Outbox](../../study/features/nest-file-booklet.md) |
+| M6 AI 域 | ✅ Fake Provider + SSE/Job | 2026-09-09 | [ai/README.md](../../apps/server/docs/implementation/ai/README.md) | [nest-ai-domain.md](../../study/features/nest-ai-domain.md) |
 | 审查修复收口 | ✅ 并发/上传/任务分页 | 2026-09-09 | [review-remediation.md](../implementation/review-remediation.md) · [审核与上传 UI](../implementation/content/content-review-and-uploads.md) | — |
 
 ### Nest M3 系统配置与菜单
@@ -48,6 +49,12 @@
 - 工作区任务列表走 `GET /app/upload-tasks` 真分页，默认 `pageSize=10`。
 - 章节列表不含正文；阅读页按章拉取 `markdownSource`。
 - 封面/Logo/PDF 预览返回短时签名 URL。存量目录用 CLI，不把服务器目录暴露成 HTTP。
+
+### Nest M6 AI 域
+
+- MEMBER 具备 `ai:use`。Chat/Text 为 HTTP SSE；停止只走显式 `stop`/`cancel`。
+- 额度预占 5 分钟 TTL；不足 `409 AI_QUOTA_INSUFFICIENT`。匿名 Cookie `ph_ai_anon`，登录认领失败不阻断登录。
+- 图片/视频 Outbox + worker；本阶段 Fake / MockVideo。后台可禁用模型，用户端列表立即消失。
 
 ### Nest 阶段 0 Express 运行底座
 

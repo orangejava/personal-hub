@@ -12,4 +12,5 @@ Nest 工程约定与已落地切片。跨端 HTTP/数据契约仍在仓库根 `d
 | [implementation/system/README.md](./implementation/system/README.md) | M3 系统配置与菜单 |
 | [implementation/content/README.md](./implementation/content/README.md) | M4 内容域 4.1–4.5 |
 | [implementation/file/README.md](./implementation/file/README.md) | M5 文件 / 小册 5.1–5.7 |
+| [implementation/ai/README.md](./implementation/ai/README.md) | M6 AI 域 |
 | [../../docs/implementation/review-remediation.md](../../docs/implementation/review-remediation.md) | 审查修复：幂等 / 审核 / 上传任务 |

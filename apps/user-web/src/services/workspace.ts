@@ -174,43 +174,52 @@ export async function fetchFavorites(params: { page?: number; pageSize?: number 
 }
 
 export async function fetchUsage() {
-  return request<WorkspaceUsage>('/api/workspace/usage');
+  return request<WorkspaceUsage>('/api/v1/app/usage');
 }
 
-/** 获取工作区 AI 对话历史，阶段 5 复用 AI 会话 mock 数据。 */
+/** 获取工作区 AI 对话历史。 */
 export async function fetchWorkspaceAiHistory(params: {
   page?: number;
   pageSize?: number;
   keyword?: string;
 }) {
-  return request<PaginationResult<AiConversation>>(
-    '/api/workspace/ai/history',
-    { params },
+  const page = await request<{ list: AiConversation[]; total: number; page: number; pageSize: number }>(
+    '/api/v1/app/ai/sessions',
+    { params: { page: params.page, pageSize: params.pageSize } },
   );
+  const keyword = params.keyword?.trim().toLowerCase();
+  const list = keyword
+    ? page.list.filter((item) => item.title.toLowerCase().includes(keyword))
+    : page.list;
+  return {
+    list,
+    total: keyword ? list.length : page.total,
+    page: page.page,
+    pageSize: page.pageSize,
+  };
 }
 
 /** 重命名工作区 AI 历史会话。 */
 export async function renameWorkspaceAiHistory(id: string, title: string) {
-  return request<AiConversation>(
-    `/api/workspace/ai/history/${id}`,
-    { method: 'PUT', data: { title } },
-  );
+  return request<AiConversation>(`/api/v1/app/ai/sessions/${id}`, {
+    method: 'PATCH',
+    data: { title },
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }
 
 /** 删除单条工作区 AI 历史会话。 */
 export async function deleteWorkspaceAiHistory(id: string) {
-  return request<{ id: string }>(
-    `/api/workspace/ai/history/${id}`,
-    { method: 'DELETE' },
-  );
+  return request<{ id: string }>(`/api/v1/app/ai/sessions/${id}`, {
+    method: 'DELETE',
+    headers: { 'Idempotency-Key': crypto.randomUUID() },
+  });
 }
 
 /** 批量删除工作区 AI 历史会话。 */
 export async function batchDeleteWorkspaceAiHistory(ids: string[]) {
-  return request<{ deleted: string[] }>(
-    '/api/workspace/ai/history/batch-delete',
-    { method: 'POST', data: { ids } },
-  );
+  await Promise.all(ids.map((id) => deleteWorkspaceAiHistory(id)));
+  return { deleted: ids };
 }
 
 export type { ContentItem };

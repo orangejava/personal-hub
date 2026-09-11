@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Footer } from '@/components';
 import { AuthPageShell } from '@/pages/user/AuthPageShell';
 import { forgotPassword, nestError } from '@/services/auth';
+import { buildLoginPath } from '@/utils/loginPath';
 
 const MAILPIT_UI = 'http://localhost:8025';
 
@@ -43,7 +44,7 @@ const ForgotPassword: React.FC = () => {
               <Button key="mailpit" type="primary" href={MAILPIT_UI} target="_blank">
                 打开 Mailpit
               </Button>,
-              <Button key="login" onClick={() => history.push('/user/login')}>
+              <Button key="login" onClick={() => history.push(buildLoginPath())}>
                 返回登录
               </Button>,
             ]}
@@ -69,7 +70,7 @@ const ForgotPassword: React.FC = () => {
               ]}
             />
             <div style={{ marginBottom: 16, textAlign: 'center' }}>
-              <a href="/user/login">返回登录</a>
+              <a href={buildLoginPath()}>返回登录</a>
             </div>
           </LoginForm>
         )}

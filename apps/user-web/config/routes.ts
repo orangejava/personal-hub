@@ -39,6 +39,7 @@ export default [
     layout: false,
     routes: [
       { path: '/ai', component: './ai/Home' },
+      { path: '/ai/create', redirect: '/ai/chat' },
       { path: '/ai/chat', component: './ai/Chat' },
       { path: '/ai/text', component: './ai/Text' },
       { path: '/ai/image', component: './ai/Image' },

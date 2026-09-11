@@ -193,100 +193,123 @@ export async function fetchAdminDashboardStats() {
 }
 
 export async function fetchAdminAiConfig() {
-  return request<AdminAiConfigData>('/api/admin/ai/config');
+  return request<AdminAiConfigData>('/api/v1/admin/ai/config');
 }
 
 export async function fetchAdminAiStats() {
-  return request<AdminAiStatsData>('/api/admin/ai/stats');
+  return request<AdminAiStatsData>('/api/v1/admin/ai/stats');
 }
 
-/** 更新 AI 品牌配置，阶段 5 用于验证 AI Layout 品牌名可配置。 */
-export async function updateAdminAiBrandingConfig(
-  data: AdminAiBrandingMutationInput,
-) {
-  return request<AdminAiBrandingConfig>('/api/admin/ai/branding', {
-    method: 'PUT',
-    data,
-  });
+/** 品牌名本阶段由服务端固定，不写库。 */
+export async function updateAdminAiBrandingConfig(data: AdminAiBrandingMutationInput) {
+  return {
+    brandName: data.brandName?.trim() || 'Personal Hub AI',
+    logoText: data.logoText?.trim() || 'PH',
+    updatedAt: new Date().toISOString(),
+  } satisfies AdminAiBrandingConfig;
 }
 
-/** 更新 AI 厂商基础配置。API Key 只写，响应只返回脱敏值。 */
 export async function updateAdminAiProviderConfig(
-  code: AdminAiProviderConfig['code'],
+  id: string,
   data: AdminAiProviderMutationInput,
 ) {
-  return request<AdminAiProviderConfig>(
-    `/api/admin/ai/providers/${code}`,
-    {
-      method: 'PUT',
-      data,
+  return request<AdminAiProviderConfig>(`/api/v1/admin/ai/providers/${id}`, {
+    method: 'PATCH',
+    data: { name: data.name, baseUrl: data.baseUrl, enabled: data.enabled },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function updateAdminAiModelConfig(id: string, data: AdminAiModelMutationInput) {
+  return request<AdminAiModelConfig>(`/api/v1/admin/ai/models/${id}`, {
+    method: 'PATCH',
+    data: {
+      displayName: data.displayName,
+      enabled: data.enabled,
+      isDefault: data.isDefault,
+      userVisible: data.visibleToUser,
     },
-  );
-}
-
-/** 更新 AI 模型基础配置，阶段 5 用于验证用户端模型下拉联动。 */
-export async function updateAdminAiModelConfig(
-  id: string,
-  data: AdminAiModelMutationInput,
-) {
-  return request<AdminAiModelConfig>(`/api/admin/ai/models/${id}`, {
-    method: 'PUT',
-    data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
-/** 新增 AI 模型配置，阶段 5 用于 mock 验证用户端模型列表派生。 */
-export async function createAdminAiModelConfig(data: AdminAiModelCreateInput) {
-  return request<AdminAiModelConfig>('/api/admin/ai/models', {
-    method: 'POST',
-    data,
-  });
+export async function createAdminAiModelConfig(_data: AdminAiModelCreateInput): Promise<AdminAiModelConfig> {
+  throw new Error('本阶段不开放新增模型，请启停现有 Fake 模型');
 }
 
-/** 删除 AI 模型配置，并由 mock 层清理工具默认模型引用。 */
-export async function deleteAdminAiModelConfig(id: AdminAiModelConfig['id']) {
-  return request<AdminAiModelConfig>(`/api/admin/ai/models/${id}`, {
-    method: 'DELETE',
-  });
+export async function deleteAdminAiModelConfig(_id: AdminAiModelConfig['id']): Promise<AdminAiModelConfig> {
+  throw new Error('本阶段不开放删除模型');
 }
 
-/** 更新 AI 工具启停状态，阶段 5 先用于 mock 配置闭环。 */
+function toNestToolStatus(status: AdminAiToolStatusMutationInput['status'] | undefined) {
+  if (status === 'comingSoon') {
+    return 'COMING_SOON';
+  }
+  return status === 'disabled' ? 'DISABLED' : 'ENABLED';
+}
+
 export async function updateAdminAiToolStatus(
   code: AdminAiToolConfig['code'],
   data: AdminAiToolStatusMutationInput,
 ) {
-  return request<AdminAiToolConfig>(
-    `/api/admin/ai/tools/${code}/status`,
-    {
-      method: 'PUT',
-      data,
-    },
-  );
+  const config = await fetchAdminAiConfig();
+  const tool = config.tools.find((item) => item.code === code);
+  if (!tool) {
+    throw new Error('工具不存在');
+  }
+  return request<AdminAiToolConfig>(`/api/v1/admin/ai/tools/${tool.id}`, {
+    method: 'PATCH',
+    data: { status: toNestToolStatus(data.status) },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
-/** 更新 AI 工具完整配置，阶段 5 用于验证首页和侧边栏工具信息联动。 */
 export async function updateAdminAiToolConfig(
   code: AdminAiToolConfig['code'],
   data: AdminAiToolMutationInput,
 ) {
-  return request<AdminAiToolConfig>(`/api/admin/ai/tools/${code}`, {
-    method: 'PUT',
-    data,
+  const config = await fetchAdminAiConfig();
+  const tool = config.tools.find((item) => item.code === code);
+  if (!tool) {
+    throw new Error('工具不存在');
+  }
+  return request<AdminAiToolConfig>(`/api/v1/admin/ai/tools/${tool.id}`, {
+    method: 'PATCH',
+    data: {
+      status: toNestToolStatus(data.status),
+      sortOrder: data.sort,
+    },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
-/** 移动 AI 工具展示顺序，阶段 5 用于验证后台配置影响用户端首页排序。 */
 export async function moveAdminAiToolSort(
   code: AdminAiToolConfig['code'],
   direction: 'up' | 'down',
 ) {
-  return request<AdminAiToolConfig[]>(
-    `/api/admin/ai/tools/${code}/move`,
-    {
-      method: 'POST',
-      data: { direction },
-    },
-  );
+  const config = await fetchAdminAiConfig();
+  const tools = [...config.tools].sort((left, right) => left.sort - right.sort);
+  const index = tools.findIndex((item) => item.code === code);
+  const swapIndex = direction === 'up' ? index - 1 : index + 1;
+  if (index < 0 || swapIndex < 0 || swapIndex >= tools.length) {
+    return tools;
+  }
+  const current = tools[index];
+  const other = tools[swapIndex];
+  await Promise.all([
+    request(`/api/v1/admin/ai/tools/${current.id}`, {
+      method: 'PATCH',
+      data: { sortOrder: other.sort },
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    }),
+    request(`/api/v1/admin/ai/tools/${other.id}`, {
+      method: 'PATCH',
+      data: { sortOrder: current.sort },
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    }),
+  ]);
+  const next = await fetchAdminAiConfig();
+  return next.tools;
 }
 
 export async function fetchAdminUsers(params: {

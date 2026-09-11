@@ -387,9 +387,9 @@ describe('Auth HTTP', () => {
     expect(keys).not.toContain('admin.content.list');
   });
 
-  it('MEMBER 没有动作权限，仍能看到个人工作台，不能看到后台', async () => {
+  it('MEMBER 仅有 ai:use，仍能看到个人工作台，不能看到后台', async () => {
     const snapshot = await loginAndFetchPermissions(baseUrl, 'member@example.com');
-    expect(snapshot.permissions).toEqual([]);
+    expect(snapshot.permissions).toEqual([{ code: 'ai:use', dataScope: 'OWN' }]);
     const keys = collectRouteKeys(snapshot.menus);
     expect(keys).toEqual(
       expect.arrayContaining(['public.home', 'workspace.dashboard', 'workspace.profile']),

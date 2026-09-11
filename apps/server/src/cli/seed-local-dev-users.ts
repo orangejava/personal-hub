@@ -2,6 +2,8 @@ import { PrismaClient, RoleCode, UserStatus } from '@prisma/client';
 import { normalizeEmail } from '../modules/auth/email';
 import { assertPasswordPolicy, hashPassword } from '../modules/auth/password';
 import { seedContentTaxonomy, seedSampleContents } from '../../prisma/seed-content';
+import { seedAiCatalog } from '../../prisma/seed-ai';
+import { runBaselineSeed } from '../../prisma/seed';
 
 /**
  * 仅本地开发使用的固定登录账号，权威记录见 docs/engineering/dev-credentials.md。
@@ -155,7 +157,9 @@ async function main(): Promise<void> {
   const nodeEnv = process.env.NODE_ENV ?? 'development';
   const prisma = new PrismaClient();
   try {
+    await runBaselineSeed(prisma);
     const result = await seedLocalDevUsers(prisma, nodeEnv);
+    await seedAiCatalog(prisma);
     await seedContentTaxonomy(prisma);
     await seedSampleContents(prisma);
     console.info(

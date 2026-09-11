@@ -123,6 +123,8 @@ generateAiImage / generateAiVideo mock service
 - `AiLayout` 导航去掉小字分组标题，“创作”改为父级并缩进展示子页面；创作子项点击后折叠侧边栏。
 - 会员中心和会员超市在导航中合并为“会员中心”，底部“返回首页”移除，品牌名点击返回公开首页。
 - `AiLayout` 顶部根据 `@@initialState.currentUser` 展示登录态用户入口，hover 时展示用户卡片。
+- 折叠侧栏后顶栏 Token 左侧提供「返回首页」；「创作」父级 hover 以浮层展示子页面。
+- `/ai` 为 `layout: false`，布局内挂 `ThemeRuntimeSync` 并写入公开区主题 CSS 变量，避免刷新 AI 页时主题丢失。
 - 图片/视频生成数量做双层兜底：前端 hook 发送前规范化参数，mock store 再限制图片最多 4 张、视频固定 1 条。
 
 后续接真实接口时需要注意：

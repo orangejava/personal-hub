@@ -257,6 +257,7 @@ export const adminAiConfigData: AdminAiConfigData = {
   },
   providers: [
     {
+      id: 'provider-aliyun-bailian',
       code: 'aliyun_bailian',
       name: '阿里云百炼',
       baseUrl: 'https://dashscope.aliyuncs.com',
@@ -265,6 +266,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       updatedAt: '2026-07-01T10:00:00Z',
     },
     {
+      id: 'provider-openai',
       code: 'openai',
       name: 'OpenAI',
       baseUrl: 'https://api.openai.com',
@@ -273,6 +275,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       updatedAt: '2026-07-02T10:00:00Z',
     },
     {
+      id: 'provider-anthropic',
       code: 'anthropic',
       name: 'Anthropic',
       baseUrl: 'https://api.anthropic.com',
@@ -355,6 +358,7 @@ export const adminAiConfigData: AdminAiConfigData = {
   ],
   tools: [
     {
+      id: 'tool-chat',
       code: 'chat',
       name: 'AI 对话',
       status: 'enabled',
@@ -364,6 +368,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 10,
     },
     {
+      id: 'tool-text',
       code: 'text',
       name: '文本生成',
       status: 'enabled',
@@ -373,6 +378,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 20,
     },
     {
+      id: 'tool-image',
       code: 'image',
       name: '图片生成',
       status: 'enabled',
@@ -382,6 +388,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 30,
     },
     {
+      id: 'tool-video',
       code: 'video',
       name: '视频生成',
       status: 'enabled',
@@ -391,6 +398,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 40,
     },
     {
+      id: 'tool-webui',
       code: 'webui',
       name: 'WebUI',
       status: 'comingSoon',
@@ -399,6 +407,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 50,
     },
     {
+      id: 'tool-comfyui',
       code: 'comfyui',
       name: 'ComfyUI',
       status: 'comingSoon',
@@ -407,6 +416,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 60,
     },
     {
+      id: 'tool-lora',
       code: 'lora',
       name: 'LoRA 训练',
       status: 'comingSoon',
@@ -415,6 +425,7 @@ export const adminAiConfigData: AdminAiConfigData = {
       sort: 70,
     },
     {
+      id: 'tool-apps',
       code: 'apps',
       name: 'AI 应用',
       status: 'comingSoon',

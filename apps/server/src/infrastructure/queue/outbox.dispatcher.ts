@@ -1,9 +1,20 @@
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Job, Queue } from 'bullmq';
+import { AiService } from '../../modules/ai/ai.service';
 import { BookletImportService } from '../../modules/booklet/booklet-import.service';
 import { OutboxService } from './outbox.service';
-import { BOOKLET_IMPORT_EVENT, BOOKLET_IMPORT_JOB, BOOKLET_IMPORT_QUEUE } from './queue.constants';
+import {
+  AI_IMAGE_GENERATION_EVENT,
+  AI_IMAGE_GENERATION_JOB,
+  AI_IMAGE_GENERATION_QUEUE,
+  AI_VIDEO_GENERATION_EVENT,
+  AI_VIDEO_GENERATION_JOB,
+  AI_VIDEO_GENERATION_QUEUE,
+  BOOKLET_IMPORT_EVENT,
+  BOOKLET_IMPORT_JOB,
+  BOOKLET_IMPORT_QUEUE,
+} from './queue.constants';
 
 @Injectable()
 export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
@@ -12,7 +23,9 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly outbox: OutboxService,
-    @InjectQueue(BOOKLET_IMPORT_QUEUE) private readonly queue: Queue,
+    @InjectQueue(BOOKLET_IMPORT_QUEUE) private readonly bookletQueue: Queue,
+    @InjectQueue(AI_IMAGE_GENERATION_QUEUE) private readonly imageQueue: Queue,
+    @InjectQueue(AI_VIDEO_GENERATION_QUEUE) private readonly videoQueue: Queue,
   ) {}
 
   onModuleInit(): void {
@@ -38,21 +51,27 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
     }
     for (const event of pending) {
       try {
-        if (event.eventType === BOOKLET_IMPORT_EVENT) {
-          const payload = event.payload as { jobId?: string };
-          if (payload.jobId) {
-            await this.queue.add(
-              BOOKLET_IMPORT_JOB,
-              { jobId: payload.jobId },
-              {
-                jobId: payload.jobId,
-                attempts: 3,
-                backoff: { type: 'exponential', delay: 2000 },
-                removeOnComplete: 50,
-                removeOnFail: 100,
-              },
-            );
-          }
+        const payload = event.payload as { jobId?: string };
+        if (event.eventType === BOOKLET_IMPORT_EVENT && payload.jobId) {
+          await this.bookletQueue.add(
+            BOOKLET_IMPORT_JOB,
+            { jobId: payload.jobId },
+            jobOptions(payload.jobId),
+          );
+        }
+        if (event.eventType === AI_IMAGE_GENERATION_EVENT && payload.jobId) {
+          await this.imageQueue.add(
+            AI_IMAGE_GENERATION_JOB,
+            { jobId: payload.jobId },
+            jobOptions(payload.jobId),
+          );
+        }
+        if (event.eventType === AI_VIDEO_GENERATION_EVENT && payload.jobId) {
+          await this.videoQueue.add(
+            AI_VIDEO_GENERATION_JOB,
+            { jobId: payload.jobId },
+            jobOptions(payload.jobId),
+          );
         }
         await this.outbox.markDispatched(event.id);
       } catch (error) {
@@ -62,6 +81,16 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
       }
     }
   }
+}
+
+function jobOptions(jobId: string) {
+  return {
+    jobId,
+    attempts: 3,
+    backoff: { type: 'exponential' as const, delay: 2000 },
+    removeOnComplete: 50,
+    removeOnFail: 100,
+  };
 }
 
 @Processor(BOOKLET_IMPORT_QUEUE)
@@ -75,5 +104,27 @@ export class BookletImportProcessor extends WorkerHost {
   async process(job: Job<{ jobId: string }>): Promise<void> {
     this.logger.log(`处理小册导入 ${job.data.jobId}`);
     await this.imports.processJob(job.data.jobId);
+  }
+}
+
+@Processor(AI_IMAGE_GENERATION_QUEUE)
+export class AiImageProcessor extends WorkerHost {
+  constructor(private readonly ai: AiService) {
+    super();
+  }
+
+  async process(job: Job<{ jobId: string }>): Promise<void> {
+    await this.ai.processJob(job.data.jobId);
+  }
+}
+
+@Processor(AI_VIDEO_GENERATION_QUEUE)
+export class AiVideoProcessor extends WorkerHost {
+  constructor(private readonly ai: AiService) {
+    super();
+  }
+
+  async process(job: Job<{ jobId: string }>): Promise<void> {
+    await this.ai.processJob(job.data.jobId);
   }
 }

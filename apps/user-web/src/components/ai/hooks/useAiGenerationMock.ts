@@ -137,28 +137,22 @@ export function useAiGenerationMock({
         prompt: normalizedDraft.prompt,
         modelId: normalizedDraft.modelId,
         params: normalizedDraft.params,
-        simulateFailure: normalizedDraft.simulateFailure,
       });
       const nextAssets = result.assets ?? [];
       const nextTask =
-        result.task ??
-        createFallbackTask(
-          toolType,
-          normalizedDraft,
-          normalizedDraft.simulateFailure ? 'failed' : 'done',
-        );
+        result.task ?? createFallbackTask(toolType, normalizedDraft, 'done');
       setAssets(nextAssets);
       setTask(nextTask);
       if (nextTask.status === 'failed') {
-        message.error('已模拟生成失败，请调整参数后重试');
+        message.error('生成失败，请调整参数后重试');
         return undefined;
       }
-      message.success('已生成 mock 结果并保存到 AI 资产');
+      message.success('已生成并保存到 AI 资产');
       return nextAssets;
     } catch (_error) {
       setAssets([]);
       setTask(createFallbackTask(toolType, draft, 'failed'));
-      message.error('生成 mock 请求失败，请稍后重试');
+      message.error(_error instanceof Error ? _error.message : '生成失败，请稍后重试');
       return undefined;
     } finally {
       setIsSavingAssets(false);

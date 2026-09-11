@@ -51,6 +51,8 @@ interface LoginInput {
   ip: string;
   userAgent: string | null;
   requestId: string;
+  /** 匿名 AI Cookie 主体；认领失败不得影响登录。 */
+  anonymousSubjectId?: string | null;
 }
 
 interface RefreshInput {
@@ -191,6 +193,17 @@ export class AuthService {
       expiresAt: session.expiresAt.toISOString(),
     });
     await this.clearLoginFailures(email, input.ip);
+
+    if (input.anonymousSubjectId) {
+      try {
+        const { claimAnonymousHistory } = await import('../ai/ai-anonymous');
+        await claimAnonymousHistory(this.prisma, user.id, input.anonymousSubjectId);
+      } catch (error) {
+        this.logger.warn(
+          `认领匿名 AI 历史失败 user=${user.id}: ${error instanceof Error ? error.message : error}`,
+        );
+      }
+    }
 
     return {
       accessToken: this.tokenService.signAccessToken({

@@ -37,11 +37,12 @@ export function subscribeThemeRuntime(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-/** 启动期 initialState 写入一次，避免首屏闪烁 */
+/** 启动期 initialState 写入一次；必须通知订阅方，否则 layout:false 的 AI 页刷新后会停在默认色 */
 export function bootstrapThemeRuntime(state: {
   publicSettings?: PublicThemeSettings;
   settings?: Partial<LayoutSettings>;
 }): void {
   if (state.publicSettings) publicSettings = state.publicSettings;
   if (state.settings) workspaceSettings = state.settings;
+  for (const listener of listeners) listener();
 }

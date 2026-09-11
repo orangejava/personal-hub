@@ -9,4 +9,5 @@
 | [mock-data.md](./mock-data.md) | mock 契约 |
 | [prd/](./prd/) | 用户端相关 React-first PRD |
 | [implementation/](./implementation/) | 阶段 0–3、5 与阅读实现说明 |
+| [../../apps/server/docs/implementation/ai/README.md](../../apps/server/docs/implementation/ai/README.md) | Nest M6 AI Canonical 接线 |
 | [content-review-and-uploads.md](../../../docs/implementation/content/content-review-and-uploads.md) | 工作区上传任务与内容审核（跨端） |

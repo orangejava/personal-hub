@@ -30,6 +30,9 @@ import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Avatar, Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
+import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
+import { usePublicTheme } from '@/hooks/usePublicTheme';
+import { buildLoginPath } from '@/utils/loginPath';
 import { loginOut } from '@/utils/loginOut';
 import '@/styles/ai-layout.less';
 import '@/styles/ai-components.less';
@@ -144,6 +147,62 @@ function getToolConfig(tools: AiTool[] | undefined, code: AiToolType | undefined
   return tools?.find((tool) => tool.code === code);
 }
 
+interface AiNavChildListProps {
+  items: AiNavItem[];
+  selectedPath: string;
+  tools?: AiTool[];
+  onNavigate?: () => void;
+  onCollapseRequest?: () => void;
+}
+
+/** 创作类子页面链接，展开侧栏与折叠浮层共用，避免两套状态文案。 */
+const AiNavChildList: React.FC<AiNavChildListProps> = ({
+  items,
+  selectedPath,
+  tools,
+  onNavigate,
+  onCollapseRequest,
+}) => (
+  <>
+    {items.map((child) => {
+      const active = selectedPath === child.path;
+      const toolConfig = getToolConfig(tools, child.toolCode);
+      const status = toolConfig?.status;
+      const unavailable = status === 'comingSoon' || status === 'disabled';
+      const statusLabel =
+        status && status !== 'enabled' ? toolStatusText[status] : undefined;
+      return (
+        <Link
+          key={child.path}
+          className={[
+            'ph-ai-nav-child-link',
+            active ? 'ph-ai-nav-child-link-active' : '',
+            unavailable ? 'ph-ai-nav-link-disabled' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          to={child.path}
+          onClick={(event) => {
+            if (unavailable) {
+              event.preventDefault();
+              return;
+            }
+            if (child.collapseOnClick) {
+              onCollapseRequest?.();
+            }
+            onNavigate?.();
+          }}
+        >
+          <span>{child.label}</span>
+          {statusLabel && (
+            <span className="ph-ai-nav-status">{statusLabel}</span>
+          )}
+        </Link>
+      );
+    })}
+  </>
+);
+
 /**
  * AI 工作台导航列表。
  *
@@ -179,7 +238,7 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
             ]
               .filter(Boolean)
               .join(' ')}
-            to={item.children ? item.children[0]?.path ?? item.path : item.path}
+            to={item.children ? item.children[0]?.path ?? '/ai' : item.path}
             onClick={(event) => {
               if (item.children && !collapsed) {
                 event.preventDefault();
@@ -196,42 +255,13 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
           </Link>
           {item.children && !collapsed && (
             <div className="ph-ai-nav-children">
-              {item.children.map((child) => {
-                const active = selectedPath === child.path;
-                const toolConfig = getToolConfig(tools, child.toolCode);
-                const status = toolConfig?.status;
-                const unavailable = status === 'comingSoon' || status === 'disabled';
-                const statusLabel =
-                  status && status !== 'enabled' ? toolStatusText[status] : undefined;
-                return (
-                  <Link
-                    key={child.path}
-                    className={[
-                      'ph-ai-nav-child-link',
-                      active ? 'ph-ai-nav-child-link-active' : '',
-                      unavailable ? 'ph-ai-nav-link-disabled' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    to={child.path}
-                    onClick={(event) => {
-                      if (unavailable) {
-                        event.preventDefault();
-                        return;
-                      }
-                      if (child.collapseOnClick) {
-                        onCollapseRequest?.();
-                      }
-                      onNavigate?.();
-                    }}
-                  >
-                    <span>{child.label}</span>
-                    {statusLabel && (
-                      <span className="ph-ai-nav-status">{statusLabel}</span>
-                    )}
-                  </Link>
-                );
-              })}
+              <AiNavChildList
+                items={item.children}
+                selectedPath={selectedPath}
+                tools={tools}
+                onNavigate={onNavigate}
+                onCollapseRequest={onCollapseRequest}
+              />
             </div>
           )}
         </div>
@@ -239,9 +269,27 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
 
       if (collapsed && item.children) {
         return (
-          <Tooltip key={item.path} placement="right" title={item.label}>
+          <Popover
+            key={item.path}
+            arrow={false}
+            content={
+              <div className="ph-ai-nav-flyout">
+                <AiNavChildList
+                  items={item.children}
+                  selectedPath={selectedPath}
+                  tools={tools}
+                  onNavigate={onNavigate}
+                  onCollapseRequest={onCollapseRequest}
+                />
+              </div>
+            }
+            classNames={{ root: 'ph-ai-nav-flyout-popover' }}
+            mouseEnterDelay={0.08}
+            placement="rightTop"
+            trigger={['hover']}
+          >
             <div>{itemNode}</div>
-          </Tooltip>
+          </Popover>
         );
       }
 
@@ -268,7 +316,7 @@ const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText }) => {
 
   if (!user) {
     return (
-      <Link to="/user/login">
+      <Link to={buildLoginPath()}>
         <Button type="primary">登录</Button>
       </Link>
     );
@@ -368,6 +416,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
 }) => {
   const location = useLocation();
   const { initialState } = useModel('@@initialState');
+  const { colorPrimary, isDark } = usePublicTheme();
   const { runtimeConfig, loadHomeConfig } = useModel('ai');
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
@@ -424,13 +473,17 @@ const AiLayout: React.FC<AiLayoutProps> = ({
     <AiXProvider>
       <div
         className={[
+          'ph-public-layout',
           'ph-ai-layout',
+          isDark ? 'ph-public-dark' : '',
           collapsed ? 'ph-ai-layout-collapsed' : '',
           isFocusedWorkspace ? 'ph-ai-layout-focused' : '',
         ]
           .filter(Boolean)
           .join(' ')}
+        style={{ ['--ph-color-primary' as string]: colorPrimary }}
       >
+        <ThemeRuntimeSync />
         <aside className="ph-ai-sidebar">
           <div className="ph-ai-sidebar-header">
             <Link className="ph-ai-brand-link" to="/">
@@ -468,6 +521,11 @@ const AiLayout: React.FC<AiLayoutProps> = ({
               <span>AI 工作台</span>
             </Space>
             <Space size={12}>
+              <Link to="/">
+                <Button aria-label="返回首页" icon={<HomeOutlined />} type="text">
+                  首页
+                </Button>
+              </Link>
               <Tag color="green">{resolvedQuotaText}</Tag>
               <AiUserPopover quotaText={resolvedQuotaText} />
             </Space>

@@ -1,3 +1,4 @@
+import { Reflector } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -40,7 +41,7 @@ export function configureHttpApp(
       forbidNonWhitelisted: true,
     }),
   );
-  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor());
+  app.useGlobalInterceptors(new ResponseEnvelopeInterceptor(app.get(Reflector)));
   app.useGlobalFilters(new HttpExceptionFilter());
 
   if (config.getOrThrow('NODE_ENV') !== 'production') {
