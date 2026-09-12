@@ -3,6 +3,10 @@ import { z } from 'zod';
 const DEFAULT_CORS_ORIGIN = 'http://localhost:8000,http://localhost:8001';
 const DEFAULT_PUBLIC_APP_ORIGIN = 'http://localhost:8000';
 
+function emptyToUndefined(value: unknown) {
+  return typeof value === 'string' && value.trim() === '' ? undefined : value;
+}
+
 /**
  * 把 `CORS_ORIGIN` 解析成 Origin 白名单。
  * 环境变量仍是逗号分隔字符串，方便本地同时放行用户端 :8000 与管理端 :8001。
@@ -77,6 +81,12 @@ export const envSchema = z.object({
   MAILPIT_HOST: z.string().min(1).default('localhost'),
   MAILPIT_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   MAIL_FROM: z.string().min(1).default('Personal Hub <noreply@localhost>'),
+  /** Chat/Text Provider：默认 Fake；有 Key 时才切到 OpenAI 兼容协议。 */
+  AI_TEXT_PROVIDER: z.enum(['fake', 'openai_compatible']).default('fake'),
+  AI_OPENAI_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  AI_OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AI_OPENAI_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AI_OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(60000),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -1,4 +1,5 @@
 import type {
+  AiNavigationItem,
   AiTool,
   AiToolStatus,
   AiToolType,
@@ -21,19 +22,16 @@ import {
   VideoCameraOutlined,
   FolderOutlined,
   TeamOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-  PlusOutlined,
-  CopyOutlined,
 } from '@ant-design/icons';
 import { history, Link, useLocation, useModel } from '@umijs/max';
-import { Avatar, Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
+import { Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
+import UserAccountPopover from '@/components/shared/UserAccountPopover';
+import { useRequest } from '@/hooks/useRequest';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
-import { buildLoginPath } from '@/utils/loginPath';
-import { loginOut } from '@/utils/loginOut';
+import { fetchAiNavigation } from '@/services/ai';
 import '@/styles/ai-layout.less';
 import '@/styles/ai-components.less';
 import '@/styles/ai-motion.less';
@@ -49,6 +47,7 @@ interface AiNavItem {
   label: string;
   icon: React.ReactNode;
   toolCode?: AiToolType;
+  navStatus?: AiToolStatus;
   children?: AiNavItem[];
   collapseOnClick?: boolean;
   dividerBefore?: boolean;
@@ -87,6 +86,7 @@ const navItems: AiNavItem[] = [
         label: '视频生成',
         icon: <VideoCameraOutlined />,
         toolCode: 'video',
+        navStatus: 'comingSoon',
         collapseOnClick: true,
       },
       {
@@ -94,6 +94,7 @@ const navItems: AiNavItem[] = [
         label: 'WebUI',
         icon: <AppstoreOutlined />,
         toolCode: 'webui',
+        navStatus: 'comingSoon',
         collapseOnClick: true,
       },
       {
@@ -101,6 +102,7 @@ const navItems: AiNavItem[] = [
         label: 'ComfyUI',
         icon: <DeploymentUnitOutlined />,
         toolCode: 'comfyui',
+        navStatus: 'comingSoon',
         collapseOnClick: true,
       },
       {
@@ -108,6 +110,7 @@ const navItems: AiNavItem[] = [
         label: '训练 LoRA',
         icon: <ExperimentOutlined />,
         toolCode: 'lora',
+        navStatus: 'comingSoon',
         collapseOnClick: true,
       },
       {
@@ -115,21 +118,72 @@ const navItems: AiNavItem[] = [
         label: 'AI 应用',
         icon: <AppstoreOutlined />,
         toolCode: 'apps',
+        navStatus: 'comingSoon',
         collapseOnClick: true,
       },
     ],
   },
   { path: '/ai/assets', label: '资产', icon: <FolderOutlined /> },
   { path: '/ai/profile', label: '个人中心', icon: <UserOutlined />, dividerBefore: true },
-  { path: '/ai/team', label: '创建团队', icon: <TeamOutlined /> },
+  { path: '/ai/team', label: '创建团队', icon: <TeamOutlined />, navStatus: 'disabled' },
   { path: '/ai/creation-center', label: '创作中心', icon: <AppstoreOutlined /> },
   { path: '/ai/membership', label: '会员中心', icon: <CrownOutlined /> },
   { path: '/ai/publish', label: '发布', icon: <SendOutlined /> },
   { path: '/ai/tutorials', label: '教程', icon: <FileTextOutlined /> },
-  { path: '/ai/api', label: 'API', icon: <ApiOutlined /> },
+  { path: '/ai/api', label: 'API', icon: <ApiOutlined />, navStatus: 'disabled' },
 ];
 
+const iconByName: Record<string, React.ReactNode> = {
+  home: <HomeOutlined />,
+  robot: <RobotOutlined />,
+  edit: <FileTextOutlined />,
+  picture: <PictureOutlined />,
+  videoCamera: <VideoCameraOutlined />,
+  appstore: <AppstoreOutlined />,
+  deployment: <DeploymentUnitOutlined />,
+  experiment: <ExperimentOutlined />,
+  folder: <FolderOutlined />,
+  user: <UserOutlined />,
+  team: <TeamOutlined />,
+  crown: <CrownOutlined />,
+  send: <SendOutlined />,
+  fileText: <FileTextOutlined />,
+  api: <ApiOutlined />,
+};
+
+function buildNavItems(apiItems?: AiNavigationItem[]): AiNavItem[] {
+  if (!apiItems?.length) {
+    return navItems;
+  }
+  const childrenOf = (parentId: string | null) =>
+    apiItems
+      .filter((item) => (item.parentId ?? null) === parentId)
+      .sort((left, right) => left.sortOrder - right.sortOrder);
+  return childrenOf(null).map((item, index, list) => {
+    const children = childrenOf(item.id).map((child) => ({
+      path: child.path,
+      label: child.label,
+      icon: iconByName[child.icon] ?? <AppstoreOutlined />,
+      toolCode: child.toolCode,
+      navStatus: child.status,
+      collapseOnClick: true,
+    }));
+    const previous = list[index - 1];
+    return {
+      path: item.path,
+      label: item.label,
+      icon: iconByName[item.icon] ?? <AppstoreOutlined />,
+      toolCode: item.toolCode,
+      navStatus: item.status,
+      // 只在账号组第一项画分隔，避免个人中心/创建团队/创作中心各撑出一块空白。
+      dividerBefore: item.group === 'profile' && previous?.group !== 'profile',
+      children: children.length > 0 ? children : undefined,
+    };
+  });
+}
+
 interface AiNavigationProps {
+  items: AiNavItem[];
   collapsed?: boolean;
   selectedPath: string;
   tools?: AiTool[];
@@ -145,6 +199,51 @@ const toolStatusText: Record<Exclude<AiToolStatus, 'enabled'>, string> = {
 function getToolConfig(tools: AiTool[] | undefined, code: AiToolType | undefined) {
   if (!code) return undefined;
   return tools?.find((tool) => tool.code === code);
+}
+
+/** 导航表状态优先；绑定了 AiTool 时，工具禁用/即将上线会压过导航 ENABLED。 */
+function resolveNavStatus(item: AiNavItem, tools?: AiTool[]): AiToolStatus | undefined {
+  const toolStatus = getToolConfig(tools, item.toolCode)?.status;
+  if (toolStatus && toolStatus !== 'enabled') {
+    return toolStatus;
+  }
+  return item.navStatus;
+}
+
+function isUnavailableStatus(status?: AiToolStatus) {
+  return status === 'comingSoon' || status === 'disabled';
+}
+
+function leafNavItems(items: AiNavItem[]): AiNavItem[] {
+  return items.flatMap((item) => item.children ?? [item]);
+}
+
+function firstAvailableChild(item: AiNavItem, tools?: AiTool[]) {
+  return item.children?.find(
+    (child) => !isUnavailableStatus(resolveNavStatus(child, tools)),
+  );
+}
+
+function handleTopNavClick(
+  event: React.MouseEvent<HTMLAnchorElement>,
+  item: AiNavItem,
+  collapsed: boolean,
+  tools: AiTool[] | undefined,
+  onNavigate?: () => void,
+) {
+  if (item.children) {
+    if (!collapsed || !firstAvailableChild(item, tools)) {
+      event.preventDefault();
+      return;
+    }
+    onNavigate?.();
+    return;
+  }
+  if (isUnavailableStatus(resolveNavStatus(item, tools))) {
+    event.preventDefault();
+    return;
+  }
+  onNavigate?.();
 }
 
 interface AiNavChildListProps {
@@ -166,9 +265,8 @@ const AiNavChildList: React.FC<AiNavChildListProps> = ({
   <>
     {items.map((child) => {
       const active = selectedPath === child.path;
-      const toolConfig = getToolConfig(tools, child.toolCode);
-      const status = toolConfig?.status;
-      const unavailable = status === 'comingSoon' || status === 'disabled';
+      const status = resolveNavStatus(child, tools);
+      const unavailable = isUnavailableStatus(status);
       const statusLabel =
         status && status !== 'enabled' ? toolStatusText[status] : undefined;
       return (
@@ -193,7 +291,7 @@ const AiNavChildList: React.FC<AiNavChildListProps> = ({
             onNavigate?.();
           }}
         >
-          <span>{child.label}</span>
+          <span className="ph-ai-nav-label">{child.label}</span>
           {statusLabel && (
             <span className="ph-ai-nav-status">{statusLabel}</span>
           )}
@@ -209,6 +307,7 @@ const AiNavChildList: React.FC<AiNavChildListProps> = ({
  * 桌面侧栏和移动端抽屉共用同一份导航渲染，避免后续新增工具入口时漏改某一端。
  */
 const AiNavigation: React.FC<AiNavigationProps> = ({
+  items,
   collapsed = false,
   selectedPath,
   tools,
@@ -216,10 +315,20 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
   onCollapseRequest,
 }) => (
   <nav className="ph-ai-sidebar-nav" aria-label="AI 工作台导航">
-    {navItems.map((item) => {
+    {items.map((item) => {
       const itemActive =
         selectedPath === item.path ||
         item.children?.some((child) => selectedPath === child.path);
+      const status = resolveNavStatus(item, tools);
+      const unavailable =
+        !item.children && isUnavailableStatus(status);
+      const statusLabel =
+        unavailable && status && status !== 'enabled'
+          ? toolStatusText[status]
+          : undefined;
+      const targetPath = item.children
+        ? firstAvailableChild(item, tools)?.path ?? item.path
+        : item.path;
       const itemNode = (
         <div
           className={[
@@ -231,24 +340,25 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
           key={item.path}
         >
           <Link
+            aria-disabled={unavailable || undefined}
             className={[
               'ph-ai-nav-link',
               itemActive && !item.children ? 'ph-ai-nav-link-active' : '',
               item.children ? 'ph-ai-nav-link-parent' : '',
+              unavailable ? 'ph-ai-nav-link-disabled' : '',
             ]
               .filter(Boolean)
               .join(' ')}
-            to={item.children ? item.children[0]?.path ?? '/ai' : item.path}
-            onClick={(event) => {
-              if (item.children && !collapsed) {
-                event.preventDefault();
-                return;
-              }
-              onNavigate?.();
-            }}
+            to={targetPath}
+            onClick={(event) =>
+              handleTopNavClick(event, item, collapsed, tools, onNavigate)
+            }
           >
             {item.icon}
             <span className="ph-ai-nav-label">{item.label}</span>
+            {statusLabel && (
+              <span className="ph-ai-nav-status">{statusLabel}</span>
+            )}
             {item.children && !collapsed && (
               <MenuFoldOutlined className="ph-ai-nav-parent-arrow" />
             )}
@@ -295,7 +405,11 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
 
       if (!item.children && collapsed) {
         return (
-          <Tooltip key={item.path} placement="right" title={item.label}>
+          <Tooltip
+            key={item.path}
+            placement="right"
+            title={statusLabel ? `${item.label}（${statusLabel}）` : item.label}
+          >
             <div>{itemNode}</div>
           </Tooltip>
         );
@@ -308,98 +422,29 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
 
 interface AiUserPopoverProps {
   quotaText: string;
+  planName?: string;
 }
 
-const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText }) => {
-  const { initialState, setInitialState } = useModel('@@initialState');
-  const user = initialState?.currentUser;
+const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText, planName }) => (
+  <UserAccountPopover
+    planName={planName}
+    quotaText={quotaText}
+    triggerClassName="ph-ai-user-trigger"
+    variant="ai"
+  />
+);
 
-  if (!user) {
-    return (
-      <Link to={buildLoginPath()}>
-        <Button type="primary">登录</Button>
-      </Link>
-    );
-  }
-
-  const displayName = user.nickname ?? user.email;
-  const card = (
-    <div className="ph-ai-user-card">
-      <div className="ph-ai-user-card-header">
-        <Avatar size={52} src={user.avatar} icon={<UserOutlined />} />
-        <div>
-          <strong>{displayName}</strong>
-          <span>
-            UUID
-            <CopyOutlined />
-          </span>
-        </div>
-        <Button icon={<PlusOutlined />} type="text">
-          创建团队
-        </Button>
-      </div>
-      <div className="ph-ai-user-card-plan">
-        <div className="ph-ai-user-card-plan-head">
-          <strong>免费用户</strong>
-          <Button type="primary">开通会员</Button>
-        </div>
-        <span>活动权益：Seedream 4.5 限时5折 有效期 1天</span>
-      </div>
-      <div className="ph-ai-user-card-quota">
-        <div>
-          <strong>积分余额 {quotaText}</strong>
-          <span>通用 {quotaText}</span>
-        </div>
-        <Space separator={<span className="ph-ai-user-card-split" />}>
-          <Link to="/ai/membership">充值</Link>
-          <Link to="/ai/membership">设置消耗顺序</Link>
-        </Space>
-      </div>
-      <div className="ph-ai-user-card-metrics">
-        <div>
-          <span>训练加速余额</span>
-          <strong>0 次</strong>
-        </div>
-        <div>
-          <span>存储空间</span>
-          <strong>0.0G <small>/3G</small></strong>
-        </div>
-      </div>
-      <div className="ph-ai-user-card-actions">
-        <Link to="/ai/profile">
-          <UserOutlined />
-          个人中心
-        </Link>
-        <Link to="/workspace/profile">
-          <SettingOutlined />
-          账号设置
-        </Link>
-        <button
-          type="button"
-          onClick={() => {
-            void loginOut(setInitialState);
-          }}
-        >
-          <LogoutOutlined />
-          退出登录
-        </button>
-      </div>
-    </div>
-  );
-
+const AiUnavailableNotice: React.FC<{
+  label: string;
+  status?: AiToolStatus;
+}> = ({ label, status }) => {
+  const statusLabel =
+    status && status !== 'enabled' ? toolStatusText[status] : '暂不可用';
   return (
-    <Popover
-      arrow={false}
-      content={card}
-      classNames={{ root: 'ph-ai-user-popover' }}
-      placement="bottomRight"
-      trigger={['hover', 'click']}
-    >
-      <Button className="ph-ai-user-trigger" type="text">
-        <Avatar size={28} src={user.avatar} icon={<UserOutlined />} />
-        <span>{displayName}</span>
-      </Button>
-    </Popover>
+    <div className="ph-ai-unavailable">
+      <h2>{label}</h2>
+      <p>{statusLabel}，后台恢复启用后即可进入。</p>
+    </div>
   );
 };
 
@@ -407,7 +452,7 @@ const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText }) => {
  * AI 独立工作台布局。
  *
  * 该布局只服务 `/ai/*`，不复用公开前台 PublicLayout，
- * 避免阶段 5 的侧边栏、顶部工具条和输入区影响既有页面。
+ * 避免 AI 侧边栏、顶部工具条和输入区影响既有页面。
  */
 const AiLayout: React.FC<AiLayoutProps> = ({
   brandName,
@@ -418,6 +463,10 @@ const AiLayout: React.FC<AiLayoutProps> = ({
   const { initialState } = useModel('@@initialState');
   const { colorPrimary, isDark } = usePublicTheme();
   const { runtimeConfig, loadHomeConfig } = useModel('ai');
+  const { data: navigation } = useRequest(fetchAiNavigation, {
+    refreshOnWindowFocus: true,
+  });
+  const resolvedNavItems = useMemo(() => buildNavItems(navigation), [navigation]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
@@ -440,15 +489,17 @@ const AiLayout: React.FC<AiLayoutProps> = ({
       ? `${runtimeConfig.quota.remainingTokens.toLocaleString()} Token`
       : '加载中');
 
-  const selectedPath = useMemo(() => {
+  const currentLeaf = useMemo(() => {
     const pathname = location.pathname;
-    const flatItems = navItems.flatMap((item) => item.children ?? [item]);
-    return (
-      flatItems.find((item) =>
-        item.path === '/ai' ? pathname === '/ai' : pathname.startsWith(item.path),
-      )?.path ?? '/ai'
+    return leafNavItems(resolvedNavItems).find((item) =>
+      item.path === '/ai' ? pathname === '/ai' : pathname.startsWith(item.path),
     );
-  }, [location.pathname]);
+  }, [location.pathname, resolvedNavItems]);
+  const selectedPath = currentLeaf?.path ?? '/ai';
+  const currentNavStatus = currentLeaf
+    ? resolveNavStatus(currentLeaf, runtimeConfig.tools)
+    : undefined;
+  const pageUnavailable = isUnavailableStatus(currentNavStatus);
   const autoCollapsedPaths = [
     '/ai/chat',
     '/ai/text',
@@ -501,6 +552,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
 
           <AiNavigation
             collapsed={collapsed}
+            items={resolvedNavItems}
             selectedPath={selectedPath}
             tools={runtimeConfig.tools}
             onCollapseRequest={() => setCollapsed(true)}
@@ -517,7 +569,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
                 type="text"
                 onClick={() => setMobileDrawerOpen(true)}
               />
-              <Tag color="blue">Mock</Tag>
+              <Tag color="blue">工作台</Tag>
               <span>AI 工作台</span>
             </Space>
             <Space size={12}>
@@ -527,10 +579,22 @@ const AiLayout: React.FC<AiLayoutProps> = ({
                 </Button>
               </Link>
               <Tag color="green">{resolvedQuotaText}</Tag>
-              <AiUserPopover quotaText={resolvedQuotaText} />
+              <AiUserPopover
+                planName={runtimeConfig.currentPlanName}
+                quotaText={resolvedQuotaText}
+              />
             </Space>
           </header>
-          <section className="ph-ai-content">{children}</section>
+          <section className="ph-ai-content">
+            {pageUnavailable && currentLeaf ? (
+              <AiUnavailableNotice
+                label={currentLeaf.label}
+                status={currentNavStatus}
+              />
+            ) : (
+              children
+            )}
+          </section>
         </main>
 
         <Drawer
@@ -548,6 +612,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
           onClose={() => setMobileDrawerOpen(false)}
         >
           <AiNavigation
+            items={resolvedNavItems}
             selectedPath={selectedPath}
             tools={runtimeConfig.tools}
             onNavigate={() => setMobileDrawerOpen(false)}

@@ -9,6 +9,7 @@ import {
 import { Alert, Button, Empty, Space, Tag } from 'antd';
 import type { AiAsset, AiGenerationTask } from '@personal-hub/shared-types';
 import React, { useMemo } from 'react';
+import AiAuthenticatedMedia from '@/components/ai/AiAuthenticatedMedia';
 import type { AiMediaTimePreset } from '@/components/ai/AiMediaListToolbar';
 
 interface AiGenerationStreamProps {
@@ -16,6 +17,7 @@ interface AiGenerationStreamProps {
   prompt: string;
   task: AiGenerationTask;
   assets: AiAsset[];
+  history?: AiGenerationTask[];
   keyword?: string;
   timePreset?: AiMediaTimePreset;
   dateRange?: [string | undefined, string | undefined];
@@ -34,27 +36,6 @@ interface AiMediaRecord {
   assets: AiAsset[];
   createdAt: string;
 }
-
-const MOCK_HISTORY_DAY_OFFSETS = [
-  0,
-  1,
-  3,
-  8,
-  16,
-  35,
-  70,
-  110,
-  160,
-  190,
-  220,
-  250,
-  280,
-  310,
-  340,
-  370,
-  400,
-  430,
-];
 
 function formatMediaTime(input: string) {
   const date = new Date(input);
@@ -88,45 +69,6 @@ function getPresetStartDate(preset: AiMediaTimePreset) {
   const dayCount = preset === 'week' ? 7 : preset === 'month' ? 30 : 90;
   date.setDate(date.getDate() - dayCount);
   return date;
-}
-
-function createMockRecords({
-  title,
-  prompt,
-  task,
-  assets,
-}: {
-  title: string;
-  prompt: string;
-  task: AiGenerationTask;
-  assets: AiAsset[];
-}) {
-  const baseCreatedAt = new Date(task.createdAt || new Date().toISOString());
-
-  return MOCK_HISTORY_DAY_OFFSETS.map((offset, index) => {
-    const createdAt = new Date(baseCreatedAt);
-    createdAt.setDate(baseCreatedAt.getDate() - offset);
-    const isCurrent = index === 0;
-    const nextTitle = isCurrent ? title : `${title} · 历史版本 ${index + 1}`;
-    const nextPrompt = isCurrent
-      ? prompt
-      : `${prompt}，历史生成记录 ${index + 1}`;
-
-    return {
-      id: `${task.id}-${index}`,
-      title: nextTitle,
-      prompt: nextPrompt,
-      createdAt: createdAt.toISOString(),
-      task: {
-        ...task,
-        id: `${task.id}-${index}`,
-        title: nextTitle,
-        prompt: nextPrompt,
-        createdAt: createdAt.toISOString(),
-      },
-      assets,
-    };
-  });
 }
 
 function matchKeyword(record: AiMediaRecord, keyword: string) {
@@ -163,17 +105,26 @@ function matchTimeFilter(
   return true;
 }
 
+function toRecord(task: AiGenerationTask): AiMediaRecord {
+  return {
+    id: task.id,
+    title: task.title,
+    prompt: task.prompt,
+    task,
+    assets: task.assets ?? [],
+    createdAt: task.createdAt,
+  };
+}
+
 /**
- * 图片/视频生成的连续消息流。
- *
- * 阶段 5.5 先用前端 mock 记录模拟历史分页；后续接真实历史接口时，
- * 可以把 records 的来源换成服务端分页结果，保留当前展示组件。
+ * 图片/视频生成结果流。只展示服务端任务和历史接口返回的数据。
  */
 const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
   title,
   prompt,
   task,
   assets,
+  history = [],
   keyword = '',
   timePreset = 'all',
   dateRange,
@@ -183,16 +134,25 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
   onUseAsAttachment,
   onViewDetail,
 }) => {
-  const records = useMemo(
-    () =>
-      createMockRecords({
-        title,
-        prompt,
-        task,
-        assets,
-      }),
-    [assets, prompt, task, title],
-  );
+  const records = useMemo(() => {
+    const current =
+      task.id && task.status !== 'idle'
+        ? [
+            {
+              id: task.id,
+              title: title || task.title,
+              prompt: prompt || task.prompt,
+              task: { ...task, assets },
+              assets,
+              createdAt: task.createdAt,
+            },
+          ]
+        : [];
+    const rest = history
+      .filter((item) => item.id !== task.id)
+      .map(toRecord);
+    return [...current, ...rest];
+  }, [assets, history, prompt, task, title]);
   const visibleRecords = useMemo(
     () =>
       records
@@ -205,7 +165,7 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
   if (visibleRecords.length === 0) {
     return (
       <div className="ph-ai-generation-stream ph-ai-generation-stream-empty">
-        <Empty description="没有匹配的生成记录，换个关键词或时间范围试试。" />
+        <Empty description="还没有生成记录。提交提示词后，结果会出现在这里。" />
       </div>
     );
   }
@@ -225,14 +185,17 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
           </div>
           <div className="ph-ai-media-meta">
             <Tag color={record.task.status === 'done' ? 'green' : 'processing'}>
-              {record.task.status === 'done' ? '生成完成' : '生成中'}
+              {record.task.status === 'done'
+                ? '生成完成'
+                : record.task.status === 'stopped'
+                  ? '已停止'
+                  : record.task.status === 'failed'
+                    ? '失败'
+                    : '生成中'}
             </Tag>
             <Tag>{record.task.modelId}</Tag>
             {record.task.params?.size && <Tag>{record.task.params.size}</Tag>}
             {record.task.params?.count && <Tag>{record.task.params.count} 个结果</Tag>}
-            {record.task.params?.durationSeconds && (
-              <Tag>{record.task.params.durationSeconds} 秒</Tag>
-            )}
             {record.task.params?.style && <Tag>{record.task.params.style}</Tag>}
           </div>
 
@@ -241,7 +204,7 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
               showIcon
               icon={<ExclamationCircleOutlined />}
               title="生成失败"
-              description="本次 mock 任务已进入失败态，参数和附件仍保留，可以再次编辑或重新生成。"
+              description="可以调整参数后重新生成。"
               type="error"
             />
           ) : (
@@ -251,11 +214,9 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
                   className="ph-ai-output-media"
                   key={`${record.id}-${asset.id}`}
                 >
-                  {asset.thumbnailUrl && (
-                    <img alt={asset.title} src={asset.thumbnailUrl} />
-                  )}
+                  <AiAuthenticatedMedia asset={asset} />
                   {record.task.toolType === 'video' && (
-                    <div className="ph-ai-output-video-badge">Mock Video</div>
+                    <div className="ph-ai-output-video-badge">视频</div>
                   )}
                   <div className="ph-ai-output-actions ph-ai-output-actions-top">
                     <Button
@@ -285,18 +246,20 @@ const AiGenerationStream: React.FC<AiGenerationStreamProps> = ({
             </div>
           )}
 
-          <Space className="ph-ai-media-message-actions">
-            <Button icon={<EditOutlined />} onClick={onEditAgain}>
-              再次编辑
-            </Button>
-            <Button
-              icon={<RedoOutlined />}
-              type={recordIndex === 0 ? 'primary' : 'default'}
-              onClick={onRegenerate}
-            >
-              重新生成
-            </Button>
-          </Space>
+          {recordIndex === 0 && (
+            <Space className="ph-ai-media-message-actions">
+              <Button icon={<EditOutlined />} onClick={onEditAgain}>
+                再次编辑
+              </Button>
+              <Button
+                icon={<RedoOutlined />}
+                type="primary"
+                onClick={onRegenerate}
+              >
+                重新生成
+              </Button>
+            </Space>
+          )}
         </article>
       ))}
     </div>

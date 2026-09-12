@@ -1,8 +1,10 @@
 # 阶段 5 AI 工作台基础壳层
 
-> 状态：已完成首批骨架与 mock 交互补强
-> 最后更新：2026-07-06
+> 状态：历史 mock 壳层已完成；**当前业务链路由 Nest Canonical 接管**（见 [apps/server/docs/implementation/ai/README.md](../../../server/docs/implementation/ai/README.md)）
+> 最后更新：2026-09-11
 > 对应 PRD：[../../prd/react-first/phase-5-ai-platform-prd.md](../../prd/react-first/phase-5-ai-platform-prd.md)
+
+下文保留阶段 5 当时的 mock 落地记录，便于对照页面骨架。Chat/Text/图片/视频、导航、额度、资产请以 Nest 实现为准；`useAiChat` / `useAiGeneration` 等 hook 已去掉 Mock 后缀。
 
 ## 1. 目标与范围
 

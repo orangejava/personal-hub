@@ -38,6 +38,18 @@ export class PublicAiController {
   }
 
   @Public()
+  @Get('navigation')
+  async navigation() {
+    return this.ai.listNavigation();
+  }
+
+  @Public()
+  @Get('tutorials')
+  tutorials() {
+    return this.ai.tutorials();
+  }
+
+  @Public()
   @Post('sessions')
   @UseGuards(AiAnonymousGuard)
   @RequireIdempotency()

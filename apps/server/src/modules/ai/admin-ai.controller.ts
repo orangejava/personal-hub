@@ -1,11 +1,21 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Put, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { DataScope } from '@prisma/client';
+import { AiToolStatus, DataScope } from '@prisma/client';
+import type { Request } from 'express';
+import { CurrentAuth } from '../../common/decorators/current-auth.decorator';
 import { RequireIdempotency } from '../../common/idempotency/require-idempotency.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
+import type { RequestAuthContext } from '../../common/types/request-id';
 import { AiService } from './ai.service';
-import { PatchModelDto, PatchProviderDto, PatchToolDto, PutEntitlementDto } from './dto/ai.dto';
-import { AiToolStatus } from '@prisma/client';
+import {
+  PatchBrandingDto,
+  PatchModelDto,
+  PatchNavigationDto,
+  PatchProviderDto,
+  PatchToolDto,
+  PutEntitlementDto,
+  SortNavigationDto,
+} from './dto/ai.dto';
 
 @ApiTags('Admin AI')
 @ApiBearerAuth()
@@ -23,6 +33,40 @@ export class AdminAiController {
   @RequirePermission('dashboard:read', DataScope.ALL)
   stats() {
     return this.ai.adminStats();
+  }
+
+  @Get('navigation')
+  @RequirePermission('ai:tool:manage', DataScope.ALL)
+  navigation() {
+    return this.ai.listNavigation({ includeHidden: true });
+  }
+
+  @Patch('branding')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  @RequireIdempotency()
+  patchBranding(
+    @Body() body: PatchBrandingDto,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Req() request: Request,
+  ) {
+    return this.ai.patchBranding(body, auth.userId, request.requestId);
+  }
+
+  @Patch('navigation/sort')
+  @RequirePermission('ai:tool:manage', DataScope.ALL)
+  @RequireIdempotency()
+  sortNavigation(@Body() body: SortNavigationDto) {
+    return this.ai.sortNavigation(body.items);
+  }
+
+  @Patch('navigation/:id')
+  @RequirePermission('ai:tool:manage', DataScope.ALL)
+  @RequireIdempotency()
+  patchNavigation(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: PatchNavigationDto,
+  ) {
+    return this.ai.patchNavigation(id, body);
   }
 
   @Patch('providers/:providerId')
@@ -50,6 +94,9 @@ export class AdminAiController {
       name: body.name,
       status: body.status as AiToolStatus | undefined,
       sortOrder: body.sortOrder,
+      defaultModelId: body.defaultModelId,
+      tokenCostLabel: body.tokenCostLabel,
+      guestTrialEnabled: body.guestTrialEnabled,
     });
   }
 

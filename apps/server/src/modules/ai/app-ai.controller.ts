@@ -29,12 +29,14 @@ import {
   CreateAssetDto,
   FeedbackDto,
   ImageGenerateDto,
+  JobListQueryDto,
   PageQueryDto,
   PatchAssetDto,
   PatchSessionDto,
   PatchTemplateDto,
   SendMessageDto,
   TextGenerateDto,
+  UsageQueryDto,
 } from './dto/ai.dto';
 
 @ApiTags('App AI')
@@ -59,6 +61,48 @@ export class AppAiController {
   @RequirePermission('ai:use')
   entitlement(@CurrentAuth() auth: RequestAuthContext) {
     return this.ai.entitlement(auth.userId);
+  }
+
+  @Get('navigation')
+  @RequirePermission('ai:use')
+  navigation() {
+    return this.ai.listNavigation();
+  }
+
+  @Get('generation-jobs')
+  @RequirePermission('ai:use')
+  generationJobs(@Query() query: JobListQueryDto, @CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.listJobs(auth.userId, query);
+  }
+
+  @Get('membership')
+  @RequirePermission('ai:use')
+  membership(@CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.membership(auth.userId);
+  }
+
+  @Get('profile-summary')
+  @RequirePermission('ai:use')
+  profileSummary(@CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.profileSummary(auth.userId);
+  }
+
+  @Get('creation-center')
+  @RequirePermission('ai:use')
+  creationCenter(@CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.creationCenter(auth.userId);
+  }
+
+  @Get('publish-drafts')
+  @RequirePermission('ai:use')
+  publishDrafts(@CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.publishDrafts(auth.userId);
+  }
+
+  @Get('tutorials')
+  @RequirePermission('ai:use')
+  tutorials() {
+    return this.ai.tutorials();
   }
 
   @Get('templates')
@@ -263,6 +307,20 @@ export class AppAiController {
     return this.ai.cancelJob(auth.userId, jobId);
   }
 
+  @Get('assets/:assetId/content')
+  @RequirePermission('ai:use')
+  @SkipResponseEnvelope()
+  async assetContent(
+    @Param('assetId', new ParseUUIDPipe()) assetId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Res() response: Response,
+  ) {
+    const file = await this.ai.getAssetContent(auth.userId, assetId);
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Cache-Control', 'private, max-age=120');
+    response.send(file.body);
+  }
+
   @Get('assets')
   @RequirePermission('ai:use')
   assets(@Query() query: PageQueryDto, @CurrentAuth() auth: RequestAuthContext) {
@@ -340,7 +398,7 @@ export class AppUsageController {
 
   @Get('usage')
   @RequirePermission('ai:use')
-  usage(@CurrentAuth() auth: RequestAuthContext) {
-    return this.ai.usage(auth.userId);
+  usage(@Query() query: UsageQueryDto, @CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.usage(auth.userId, query);
   }
 }

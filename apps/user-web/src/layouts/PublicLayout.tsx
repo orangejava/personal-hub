@@ -1,19 +1,15 @@
 import { SettingOutlined } from '@ant-design/icons';
 import type { MenuItem } from '@personal-hub/shared-types';
 import { history, Link, useModel } from '@umijs/max';
-import type { MenuProps } from 'antd';
-import { Avatar, Button, Dropdown } from 'antd';
+import { Button } from 'antd';
 import React from 'react';
 import PublicThemeDrawer from '@/components/PublicThemeDrawer';
-import { PageTransition } from '@/components/shared';
+import { PageTransition, UserAccountPopover } from '@/components/shared';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
-import { buildAdminWebUrl } from '@personal-hub/app-origins';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import { setThemePreference } from '@/utils/clientPreferences';
-import { buildLoginPath } from '@/utils/loginPath';
-import { loginOut } from '@/utils/loginOut';
 import { getPageTransitionKey } from '@/utils/pageTransitionKey';
 
 /**
@@ -27,7 +23,6 @@ const PublicLayout: React.FC<{
   const { initialState, setInitialState } = useModel('@@initialState');
   const { settings: publicSettings, isDark } = usePublicTheme();
   const siteName = initialState?.systemConfig?.siteName ?? 'Personal Hub';
-  const user = initialState?.currentUser;
 
   // 顶栏只用公开导航；登录后 initialState.menu 含工作区，不能混进前台
   const menu: MenuItem[] = (initialState?.publicMenu ?? publicMenu).filter(
@@ -37,40 +32,6 @@ const PublicLayout: React.FC<{
 
   const firstSegment = history.location.pathname.split('/')[1];
   const activeKey = firstSegment ? `/${firstSegment}` : '/';
-
-  const isAdmin =
-    user?.role === 'admin' ||
-    Boolean(user?.permissions?.includes('admin:access'));
-
-  const userMenu: MenuProps = {
-    items: [
-      ...(user
-        ? [
-            {
-              key: 'profile',
-              label: <Link to="/workspace/profile">个人中心</Link>,
-            },
-            { key: 'workspace', label: <Link to="/workspace">工作区</Link> },
-            ...(isAdmin
-              ? [
-                  {
-                    key: 'admin',
-                    label: (
-                      <a href={buildAdminWebUrl()}>后台管理</a>
-                    ),
-                  },
-                ]
-              : []),
-            { key: 'logout', label: '退出登录' },
-          ]
-        : [{ key: 'login', label: <Link to={buildLoginPath()}>登录</Link> }]),
-    ],
-    onClick: ({ key }) => {
-      if (key === 'logout') {
-        void loginOut(setInitialState);
-      }
-    },
-  };
 
   return (
     <div
@@ -105,11 +66,7 @@ const PublicLayout: React.FC<{
               setInitialState((s) => ({ ...s, publicSettingDrawerOpen: true }))
             }
           />
-          <Dropdown menu={userMenu} placement="bottomRight">
-            <Avatar src={user?.avatar} style={{ cursor: 'pointer' }}>
-              {user?.nickname?.[0] ?? '游客'}
-            </Avatar>
-          </Dropdown>
+          <UserAccountPopover variant="base" />
         </div>
       </header>
       <main

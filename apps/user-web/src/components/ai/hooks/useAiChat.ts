@@ -2,7 +2,7 @@ import type { AiConversationSettings, AiMessage } from '@personal-hub/shared-typ
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { regenerateAiMessage, stopAiMessage, streamAiChat } from '@/services/ai';
 
-interface UseAiChatMockOptions {
+interface UseAiChatOptions {
   initialMessages: AiMessage[];
   sessionId?: string;
   modelId?: string;
@@ -40,13 +40,13 @@ function messageListSignature(messages: AiMessage[]): string {
 /**
  * Chat 流式状态。发送走 Canonical SSE；停止调用显式 stop 接口。
  */
-export function useAiChatMock({
+export function useAiChat({
   initialMessages,
-  sessionId = 'mock-session',
+  sessionId = 'pending-session',
   modelId,
   onMessagesChange,
   onComplete,
-}: UseAiChatMockOptions) {
+}: UseAiChatOptions) {
   const [messages, setMessages] = useState<AiMessage[]>(initialMessages);
   const [boundSessionId, setBoundSessionId] = useState(sessionId);
   const [streamingMessageId, setStreamingMessageId] = useState<string>();
@@ -96,7 +96,7 @@ export function useAiChatMock({
       const controller = new AbortController();
       abortRef.current = controller;
       void streamAiChat({
-        sessionId: sessionId.startsWith('msg-') || sessionId === 'mock-session' ? undefined : sessionId,
+        sessionId: sessionId.startsWith('msg-') || sessionId === 'pending-session' ? undefined : sessionId,
         content: normalized,
         modelId,
         signal: controller.signal,

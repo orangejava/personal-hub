@@ -17,8 +17,8 @@ interface AiRuntimeConfig {
 /**
  * AI 工作台 model。
  *
- * 用于缓存阶段 5 的 AI 品牌名、Token 余额、工具状态和当前会员套餐，避免这些横跨
- * AI Layout / 会员中心 / 后续后台配置的数据散落在各页面本地状态里。
+ * 用于缓存 AI 品牌名、Token 余额、工具状态和当前会员套餐，避免这些横跨
+ * AI Layout / 会员中心 / 后台配置的数据散落在各页面本地状态里。
  */
 export default function AiModel() {
   const [runtimeConfig, setRuntimeConfig] = useState<AiRuntimeConfig>({
@@ -40,6 +40,7 @@ export default function AiModel() {
         brandName: home.brandName,
         quota: home.quota,
         tools: home.tools,
+        currentPlanName: home.entitlement?.currentPlanName,
       });
       return home;
     } finally {
@@ -47,7 +48,7 @@ export default function AiModel() {
     }
   }, [updateRuntimeConfig]);
 
-  /** 拉取会员中心 mock 数据，并同步当前套餐与余额。 */
+  /** 拉取会员中心数据，并同步当前套餐与余额。 */
   const loadMembership = useCallback(async () => {
     setLoading(true);
     try {

@@ -127,6 +127,8 @@ export const siteLayoutSchema = z.object({
 
 export const aiBrandingSchema = z.object({
   aiEnabled: z.boolean(),
+  brandName: z.string().min(1).max(40),
+  logoText: z.string().min(1).max(12),
 });
 
 const filePurposePolicySchema = z.object({
@@ -259,7 +261,9 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     projectsIntro: '',
   } satisfies SiteLayout,
   'ai.branding': {
-    aiEnabled: false,
+    aiEnabled: true,
+    brandName: 'Personal Hub AI',
+    logoText: 'PH',
   } satisfies AiBranding,
   'file.policies': {} satisfies FilePolicies,
 };

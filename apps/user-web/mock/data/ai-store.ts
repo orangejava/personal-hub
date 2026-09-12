@@ -1,3 +1,6 @@
+/**
+ * 仅 `pnpm dev:user:mock` 的内存 store。Nest Canonical 路径不要回落到这里。
+ */
 import type {
   AiAsset,
   AiAssetCreateInput,

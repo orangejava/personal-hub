@@ -6,17 +6,16 @@ import type {
 } from '@personal-hub/shared-types';
 import { App } from 'antd';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { generateAiImage, generateAiVideo } from '@/services/ai';
+import { cancelAiMediaJob, generateAiImage, generateAiVideo } from '@/services/ai';
 
 interface GenerationDraft {
   title: string;
   prompt: string;
   modelId: string;
   params: AiGenerationParams;
-  simulateFailure: boolean;
 }
 
-interface UseAiGenerationMockOptions {
+interface UseAiGenerationOptions {
   toolType: Extract<AiToolType, 'image' | 'video'>;
   initialAssets: AiAsset[];
   initialTask: AiGenerationTask;
@@ -52,16 +51,13 @@ function normalizeMediaParams(
 }
 
 /**
- * 图片 / 视频生成 mock 状态流。
- *
- * 用一个 hook 统一处理“再次编辑、重新生成、引用为附件”。生成结果通过
- * `/api/ai/image|video/generate` mock 契约返回，页面只负责展示状态流。
+ * 图片 / 视频生成状态。结果只来自当前 job 的 assets，额度由服务端预占结算。
  */
-export function useAiGenerationMock({
+export function useAiGeneration({
   toolType,
   initialAssets,
   initialTask,
-}: UseAiGenerationMockOptions) {
+}: UseAiGenerationOptions) {
   const { message } = App.useApp();
   const [assets, setAssets] = useState(initialAssets);
   const [task, setTask] = useState(initialTask);
@@ -71,7 +67,6 @@ export function useAiGenerationMock({
     prompt: initialTask.prompt,
     modelId: initialTask.modelId,
     params: initialTask.params ?? {},
-    simulateFailure: false,
   });
 
   useEffect(() => {
@@ -82,7 +77,6 @@ export function useAiGenerationMock({
       prompt: initialTask.prompt,
       modelId: initialTask.modelId,
       params: initialTask.params ?? {},
-      simulateFailure: false,
     });
   }, [initialAssets, initialTask]);
 
@@ -119,10 +113,9 @@ export function useAiGenerationMock({
       prompt: task.prompt,
       modelId: task.modelId,
       params: task.params ?? {},
-      simulateFailure: false,
     });
-    message.info('已把本次输入和附件回填到输入区');
-  }, [task]);
+    message.info('已把本次输入回填到输入区');
+  }, [message, task]);
 
   const regenerate = useCallback(async () => {
     setIsSavingAssets(true);
@@ -139,12 +132,15 @@ export function useAiGenerationMock({
         params: normalizedDraft.params,
       });
       const nextAssets = result.assets ?? [];
-      const nextTask =
-        result.task ?? createFallbackTask(toolType, normalizedDraft, 'done');
+      const nextTask = result.task ?? createFallbackTask(toolType, normalizedDraft, 'done');
       setAssets(nextAssets);
       setTask(nextTask);
       if (nextTask.status === 'failed') {
         message.error('生成失败，请调整参数后重试');
+        return undefined;
+      }
+      if (nextTask.status === 'stopped') {
+        message.info('任务已停止');
         return undefined;
       }
       message.success('已生成并保存到 AI 资产');
@@ -159,6 +155,19 @@ export function useAiGenerationMock({
     }
   }, [draft, message, toolType]);
 
+  const stop = useCallback(async () => {
+    if (!task.id || task.status !== 'generating') {
+      return;
+    }
+    try {
+      const next = await cancelAiMediaJob(toolType, task.id);
+      setTask(next);
+      message.info('已请求停止当前任务');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '停止失败');
+    }
+  }, [message, task.id, task.status, toolType]);
+
   const useAsAttachment = useCallback((asset: AiAsset) => {
     setDraft((current) => {
       const attachments = current.params.attachments ?? [];
@@ -172,7 +181,7 @@ export function useAiGenerationMock({
       };
     });
     message.success('已引用为下一次生成的附件');
-  }, []);
+  }, [message]);
 
   return {
     assets,
@@ -185,6 +194,7 @@ export function useAiGenerationMock({
     applyDraft,
     editAgain,
     regenerate,
+    stop,
     useAsAttachment,
   };
 }

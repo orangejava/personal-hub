@@ -4,7 +4,7 @@ import argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { RoleCode, UserStatus } from '@prisma/client';
+import { AiNavStatus, AiToolCode, AiToolStatus, RoleCode, UserStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -31,6 +31,7 @@ describe('AI HTTP', () => {
   let stopPostgres: (() => Promise<unknown>) | undefined;
   let stopRedis: (() => Promise<unknown>) | undefined;
   let memberToken = '';
+  let otherToken = '';
   let adminToken = '';
 
   beforeAll(async () => {
@@ -116,6 +117,15 @@ describe('AI HTTP', () => {
           mustChangePassword: false,
           nickname: 'Member',
         },
+        {
+          email: 'other@example.com',
+          passwordHash,
+          status: UserStatus.ACTIVE,
+          roleId: member.id,
+          emailVerifiedAt: new Date(),
+          mustChangePassword: false,
+          nickname: 'Other',
+        },
       ],
     });
     const users = await prisma.user.findMany();
@@ -138,6 +148,7 @@ describe('AI HTTP', () => {
     }
     adminToken = await login('admin@example.com');
     memberToken = await login('member@example.com');
+    otherToken = await login('other@example.com');
   }, 120_000);
 
   afterAll(async () => {
@@ -233,13 +244,58 @@ describe('AI HTTP', () => {
     });
     expect(created.data?.id).toBeTruthy();
     await ai.processJob(created.data!.id);
-    const job = await json<{ status: string }>(
-      `/api/v1/app/ai/image-generations/${created.data?.id}`,
+    const job = await json<{
+      status: string;
+      assets: Array<{ id: string; fileUrl: string }>;
+    }>(`/api/v1/app/ai/image-generations/${created.data?.id}`, { token: memberToken });
+    expect(job.data?.status).toBe('done');
+    expect(job.data?.assets.length).toBeGreaterThan(0);
+    const assetId = job.data?.assets[0]?.id;
+    expect(assetId).toBeTruthy();
+    const media = await fetch(`${baseUrl}/api/v1/app/ai/assets/${assetId}/content`, {
+      headers: { origin: ORIGIN, authorization: `Bearer ${memberToken}` },
+    });
+    expect(media.status).toBe(200);
+    expect(media.headers.get('content-type')).toContain('image/png');
+    const bytes = Buffer.from(await media.arrayBuffer());
+    expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+    const assets = await json<{ total: number; list: Array<{ fileUrl: string }> }>(
+      '/api/v1/app/ai/assets',
       { token: memberToken },
     );
-    expect(job.data?.status).toBe('done');
-    const assets = await json<{ total: number }>('/api/v1/app/ai/assets', { token: memberToken });
     expect(assets.data?.total).toBeGreaterThan(0);
+    expect(assets.data?.list[0]?.fileUrl).toContain('/api/v1/app/ai/assets/');
+  });
+
+  it('后台可持久化品牌并配置导航显隐', async () => {
+    const before = await json<{
+      branding: { brandName: string; logoText: string };
+      navigation: Array<{ id: string; code: string; visible: boolean; status: string; version: number }>;
+    }>('/api/v1/admin/ai/config', { token: adminToken });
+    await json('/api/v1/admin/ai/branding', {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-brand-1' },
+      body: { brandName: 'Hub AI Lab', logoText: 'HL' },
+    });
+    const after = await json<{ branding: { brandName: string; logoText: string } }>(
+      '/api/v1/admin/ai/config',
+      { token: adminToken },
+    );
+    expect(after.data?.branding.brandName).toBe('Hub AI Lab');
+    expect(after.data?.branding.logoText).toBe('HL');
+
+    const nav = before.data?.navigation.find((item) => item.code === 'webui');
+    expect(nav).toBeTruthy();
+    await json(`/api/v1/admin/ai/navigation/${nav!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-nav-hide-webui' },
+      body: { visible: false, version: nav!.version },
+    });
+    const publicNav = await json<Array<{ code: string }>>('/api/v1/public/ai/navigation');
+    expect(publicNav.data?.some((item) => item.code === 'webui')).toBe(false);
+    expect(publicNav.data?.some((item) => item.code === 'chat')).toBe(true);
   });
 
   it('后台禁用模型后用户端不可见', async () => {
@@ -301,6 +357,104 @@ describe('AI HTTP', () => {
     expect(sessions.data?.list.some((item) => item.title.includes('访客') || item.title.includes('聊'))).toBe(
       true,
     );
+  });
+
+  it('公开导航仍返回禁用和即将上线项', async () => {
+    const publicNav = await json<Array<{ code: string; status: string }>>('/api/v1/public/ai/navigation');
+    expect(publicNav.data?.find((item) => item.code === 'team')?.status).toBe('disabled');
+    expect(publicNav.data?.find((item) => item.code === 'video')?.status).toBe('comingSoon');
+    expect(publicNav.data?.find((item) => item.code === 'webui')).toBeUndefined();
+  });
+
+  it('他人不能读取资产二进制', async () => {
+    const assets = await json<{ list: Array<{ id: string }> }>('/api/v1/app/ai/assets', {
+      token: memberToken,
+    });
+    const assetId = assets.data?.list[0]?.id;
+    expect(assetId).toBeTruthy();
+    const media = await fetch(`${baseUrl}/api/v1/app/ai/assets/${assetId}/content`, {
+      headers: { origin: ORIGIN, authorization: `Bearer ${otherToken}` },
+    });
+    expect(media.status).toBe(404);
+    const body = (await media.json()) as Envelope<unknown>;
+    expect(body.error?.code).toBe('AI_GENERATION_NOT_FOUND');
+  });
+
+  it('工具或导航不可用时拒绝生成和会员数据', async () => {
+    const video = await raw('/api/v1/app/ai/video-generations', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'ai-video-blocked' },
+      body: { prompt: '一段短片' },
+    });
+    expect(video.status).toBe(409);
+    expect(video.body.error?.code).toBe('AI_TOOL_UNAVAILABLE');
+
+    await prisma.aiTool.update({
+      where: { code: AiToolCode.IMAGE },
+      data: { status: AiToolStatus.DISABLED },
+    });
+    const image = await raw('/api/v1/app/ai/image-generations', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'ai-image-blocked' },
+      body: { prompt: '不该生成' },
+    });
+    expect(image.status).toBe(409);
+    expect(image.body.error?.code).toBe('AI_TOOL_UNAVAILABLE');
+    await prisma.aiTool.update({
+      where: { code: AiToolCode.IMAGE },
+      data: { status: AiToolStatus.ENABLED },
+    });
+
+    const config = await json<{
+      navigation: Array<{ id: string; code: string; version: number }>;
+    }>('/api/v1/admin/ai/config', { token: adminToken });
+    const membership = config.data?.navigation.find((item) => item.code === 'membership');
+    expect(membership).toBeTruthy();
+    await json(`/api/v1/admin/ai/navigation/${membership!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-nav-membership-soon' },
+      body: { status: AiNavStatus.COMING_SOON, version: membership!.version },
+    });
+    const blocked = await raw('/api/v1/app/ai/membership', { token: memberToken });
+    expect(blocked.status).toBe(409);
+    expect(blocked.body.error?.code).toBe('AI_TOOL_UNAVAILABLE');
+    const after = await json<{
+      navigation: Array<{ id: string; code: string; version: number }>;
+    }>('/api/v1/admin/ai/config', { token: adminToken });
+    const restored = after.data?.navigation.find((item) => item.code === 'membership');
+    await json(`/api/v1/admin/ai/navigation/${restored!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-nav-membership-on' },
+      body: { status: AiNavStatus.ENABLED, version: restored!.version },
+    });
+  });
+
+  it('导航 PATCH 缺少 version 或冲突时拒绝', async () => {
+    const config = await json<{
+      navigation: Array<{ id: string; code: string; version: number }>;
+    }>('/api/v1/admin/ai/config', { token: adminToken });
+    const tutorials = config.data?.navigation.find((item) => item.code === 'tutorials');
+    expect(tutorials).toBeTruthy();
+    const missing = await raw(`/api/v1/admin/ai/navigation/${tutorials!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-nav-no-version' },
+      body: { status: AiNavStatus.COMING_SOON },
+    });
+    expect(missing.status).toBe(400);
+    expect(missing.body.error?.code).toBe('VALIDATION_FAILED');
+    const stale = await raw(`/api/v1/admin/ai/navigation/${tutorials!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-nav-stale-version' },
+      body: { status: AiNavStatus.COMING_SOON, version: tutorials!.version - 1 },
+    });
+    expect(stale.status).toBe(409);
+    expect(stale.body.error?.code).toBe('SYSTEM_CONFIG_VERSION_CONFLICT');
   });
 
   async function login(email: string): Promise<string> {

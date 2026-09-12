@@ -13,7 +13,7 @@ describe('系统配置注册表', () => {
     expect(publicConfig.layout.projectsIntro).toBe('');
     expect(publicConfig.about.title).toBe('关于我');
     expect(publicConfig.navigation.publicPosition).toBe('top');
-    expect(publicConfig.aiEnabled).toBe(false);
+    expect(publicConfig.aiEnabled).toBe(true);
   });
 
   it('拒绝非法颜色', () => {

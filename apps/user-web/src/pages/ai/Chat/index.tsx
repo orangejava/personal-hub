@@ -20,8 +20,8 @@ import {
   type AiReferenceItem,
   AiWorkspaceFrame,
   useAiAvailableModels,
-  useAiChatMock,
-  useAiChatSessionsMock,
+  useAiChat,
+  useAiChatSessions,
 } from '@/components/ai';
 import { AiXBubble } from '@/components/ai-x';
 import { ResultState } from '@/components/shared';
@@ -71,7 +71,7 @@ const AiChatPage: React.FC = () => {
     updateCurrentMessages,
     syncSessionAfterMessagesChange,
     setSessionMessages,
-  } = useAiChatSessionsMock({
+  } = useAiChatSessions({
     initialSessions,
     initialMessages: [],
     initialSessionId,
@@ -139,16 +139,13 @@ const AiChatPage: React.FC = () => {
   }, [createNewSession, currentSettings.modelId, modelState.defaultModel?.id]);
   const handleChatComplete = useCallback(
     async (_completedMessages: AiMessage[], tokenCount: number) => {
-      const result = await consumeQuota({
+      await consumeQuota({
         toolType: 'chat',
         tokens: tokenCount,
-        reason: 'AI 对话 mock 回复',
+        reason: 'AI 对话完成',
       });
-      if (result?.reason === 'insufficient') {
-        messageApi.warning('Token 余额不足，本次 mock 回复已保留但未扣减额度');
-      }
     },
-    [consumeQuota, messageApi],
+    [consumeQuota],
   );
   const {
     messages,
@@ -156,7 +153,7 @@ const AiChatPage: React.FC = () => {
     sendMessage,
     stopGenerating,
     regenerate,
-  } = useAiChatMock({
+  } = useAiChat({
     initialMessages: currentMessages,
     sessionId: currentSessionId,
     modelId: currentSettings.modelId,

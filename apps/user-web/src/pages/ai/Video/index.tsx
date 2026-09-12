@@ -9,7 +9,6 @@ import {
   Drawer,
   Skeleton,
   Space,
-  Switch,
   Tag,
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,6 +16,7 @@ import {
   AiComposer,
   AiConfigPopover,
   type AiConfigGroup,
+  AiAuthenticatedMedia,
   AiGenerationStream,
   AiGuestLimitAlert,
   AiMediaListToolbar,
@@ -24,10 +24,10 @@ import {
   AiQuotaAlert,
   AiWorkspaceFrame,
   useAiAvailableModels,
-  useAiGenerationMock,
+  useAiGeneration,
 } from '@/components/ai';
 import AiLayout from '@/layouts/AiLayout';
-import { fetchAiAssets, fetchAiHome } from '@/services/ai';
+import { fetchAiGenerationJobs, fetchAiHome } from '@/services/ai';
 
 const videoSizeOptions = [
   { label: '横屏 16:9', value: '16:9' },
@@ -59,10 +59,12 @@ function getVideoRatioIcon(size?: string) {
 
 const AiVideoPage: React.FC = () => {
   const { message } = App.useApp();
-  const { data, loading } = useRequest(fetchAiAssets);
+  const { data: jobsPage, loading } = useRequest(() =>
+    fetchAiGenerationJobs({ toolType: 'video', pageSize: 20 }),
+  );
   const [searchParams] = useSearchParams();
   const { initialState } = useModel('@@initialState');
-  const { consumeQuota, runtimeConfig } = useModel('ai');
+  const { runtimeConfig } = useModel('ai');
   const templateId = searchParams.get('templateId');
   const appliedTemplateIdRef = useRef<string | undefined>(undefined);
   const { data: homeData } = useRequest(fetchAiHome);
@@ -74,25 +76,27 @@ const AiVideoPage: React.FC = () => {
     undefined,
   ]);
   const [visibleRecordCount, setVisibleRecordCount] = useState(10);
+  const historyTasks = useMemo(() => jobsPage?.list ?? [], [jobsPage?.list]);
   const initialAssets = useMemo(
-    () => (data ?? []).filter((asset) => asset.type === 'video'),
-    [data],
+    () => historyTasks[0]?.assets ?? [],
+    [historyTasks],
   );
   const initialTask = useMemo(
-    () => ({
-      id: 'mock-video-task',
-      toolType: 'video' as const,
-      title: '产品介绍短片',
-      prompt: '个人知识中台产品介绍短片，现代工作台，温暖科技感。',
-      modelId: 'seedance-lite',
-      status: 'done' as const,
-      assetIds: initialAssets.map((asset) => asset.id),
-      params: { size: '16:9' as const, durationSeconds: 6, count: 1 as const },
-      createdAt: new Date().toISOString(),
-    }),
-    [initialAssets],
+    () =>
+      historyTasks[0] ?? {
+        id: '',
+        toolType: 'video' as const,
+        title: '',
+        prompt: '',
+        modelId: '',
+        status: 'idle' as const,
+        assetIds: [],
+        params: { size: '16:9' as const, durationSeconds: 6, count: 1 as const },
+        createdAt: new Date().toISOString(),
+      },
+    [historyTasks],
   );
-  const generation = useAiGenerationMock({
+  const generation = useAiGeneration({
     toolType: 'video',
     initialAssets,
     initialTask,
@@ -113,10 +117,8 @@ const AiVideoPage: React.FC = () => {
   const quotaInsufficient =
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < estimatedTokens;
-  const forceGuestMode = searchParams.get('guestMode') === '1';
-  const isGuest = forceGuestMode || !initialState?.currentUser;
-  const guestLimitExceeded =
-    isGuest && searchParams.get('guestLimit') === 'exceeded';
+  const isGuest = !initialState?.currentUser;
+  const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const configGroups = useMemo<AiConfigGroup[]>(
     () => [
       {
@@ -170,22 +172,12 @@ const AiVideoPage: React.FC = () => {
       prompt: activeTemplate.prompt,
       modelId: activeTemplate.modelId,
       params: activeTemplate.params,
-      simulateFailure: false,
     });
     message.info(`已应用模板：${activeTemplate.title}`);
   }, [activeTemplate, generation.applyDraft, message]);
 
   const generateAndConsumeQuota = async () => {
-    const savedAssets = await generation.regenerate();
-    if (!savedAssets?.length) return;
-    const result = await consumeQuota({
-      tokens: estimatedTokens,
-      toolType: 'video',
-      reason: `视频生成 ${savedAssets.length} 条`,
-    });
-    if (result?.reason === 'insufficient') {
-      message.warning('Token 余额不足，本次 mock 未扣减');
-    }
+    await generation.regenerate();
   };
   const loadMoreMediaRecords = useCallback(() => {
     setVisibleRecordCount((count) => Math.min(count + 10, 18));
@@ -222,6 +214,7 @@ const AiVideoPage: React.FC = () => {
                 <AiGenerationStream
                   assets={generation.assets}
                   dateRange={dateRange}
+                  history={historyTasks}
                   keyword={mediaKeyword}
                   prompt={generation.task.prompt}
                   task={generation.task}
@@ -277,16 +270,6 @@ const AiVideoPage: React.FC = () => {
                         groups={configGroups}
                         title="视频生成配置"
                       />
-                      <Space size={6}>
-                        <span className="ph-text-secondary">模拟失败</span>
-                        <Switch
-                          checked={generation.draft.simulateFailure}
-                          size="small"
-                          onChange={(simulateFailure) =>
-                            generation.updateDraft({ simulateFailure })
-                          }
-                        />
-                      </Space>
                     </>
                   )}
                   extraActions={(
@@ -304,7 +287,9 @@ const AiVideoPage: React.FC = () => {
                     generation.updateParams({ attachments: [] });
                   }}
                   onOptimize={(prompt) => `更适合视频生成的分镜提示词：${prompt.trim()}，包含主体、镜头运动、节奏、光线和画面氛围`}
-                  onStop={() => message.info('视频生成当前为 mock 请求，暂无可停止的真实任务')}
+                  onStop={() => {
+                    void generation.stop();
+                  }}
                   onSubmit={generateAndConsumeQuota}
                 />
                 <AiQuotaAlert
@@ -313,8 +298,10 @@ const AiVideoPage: React.FC = () => {
                   toolName="视频生成"
                 />
                 <AiGuestLimitAlert
+                  dailyLimit={homeData?.guestTrial?.dailyLimit}
                   exceeded={guestLimitExceeded}
                   isGuest={isGuest}
+                  remainingUses={homeData?.guestTrial?.remaining}
                   toolName="视频生成"
                 />
               </Space>
@@ -330,11 +317,10 @@ const AiVideoPage: React.FC = () => {
           >
             {detailAsset && (
               <div className="ph-ai-asset-detail">
-                {detailAsset.thumbnailUrl && (
-                  <img
-                    alt={detailAsset.title}
+                {detailAsset && (
+                  <AiAuthenticatedMedia
+                    asset={detailAsset}
                     className="ph-ai-asset-detail-preview"
-                    src={detailAsset.thumbnailUrl}
                   />
                 )}
                 <Descriptions column={1} size="small">

@@ -12,8 +12,7 @@ export interface AiQuotaAlertProps {
 /**
  * AI 工具额度提示。
  *
- * 阶段 5 先基于 mock 余额做前端拦截，后续接真实后端时仍保留这层提示，
- * 服务端再做最终扣费和并发校验，避免只依赖前端状态。
+ * 基于后端额度摘要做前端提示，最终扣费仍由服务端校验。
  */
 const AiQuotaAlert: React.FC<AiQuotaAlertProps> = ({
   quota,
@@ -40,7 +39,7 @@ const AiQuotaAlert: React.FC<AiQuotaAlertProps> = ({
             当前剩余 {quota.remainingTokens.toLocaleString()} Token。
           </Typography.Text>
           <Typography.Text type="secondary">
-            阶段 5 暂使用 mock 会员和配额数据，真实扣费会在后端接入后统一校验。
+            额度由服务端预占和结算，这里只做余额提示。
           </Typography.Text>
         </Space>
       }

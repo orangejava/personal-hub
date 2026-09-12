@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + M5 文件/小册 + **M6 AI 域（Fake Provider）** 已落地
-> 最后更新：2026-09-09
+> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + M5 文件/小册 + **M6 AI 域（Fake + OpenAI-compatible 适配层）** 已落地
+> 最后更新：2026-09-11
 
 ---
 
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M6 AI 域已落地（Fake Provider）**。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M6 AI 域已落地（Fake 默认，可切 OpenAI-compatible）**。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -227,7 +227,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。左/右导航 UI 仍后置。Logo 签名 URL 已在 M5 接线；Logo 上传控件仍可后置。
 - [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。
 - [x] Nest M5 文件/小册 5.1–5.7（见 [apps/server/docs/implementation/file/README.md](../apps/server/docs/implementation/file/README.md)）。站内 PDF/Word 编辑器与文件策略后台页见二期。
-- [x] Nest M6 AI 域（见 [apps/server/docs/implementation/ai/README.md](../apps/server/docs/implementation/ai/README.md)）。真实厂商、品牌名写库、新增/删除模型后置。
+- [x] Nest M6 AI 域（见 [apps/server/docs/implementation/ai/README.md](../apps/server/docs/implementation/ai/README.md)）。品牌/导航写库；文本可切 OpenAI-compatible 适配层；真实厂商 Key、支付、团队、LoRA/ComfyUI 执行后置。新增/删除模型仍后置。
 
 ### 后置待办（不阻塞 AI 域）
 

@@ -3,6 +3,7 @@ import { useRequest } from '@/hooks/useRequest';
 import type {
   AdminAiBrandingConfig,
   AdminAiModelConfig,
+  AdminAiNavigationItem,
   AdminAiProviderConfig,
   AdminAiToolConfig,
   AiToolStatus,
@@ -15,7 +16,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Popconfirm,
   Segmented,
   Select,
   Space,
@@ -32,14 +32,15 @@ import {
   moveAdminAiToolSort,
   updateAdminAiBrandingConfig,
   updateAdminAiModelConfig,
+  updateAdminAiNavigationItem,
   updateAdminAiProviderConfig,
   updateAdminAiToolConfig,
   updateAdminAiToolStatus,
 } from '@/services/admin';
 import AiConfigSummaryCards from './SummaryCards';
-import { aiToolTypeOptions, toolStatusLabels } from './constants';
+import { aiToolTypeOptions, navGroupLabels, toolStatusLabels } from './constants';
 
-/** 后台 AI 配置：阶段 5 先展示 mock 厂商、模型和工具启停契约。 */
+/** 后台 AI 配置：品牌、导航、厂商、模型和工具均写库。 */
 const AiConfig: React.FC = () => {
   const { message } = App.useApp();
   const [providerForm] = Form.useForm<
@@ -48,7 +49,7 @@ const AiConfig: React.FC = () => {
   const [brandingForm] = Form.useForm<AdminAiBrandingConfig>();
   const [modelForm] = Form.useForm<AdminAiModelConfig>();
   const [toolForm] = Form.useForm<AdminAiToolConfig>();
-  const [section, setSection] = useState<'branding' | 'providers' | 'models' | 'tools'>('branding');
+  const [section, setSection] = useState<'branding' | 'navigation' | 'providers' | 'models' | 'tools'>('branding');
   const [savingToolCode, setSavingToolCode] = useState<string>();
   const [movingToolCode, setMovingToolCode] = useState<string>();
   const [editingProvider, setEditingProvider] =
@@ -63,6 +64,7 @@ const AiConfig: React.FC = () => {
   const [savingModel, setSavingModel] = useState(false);
   const [deletingModelId, setDeletingModelId] = useState<string>();
   const [savingTool, setSavingTool] = useState(false);
+  const [savingNavId, setSavingNavId] = useState<string>();
   const { data, loading, error, run } = useRequest(fetchAdminAiConfig);
 
   const enabledProviderCount = useMemo(
@@ -318,10 +320,28 @@ const AiConfig: React.FC = () => {
   };
 
   /**
+   * 保存 AI 导航项。隐藏后用户端不展示；禁用/即将上线仍展示但不可进入。
+   */
+  const handleNavPatch = async (
+    item: AdminAiNavigationItem,
+    patch: Partial<Pick<AdminAiNavigationItem, 'visible' | 'status' | 'sortOrder' | 'label'>>,
+  ) => {
+    setSavingNavId(item.id);
+    try {
+      await updateAdminAiNavigationItem(item.id, { ...patch, version: item.version });
+      await run();
+      message.success('AI 导航已保存');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setSavingNavId(undefined);
+    }
+  };
+
+  /**
    * 保存 AI 工具配置。
    *
-   * 这里保存的是用户端首页和 AI Layout 会直接读取的字段；
-   * 后续真实后端接入时可继续沿用该 service 契约扩展排序和权限。
+   * 这里保存的是用户端首页和 AI Layout 会直接读取的字段。
    */
   const handleToolSave = async () => {
     if (!editingTool) return;
@@ -382,6 +402,7 @@ const AiConfig: React.FC = () => {
           onChange={(value) => setSection(value as typeof section)}
           options={[
             { label: '品牌设置', value: 'branding' },
+            { label: 'AI 导航', value: 'navigation' },
             { label: '厂商管理', value: 'providers' },
             { label: '模型管理', value: 'models' },
             { label: '工具配置', value: 'tools' },
@@ -407,6 +428,88 @@ const AiConfig: React.FC = () => {
                     编辑
                   </Button>,
                 ],
+              },
+            ]}
+          />
+        )}
+
+        {section === 'navigation' && (
+          <ProTable<AdminAiNavigationItem>
+            rowKey="id"
+            search={false}
+            pagination={false}
+            dataSource={[...(data?.navigation ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)}
+            columns={[
+              {
+                title: '排序',
+                dataIndex: 'sortOrder',
+                width: 96,
+                render: (_, record) => (
+                  <InputNumber
+                    key={`${record.id}-${record.version}`}
+                    min={0}
+                    precision={0}
+                    size="small"
+                    defaultValue={record.sortOrder}
+                    disabled={savingNavId === record.id}
+                    onBlur={(event) => {
+                      const next = Number((event.target as HTMLInputElement).value);
+                      if (!Number.isFinite(next) || next === record.sortOrder) return;
+                      void handleNavPatch(record, { sortOrder: next });
+                    }}
+                    onPressEnter={(event) => {
+                      (event.target as HTMLInputElement).blur();
+                    }}
+                  />
+                ),
+              },
+              { title: '名称', dataIndex: 'label' },
+              { title: '标识', dataIndex: 'code' },
+              {
+                title: '分组',
+                dataIndex: 'group',
+                render: (_, record) => navGroupLabels[record.group] ?? record.group,
+              },
+              { title: '路径', dataIndex: 'path' },
+              {
+                title: '展示',
+                dataIndex: 'visible',
+                render: (_, record) => (
+                  <Switch
+                    checked={record.visible}
+                    checkedChildren="显示"
+                    unCheckedChildren="隐藏"
+                    loading={savingNavId === record.id}
+                    onChange={(visible) => {
+                      void handleNavPatch(record, { visible });
+                    }}
+                  />
+                ),
+              },
+              {
+                title: '状态',
+                dataIndex: 'status',
+                render: (_, record) => (
+                  <Space>
+                    <Tag color={toolStatusLabels[record.status]?.color}>
+                      {toolStatusLabels[record.status]?.text ?? record.status}
+                    </Tag>
+                    <Select
+                      size="small"
+                      style={{ width: 120 }}
+                      value={record.status}
+                      disabled={savingNavId === record.id}
+                      options={[
+                        { label: '已启用', value: 'enabled' },
+                        { label: '即将上线', value: 'comingSoon' },
+                        { label: '已禁用', value: 'disabled' },
+                      ]}
+                      onChange={(status: AiToolStatus) => {
+                        void handleNavPatch(record, { status });
+                      }}
+                    />
+                  </Space>
+                ),
               },
             ]}
           />
@@ -459,11 +562,6 @@ const AiConfig: React.FC = () => {
             rowKey="id"
             search={false}
             pagination={false}
-            toolBarRender={() => [
-              <Button key="create" type="primary" onClick={openCreateModelDrawer}>
-                新增模型
-              </Button>,
-            ]}
             dataSource={data?.models ?? []}
             columns={[
               {
@@ -523,19 +621,6 @@ const AiConfig: React.FC = () => {
                   >
                     编辑
                   </Button>,
-                  <Popconfirm
-                    key="delete"
-                    title="删除模型"
-                    description="删除后用户端将不再看到该模型，相关工具默认模型会自动回落。"
-                    okText="删除"
-                    okButtonProps={{ danger: true, loading: deletingModelId === record.id }}
-                    cancelText="取消"
-                    onConfirm={() => handleModelDelete(record)}
-                  >
-                    <Button danger size="small" type="link">
-                      删除
-                    </Button>
-                  </Popconfirm>,
                 ],
               },
             ]}

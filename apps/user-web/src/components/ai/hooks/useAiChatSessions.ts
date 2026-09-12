@@ -13,23 +13,22 @@ const defaultSessionSettings: AiConversationSettings = {
   enableKnowledgeReference: true,
 };
 
-interface UseAiChatSessionsMockOptions {
+interface UseAiChatSessionsOptions {
   initialSessions: AiConversation[];
   initialMessages: AiMessage[];
   initialSessionId?: string;
 }
 
 /**
- * Chat 会话管理 mock。
+ * Chat 会话管理。
  *
- * 阶段 5 先把“新建、切换、重命名、删除”完整跑通在前端本地状态中；
- * 后续接真实接口时，页面层仍可沿用这些动作语义，只替换 hook 内部的数据来源。
+ * 新建、切换、重命名、删除走 Nest 会话接口；页面只维护当前选中会话的消息快照。
  */
-export function useAiChatSessionsMock({
+export function useAiChatSessions({
   initialSessions,
   initialMessages,
   initialSessionId,
-}: UseAiChatSessionsMockOptions) {
+}: UseAiChatSessionsOptions) {
   const [sessions, setSessions] = useState<AiConversation[]>(initialSessions);
   const [activeSessionId, setActiveSessionId] = useState<string>();
   const [messagesBySession, setMessagesBySession] = useState<

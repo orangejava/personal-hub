@@ -52,7 +52,7 @@ const AiMembershipPage: React.FC = () => {
       }
     >
       <AiPageHeader
-        description="阶段 5 只做会员中心 mock，不接支付和真实权益开通。"
+        description="展示当前角色权益和额度摘要。套餐购买、充值和邀请奖励后置，本页不提供伪开通。"
         title="会员中心"
       />
 
@@ -130,7 +130,7 @@ const AiMembershipPage: React.FC = () => {
                     <div className="ph-ai-membership-tool-row" key={item.toolType}>
                       <div>
                         <strong>{item.toolName}</strong>
-                        <span>{item.calls} 次 mock 调用</span>
+                        <span>{item.calls} 次调用</span>
                       </div>
                       <Progress
                         percent={Math.round((item.tokens / toolUsageTotal) * 100)}
@@ -179,8 +179,8 @@ const AiMembershipPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                    <Button block disabled={plan.id === data?.currentPlanId} type="primary">
-                      {plan.id === data?.currentPlanId ? '当前套餐' : 'Mock 开通'}
+                    <Button block disabled type="primary">
+                      {plan.id === data?.currentPlanId ? '当前套餐' : '购买后置'}
                     </Button>
                   </Space>
                 </Card>
@@ -188,7 +188,8 @@ const AiMembershipPage: React.FC = () => {
             ))}
           </Row>
 
-          <Card title="邀请奖励 mock">
+          {(data?.inviteRecords?.length ?? 0) > 0 ? (
+          <Card title="邀请奖励">
             <div className="ph-ai-membership-invite-list">
               {(data?.inviteRecords ?? []).map((record) => (
                 <div className="ph-ai-membership-invite" key={record.id}>
@@ -207,6 +208,7 @@ const AiMembershipPage: React.FC = () => {
               ))}
             </div>
           </Card>
+          ) : null}
         </Space>
       )}
     </AiLayout>

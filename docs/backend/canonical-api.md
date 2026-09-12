@@ -380,7 +380,8 @@ Web 登录、MFA 登录完成或刷新成功：
 
 | 方法         | 路径                                     | 说明                                          |
 | ------------ | ---------------------------------------- | --------------------------------------------- |
-| GET          | `/app/ai/home`                           | 工具、可见模型、权益、模板和近期活动聚合      |
+| GET          | `/app/ai/home`                           | 工具、可见模型、权益、模板、品牌和近期活动聚合 |
+| GET          | `/app/ai/navigation`                     | 登录用户可见的 AI 左侧导航                  |
 | GET          | `/app/ai/models`                         | 当前用户可选模型                              |
 | GET/POST     | `/app/ai/templates`                      | 系统模板与我的私有模板列表/创建               |
 | PATCH/DELETE | `/app/ai/templates/:templateId`          | 仅更新/删除私有模板                           |
@@ -393,16 +394,24 @@ Web 登录、MFA 登录完成或刷新成功：
 | PATCH        | `/app/ai/messages/:messageId/feedback`   | 反馈                                          |
 | POST         | `/app/ai/text-generations`               | SSE 文本生成，必填幂等键                      |
 | POST         | `/app/ai/image-generations`              | `202` 创建图片任务，必填幂等键                |
-| GET          | `/app/ai/image-generations/:jobId`       | 轮询图片任务                                  |
+| GET          | `/app/ai/image-generations/:jobId`       | 轮询图片任务，响应含 `assets`                 |
 | POST         | `/app/ai/image-generations/:jobId/cancel` | 取消图片任务，必填幂等键                     |
-| POST         | `/app/ai/video-generations`              | `202` 创建 MockVideoProvider 任务，必填幂等键 |
-| GET          | `/app/ai/video-generations/:jobId`       | 轮询视频 Mock 任务                            |
+| POST         | `/app/ai/video-generations`              | `202` 创建视频任务，必填幂等键                |
+| GET          | `/app/ai/video-generations/:jobId`       | 轮询视频任务，响应含 `assets`                 |
 | POST         | `/app/ai/video-generations/:jobId/cancel` | 取消视频任务，必填幂等键                     |
+| GET          | `/app/ai/generation-jobs`                | 当前用户生成任务历史，支持工具/状态筛选         |
 | GET/POST     | `/app/ai/assets`                         | AI 资产列表/创建元数据                        |
+| GET          | `/app/ai/assets/:assetId/content`        | 鉴权二进制媒体；跳过 JSON 信封                |
 | PATCH/DELETE | `/app/ai/assets/:assetId`                | 移动、软删除、恢复、永久删除                  |
 | GET/POST     | `/app/ai/asset-folders`                  | 资产文件夹列表/创建                           |
 | PATCH/DELETE | `/app/ai/asset-folders/:folderId`        | 重命名/删除空文件夹                           |
 | GET          | `/app/ai/entitlement`                    | 当前角色/套餐权益和用量                       |
+| GET          | `/app/ai/membership`                     | 套餐展示、额度摘要和用量概览                    |
+| GET          | `/app/ai/profile-summary`                | AI 个人中心摘要                               |
+| GET          | `/app/ai/creation-center`                | 任务/资产/草稿汇总                            |
+| GET          | `/app/ai/publish-drafts`                 | 内容草稿列表                                  |
+| GET          | `/app/ai/tutorials`                      | 入门教程列表                                  |
+| GET          | `/app/usage`                             | 用量明细分页，支持时间范围和工具筛选            |
 
 Chat/Text SSE 事件：
 
@@ -425,6 +434,8 @@ data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 - 额度不足 `409 AI_QUOTA_INSUFFICIENT`；并发/RPM `429 AI_CONCURRENCY_LIMITED`；会话互斥 `409 AI_GENERATION_IN_PROGRESS`。
 - 重新生成保留旧回复，使用 `variantGroupId` 关联候选，默认展示最新候选。
 - 图片/视频走 Outbox + `server-worker`，HTTP 进程不消费队列；测试可直调 `AiService.processJob`。
+- 任务 `assets[].fileUrl` 指向 `/api/v1/app/ai/assets/:assetId/content`，不把 `memory://` 暴露给浏览器。
+- 文本 Provider 默认 Fake；`AI_TEXT_PROVIDER=openai_compatible` 且配置了 Key 时走 OpenAI Chat Completions 适配层。
 
 ### 4.6 匿名 AI
 
@@ -433,7 +444,9 @@ data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 | 方法 | 路径                              | 说明                |
 | ---- | --------------------------------- | ------------------- |
 | GET  | `/public/ai/home`                 | 访客可见工具与模型  |
+| GET  | `/public/ai/navigation`           | 匿名可见的 AI 左侧导航 |
 | GET  | `/public/ai/models`               | 访客可选模型        |
+| GET  | `/public/ai/tutorials`            | 公开教程列表        |
 | POST | `/public/ai/sessions`             | 创建访客会话        |
 | POST | `/public/ai/chat`                 | SSE 访客 Chat       |
 | POST | `/public/ai/text-generations`     | SSE 访客文本生成    |
@@ -504,9 +517,13 @@ data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 | PATCH        | `/admin/menus/sort`               | 批量排序                    |
 | GET          | `/admin/menu-route-options`       | 前端受控 routeKey 清单      |
 | GET          | `/admin/ai/config`                | 只读 BFF 聚合               |
+| PATCH        | `/admin/ai/branding`              | 写 `system_configs.ai.branding`，必填幂等键 |
+| GET          | `/admin/ai/navigation`            | AI 左侧导航（含隐藏项）     |
+| PATCH        | `/admin/ai/navigation/sort`       | 批量排序，必填幂等键        |
+| PATCH        | `/admin/ai/navigation/:id`        | 更新显隐/状态/文案，必填幂等键和 `version`；冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT` |
 | GET          | `/admin/ai/stats`                 | 只读 BFF 统计，支持时间范围 |
 | GET/POST     | `/admin/ai/providers`             | 资源管理；Key 只写不回显    |
-| PATCH/DELETE | `/admin/ai/providers/:providerId` | 更新/删除                   |
+| PATCH/DELETE | `/admin/ai/providers/:providerId` | 更新/删除；`apiKey` 只写    |
 | GET/POST     | `/admin/ai/models`                | 模型资源管理                |
 | PATCH/DELETE | `/admin/ai/models/:modelId`       | 更新/删除                   |
 | GET/POST     | `/admin/ai/tools`                 | 工具展示与启用配置          |
@@ -524,7 +541,7 @@ data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 | Content                | `CONTENT_NOT_FOUND`、`CONTENT_INVALID_STATE`、`CONTENT_PUBLISH_VALIDATION_FAILED`、`CONTENT_VERSION_CONFLICT`、`CONTENT_IMPORT_RESTRICTION_ACTIVE` |
 | Category / Tag         | `CATEGORY_NOT_FOUND`、`CATEGORY_IN_USE`、`CATEGORY_CYCLE_DETECTED`、`TAG_IN_USE`                                                                   |
 | File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`            |
-| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`                                             |
+| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`                       |
 | Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
 | System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
 
@@ -534,5 +551,5 @@ data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
 - `/api/auth/current-user` → `/api/v1/auth/me`。
 - `/api/workspace/*` → `/api/v1/app/*`。
 - `/api/contents/*` → `/api/v1/public/contents/*` 或 `/api/v1/app/contents/*`，按调用者与可见性拆分。
-- 前端手动 `consumeAiQuota`、本地 SSE 完成后 `persistAiChatMessages` 必须删除；改为服务端流式持久化与结算。
+- 前端手动 `consumeAiQuota` 只刷新 entitlement，不再客户端扣费；消息由服务端流式持久化。
 - `/api/admin/ai/config` 的写入拆为资源端点，保留同名新路径仅作只读聚合。

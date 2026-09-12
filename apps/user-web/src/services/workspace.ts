@@ -174,7 +174,21 @@ export async function fetchFavorites(params: { page?: number; pageSize?: number 
 }
 
 export async function fetchUsage() {
-  return request<WorkspaceUsage>('/api/v1/app/usage');
+  const data = await request<
+    WorkspaceUsage & {
+      list?: Array<{ createdAt: string; tokens: number; reason?: string }>;
+    }
+  >('/api/v1/app/usage');
+  return {
+    ...data,
+    recent:
+      data.recent ??
+      data.list?.map((item) => ({
+        date: item.createdAt,
+        tokens: item.tokens,
+        reason: item.reason,
+      })),
+  };
 }
 
 /** 获取工作区 AI 对话历史。 */

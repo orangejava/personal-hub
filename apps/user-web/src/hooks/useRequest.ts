@@ -4,6 +4,7 @@ type UseBizRequestOptions<T> = {
   manual?: boolean;
   ready?: boolean;
   refreshDeps?: unknown[];
+  refreshOnWindowFocus?: boolean;
   onSuccess?: (data: T, params?: unknown[]) => void;
   onError?: (error: Error) => void;
 };

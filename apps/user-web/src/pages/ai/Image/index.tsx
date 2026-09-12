@@ -9,7 +9,6 @@ import {
   Drawer,
   Skeleton,
   Space,
-  Switch,
   Tag,
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,6 +16,7 @@ import {
   AiComposer,
   AiConfigPopover,
   type AiConfigGroup,
+  AiAuthenticatedMedia,
   AiGenerationStream,
   AiGuestLimitAlert,
   AiMediaListToolbar,
@@ -24,10 +24,10 @@ import {
   AiQuotaAlert,
   AiWorkspaceFrame,
   useAiAvailableModels,
-  useAiGenerationMock,
+  useAiGeneration,
 } from '@/components/ai';
 import AiLayout from '@/layouts/AiLayout';
-import { fetchAiAssets, fetchAiHome } from '@/services/ai';
+import { fetchAiGenerationJobs, fetchAiHome } from '@/services/ai';
 
 const imageStyleOptions = [
   { label: '科技感', value: '科技感' },
@@ -70,10 +70,12 @@ function getRatioIcon(size?: string) {
 
 const AiImagePage: React.FC = () => {
   const { message } = App.useApp();
-  const { data, loading } = useRequest(fetchAiAssets);
+  const { data: jobsPage, loading } = useRequest(() =>
+    fetchAiGenerationJobs({ toolType: 'image', pageSize: 20 }),
+  );
   const [searchParams] = useSearchParams();
   const { initialState } = useModel('@@initialState');
-  const { consumeQuota, runtimeConfig } = useModel('ai');
+  const { runtimeConfig } = useModel('ai');
   const templateId = searchParams.get('templateId');
   const appliedTemplateIdRef = useRef<string | undefined>(undefined);
   const { data: homeData } = useRequest(fetchAiHome);
@@ -85,25 +87,27 @@ const AiImagePage: React.FC = () => {
     undefined,
   ]);
   const [visibleRecordCount, setVisibleRecordCount] = useState(10);
+  const historyTasks = useMemo(() => jobsPage?.list ?? [], [jobsPage?.list]);
   const initialAssets = useMemo(
-    () => (data ?? []).filter((asset) => asset.type === 'image'),
-    [data],
+    () => historyTasks[0]?.assets ?? [],
+    [historyTasks],
   );
   const initialTask = useMemo(
-    () => ({
-      id: 'mock-image-task',
-      toolType: 'image' as const,
-      title: '知识文章封面',
-      prompt: 'React 工程化文章封面，蓝绿色科技风，简洁排版。',
-      modelId: 'qwen-image',
-      status: 'done' as const,
-      assetIds: initialAssets.map((asset) => asset.id),
-      params: { size: '16:9' as const, style: '科技感', count: 1 as const },
-      createdAt: new Date().toISOString(),
-    }),
-    [initialAssets],
+    () =>
+      historyTasks[0] ?? {
+        id: '',
+        toolType: 'image' as const,
+        title: '',
+        prompt: '',
+        modelId: '',
+        status: 'idle' as const,
+        assetIds: [],
+        params: { size: '16:9' as const, style: '科技感', count: 1 as const },
+        createdAt: new Date().toISOString(),
+      },
+    [historyTasks],
   );
-  const generation = useAiGenerationMock({
+  const generation = useAiGeneration({
     toolType: 'image',
     initialAssets,
     initialTask,
@@ -124,10 +128,8 @@ const AiImagePage: React.FC = () => {
   const quotaInsufficient =
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < estimatedTokens;
-  const forceGuestMode = searchParams.get('guestMode') === '1';
-  const isGuest = forceGuestMode || !initialState?.currentUser;
-  const guestLimitExceeded =
-    isGuest && searchParams.get('guestLimit') === 'exceeded';
+  const isGuest = !initialState?.currentUser;
+  const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const configGroups = useMemo<AiConfigGroup[]>(
     () => [
       {
@@ -200,22 +202,12 @@ const AiImagePage: React.FC = () => {
       prompt: activeTemplate.prompt,
       modelId: activeTemplate.modelId,
       params: activeTemplate.params,
-      simulateFailure: false,
     });
     message.info(`已应用模板：${activeTemplate.title}`);
   }, [activeTemplate, generation.applyDraft, message]);
 
   const generateAndConsumeQuota = async () => {
-    const savedAssets = await generation.regenerate();
-    if (!savedAssets?.length) return;
-    const result = await consumeQuota({
-      tokens: estimatedTokens,
-      toolType: 'image',
-      reason: `图片生成 ${savedAssets.length} 张`,
-    });
-    if (result?.reason === 'insufficient') {
-      message.warning('Token 余额不足，本次 mock 未扣减');
-    }
+    await generation.regenerate();
   };
   const loadMoreMediaRecords = useCallback(() => {
     setVisibleRecordCount((count) => Math.min(count + 10, 18));
@@ -252,6 +244,7 @@ const AiImagePage: React.FC = () => {
                 <AiGenerationStream
                   assets={generation.assets}
                   dateRange={dateRange}
+                  history={historyTasks}
                   keyword={mediaKeyword}
                   prompt={generation.task.prompt}
                   task={generation.task}
@@ -307,16 +300,6 @@ const AiImagePage: React.FC = () => {
                         groups={configGroups}
                         title="图片生成配置"
                       />
-                      <Space size={6}>
-                        <span className="ph-text-secondary">模拟失败</span>
-                        <Switch
-                          checked={generation.draft.simulateFailure}
-                          size="small"
-                          onChange={(simulateFailure) =>
-                            generation.updateDraft({ simulateFailure })
-                          }
-                        />
-                      </Space>
                     </>
                   )}
                   extraActions={(
@@ -334,7 +317,9 @@ const AiImagePage: React.FC = () => {
                     generation.updateParams({ attachments: [] });
                   }}
                   onOptimize={(prompt) => `更具体、更适合图像生成的提示词：${prompt.trim()}，高质量细节，主体明确，光影自然`}
-                  onStop={() => message.info('图片生成当前为 mock 请求，暂无可停止的真实任务')}
+                  onStop={() => {
+                    void generation.stop();
+                  }}
                   onSubmit={generateAndConsumeQuota}
                 />
                 <AiQuotaAlert
@@ -343,8 +328,10 @@ const AiImagePage: React.FC = () => {
                   toolName="图片生成"
                 />
                 <AiGuestLimitAlert
+                  dailyLimit={homeData?.guestTrial?.dailyLimit}
                   exceeded={guestLimitExceeded}
                   isGuest={isGuest}
+                  remainingUses={homeData?.guestTrial?.remaining}
                   toolName="图片生成"
                 />
               </Space>
@@ -360,11 +347,10 @@ const AiImagePage: React.FC = () => {
           >
             {detailAsset && (
               <div className="ph-ai-asset-detail">
-                {detailAsset.thumbnailUrl && (
-                  <img
-                    alt={detailAsset.title}
+                {detailAsset && (
+                  <AiAuthenticatedMedia
+                    asset={detailAsset}
                     className="ph-ai-asset-detail-preview"
-                    src={detailAsset.thumbnailUrl}
                   />
                 )}
                 <Descriptions column={1} size="small">

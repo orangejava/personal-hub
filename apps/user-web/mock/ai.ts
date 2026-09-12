@@ -1,3 +1,7 @@
+/**
+ * 仅 `pnpm dev:user:mock` 使用。`MOCK=none` 的用户端走 Nest Canonical API，
+ * 不要把这里的旧 `/api/ai/*` 路径当成当前业务契约。
+ */
 import type { Request, Response } from 'express';
 import type { AiModel, AiTool } from '@personal-hub/shared-types';
 import { adminAiConfigData } from './data/admin-store';

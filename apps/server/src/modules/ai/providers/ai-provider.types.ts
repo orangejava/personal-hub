@@ -1,5 +1,6 @@
 export interface ChatDelta {
   content: string;
+  usage?: { inputTokens: number; outputTokens: number };
 }
 
 export interface ChatProviderInput {

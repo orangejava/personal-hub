@@ -127,6 +127,8 @@ describe('Auth/RBAC M1 数据基线', () => {
 
   it('可把已有 super_admin 重置为文档中的本地开发账号', async () => {
     await runBaselineSeed(prisma);
+    // 额度流水 Restrict 到账本，必须先清流水再删用户。
+    await prisma.aiQuotaTransaction.deleteMany();
     await prisma.user.deleteMany();
     await bootstrapSuperAdmin(prisma, {
       email: 'acceptance-owner@example.com',

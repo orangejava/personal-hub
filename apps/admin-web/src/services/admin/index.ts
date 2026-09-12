@@ -1,6 +1,4 @@
-/**
- * 后台运营 service（阶段 4 mock 契约）
- */
+/** 后台运营 service */
 import { request } from '@umijs/max';
 import type {
   AdminAiConfigData,
@@ -9,6 +7,8 @@ import type {
   AdminAiModelCreateInput,
   AdminAiModelConfig,
   AdminAiModelMutationInput,
+  AdminAiNavigationItem,
+  AdminAiNavigationMutationInput,
   AdminAiProviderConfig,
   AdminAiProviderMutationInput,
   AdminAiStatsData,
@@ -200,13 +200,42 @@ export async function fetchAdminAiStats() {
   return request<AdminAiStatsData>('/api/v1/admin/ai/stats');
 }
 
-/** 品牌名本阶段由服务端固定，不写库。 */
+export async function updateAdminAiNavigationItem(
+  id: string,
+  data: AdminAiNavigationMutationInput,
+) {
+  return request<AdminAiNavigationItem>(`/api/v1/admin/ai/navigation/${id}`, {
+    method: 'PATCH',
+    data: {
+      ...data,
+      status:
+        data.status === 'comingSoon'
+          ? 'COMING_SOON'
+          : data.status === 'disabled'
+            ? 'DISABLED'
+            : data.status === 'enabled'
+              ? 'ENABLED'
+              : undefined,
+    },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function sortAdminAiNavigation(items: Array<{ id: string; sortOrder: number }>) {
+  return request<AdminAiNavigationItem[]>('/api/v1/admin/ai/navigation/sort', {
+    method: 'PATCH',
+    data: { items },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+/** 写入 AI 品牌到 system_configs.ai.branding。 */
 export async function updateAdminAiBrandingConfig(data: AdminAiBrandingMutationInput) {
-  return {
-    brandName: data.brandName?.trim() || 'Personal Hub AI',
-    logoText: data.logoText?.trim() || 'PH',
-    updatedAt: new Date().toISOString(),
-  } satisfies AdminAiBrandingConfig;
+  return request<AdminAiBrandingConfig>('/api/v1/admin/ai/branding', {
+    method: 'PATCH',
+    data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function updateAdminAiProviderConfig(
@@ -215,7 +244,7 @@ export async function updateAdminAiProviderConfig(
 ) {
   return request<AdminAiProviderConfig>(`/api/v1/admin/ai/providers/${id}`, {
     method: 'PATCH',
-    data: { name: data.name, baseUrl: data.baseUrl, enabled: data.enabled },
+    data: { name: data.name, baseUrl: data.baseUrl, enabled: data.enabled, apiKey: data.apiKey },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
@@ -228,6 +257,9 @@ export async function updateAdminAiModelConfig(id: string, data: AdminAiModelMut
       enabled: data.enabled,
       isDefault: data.isDefault,
       userVisible: data.visibleToUser,
+      contextTokens: data.contextTokens,
+      inputPricePer1k: data.inputPricePer1k,
+      outputPricePer1k: data.outputPricePer1k,
     },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
@@ -278,6 +310,9 @@ export async function updateAdminAiToolConfig(
     data: {
       status: toNestToolStatus(data.status),
       sortOrder: data.sort,
+      defaultModelId: data.defaultModelId,
+      tokenCostLabel: data.tokenCostLabel,
+      guestTrialEnabled: data.guestTrialEnabled,
     },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });

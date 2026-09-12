@@ -25,8 +25,7 @@ const PAGE_SIZE = 20;
 /**
  * Chat 左侧会话历史。
  *
- * 顶部操作区固定，列表独立滚动；阶段 5 先基于已加载 mock 会话做前端分页，
- * 后续接真实接口时可以把滚动到底部改成请求下一页。
+ * 顶部操作区固定，列表独立滚动；当前按已加载会话做前端分页。
  */
 const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
   sessions,

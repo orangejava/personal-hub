@@ -18,7 +18,7 @@ export interface AiTextDraft {
   targetLanguage: string;
 }
 
-interface UseAiTextGenerationMockOptions {
+interface UseAiTextGenerationOptions {
   onComplete?: (
     draft: AiTextDraft,
     output: string,
@@ -36,12 +36,9 @@ const scenarioHints: Record<AiTextScenarioKey, string> = {
 };
 
 /**
- * 文本生成 mock 状态流。
- *
- * 阶段 5 已收敛到 `/api/ai/text/generate` mock 契约，前端仍把完整返回文本
- * 拆成片段播放，以保留停止、复制、重新生成等交互体验。
+ * 文本生成状态流。发送走 Canonical SSE；停止调用显式 stop 接口。
  */
-export function useAiTextGenerationMock(options: UseAiTextGenerationMockOptions = {}) {
+export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
   const { onComplete } = options;
   const [draft, setDraft] = useState<AiTextDraft>({
     scenario: 'write',

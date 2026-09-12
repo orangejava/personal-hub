@@ -13,7 +13,7 @@
 - 抽象 `AiConfigPopover`，用“分组数组 + 选项数组”驱动图片/视频生成配置。
 - 增强 `AiXBubble`，支持 Chat 思考过程、思维链、Markdown 正文和来源展示。
 
-本轮不接真实 SSE、真实语音识别和真实提示词优化接口。
+本轮先统一布局；Chat/Text SSE 与图片任务结果已由 Nest Canonical 接管。语音识别和提示词优化仍是占位。
 
 ## 2. 页面与入口
 
@@ -34,7 +34,7 @@ AiWorkspaceFrame
   ↓
 AiComposer / AiChatAdvancedSettings
   ↓
-useAiChatMock
+useAiChat
   ↓
 AiXBubble
   ↓
@@ -52,9 +52,9 @@ AiGenerationStream + AiComposer
   ↓
 AiConfigPopover
   ↓
-useAiGenerationMock
+useAiGeneration
   ↓
-generateAiImage / generateAiVideo mock service
+generateAiImage / generateAiVideo service
 ```
 
 ## 4. 关键实现
@@ -64,7 +64,7 @@ generateAiImage / generateAiVideo mock service
 - `AiConfigPopover` 以 schema 驱动配置项，点击选项立即调用 `onChange` 写回 draft。
 - `AiChatAdvancedSettings` 增加 `showModelSelect`，让模型选择从高级设置迁出，但保留 System Prompt、上下文窗口和知识引用开关。
 - `AiMessage` 增加可选 `parts`，保持旧 `content` 字段兼容复制、持久化和历史消息。
-- `useAiChatMock` 模拟 `reasoning`、`thought_chain`、`content`、`source`、`done` 五类片段，后续真实 SSE 可沿用同类结构。
+- `useAiChat` 消费 Canonical SSE 的 `STARTED / DELTA / DONE`；停止走显式 stop 接口。
 - `AiXBubble` 在收到 assistant `message` 时统一渲染思考过程、思维链、Markdown 正文和来源，页面层不再手写 Markdown 组合。
 
 ## 5. 验证方式
@@ -98,7 +98,7 @@ generateAiImage / generateAiVideo mock service
 
 分页边界：
 
-- 当前没有真实图片/视频历史分页接口，所以 `AiGenerationStream` 基于当前 mock task/assets 派生 18 条历史记录。
+- 图片/视频历史来自 `GET /app/ai/generation-jobs`；`AiGenerationStream` 只展示服务端任务，不再复制伪造记录。
 - 页面默认展示最新 10 条；滚动到消息容器顶部时，`AiWorkspaceFrame.onLoadMoreBefore` 将展示数量继续增加。
 - 搜索范围覆盖 prompt、标题、模型、参数、资产标题；时间筛选优先使用任务 `createdAt`，资产时间作为兜底。
 

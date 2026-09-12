@@ -1,6 +1,6 @@
 # Nest M6 AI 域
 
-登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。本阶段 Provider 只有 Fake / MockVideo。
+登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。文本 Provider 默认 Fake；可切 `OPENAI_COMPATIBLE` 适配层，不要求真实厂商 Key。
 
 ## 刀序（一次性落地）
 
@@ -28,7 +28,7 @@
 | 关页没点停止 | 只靠 reservation TTL（5 分钟），不断连自动 stop |
 | 额度不足 | `409` `AI_QUOTA_INSUFFICIENT` |
 | 并发/限流 | `429` `AI_CONCURRENCY_LIMITED`；会话互斥 `409` `AI_GENERATION_IN_PROGRESS` |
-| Provider | 全程 Fake / MockVideo；真实厂商后置 |
+| Provider | 默认 Fake / MockVideo；`AI_TEXT_PROVIDER=openai_compatible` 且有 Key 时走 OpenAI 兼容适配层 |
 | 登录认领匿名历史 | 尽量认领，失败不阻断登录 |
 | Chat/Text | `ai_messages` + HTTP SSE（Skip 信封） |
 | 图片/视频 | `ai_generation_jobs` + Outbox + `server-worker` |
@@ -38,13 +38,15 @@
 
 ## 调用链
 
-1. Chat：`AppAiController.send` → `AiService.streamChat` → 额度预占 → FakeChat SSE → 结算。
+1. Chat：`AppAiController.send` → `AiService.streamChat` → 额度预占 → Fake 或 OpenAI-compatible SSE → 结算。
 2. 停止：写 `stopRequestedAt` + Redis `ai:stop:{id}` + 本机 `AbortController`。
-3. 图片：`createImageJob` 写 job + outbox → worker `AiImageProcessor` → `processJob`。HTTP 测试直调 `processJob`。
-4. 匿名写接口用 `AiAnonymousGuard` mint Cookie；GET home/models 只 peek，不新建主体。
-5. 本地 `seed:local-users` 会写 Fake 目录，并为已有用户补额度账本。
+3. 图片：`createImageJob` 写 job + outbox → worker `AiImageProcessor` → `processJob`。HTTP 测试直调 `processJob`。任务 `assets` 走 `/app/ai/assets/:id/content` 鉴权二进制，前端 blob URL 展示。
+4. 匿名写接口用 `AiAnonymousGuard` mint Cookie；GET home/models/navigation 只 peek，不新建主体。
+5. 本地 `seed:local-users` 会写 Fake 目录、AI 导航和已有用户额度账本。
 6. 结算：Prisma 不能对同一字段同时 `increment` + `decrement`，必须算绝对值再 `update`。
 7. 字段映射：camelCase 模型字段必须 `@map` 到 migration 的 snake_case（如 `finish_reason`、`tool_types`）。
+8. 品牌写 `system_configs.ai.branding`；左侧导航独立表 `AiNavigationItem`，隐藏不返回，禁用/即将上线仍返回。生成类接口和会员/创作中心读接口会再校验工具或导航状态，`409 AI_TOOL_UNAVAILABLE`，不能只靠前端拦截。
+9. `PATCH /admin/ai/navigation/:id` 必填 `version`；缺省 `400 VALIDATION_FAILED`，冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT`。
 
 ## 前端
 
@@ -56,11 +58,12 @@
 
 ```bash
 pnpm --filter server typecheck
-pnpm --filter server test -- test/ai-http.spec.ts test/auth-http.spec.ts
+pnpm --filter server test -- test/ai-http.spec.ts test/auth-http.spec.ts test/openai-compatible-sse.spec.ts
 pnpm --filter user-web typecheck
+pnpm --filter admin-web typecheck
 ```
 
-覆盖点：`test/ai-http.spec.ts`（**访客 public home**、会员 home、Chat SSE、额度 409、processJob 出资产、禁用模型后列表消失、匿名 Chat + 登录认领）、`test/auth-http.spec.ts` MEMBER 权限含 `ai:use`。
+覆盖点：`test/ai-http.spec.ts`（**访客 public home**、会员 home、Chat SSE、额度 409、processJob 出资产、他人读资产 404、禁用/即将上线拒绝生成、导航 version 校验、禁用模型后列表消失、匿名 Chat + 登录认领）、`test/auth-http.spec.ts` MEMBER 权限含 `ai:use`。
 
 ## 本地联调前（缺一步就会 500 / 假 404）
 
@@ -132,8 +135,18 @@ curl -sS http://localhost:3001/api/v1/public/ai/models | head -c 400
 
 1. 确认 `pnpm dev:worker` 日志有 `server-worker 已启动`
 2. 登录 MEMBER → http://localhost:8000/ai/image → 输入提示词 → 生成
-3. Network：`POST /api/v1/app/ai/image-generations` **202**，随后 `GET .../image-generations/:id` 变为 `done`
-4. 资产页 http://localhost:8000/ai/assets 能看到新图
+3. Network：`POST /api/v1/app/ai/image-generations` **202**，随后 `GET .../image-generations/:id` 变为 `done`，响应带本次 `assets`
+4. 当前任务卡片只显示这次图片；刷新 http://localhost:8000/ai/assets 仍能看到（鉴权媒体，不是 `memory://`）
+5. 生成中点停止：任务进入取消态
+
+本地没有真实厂商 Key 时保持 Fake。若要验证 OpenAI 适配层：
+
+```bash
+node apps/server/scripts/openai-compatible-stub.mjs
+# AI_TEXT_PROVIDER=openai_compatible
+# AI_OPENAI_BASE_URL=http://127.0.0.1:4010
+# AI_OPENAI_API_KEY=sk-local-stub
+```
 
 ### G. 后台禁用模型
 

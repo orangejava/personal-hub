@@ -12,10 +12,7 @@ export interface AiGuestLimitAlertProps {
 }
 
 /**
- * AI 访客试用限制提示。
- *
- * 阶段 5 先用前端 mock 状态表达“访客可试用 / 已超限”，避免改动全局登录策略；
- * 后续接真实后端后，这里的 exceeded 和 remainingUses 应由用量接口返回。
+ * 次数来自公开首页 guestTrial，不再用查询参数模拟。
  */
 const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
   isGuest,
@@ -38,7 +35,7 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
           <Typography.Text>
             {exceeded
               ? `${toolName}今日访客试用次数已达 ${dailyLimit} 次上限。`
-              : `${toolName}今日访客可试用 ${dailyLimit} 次，当前 mock 剩余 ${remainingUses} 次。`}
+              : `${toolName}今日访客可试用 ${dailyLimit} 次，剩余 ${remainingUses} 次。`}
           </Typography.Text>
           <Typography.Text type="secondary">
             登录后可保存历史、使用会员额度，并解除访客试用次数限制。

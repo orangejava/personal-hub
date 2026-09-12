@@ -15,7 +15,7 @@ import {
   AiQuotaAlert,
   type AiTextDraft,
   useAiAvailableModels,
-  useAiTextGenerationMock,
+  useAiTextGeneration,
 } from '@/components/ai';
 import { AiXMarkdown } from '@/components/ai-x';
 import AiLayout from '@/layouts/AiLayout';
@@ -45,8 +45,7 @@ const lengthOptions = [
 /**
  * 文本生成页。
  *
- * 阶段 5 先用本地 mock 流式输出补齐完整创作闭环，真实接入时保持页面结构，
- * 将 `useAiTextGenerationMock` 内部替换为 service/SSE 请求即可。
+ * 文本生成页。流式输出走 Nest SSE，额度由服务端预占结算。
  */
 const AiTextPage: React.FC = () => {
   const { message } = App.useApp();
@@ -58,18 +57,15 @@ const AiTextPage: React.FC = () => {
   const { data: homeData } = useRequest(fetchAiHome);
   const handleGenerationComplete = useCallback(
     async (_draft: AiTextDraft, _output: string, estimatedTokens: number) => {
-      const result = await consumeQuota({
+      await consumeQuota({
         tokens: estimatedTokens,
         toolType: 'text',
-        reason: '文本生成 mock 输出完成',
+        reason: '文本生成完成',
       });
-      if (result?.reason === 'insufficient') {
-        message.warning('Token 余额不足，本次 mock 未扣减');
-      }
     },
-    [consumeQuota, message],
+    [consumeQuota],
   );
-  const generation = useAiTextGenerationMock({
+  const generation = useAiTextGeneration({
     onComplete: handleGenerationComplete,
   });
   const activeTemplate = useMemo(
@@ -88,10 +84,8 @@ const AiTextPage: React.FC = () => {
   const quotaInsufficient =
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < generation.tokenEstimate;
-  const forceGuestMode = searchParams.get('guestMode') === '1';
-  const isGuest = forceGuestMode || !initialState?.currentUser;
-  const guestLimitExceeded =
-    isGuest && searchParams.get('guestLimit') === 'exceeded';
+  const isGuest = !initialState?.currentUser;
+  const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const canSubmit =
     generation.canGenerate &&
     modelState.hasModels &&
@@ -243,8 +237,10 @@ const AiTextPage: React.FC = () => {
             toolName="文本生成"
           />
           <AiGuestLimitAlert
+            dailyLimit={homeData?.guestTrial?.dailyLimit}
             exceeded={guestLimitExceeded}
             isGuest={isGuest}
+            remainingUses={homeData?.guestTrial?.remaining}
             toolName="文本生成"
           />
         </Card>
@@ -254,7 +250,7 @@ const AiTextPage: React.FC = () => {
           extra={
             <Space>
               <Tag color={generation.isGenerating ? 'blue' : 'default'}>
-                {generation.isGenerating ? '生成中' : 'Mock'}
+                {generation.isGenerating ? '生成中' : '已完成'}
               </Tag>
               <Button
                 icon={<CopyOutlined />}

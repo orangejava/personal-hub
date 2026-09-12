@@ -21,6 +21,7 @@ export { default as SectionSkeleton } from './SectionSkeleton';
 export { default as StatusBadge } from './StatusBadge';
 export type { TocItem } from './TocPanel';
 export { default as TocPanel } from './TocPanel';
+export { default as UserAccountPopover } from './UserAccountPopover';
 export { default as MarkdownCodeBlock } from './MarkdownCodeBlock';
 export { default as PdfViewer } from './PdfViewer';
 export { default as WordViewer } from './WordViewer';

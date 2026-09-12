@@ -283,7 +283,11 @@ export interface AiGenerationTask {
   modelId: string;
   status: AiGenerationStatus;
   assetIds: string[];
+  assets?: AiAsset[];
   params?: AiGenerationParams;
+  progress?: number;
+  errorCode?: string;
+  finishedAt?: string;
   createdAt: string;
 }
 
@@ -369,12 +373,71 @@ export interface AiAssetFolderNameInput {
 
 export interface AiHomeData {
   brandName: string;
+  logoText?: string;
   tools: AiTool[];
   models: AiModel[];
   quota: AiQuotaSummary;
   templates: AiTemplate[];
   recentTasks: AiGenerationTask[];
   recentActivities: AiRecentActivity[];
+  guestTrial?: AiMembershipUsageOverview['guestTrial'];
+  entitlement?: {
+    currentPlanName?: string;
+    remainingTokens?: number;
+  };
+}
+
+export type AiNavStatus = 'enabled' | 'disabled' | 'comingSoon';
+
+/** AI 左侧导航项，由独立导航表驱动，不等于 AiTool 执行能力。 */
+export interface AiNavigationItem {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  group: AiTool['group'];
+  routeKey: string;
+  path: string;
+  visible: boolean;
+  status: AiNavStatus;
+  requiresLogin: boolean;
+  sortOrder: number;
+  parentId?: string | null;
+  description: string;
+  toolCode?: AiToolType;
+  version: number;
+}
+
+export interface AiProfileSummary {
+  nickname: string;
+  currentPlanName: string;
+  quota: AiQuotaSummary;
+  jobCount: number;
+  assetCount: number;
+  sessionCount: number;
+}
+
+export interface AiCreationCenterData {
+  jobCount: number;
+  assetCount: number;
+  draftCount: number;
+  recentJobs: AiGenerationTask[];
+}
+
+export interface AiTutorialItem {
+  id: string;
+  title: string;
+  summary: string;
+  path: string;
+}
+
+export interface AiPublishDraftItem {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  updatedAt: string;
+  path: string;
 }
 
 export interface AiMembershipData {

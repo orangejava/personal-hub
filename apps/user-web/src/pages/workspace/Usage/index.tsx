@@ -5,7 +5,7 @@ import React from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import { fetchUsage } from '@/services/workspace';
 
-/** 我的用量：Token 用量统计（mock/占位） */
+/** 我的用量：Token 用量统计 */
 const Usage: React.FC = () => {
   const intl = useIntl();
   const { data, loading, error, run } = useRequest(fetchUsage);

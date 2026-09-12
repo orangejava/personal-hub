@@ -257,10 +257,12 @@ export interface AdminAiToolMutationInput {
   sort?: number;
 }
 
-/** 后台 AI 品牌配置，阶段 5 用于驱动 AI Layout 和首页品牌展示。 */
+/** 后台 AI 品牌配置。 */
 export interface AdminAiBrandingConfig {
   brandName: string;
   logoText: string;
+  aiEnabled?: boolean;
+  version?: number;
   updatedAt: string;
 }
 
@@ -268,6 +270,36 @@ export interface AdminAiBrandingConfig {
 export interface AdminAiBrandingMutationInput {
   brandName?: string;
   logoText?: string;
+  aiEnabled?: boolean;
+}
+
+/** 后台 AI 导航项。隐藏不展示；禁用/即将上线仍展示但不可进入。 */
+export interface AdminAiNavigationItem {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  group: string;
+  routeKey: string;
+  path: string;
+  visible: boolean;
+  status: AiToolStatus;
+  requiresLogin: boolean;
+  sortOrder: number;
+  parentId?: string | null;
+  description: string;
+  toolCode?: AiToolType;
+  version: number;
+}
+
+export interface AdminAiNavigationMutationInput {
+  label?: string;
+  visible?: boolean;
+  status?: AiToolStatus;
+  sortOrder?: number;
+  requiresLogin?: boolean;
+  description?: string;
+  version: number;
 }
 
 /** 后台 AI 配置页聚合数据。 */
@@ -276,6 +308,7 @@ export interface AdminAiConfigData {
   providers: AdminAiProviderConfig[];
   models: AdminAiModelConfig[];
   tools: AdminAiToolConfig[];
+  navigation?: AdminAiNavigationItem[];
 }
 
 /** 后台 AI 统计汇总。 */

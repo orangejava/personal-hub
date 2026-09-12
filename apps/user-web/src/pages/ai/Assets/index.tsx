@@ -34,6 +34,7 @@ import {
 import type { AiAsset } from '@personal-hub/shared-types';
 import React, { useMemo, useState } from 'react';
 import { AiPageHeader } from '@/components/ai';
+import AiAuthenticatedMedia from '@/components/ai/AiAuthenticatedMedia';
 import AiLayout from '@/layouts/AiLayout';
 import '@/styles/ai-assets.less';
 import {
@@ -308,7 +309,7 @@ const AiAssetsPage: React.FC = () => {
   return (
     <AiLayout>
       <AiPageHeader
-        description="按来源、类型、使用状态和项目文件夹组织 AI 资产，阶段 5 使用 mock 数据。"
+        description="按来源、类型、使用状态和文件夹组织 AI 资产，媒体通过鉴权接口加载。"
         title="AI 资产"
       />
       {loading ? (
@@ -592,8 +593,8 @@ const AiAssetsPage: React.FC = () => {
                   <Card
                     className="ph-ai-asset-card"
                     cover={
-                      asset.thumbnailUrl ? (
-                        <img alt={asset.title} src={asset.thumbnailUrl} />
+                      asset.type === 'image' || asset.type === 'video' ? (
+                        <AiAuthenticatedMedia asset={asset} className="ph-ai-asset-cover" />
                       ) : (
                         <div className="ph-ai-asset-text-cover">
                           {typeLabels[asset.type]}
@@ -696,11 +697,10 @@ const AiAssetsPage: React.FC = () => {
       >
         {detailAsset && (
           <div className="ph-ai-asset-detail">
-            {detailAsset.thumbnailUrl ? (
-              <img
-                alt={detailAsset.title}
+            {detailAsset.type === 'image' || detailAsset.type === 'video' ? (
+              <AiAuthenticatedMedia
+                asset={detailAsset}
                 className="ph-ai-asset-detail-preview"
-                src={detailAsset.thumbnailUrl}
               />
             ) : (
               <div className="ph-ai-asset-detail-text-preview">

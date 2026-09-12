@@ -33,7 +33,7 @@ export interface WorkspaceContentQuery {
   visibility?: string;
 }
 
-/** 我的用量统计（Token，本阶段 mock/占位） */
+/** 我的用量统计（Token，来自 Nest 额度账本） */
 export interface WorkspaceUsage {
   totalTokens: number;
   usedTokens: number;

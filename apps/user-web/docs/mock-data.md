@@ -18,7 +18,7 @@ React-first 阶段的 mock 不是临时页面数据，而是未来 API 契约的
 | `pnpm dev:user:mock` / `pnpm dev:admin:mock` | 是 |
 | `pnpm build:user` / `pnpm build:admin` | 否，产物不含 mock 中间件 |
 
-`dev:mock` 时 `/api/v1` 仍代理 Nest，登录走真实鉴权；mock 只回答尚未迁 Nest 的路径（内容、工作区、AI、后台 CRUD）。
+`dev:mock` 时 `/api/v1` 仍代理 Nest，登录走真实鉴权。**AI Chat/Text/图片/视频、导航、额度、资产已接 Nest Canonical**；`mock/ai.ts` 只服务 `dev:user:mock` 的旧 `/api/ai/*` 路径，不能当作当前业务契约。
 
 mock 需要做到：
 

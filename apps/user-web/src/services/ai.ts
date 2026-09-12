@@ -6,10 +6,11 @@ import type {
   AiAssetFolder,
   AiAssetFolderNameInput,
   AiAssetFolderMutationInput,
-  AiChatMessagesPersistInput,
   AiConversation,
   AiConversationCreateInput,
   AiConversationUpdateInput,
+  AiCreationCenterData,
+  AiGenerationTask,
   AiHomeData,
   AiMediaGenerateInput,
   AiMediaGenerateResult,
@@ -17,12 +18,16 @@ import type {
   AiMessage,
   AiMessageFeedbackInput,
   AiModel,
+  AiNavigationItem,
+  AiProfileSummary,
+  AiPublishDraftItem,
   AiQuotaConsumeInput,
   AiQuotaSummary,
   AiTemplate,
   AiTextGenerateInput,
   AiTextGenerateResult,
   AiTool,
+  AiTutorialItem,
 } from '@personal-hub/shared-types';
 
 function newIdempotencyKey(): string {
@@ -33,7 +38,7 @@ function isUuid(value?: string): boolean {
   return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
 }
 
-function isLoggedIn(): boolean {
+export function isLoggedIn(): boolean {
   return Boolean(getAccessToken());
 }
 
@@ -170,42 +175,109 @@ export async function fetchAiMembership(): Promise<AiMembershipData> {
       },
     };
   }
-  const usage = await request<{
-    remainingTokens: number;
-    usedTokens: number;
-    totalTokens: number;
-    lowBalanceThreshold: number;
-    trend?: Array<{ date: string; tokens: number }>;
-    toolUsage?: Array<{ toolType: string; tokens: number; calls: number }>;
-  }>('/api/v1/app/usage');
-  const remaining = usage.remainingTokens;
-  const used = usage.usedTokens;
-  const low = remaining <= (usage.lowBalanceThreshold ?? 500);
-  return {
-    currentPlanId: 'member',
-    currentPlanName: '普通成员',
-    quota: {
-      remainingTokens: remaining,
-      usedTokens: used,
-      totalTokens: usage.totalTokens,
-      lowBalanceThreshold: usage.lowBalanceThreshold,
-    },
-    plans: [],
-    inviteRecords: [],
-    usageOverview: {
-      balanceStatus: remaining <= 0 ? 'insufficient' : low ? 'low' : 'normal',
-      balanceStatusText: remaining <= 0 ? '额度不足' : low ? '余额偏低' : '正常',
-      trendDays: 30,
-      trend: usage.trend ?? [],
-      toolUsage: (usage.toolUsage ?? []).map((item) => ({
-        toolType: item.toolType.toLowerCase() as 'chat',
-        toolName: item.toolType,
-        tokens: item.tokens,
-        calls: item.calls,
-      })),
-      guestTrial: { dailyLimit: 20, used: 0, remaining: 20, exceeded: false },
-    },
-  };
+  return request<AiMembershipData>('/api/v1/app/ai/membership');
+}
+
+export async function fetchAiNavigation() {
+  const path = isLoggedIn() ? '/api/v1/app/ai/navigation' : '/api/v1/public/ai/navigation';
+  return request<AiNavigationItem[]>(path);
+}
+
+export async function fetchAiGenerationJobs(params?: {
+  toolType?: 'image' | 'video' | 'text';
+  page?: number;
+  pageSize?: number;
+}) {
+  if (!isLoggedIn()) {
+    return { list: [] as AiGenerationTask[], total: 0, page: 1, pageSize: params?.pageSize ?? 20 };
+  }
+  return request<{ list: AiGenerationTask[]; total: number; page: number; pageSize: number }>(
+    '/api/v1/app/ai/generation-jobs',
+    { params },
+  );
+}
+
+export async function fetchAiProfileSummary() {
+  return request<AiProfileSummary>('/api/v1/app/ai/profile-summary');
+}
+
+export async function fetchAiCreationCenter() {
+  return request<AiCreationCenterData>('/api/v1/app/ai/creation-center');
+}
+
+export async function fetchAiTutorials() {
+  const path = isLoggedIn() ? '/api/v1/app/ai/tutorials' : '/api/v1/public/ai/tutorials';
+  return request<{ list: AiTutorialItem[] }>(path);
+}
+
+export async function fetchAiPublishDrafts() {
+  return request<{ list: AiPublishDraftItem[]; total: number }>('/api/v1/app/ai/publish-drafts');
+}
+
+const ASSET_OBJECT_URL_LIMIT = 32;
+
+type AssetObjectUrlEntry = {
+  url: string;
+  refs: number;
+};
+
+const objectUrlCache = new Map<string, AssetObjectUrlEntry>();
+
+function evictUnusedAssetObjectUrls() {
+  for (const [id, entry] of objectUrlCache) {
+    if (objectUrlCache.size <= ASSET_OBJECT_URL_LIMIT) {
+      return;
+    }
+    if (entry.refs > 0) {
+      continue;
+    }
+    URL.revokeObjectURL(entry.url);
+    objectUrlCache.delete(id);
+  }
+}
+
+/**
+ * 组件卸载时归还引用；无引用且超出上限时释放 blob。
+ */
+export function releaseAiAssetObjectUrl(assetId: string) {
+  const entry = objectUrlCache.get(assetId);
+  if (!entry) {
+    return;
+  }
+  entry.refs = Math.max(0, entry.refs - 1);
+  evictUnusedAssetObjectUrls();
+}
+
+/**
+ * 媒体接口需要 Bearer，不能直接当 img src。
+ * 用 blob URL 缓存，避免同一资产反复下载。
+ */
+export async function resolveAiAssetObjectUrl(asset: Pick<AiAsset, 'id' | 'fileUrl' | 'thumbnailUrl'>) {
+  const cached = objectUrlCache.get(asset.id);
+  if (cached) {
+    cached.refs += 1;
+    objectUrlCache.delete(asset.id);
+    objectUrlCache.set(asset.id, cached);
+    return cached.url;
+  }
+  const path = asset.fileUrl || asset.thumbnailUrl;
+  if (path && /^https?:\/\//i.test(path) && !path.includes('/api/v1/app/ai/assets/')) {
+    return path;
+  }
+  const token = getAccessToken();
+  const url = path?.startsWith('/') ? path : `/api/v1/app/ai/assets/${asset.id}/content`;
+  const response = await fetch(url, {
+    credentials: 'include',
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  });
+  if (!response.ok) {
+    throw new Error('无法加载生成结果');
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  objectUrlCache.set(asset.id, { url: objectUrl, refs: 1 });
+  evictUnusedAssetObjectUrls();
+  return objectUrl;
 }
 
 export async function fetchAiTemplates() {
@@ -261,7 +333,7 @@ async function pollJob(kind: 'image' | 'video', jobId: string) {
       ? `/api/v1/app/ai/image-generations/${jobId}`
       : `/api/v1/app/ai/video-generations/${jobId}`;
   for (let i = 0; i < 40; i += 1) {
-    const job = await request<{ id: string; status: string; prompt: string; modelId: string }>(path);
+    const job = await request<AiGenerationTask>(path);
     if (job.status === 'done' || job.status === 'failed' || job.status === 'stopped') {
       return job;
     }
@@ -276,7 +348,7 @@ async function createMediaJob(
   kind: 'image' | 'video',
   data: AiMediaGenerateInput,
 ): Promise<AiMediaGenerateResult> {
-  const created = await request<{ id: string }>(
+  const created = await request<AiGenerationTask>(
     kind === 'image' ? '/api/v1/app/ai/image-generations' : '/api/v1/app/ai/video-generations',
     {
       method: 'POST',
@@ -292,21 +364,29 @@ async function createMediaJob(
     },
   );
   const job = await pollJob(kind, created.id);
-  const assets = await fetchAiAssets();
+  const assets = job.assets ?? [];
   return {
     task: {
-      id: job.id,
-      toolType: kind,
-      title: data.title || data.prompt.slice(0, 40),
-      prompt: job.prompt,
-      modelId: job.modelId,
-      status: job.status as 'done',
-      assetIds: assets.map((item) => item.id),
+      ...job,
+      title: data.title || job.title,
       params: data.params,
-      createdAt: new Date().toISOString(),
+      assetIds: assets.map((item) => item.id),
+      assets,
     },
     assets,
   };
+}
+
+export async function cancelAiMediaJob(kind: 'image' | 'video', jobId: string) {
+  return request<AiGenerationTask>(
+    kind === 'image'
+      ? `/api/v1/app/ai/image-generations/${jobId}/cancel`
+      : `/api/v1/app/ai/video-generations/${jobId}/cancel`,
+    {
+      method: 'POST',
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    },
+  );
 }
 
 export async function generateAiImage(data: AiMediaGenerateInput) {
@@ -367,13 +447,6 @@ export async function fetchAiMessages(sessionId: string) {
   }
   const page = await request<{ list: AiMessage[] }>(`/api/v1/app/ai/sessions/${sessionId}/messages`);
   return page.list;
-}
-
-export async function persistAiChatMessages(
-  _sessionId: string,
-  _data: AiChatMessagesPersistInput,
-) {
-  return { conversation: undefined, messages: [] as AiMessage[] };
 }
 
 export async function streamAiChat(input: {

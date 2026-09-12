@@ -100,7 +100,7 @@ const AiHome: React.FC = () => {
       }
     >
       <AiPageHeader
-        description="聚合对话、文本、图片、视频和模板入口，阶段 5 先以 mock 跑通完整体验。"
+        description="聚合对话、文本、图片、视频和模板入口，配置来自 Nest AI 首页与导航。"
         title="AI 工作台"
       />
 

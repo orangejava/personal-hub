@@ -6,6 +6,16 @@ export const toolStatusLabels: Record<AiToolStatus, { text: string; color: strin
   comingSoon: { text: '即将上线', color: 'warning' },
 };
 
+export const navGroupLabels: Record<string, string> = {
+  home: '首页',
+  create: '创作',
+  assets: '资产',
+  profile: '个人',
+  commerce: '会员',
+  help: '帮助',
+  open: '开放',
+};
+
 export const aiToolTypeOptions: Array<{ label: string; value: AiToolType }> = [
   { label: 'AI 对话', value: 'chat' },
   { label: '文本生成', value: 'text' },

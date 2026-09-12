@@ -26,7 +26,7 @@
 - [features/admin-system-config-hub.md](./features/admin-system-config-hub.md)：后台系统配置中心、菜单隐藏与公开 mapper。
 - [features/nest-content-domain.md](./features/nest-content-domain.md)：内容域可见性、UPPER_SNAKE 映射与公开读。
 - [features/nest-file-booklet.md](./features/nest-file-booklet.md)：预签名上传、purpose 与 Outbox 导入。
-- [features/nest-ai-domain.md](./features/nest-ai-domain.md)：AI 额度预占、SSE 停止与匿名认领。
+- [features/nest-ai-domain.md](./features/nest-ai-domain.md)：AI 额度预占、SSE 停止、导航配置、鉴权媒体与 OpenAI 适配层。
 - [frontend-to-fullstack-learning-path.md](./frontend-to-fullstack-learning-path.md)：面向 Vue 3 / React 前端开发者的全栈转型路径。
 - [local-environment-setup-handbook.md](./local-environment-setup-handbook.md)：本地开发环境准备手册，包含 Docker、PostgreSQL、Redis、GUI/CLI 工具建议。
 - [nextjs-learning-handbook.md](./nextjs-learning-handbook.md)：Next.js 学习手册，重点是 App Router、RSC、SSR、ISR、路由组织。
