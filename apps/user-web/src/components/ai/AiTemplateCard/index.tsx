@@ -5,6 +5,7 @@ import React from 'react';
 
 interface AiTemplateCardProps {
   template: AiTemplate;
+  modelName?: string;
 }
 
 const toolPathMap: Record<AiTemplate['toolType'], string> = {
@@ -15,7 +16,7 @@ const toolPathMap: Record<AiTemplate['toolType'], string> = {
 };
 
 /** 首页模板卡片：hover 后展示模型和使用入口。 */
-const AiTemplateCard: React.FC<AiTemplateCardProps> = ({ template }) => (
+const AiTemplateCard: React.FC<AiTemplateCardProps> = ({ template, modelName }) => (
   <article className="ph-ai-template-card">
     <div
       className="ph-ai-template-cover"
@@ -23,7 +24,7 @@ const AiTemplateCard: React.FC<AiTemplateCardProps> = ({ template }) => (
     />
     <div className="ph-ai-template-overlay">
       <div className="ph-ai-template-model">
-        <Tag color="blue">{template.modelId}</Tag>
+        {modelName && <Tag color="blue">{modelName}</Tag>}
       </div>
       <div>
         <div className="ph-ai-template-title">{template.title}</div>

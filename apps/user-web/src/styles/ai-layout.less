@@ -5,11 +5,26 @@
   min-height: 100vh;
   --ph-ai-bg: var(--ph-bg-layout, #f6f8fb);
   --ph-ai-panel-bg: var(--ph-bg-container, #ffffff);
+  --ph-ai-elevated: var(--ph-bg-elevated, #ffffff);
+  --ph-ai-muted: var(--ph-bg-spotlight, #f3f4f6);
   --ph-ai-border: var(--ph-border-color, rgba(15, 23, 42, 0.08));
-  --ph-ai-text: var(--ph-text-primary, rgba(15, 23, 42, 0.92));
-  --ph-ai-text-secondary: var(--ph-text-secondary, rgba(15, 23, 42, 0.58));
+  --ph-ai-text: var(--ph-text-primary, rgba(15, 23, 42, 0.88));
+  --ph-ai-text-secondary: var(--ph-text-secondary, rgba(15, 23, 42, 0.45));
+  --ph-ai-text-disabled: color-mix(in srgb, var(--ph-ai-text) 40%, transparent);
+  --ph-ai-status-bg: color-mix(in srgb, var(--ph-ai-text) 6%, transparent);
+  --ph-ai-control-track: color-mix(in srgb, var(--ph-ai-text) 6%, var(--ph-ai-panel-bg));
+  --ph-ai-control-active: var(--ph-ai-elevated);
   background: var(--ph-ai-bg);
   color: var(--ph-ai-text);
+}
+
+.ph-ai-layout.ph-public-dark {
+  --ph-ai-elevated: color-mix(in srgb, #fff 12%, var(--ph-bg-container, #141414));
+  --ph-ai-muted: color-mix(in srgb, #000 28%, var(--ph-bg-container, #141414));
+  --ph-ai-text-disabled: color-mix(in srgb, var(--ph-ai-text) 38%, transparent);
+  --ph-ai-status-bg: rgba(255, 255, 255, 0.08);
+  --ph-ai-control-track: color-mix(in srgb, #000 32%, var(--ph-ai-panel-bg));
+  --ph-ai-control-active: color-mix(in srgb, #fff 14%, var(--ph-ai-panel-bg));
 }
 
 .ph-ai-layout-focused {
@@ -78,7 +93,7 @@
 .ph-ai-nav-group-divided {
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 1px solid var(--ph-ai-border);
 }
 
 .ph-ai-nav-link {
@@ -109,7 +124,7 @@
   margin-left: auto;
   flex: 0 0 auto;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.06);
+  background: var(--ph-ai-status-bg);
   color: var(--ph-ai-text-secondary);
   font-size: 11px;
   line-height: 18px;
@@ -119,7 +134,7 @@
 
 .ph-ai-nav-link:hover,
 .ph-ai-nav-link-active {
-  background: rgba(22, 119, 255, 0.1);
+  background: color-mix(in srgb, var(--ph-color-primary, #1677ff) 12%, transparent);
   color: var(--ph-color-primary);
 }
 
@@ -128,7 +143,8 @@
 .ph-ai-nav-child-link.ph-ai-nav-link-disabled,
 .ph-ai-nav-child-link.ph-ai-nav-link-disabled:hover {
   background: transparent;
-  color: var(--ph-ai-text-secondary);
+  color: var(--ph-ai-text-disabled);
+  opacity: 1;
   cursor: not-allowed;
 }
 
@@ -148,7 +164,7 @@
   gap: 4px;
   margin: 6px 0 16px 30px;
   padding-left: 18px;
-  border-left: 1px solid rgba(15, 23, 42, 0.12);
+  border-left: 1px solid var(--ph-ai-border);
 }
 
 .ph-ai-nav-child-link {
@@ -158,7 +174,7 @@
   align-items: center;
   gap: 8px;
   border-radius: 10px;
-  color: #45484d;
+  color: var(--ph-ai-text);
   font-size: 15px;
   font-weight: 600;
   padding: 0 12px;
@@ -166,7 +182,7 @@
 
 .ph-ai-nav-child-link:hover,
 .ph-ai-nav-child-link-active {
-  background: rgba(22, 119, 255, 0.1);
+  background: color-mix(in srgb, var(--ph-color-primary, #1677ff) 12%, transparent);
   color: var(--ph-color-primary);
 }
 
@@ -232,6 +248,12 @@
   backdrop-filter: blur(12px);
 }
 
+.ph-ai-topbar-title {
+  color: var(--ph-ai-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .ph-ai-user-trigger {
   min-height: 36px;
   display: inline-flex;
@@ -241,12 +263,17 @@
   padding: 0 10px;
 }
 
+.ph-ai-user-popover.ant-popover .ant-popover-container,
+.ph-ai-user-popover .ant-popover-inner,
+.ph-ai-user-popover .ant-popover-title {
+  background: var(--ph-ai-panel-bg);
+  color: var(--ph-ai-text);
+}
+
 .ph-ai-user-popover .ant-popover-inner {
-  background: #fff;
-  color: #2f3338;
   border-radius: 24px;
   padding: 0;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 24px 60px color-mix(in srgb, var(--ph-ai-text) 12%, transparent);
 }
 
 .ph-ai-user-card {
@@ -261,7 +288,8 @@
 .ph-ai-user-card-quota,
 .ph-ai-user-card-metrics > div {
   border-radius: 16px;
-  background: #f4f4f5;
+  background: var(--ph-ai-control-track);
+  color: var(--ph-ai-text);
 }
 
 .ph-ai-user-card-header {
@@ -277,7 +305,7 @@
 .ph-ai-user-card-quota strong,
 .ph-ai-user-card-metrics strong {
   display: block;
-  color: #2f3338;
+  color: var(--ph-ai-text);
   font-size: 16px;
 }
 
@@ -289,12 +317,13 @@
   align-items: center;
   gap: 6px;
   margin-top: 4px;
-  color: #7a7f87;
+  color: var(--ph-ai-text-secondary);
 }
 
 .ph-ai-user-card-plan {
   overflow: hidden;
-  background: #fff5e6;
+  background: var(--ph-ai-elevated);
+  border: 1px solid var(--ph-ai-border);
   padding: 16px;
 }
 
@@ -306,7 +335,9 @@
 }
 
 .ph-ai-user-card-plan-head .ant-btn {
-  background: #2f3338;
+  background: var(--ph-color-primary, #1677ff);
+  color: #fff;
+  border-color: transparent;
 }
 
 .ph-ai-user-card-quota {
@@ -314,24 +345,24 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--ph-ai-panel-bg);
+  border: 1px solid var(--ph-ai-border);
   padding: 14px;
 }
 
 .ph-ai-user-card-quota strong {
-  color: #06a6d8;
+  color: var(--ph-color-primary, #1677ff);
 }
 
 .ph-ai-user-card-quota a {
-  color: #2f3338;
+  color: var(--ph-ai-text);
   font-weight: 700;
 }
 
 .ph-ai-user-card-split {
   width: 1px;
   height: 12px;
-  background: rgba(15, 23, 42, 0.16);
+  background: var(--ph-ai-border);
 }
 
 .ph-ai-user-card-metrics {
@@ -341,13 +372,13 @@
 }
 
 .ph-ai-user-card-metrics > div {
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--ph-ai-panel-bg);
+  border: 1px solid var(--ph-ai-border);
   padding: 14px;
 }
 
 .ph-ai-user-card-metrics small {
-  color: #7a7f87;
+  color: var(--ph-ai-text-secondary);
   font-size: 13px;
 }
 
@@ -365,7 +396,7 @@
   gap: 12px;
   border: 0;
   background: transparent;
-  color: #2f3338;
+  color: var(--ph-ai-text);
   cursor: pointer;
   font: inherit;
   font-weight: 700;
@@ -376,7 +407,7 @@
 
 .ph-ai-user-card-actions a:hover,
 .ph-ai-user-card-actions button:hover {
-  background: rgba(15, 23, 42, 0.04);
+  background: color-mix(in srgb, var(--ph-ai-text) 6%, transparent);
 }
 
 .ph-ai-unavailable {
@@ -407,8 +438,10 @@
 
 .ph-ai-layout-focused .ph-ai-content {
   height: calc(100vh - var(--ph-ai-topbar-height));
+  max-height: calc(100vh - var(--ph-ai-topbar-height));
   box-sizing: border-box;
   overflow: hidden;
+  padding: 12px 24px 0;
 }
 
 .ph-ai-mobile-drawer {

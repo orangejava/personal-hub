@@ -10,16 +10,16 @@ import {
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
-import { Link, useLocation } from '@umijs/max';
+import { Link, history, useLocation, useModel } from '@umijs/max';
 import { Alert, Button, Card, List, Space, Statistic, Tag } from 'antd';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRequest } from '@/hooks/useRequest';
 import { AiPageHeader } from '@/components/ai';
 import { buildAdminWebUrl } from '@personal-hub/app-origins';
 import AiLayout from '@/layouts/AiLayout';
 import {
   fetchAiCreationCenter,
-  fetchAiNavigation,
+  fetchAiMembership,
   fetchAiProfileSummary,
   fetchAiPublishDrafts,
   fetchAiTutorials,
@@ -250,7 +250,7 @@ const AiPlaceholderTool: React.FC<AiPlaceholderToolProps> = ({ title }) => {
   );
   const resolvedTitle = title ?? config.title;
   const loggedIn = isLoggedIn();
-  const { data: navigation } = useRequest(fetchAiNavigation);
+  const { navigation } = useModel('ai');
   const { data: profile } = useRequest(fetchAiProfileSummary, {
     ready: loggedIn && location.pathname === '/ai/profile',
   });
@@ -263,7 +263,32 @@ const AiPlaceholderTool: React.FC<AiPlaceholderToolProps> = ({ title }) => {
   const { data: drafts } = useRequest(fetchAiPublishDrafts, {
     ready: loggedIn && location.pathname === '/ai/publish',
   });
+  const [pendingAction, setPendingAction] = useState<string>();
   const currentNav = navigation?.find((item) => item.path === location.pathname);
+
+  /**
+   * 会员中心以后台导航 + GET /membership 为准。
+   * 先等接口，409 时停在当前页，避免先跳过去再显示「暂不可用」。
+   */
+  const handleNextAction = async (to: string) => {
+    if (to.startsWith('/admin')) {
+      window.location.assign(buildAdminWebUrl(to));
+      return;
+    }
+    if (to !== '/ai/membership') {
+      history.push(to);
+      return;
+    }
+    setPendingAction(to);
+    try {
+      await fetchAiMembership();
+      history.push(to);
+    } catch {
+      // 409 / 其它失败由全局 errorHandler 提示
+    } finally {
+      setPendingAction(undefined);
+    }
+  };
   const status = navStatusLabel(currentNav?.status, currentNav?.visible) ?? {
     text: config.statusLabel,
     color: config.statusColor,
@@ -307,17 +332,17 @@ const AiPlaceholderTool: React.FC<AiPlaceholderToolProps> = ({ title }) => {
               <h2>{resolvedTitle}</h2>
               <p>{config.description}</p>
               <Space wrap>
-                {config.nextActions.map((action) =>
-                  action.to.startsWith('/admin') ? (
-                    <a key={action.to} href={buildAdminWebUrl(action.to)}>
-                      <Button>{action.label}</Button>
-                    </a>
-                  ) : (
-                    <Link key={action.to} to={action.to}>
-                      <Button>{action.label}</Button>
-                    </Link>
-                  ),
-                )}
+                {config.nextActions.map((action) => (
+                  <Button
+                    key={action.to + action.label}
+                    loading={pendingAction === action.to}
+                    onClick={() => {
+                      void handleNextAction(action.to);
+                    }}
+                  >
+                    {action.label}
+                  </Button>
+                ))}
               </Space>
             </div>
           </Space>

@@ -7,6 +7,8 @@ export interface AiQuotaAlertProps {
   quota?: AiQuotaSummary;
   estimatedTokens: number;
   toolName: string;
+  /** 访客额度是 0，不和试用次数叠在一起提示。 */
+  visible?: boolean;
 }
 
 /**
@@ -18,8 +20,9 @@ const AiQuotaAlert: React.FC<AiQuotaAlertProps> = ({
   quota,
   estimatedTokens,
   toolName,
+  visible = true,
 }) => {
-  if (!quota) return null;
+  if (!visible || !quota) return null;
 
   const insufficient = quota.remainingTokens < estimatedTokens;
   const lowBalance = quota.remainingTokens <= quota.lowBalanceThreshold;

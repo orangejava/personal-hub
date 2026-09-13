@@ -80,7 +80,10 @@ export class AiService {
             where: { userId: owner.userId },
             orderBy: { createdAt: 'desc' },
             take: 8,
-            include: { assets: { where: { deletedAt: null }, include: { file: true } } },
+            include: {
+              model: { select: { displayName: true } },
+              assets: { where: { deletedAt: null }, include: { file: true } },
+            },
           })
         : Promise.resolve([]),
       owner.type === AiOwnerType.ANONYMOUS ? this.guestTrial(owner.id) : Promise.resolve(null),
@@ -652,6 +655,8 @@ export class AiService {
     count?: number;
     size?: string;
     style?: string;
+    quality?: string;
+    resolution?: string;
   }, requestId: string, idempotencyKey: string) {
     await this.assertToolAvailable(AiToolCode.IMAGE);
     const model = await this.resolveModel(body.modelId, false, AiToolCode.IMAGE);
@@ -670,7 +675,13 @@ export class AiService {
           modelKeySnapshot: model.modelKey,
           prompt: body.prompt,
           negativePrompt: body.negativePrompt,
-          params: { count: body.count ?? 1, size: body.size, style: body.style },
+          params: {
+            count: body.count ?? 1,
+            size: body.size,
+            style: body.style,
+            quality: body.quality,
+            resolution: body.resolution,
+          },
           idempotencyKey,
           reservationId: reservation.id,
         },
@@ -686,7 +697,13 @@ export class AiService {
     return mapJob(job);
   }
 
-  async createVideoJob(userId: string, body: { prompt: string; modelId?: string }, requestId: string, idempotencyKey: string) {
+  async createVideoJob(userId: string, body: {
+    prompt: string;
+    modelId?: string;
+    size?: string;
+    style?: string;
+    durationSeconds?: number;
+  }, requestId: string, idempotencyKey: string) {
     await this.assertToolAvailable(AiToolCode.VIDEO);
     const model = await this.resolveModel(body.modelId, false, AiToolCode.VIDEO);
     const cost = model.fixedPlatformCost ?? 800;
@@ -703,6 +720,12 @@ export class AiService {
           modelId: model.id,
           modelKeySnapshot: model.modelKey,
           prompt: body.prompt,
+          params: {
+            count: 1,
+            size: body.size,
+            style: body.style,
+            durationSeconds: body.durationSeconds,
+          },
           idempotencyKey,
           reservationId: reservation.id,
         },
@@ -721,7 +744,10 @@ export class AiService {
   async getJob(userId: string, jobId: string) {
     const job = await this.prisma.aiGenerationJob.findFirst({
       where: { id: jobId, userId },
-      include: { assets: { where: { deletedAt: null }, include: { file: true } } },
+      include: {
+        model: { select: { displayName: true } },
+        assets: { where: { deletedAt: null }, include: { file: true } },
+      },
     });
     if (!job) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '任务不存在');
@@ -747,7 +773,10 @@ export class AiService {
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * pageSize,
         take: pageSize,
-        include: { assets: { where: { deletedAt: null }, include: { file: true } } },
+        include: {
+          model: { select: { displayName: true } },
+          assets: { where: { deletedAt: null }, include: { file: true } },
+        },
       }),
       this.prisma.aiGenerationJob.count({ where }),
     ]);
@@ -1026,7 +1055,7 @@ export class AiService {
       this.prisma.aiTemplate.findMany({ where: { isSystem: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
       this.prisma.aiEntitlement.findMany({ include: { role: true } }),
       this.readBranding(),
-      this.listNavigation({ includeHidden: true }),
+      this.listNavigation({ includeHidden: true, remapByTool: false }),
     ]);
     return {
       branding,
@@ -1200,21 +1229,25 @@ export class AiService {
     return { id: templateId, deleted: true };
   }
 
-  async listNavigation(input: { includeHidden?: boolean } = {}) {
+  async listNavigation(input: { includeHidden?: boolean; remapByTool?: boolean } = {}) {
     const [items, tools] = await Promise.all([
       this.prisma.aiNavigationItem.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
       this.prisma.aiTool.findMany(),
     ]);
     const toolByCode = new Map(tools.map((tool) => [tool.code, tool]));
+    const remapByTool = input.remapByTool !== false;
     return items
       .filter((item) => input.includeHidden || item.visible)
       .map((item) => {
         const tool = item.toolCode ? toolByCode.get(item.toolCode) : undefined;
         let status = item.status;
-        if (tool?.status === AiToolStatus.DISABLED) {
-          status = AiNavStatus.DISABLED;
-        } else if (tool?.status === AiToolStatus.COMING_SOON && status === AiNavStatus.ENABLED) {
-          status = AiNavStatus.COMING_SOON;
+        // 前台按「工具 ∩ 导航」取更严状态；后台配置页必须看到刚保存的导航值。
+        if (remapByTool) {
+          if (tool?.status === AiToolStatus.DISABLED) {
+            status = AiNavStatus.DISABLED;
+          } else if (tool?.status === AiToolStatus.COMING_SOON && status === AiNavStatus.ENABLED) {
+            status = AiNavStatus.COMING_SOON;
+          }
         }
         return {
           id: item.id,
@@ -1267,7 +1300,19 @@ export class AiService {
         version: { increment: 1 },
       },
     });
-    return (await this.listNavigation({ includeHidden: true })).find((item) => item.id === updated.id);
+    // 导航和工具必须一起改，否则前台 remapByTool 会把刚启用的入口盖回「即将上线」。
+    if (updated.toolCode && input.status === AiNavStatus.ENABLED) {
+      await this.prisma.aiTool.updateMany({
+        where: { code: updated.toolCode },
+        data: { status: AiToolStatus.ENABLED },
+      });
+    } else if (updated.toolCode && input.status === AiNavStatus.COMING_SOON) {
+      await this.prisma.aiTool.updateMany({
+        where: { code: updated.toolCode, status: { not: AiToolStatus.DISABLED } },
+        data: { status: AiToolStatus.COMING_SOON },
+      });
+    }
+    return (await this.listNavigation({ includeHidden: true, remapByTool: false })).find((item) => item.id === updated.id);
   }
 
   async sortNavigation(items: Array<{ id: string; sortOrder: number }>) {
@@ -1279,7 +1324,7 @@ export class AiService {
         }),
       ),
     );
-    return this.listNavigation({ includeHidden: true });
+    return this.listNavigation({ includeHidden: true, remapByTool: false });
   }
 
   async patchBranding(
@@ -1368,7 +1413,10 @@ export class AiService {
         where: { userId },
         orderBy: { createdAt: 'desc' },
         take: 8,
-        include: { assets: { where: { deletedAt: null }, include: { file: true } } },
+        include: {
+          model: { select: { displayName: true } },
+          assets: { where: { deletedAt: null }, include: { file: true } },
+        },
       }),
     ]);
     return {
@@ -1700,6 +1748,8 @@ function mapJob(
     toolType: AiToolCode;
     prompt: string;
     modelId: string;
+    modelKeySnapshot?: string;
+    model?: { displayName: string } | null;
     status: string;
     progress?: number;
     errorCode?: string | null;
@@ -1734,6 +1784,7 @@ function mapJob(
     title: row.prompt.slice(0, 40),
     prompt: row.prompt,
     modelId: row.modelId,
+    modelName: row.model?.displayName || row.modelKeySnapshot,
     status,
     progress: row.progress ?? 0,
     errorCode: row.errorCode ?? undefined,

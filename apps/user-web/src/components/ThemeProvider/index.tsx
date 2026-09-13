@@ -52,6 +52,18 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const { isDark, colorPrimary } = resolveTheme(pathname);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('ph-theme-dark', isDark);
+    if (colorPrimary) {
+      root.style.setProperty('--ph-color-primary', colorPrimary);
+    }
+    return () => {
+      root.classList.remove('ph-theme-dark');
+      root.style.removeProperty('--ph-color-primary');
+    };
+  }, [colorPrimary, isDark]);
+
   return (
     <ConfigProvider
       pagination={DEFAULT_TABLE_PAGINATION}

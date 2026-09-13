@@ -8,7 +8,7 @@ description: >-
 compatibility: Requires git. Works with Cursor, Claude Code, Codex, and other Agent Skills clients.
 metadata:
   author: personal-hub
-  version: "1.0"
+  version: "1.1"
 ---
 
 # Git Commit（personal-hub）
@@ -97,9 +97,30 @@ metadata:
 
 ### 2.4 body（可选）
 
+两种正文写法**都保留**，按变更跨度选用；不要互相替代。
+
+**默认：短段落**（单点或一个意图）
+
 - 与 summary 空一行
 - 写动机、影响范围、取舍；不要复述 diff
 - 需要时可用简短列表
+
+**编号提纲**（一次提交覆盖多个相关意图时）
+
+- 标题仍是一条 Conventional `type(scope): summary`，写**总意图**
+- 正文用 `1. 2. 3.` 列出子意图，每条一行
+- 条目只写中文短语，**不要**再写 `feat(ai):` 这类 type/scope
+- 适用：用户明确要求一笔提交、且 diff 跨多个相关能力
+- 不适用：单点小改、或用户未要求合并时（此时仍按 §3 拆批，用默认短段落）
+
+```text
+feat(ai): 对齐工作台主题导航并补齐各工具真实交互
+
+1. 工作台深浅色 token 与顶栏主题设置
+2. 导航缓存并让后台启用入口同步工具状态
+3. 对话先建会话并补齐额度与游客限制
+4. 图视频历史详情与生成参数落库
+```
 
 ### 2.5 footer（可选）
 
@@ -124,7 +145,7 @@ Closes #123
 2. 并行查看：`git status`、`git diff` / `git diff --staged`、`git log -5 --oneline`
 3. 决定暂存范围；`git add` 仅相关文件
 4. 自检暂存区：无 §5 禁止项
-5. 按 §2 起草 message；复杂时先向用户展示再等一句确认（若用户已说「按规范直接提交」则可直接 commit）
+5. 按 §2 起草 message：单点用默认短段落，多意图合并用编号提纲；复杂时先向用户展示再等一句确认（若用户已说「按规范直接提交」则可直接 commit）
 6. 使用 HEREDOC 提交：
 
 ```bash

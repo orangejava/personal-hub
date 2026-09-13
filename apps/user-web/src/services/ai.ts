@@ -1,5 +1,10 @@
 import { request } from '@umijs/max';
 import { getAccessToken } from '@personal-hub/api-client';
+import {
+  buildMediaJobBody,
+  readCreatedJobId,
+  resolveAiAssetDownloadName,
+} from '@/services/aiMediaJobBody';
 import type {
   AiAsset,
   AiAssetCreateInput,
@@ -193,7 +198,14 @@ export async function fetchAiGenerationJobs(params?: {
   }
   return request<{ list: AiGenerationTask[]; total: number; page: number; pageSize: number }>(
     '/api/v1/app/ai/generation-jobs',
-    { params },
+    {
+      params: {
+        page: params?.page,
+        pageSize: params?.pageSize,
+        // Nest JobListQueryDto 校验 Prisma UPPER_SNAKE，页面枚举仍是小写。
+        toolType: params?.toolType ? params.toolType.toUpperCase() : undefined,
+      },
+    },
   );
 }
 
@@ -280,6 +292,20 @@ export async function resolveAiAssetObjectUrl(asset: Pick<AiAsset, 'id' | 'fileU
   return objectUrl;
 }
 
+export { resolveAiAssetDownloadName } from '@/services/aiMediaJobBody';
+
+/** 鉴权媒体不能直接用 fileUrl 打开，先换成 blob 再触发下载。 */
+export async function downloadAiAsset(asset: AiAsset) {
+  const url = await resolveAiAssetObjectUrl(asset);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = resolveAiAssetDownloadName(asset);
+  link.rel = 'noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
 export async function fetchAiTemplates() {
   return request<AiTemplate[]>('/api/v1/app/ai/templates');
 }
@@ -287,9 +313,11 @@ export async function fetchAiTemplates() {
 export async function generateAiText(
   data: AiTextGenerateInput,
   signal?: AbortSignal,
-): Promise<AiTextGenerateResult> {
+  onEvent?: (payload: SsePayload) => void,
+): Promise<AiTextGenerateResult & { assistantMessageId?: string }> {
   let output = '';
   let tokens = 0;
+  let assistantMessageId: string | undefined;
   await consumeAiSse(
     {
       url: isLoggedIn() ? '/api/v1/app/ai/text-generations' : '/api/v1/public/ai/text-generations',
@@ -304,6 +332,9 @@ export async function generateAiText(
       signal,
     },
     (event) => {
+      if (event.type === 'STARTED' && event.assistantMessageId) {
+        assistantMessageId = event.assistantMessageId;
+      }
       if (event.type === 'DELTA' && event.content) {
         output += event.content;
       }
@@ -313,9 +344,10 @@ export async function generateAiText(
       if (event.type === 'ERROR') {
         throw new Error(event.code ?? '生成失败');
       }
+      onEvent?.(event);
     },
   );
-  return { output, estimatedTokens: tokens, task: {
+  return { output, estimatedTokens: tokens, assistantMessageId, task: {
     id: crypto.randomUUID(),
     toolType: 'text',
     title: data.scenario,
@@ -347,23 +379,30 @@ async function pollJob(kind: 'image' | 'video', jobId: string) {
 async function createMediaJob(
   kind: 'image' | 'video',
   data: AiMediaGenerateInput,
+  onCreated?: (task: AiGenerationTask) => void,
 ): Promise<AiMediaGenerateResult> {
   const created = await request<AiGenerationTask>(
     kind === 'image' ? '/api/v1/app/ai/image-generations' : '/api/v1/app/ai/video-generations',
     {
       method: 'POST',
-      data: {
-        prompt: data.prompt,
-        modelId: isUuid(data.modelId) ? data.modelId : undefined,
-        count: data.params?.count,
-        size: data.params?.size,
-        style: data.params?.style,
-        negativePrompt: data.params?.negativePrompt,
-      },
+      data: buildMediaJobBody(kind, data),
       headers: { 'Idempotency-Key': newIdempotencyKey() },
     },
   );
-  const job = await pollJob(kind, created.id);
+  const createdId = readCreatedJobId(created);
+  if (!createdId) {
+    throw new Error('创建生成任务失败，请稍后重试');
+  }
+  onCreated?.({
+    ...created,
+    id: createdId,
+    title: data.title || created.title,
+    params: data.params,
+    status: created.status === 'done' || created.status === 'failed' || created.status === 'stopped'
+      ? created.status
+      : 'generating',
+  });
+  const job = await pollJob(kind, createdId);
   const assets = job.assets ?? [];
   return {
     task: {
@@ -389,12 +428,18 @@ export async function cancelAiMediaJob(kind: 'image' | 'video', jobId: string) {
   );
 }
 
-export async function generateAiImage(data: AiMediaGenerateInput) {
-  return createMediaJob('image', data);
+export async function generateAiImage(
+  data: AiMediaGenerateInput,
+  onCreated?: (task: AiGenerationTask) => void,
+) {
+  return createMediaJob('image', data, onCreated);
 }
 
-export async function generateAiVideo(data: AiMediaGenerateInput) {
-  return createMediaJob('video', data);
+export async function generateAiVideo(
+  data: AiMediaGenerateInput,
+  onCreated?: (task: AiGenerationTask) => void,
+) {
+  return createMediaJob('video', data, onCreated);
 }
 
 export async function fetchAiSessions() {
@@ -457,7 +502,10 @@ export async function streamAiChat(input: {
   signal?: AbortSignal;
   onEvent: (payload: SsePayload) => void;
 }) {
-  if (isLoggedIn() && input.sessionId) {
+  if (isLoggedIn()) {
+    if (!input.sessionId) {
+      throw new Error('缺少会话，请先新建对话');
+    }
     await consumeAiSse(
       {
         url: `/api/v1/app/ai/sessions/${input.sessionId}/messages`,
@@ -475,7 +523,11 @@ export async function streamAiChat(input: {
   await consumeAiSse(
     {
       url: '/api/v1/public/ai/chat',
-      body: { content: input.content, sessionId: input.sessionId },
+      body: {
+        content: input.content,
+        sessionId: input.sessionId,
+        modelId: isUuid(input.modelId) ? input.modelId : undefined,
+      },
       signal: input.signal,
     },
     input.onEvent,

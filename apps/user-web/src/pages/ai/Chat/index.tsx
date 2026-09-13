@@ -16,6 +16,8 @@ import {
   type AiChatAdvancedSettingsValue,
   AiComposer,
   AiConversationHistoryPanel,
+  AiGuestLimitAlert,
+  AiQuotaAlert,
   AiReferencePicker,
   type AiReferenceItem,
   AiWorkspaceFrame,
@@ -27,11 +29,15 @@ import { AiXBubble } from '@/components/ai-x';
 import { ResultState } from '@/components/shared';
 import AiLayout from '@/layouts/AiLayout';
 import {
+  fetchAiHome,
   fetchAiMessages,
   fetchAiSessions,
+  isLoggedIn,
   updateAiMessageFeedback,
 } from '@/services/ai';
 import { fetchContentDetail } from '@/services/content';
+
+const EMPTY_CHAT_MESSAGES: AiMessage[] = [];
 
 const AiChatPage: React.FC = () => {
   const { message: messageApi, modal } = App.useApp();
@@ -39,7 +45,9 @@ const AiChatPage: React.FC = () => {
   const quotedContentId = searchParams.get('contentId') ?? '';
   const initialSessionId = searchParams.get('sessionId') ?? undefined;
   const isQuoteMode = searchParams.get('mode') === 'quote' && Boolean(quotedContentId);
-  const { consumeQuota } = useModel('ai');
+  const { initialState } = useModel('@@initialState');
+  const { consumeQuota, runtimeConfig } = useModel('ai');
+  const { data: homeData } = useRequest(fetchAiHome);
   const [value, setValue] = useState('');
   const [renameSessionId, setRenameSessionId] = useState<string>();
   const [renameTitle, setRenameTitle] = useState('');
@@ -73,7 +81,7 @@ const AiChatPage: React.FC = () => {
     setSessionMessages,
   } = useAiChatSessions({
     initialSessions,
-    initialMessages: [],
+    initialMessages: EMPTY_CHAT_MESSAGES,
     initialSessionId,
   });
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -133,7 +141,7 @@ const AiChatPage: React.FC = () => {
     [syncSessionAfterMessagesChange, updateCurrentMessages],
   );
   const handleCreateSession = useCallback(async () => {
-    await createNewSession({
+    return createNewSession({
       modelId: currentSettings.modelId ?? modelState.defaultModel?.id,
     });
   }, [createNewSession, currentSettings.modelId, modelState.defaultModel?.id]);
@@ -159,9 +167,23 @@ const AiChatPage: React.FC = () => {
     modelId: currentSettings.modelId,
     systemPrompt: currentSettings.systemPrompt,
     settings: currentSettings,
+    ensureSession: handleCreateSession,
     onMessagesChange: handleMessagesChange,
     onComplete: handleChatComplete,
   });
+  const isGuest = !initialState?.currentUser;
+  const chatTool = homeData?.tools.find((tool) => tool.code === 'chat');
+  const requiresLogin = Boolean(chatTool?.requiresLogin);
+  const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
+  const quotaInsufficient =
+    !isGuest &&
+    runtimeConfig.quota !== undefined &&
+    runtimeConfig.quota.remainingTokens <= 0;
+  const submitDisabled =
+    !modelState.hasModels ||
+    quotaInsufficient ||
+    (isGuest && requiresLogin) ||
+    (isGuest && guestLimitExceeded);
 
   const copyAssistantMessage = useCallback(
     async (message: AiMessage) => {
@@ -190,7 +212,7 @@ const AiChatPage: React.FC = () => {
         current.map((item) => (item.id === updatedMessage.id ? updatedMessage : item)),
       );
       messageApi[nextFeedback ? 'success' : 'info'](
-        nextFeedback ? '已记录反馈，后续会用于优化 mock 回复' : '已取消反馈',
+        nextFeedback ? '已记录反馈' : '已取消反馈',
       );
     },
     [messageApi, updateCurrentMessages],
@@ -298,7 +320,7 @@ const AiChatPage: React.FC = () => {
   }, [quotedContent]);
 
   useEffect(() => {
-    if (!currentSessionId) {
+    if (!currentSessionId || !isLoggedIn()) {
       setMessagesLoading(false);
       return;
     }
@@ -308,6 +330,10 @@ const AiChatPage: React.FC = () => {
       .then((res) => {
         if (cancelled) return;
         const nextMessages = res ?? [];
+        // 新建会话后立刻发送时，服务端消息还是空的，不能把本地气泡盖掉。
+        if (nextMessages.length === 0) {
+          return;
+        }
         setSessionMessages(currentSessionId, nextMessages);
         syncSessionAfterMessagesChange(nextMessages);
       })
@@ -334,6 +360,7 @@ const AiChatPage: React.FC = () => {
     <AiLayout>
       <AiWorkspaceFrame
         autoScrollKey={messageAutoScrollKey}
+        resetPinOnKeyChange={false}
         className="ph-ai-chat-shell ph-ai-workspace-frame-with-side"
         sidePanel={(
           <AiConversationHistoryPanel
@@ -392,7 +419,7 @@ const AiChatPage: React.FC = () => {
               <ResultState
                 actionText="新建对话"
                 actionTo="/ai/chat"
-                description="还没有可用的 mock 会话。"
+                description="还没有对话，可以直接提问或新建一个。"
                 status="empty"
               />
             )}
@@ -423,7 +450,7 @@ const AiChatPage: React.FC = () => {
                         icon={<ReloadOutlined />}
                         size="small"
                         type="text"
-                        onClick={regenerate}
+                        onClick={() => regenerate(message.id)}
                       />
                       <Button
                         aria-label={feedback ? '取消点踩反馈' : '点踩反馈'}
@@ -455,6 +482,7 @@ const AiChatPage: React.FC = () => {
               />
               <AiComposer
                 loading={isGenerating}
+                submitDisabled={submitDisabled}
                 model={{
                   value: currentSettings.modelId,
                   options: modelState.options,
@@ -521,6 +549,20 @@ const AiChatPage: React.FC = () => {
                 onOptimize={optimizePrompt}
                 onStop={stopGenerating}
                 onSubmit={submitMessage}
+              />
+              <AiQuotaAlert
+                estimatedTokens={1}
+                quota={runtimeConfig.quota}
+                toolName="AI 对话"
+                visible={!isGuest}
+              />
+              <AiGuestLimitAlert
+                dailyLimit={homeData?.guestTrial?.dailyLimit}
+                exceeded={guestLimitExceeded}
+                isGuest={isGuest}
+                remainingUses={homeData?.guestTrial?.remaining}
+                requiresLogin={requiresLogin}
+                toolName="AI 对话"
               />
             </Space>
           </div>

@@ -81,16 +81,20 @@ const AiTextPage: React.FC = () => {
     value: generation.draft.modelId,
     onDefaultModel: (modelId) => generation.updateDraft({ modelId }),
   });
+  const isGuest = !initialState?.currentUser;
+  const textTool = homeData?.tools.find((tool) => tool.code === 'text');
+  const requiresLogin = Boolean(textTool?.requiresLogin);
   const quotaInsufficient =
+    !isGuest &&
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < generation.tokenEstimate;
-  const isGuest = !initialState?.currentUser;
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const canSubmit =
     generation.canGenerate &&
     modelState.hasModels &&
     !quotaInsufficient &&
-    !guestLimitExceeded;
+    !(isGuest && requiresLogin) &&
+    !(isGuest && guestLimitExceeded);
 
   useEffect(() => {
     if (!activeTemplate || appliedTemplateIdRef.current === activeTemplate.id) return;
@@ -140,7 +144,7 @@ const AiTextPage: React.FC = () => {
         description={
           activeTemplate
             ? `已从首页模板预填：${activeTemplate.title}`
-            : '文本生成支持写作、改写、摘要、扩写、翻译和自定义 Prompt，当前使用 mock 流式输出。'
+            : '文本生成支持写作、改写、摘要、扩写、翻译和自定义 Prompt。'
         }
         title="文本生成"
       />
@@ -201,22 +205,23 @@ const AiTextPage: React.FC = () => {
 
           <div className="ph-ai-text-actions">
             <Space wrap>
-              <Button
-                icon={<FileTextOutlined />}
-                type="primary"
-                disabled={!canSubmit}
-                loading={generation.isGenerating}
-                onClick={generation.generate}
-              >
-                生成文本
-              </Button>
-              <Button
-                icon={<StopOutlined />}
-                disabled={!generation.isGenerating}
-                onClick={generation.stop}
-              >
-                停止生成
-              </Button>
+              {generation.isGenerating ? (
+                <Button
+                  icon={<StopOutlined />}
+                  onClick={generation.stop}
+                >
+                  停止生成
+                </Button>
+              ) : (
+                <Button
+                  icon={<FileTextOutlined />}
+                  type="primary"
+                  disabled={!canSubmit}
+                  onClick={generation.generate}
+                >
+                  生成文本
+                </Button>
+              )}
               <Button
                 icon={<ReloadOutlined />}
                 disabled={generation.isGenerating || !generation.hasOutput}
@@ -235,12 +240,14 @@ const AiTextPage: React.FC = () => {
             estimatedTokens={generation.tokenEstimate}
             quota={runtimeConfig.quota}
             toolName="文本生成"
+            visible={!isGuest}
           />
           <AiGuestLimitAlert
             dailyLimit={homeData?.guestTrial?.dailyLimit}
             exceeded={guestLimitExceeded}
             isGuest={isGuest}
             remainingUses={homeData?.guestTrial?.remaining}
+            requiresLogin={requiresLogin}
             toolName="文本生成"
           />
         </Card>

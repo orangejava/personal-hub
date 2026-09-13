@@ -4,6 +4,7 @@ import { Button, Card, Col, Input, Row, Skeleton, Space, Statistic, Tag } from '
 import React, { useMemo, useState } from 'react';
 import type {
   AiGenerationStatus,
+  AiModel,
   AiTemplate,
   AiTool,
   AiToolStatus,
@@ -59,6 +60,11 @@ function filterTools(tools: AiTool[], keyword: string) {
   );
 }
 
+function resolveModelLabel(models: AiModel[] | undefined, modelId?: string) {
+  if (!modelId) return undefined;
+  return models?.find((item) => item.id === modelId)?.name;
+}
+
 function filterTemplates(templates: AiTemplate[], keyword: string) {
   return templates.filter((template) =>
     includesKeyword(
@@ -100,7 +106,7 @@ const AiHome: React.FC = () => {
       }
     >
       <AiPageHeader
-        description="聚合对话、文本、图片、视频和模板入口，配置来自 Nest AI 首页与导航。"
+        description="聚合对话、文本、图片、视频和模板入口。"
         title="AI 工作台"
       />
 
@@ -174,13 +180,20 @@ const AiHome: React.FC = () => {
                     >
                       <Space size={6} wrap>
                         <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
-                        {tool.guestTrialEnabled && <Tag color="green">游客试用</Tag>}
-                        {tool.requiresLogin && <Tag>需登录</Tag>}
+                        {tool.requiresLogin ? (
+                          <Tag>需登录</Tag>
+                        ) : (
+                          tool.guestTrialEnabled && <Tag color="green">游客试用</Tag>
+                        )}
                       </Space>
                       <h3 style={{ margin: '12px 0 6px' }}>{tool.name}</h3>
                       <p className="ph-text-secondary">{tool.description}</p>
                       <div className="ph-ai-tool-card-meta">
-                        {tool.defaultModelId && <span>默认模型：{tool.defaultModelId}</span>}
+                        {resolveModelLabel(home.models, tool.defaultModelId) && (
+                          <span>
+                            默认模型：{resolveModelLabel(home.models, tool.defaultModelId)}
+                          </span>
+                        )}
                         {tool.tokenCostLabel && <span>{tool.tokenCostLabel}</span>}
                       </div>
                       {enabled ? (
@@ -221,7 +234,9 @@ const AiHome: React.FC = () => {
                       <Space size={6} wrap>
                         <Tag color={toolMeta.color}>{toolMeta.text}</Tag>
                         <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
-                        <Tag>{activity.modelId}</Tag>
+                        {resolveModelLabel(home.models, activity.modelId) && (
+                          <Tag>{resolveModelLabel(home.models, activity.modelId)}</Tag>
+                        )}
                       </Space>
                       <strong>{activity.title}</strong>
                       {activity.description && <span>{activity.description}</span>}
@@ -249,7 +264,11 @@ const AiHome: React.FC = () => {
             ) : (
               <div className="ph-ai-card-grid">
                 {visibleTemplates.map((template) => (
-                  <AiTemplateCard key={template.id} template={template} />
+                  <AiTemplateCard
+                    key={template.id}
+                    modelName={resolveModelLabel(home.models, template.modelId)}
+                    template={template}
+                  />
                 ))}
               </div>
             )}

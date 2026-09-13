@@ -14,7 +14,7 @@ import { fetchAiMembership } from '@/services/ai';
 
 const AiMembershipPage: React.FC = () => {
   const { runtimeConfig, setMembership, updateRuntimeConfig } = useModel('ai');
-  const { data, loading } = useRequest(fetchAiMembership, {
+  const { data, loading, error } = useRequest(fetchAiMembership, {
     onSuccess: (membership) => {
       setMembership(membership);
       updateRuntimeConfig({
@@ -58,6 +58,13 @@ const AiMembershipPage: React.FC = () => {
 
       {loading ? (
         <Skeleton active paragraph={{ rows: 10 }} />
+      ) : error ? (
+        <Alert
+          showIcon
+          type="warning"
+          title="会员中心暂不可用"
+          description={error.message || '后台恢复启用后再访问。'}
+        />
       ) : (
         <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           <div className="ph-ai-membership-summary">

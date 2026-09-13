@@ -42,9 +42,9 @@ interface AiComposerProps {
   onOptimize?: (value: string) => string | Promise<string>;
 }
 
-const DEFAULT_MIN_HEIGHT = 132;
-const DEFAULT_HEIGHT = 148;
-const DEFAULT_MAX_HEIGHT = 260;
+const DEFAULT_MIN_HEIGHT = 72;
+const DEFAULT_HEIGHT = 88;
+const DEFAULT_MAX_HEIGHT = 200;
 
 /**
  * AI 创作输入框。
@@ -131,7 +131,9 @@ const AiComposer: React.FC<AiComposerProps> = ({
               loading={model.loading}
               options={model.options}
               placeholder={model.placeholder ?? '选择模型'}
+              popupMatchSelectWidth={240}
               size="small"
+              style={{ width: 184 }}
               value={model.value}
               onChange={model.onChange}
             />

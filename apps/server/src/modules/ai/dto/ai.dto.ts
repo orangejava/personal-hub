@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
@@ -113,7 +113,7 @@ export class TextGenerateDto {
 
 export class ImageGenerateDto {
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(4000)
   prompt!: string;
 
   @IsOptional()
@@ -141,6 +141,43 @@ export class ImageGenerateDto {
   @IsString()
   @MaxLength(40)
   style?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  quality?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  resolution?: string;
+}
+
+export class VideoGenerateDto {
+  @IsString()
+  @MaxLength(4000)
+  prompt!: string;
+
+  @IsOptional()
+  @IsUUID()
+  modelId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  size?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  style?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  durationSeconds?: number;
 }
 
 export class CreateTemplateDto {
@@ -222,6 +259,7 @@ export class PublicChatDto {
 
 export class JobListQueryDto extends PageQueryDto {
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsEnum(AiToolCode)
   toolType?: AiToolCode;
 
@@ -243,6 +281,7 @@ export class UsageQueryDto extends PageQueryDto {
   to?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsEnum(AiToolCode)
   toolType?: AiToolCode;
 }
@@ -371,6 +410,12 @@ export class PatchNavigationDto {
   visible?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value !== 'string') return value;
+    const normalized = value.trim();
+    if (normalized === 'comingSoon') return 'COMING_SOON';
+    return normalized.toUpperCase();
+  })
   @IsEnum(AiNavStatus)
   status?: AiNavStatus;
 

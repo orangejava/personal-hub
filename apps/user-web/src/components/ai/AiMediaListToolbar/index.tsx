@@ -36,9 +36,10 @@ const presetOptions: { label: string; value: AiMediaTimePreset }[] = [
 const { RangePicker } = DatePicker;
 
 /**
- * 图片 / 视频消息列表右侧筛选工具。
+ * 图片 / 视频记录筛选条。
  *
- * 搜索输入先落到本地草稿，回车或失焦后再提交，避免用户每输入一个字就刷新列表。
+ * 交互保持原来的胶囊条：默认是搜索图标，点开后再展开输入；时间筛选在右侧。
+ * 只换挂载位置，不改这套操作节奏。
  */
 const AiMediaListToolbar: React.FC<AiMediaListToolbarProps> = ({
   keyword,
@@ -63,23 +64,31 @@ const AiMediaListToolbar: React.FC<AiMediaListToolbarProps> = ({
     onKeywordChange(draftKeyword.trim());
   };
 
+  const handleRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+    const [nextStart, nextEnd] = dates ?? [null, null];
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
+    if (!nextStart && !nextEnd) {
+      onTimePresetChange('all');
+      onDateRangeChange?.([undefined, undefined]);
+      return;
+    }
+    onTimePresetChange('custom');
+    onDateRangeChange?.([
+      nextStart?.startOf('day').toISOString(),
+      nextEnd?.endOf('day').toISOString(),
+    ]);
+  };
+
   const timeContent = (
     <div className="ph-ai-media-filter-popover">
       <Space orientation="vertical" size={10} style={{ width: '100%' }}>
         <RangePicker
+          allowClear
           className="ph-ai-media-filter-range"
           placeholder={['开始时间', '结束时间']}
           value={[startDate, endDate]}
-          onChange={(dates) => {
-            const [nextStart, nextEnd] = dates ?? [null, null];
-            setStartDate(nextStart);
-            setEndDate(nextEnd);
-            onTimePresetChange('custom');
-            onDateRangeChange?.([
-              nextStart?.toISOString(),
-              nextEnd?.toISOString(),
-            ]);
-          }}
+          onChange={handleRangeChange}
         />
         <div className="ph-ai-media-filter-presets">
           {presetOptions.map((option) => (

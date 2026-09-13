@@ -18,6 +18,7 @@ import {
   ExperimentOutlined,
   DeploymentUnitOutlined,
   SendOutlined,
+  SettingOutlined,
   UserOutlined,
   VideoCameraOutlined,
   FolderOutlined,
@@ -27,11 +28,12 @@ import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
+import PublicThemeDrawer from '@/components/PublicThemeDrawer';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import UserAccountPopover from '@/components/shared/UserAccountPopover';
-import { useRequest } from '@/hooks/useRequest';
+import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
-import { fetchAiNavigation } from '@/services/ai';
+import { setThemePreference } from '@/utils/clientPreferences';
 import '@/styles/ai-layout.less';
 import '@/styles/ai-components.less';
 import '@/styles/ai-motion.less';
@@ -460,15 +462,23 @@ const AiLayout: React.FC<AiLayoutProps> = ({
   children,
 }) => {
   const location = useLocation();
-  const { initialState } = useModel('@@initialState');
-  const { colorPrimary, isDark } = usePublicTheme();
-  const { runtimeConfig, loadHomeConfig } = useModel('ai');
-  const { data: navigation } = useRequest(fetchAiNavigation, {
-    refreshOnWindowFocus: true,
-  });
+  const { initialState, setInitialState } = useModel('@@initialState');
+  const { settings: publicSettings, colorPrimary, isDark } = usePublicTheme();
+  const { runtimeConfig, loadHomeConfig, navigation, loadNavigation } = useModel('ai');
   const resolvedNavItems = useMemo(() => buildNavItems(navigation), [navigation]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    void loadNavigation();
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') {
+        void loadNavigation();
+      }
+    };
+    document.addEventListener('visibilitychange', refreshIfVisible);
+    return () => document.removeEventListener('visibilitychange', refreshIfVisible);
+  }, [loadNavigation]);
 
   useEffect(() => {
     if (runtimeConfig.quota && runtimeConfig.tools) return;
@@ -500,17 +510,9 @@ const AiLayout: React.FC<AiLayoutProps> = ({
     ? resolveNavStatus(currentLeaf, runtimeConfig.tools)
     : undefined;
   const pageUnavailable = isUnavailableStatus(currentNavStatus);
-  const autoCollapsedPaths = [
-    '/ai/chat',
-    '/ai/text',
-    '/ai/image',
-    '/ai/video',
-    '/ai/webui',
-    '/ai/comfyui',
-    '/ai/lora',
-    '/ai/apps',
-  ];
-  const isFocusedWorkspace = autoCollapsedPaths.some((path) =>
+  const autoCollapsedPaths = ['/ai/chat', '/ai/text', '/ai/image', '/ai/video'];
+  const focusedWorkspacePaths = ['/ai/chat', '/ai/image', '/ai/video'];
+  const isFocusedWorkspace = focusedWorkspacePaths.some((path) =>
     location.pathname.startsWith(path),
   );
 
@@ -569,8 +571,9 @@ const AiLayout: React.FC<AiLayoutProps> = ({
                 type="text"
                 onClick={() => setMobileDrawerOpen(true)}
               />
-              <Tag color="blue">工作台</Tag>
-              <span>AI 工作台</span>
+              <span className="ph-ai-topbar-title">
+                {collapsed ? resolvedBrandName : (currentLeaf?.label ?? resolvedBrandName)}
+              </span>
             </Space>
             <Space size={12}>
               <Link to="/">
@@ -579,6 +582,17 @@ const AiLayout: React.FC<AiLayoutProps> = ({
                 </Button>
               </Link>
               <Tag color="green">{resolvedQuotaText}</Tag>
+              <Button
+                aria-label="主题设置"
+                icon={<SettingOutlined />}
+                type="text"
+                onClick={() =>
+                  setInitialState((state) => ({
+                    ...state,
+                    publicSettingDrawerOpen: true,
+                  }))
+                }
+              />
               <AiUserPopover
                 planName={runtimeConfig.currentPlanName}
                 quotaText={resolvedQuotaText}
@@ -596,6 +610,21 @@ const AiLayout: React.FC<AiLayoutProps> = ({
             )}
           </section>
         </main>
+
+        <PublicThemeDrawer
+          open={!!initialState?.publicSettingDrawerOpen}
+          settings={publicSettings ?? publicDefaultSettings}
+          onClose={() =>
+            setInitialState((state) => ({
+              ...state,
+              publicSettingDrawerOpen: false,
+            }))
+          }
+          onChange={(next) => {
+            setThemePreference(next);
+            setInitialState((state) => ({ ...state, publicSettings: next }));
+          }}
+        />
 
         <Drawer
           className="ph-ai-mobile-drawer"

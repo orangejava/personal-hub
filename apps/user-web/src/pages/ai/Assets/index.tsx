@@ -630,33 +630,36 @@ const AiAssetsPage: React.FC = () => {
                           恢复
                         </Button>
                       ) : (
-                        <Space key="active-actions" size={0}>
-                          <Select
-                            aria-label={`移动 ${asset.title} 到文件夹`}
-                            options={folderOptions}
-                            placeholder="移动"
-                            popupMatchSelectWidth={false}
-                            size="small"
-                            style={{ width: 86 }}
-                            value={undefined}
-                            onChange={(value) => handleSingleFolderChange(asset, value)}
-                          />
-                          <Button
-                            danger
-                            icon={<DeleteOutlined />}
-                            loading={operating}
-                            size="small"
-                            type="text"
-                            onClick={() =>
-                              runAssetAction(
-                                () => trashAiAsset(asset.id),
-                                '已移入回收站',
-                              )
-                            }
-                          >
-                            删除
-                          </Button>
-                        </Space>
+                        <Select
+                          aria-label={`移动 ${asset.title} 到文件夹`}
+                          key="move"
+                          options={folderOptions}
+                          placeholder="移动"
+                          popupMatchSelectWidth={false}
+                          size="small"
+                          value={undefined}
+                          onChange={(value) => handleSingleFolderChange(asset, value)}
+                        />
+                      ),
+                      asset.status === 'trashed' ? (
+                        <span key="trashed-spacer" />
+                      ) : (
+                        <Button
+                          danger
+                          icon={<DeleteOutlined />}
+                          key="delete"
+                          loading={operating}
+                          size="small"
+                          type="text"
+                          onClick={() =>
+                            runAssetAction(
+                              () => trashAiAsset(asset.id),
+                              '已移入回收站',
+                            )
+                          }
+                        >
+                          删除
+                        </Button>
                       ),
                     ]}
                   >
@@ -675,7 +678,7 @@ const AiAssetsPage: React.FC = () => {
                       {asset.shared && <Tag color="green">已分享</Tag>}
                     </Space>
                     <h3>{asset.title}</h3>
-                    <p className="ph-text-secondary">{asset.prompt}</p>
+                    <p className="ph-ai-asset-card-desc">{asset.prompt?.trim() || '\u00a0'}</p>
                     <div className="ph-ai-asset-meta">
                       <span>{asset.folderName ?? '未归档'}</span>
                       <span>{new Date(asset.updatedAt).toLocaleDateString()}</span>

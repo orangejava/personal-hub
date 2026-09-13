@@ -37,6 +37,7 @@ import {
   SendMessageDto,
   TextGenerateDto,
   UsageQueryDto,
+  VideoGenerateDto,
 } from './dto/ai.dto';
 
 @ApiTags('App AI')
@@ -289,9 +290,9 @@ export class AppAiController {
   @RequirePermission('ai:use')
   @RequireIdempotency({ highRisk: true })
   @HttpCode(HttpStatus.ACCEPTED)
-  video(@Body() body: ImageGenerateDto, @CurrentAuth() auth: RequestAuthContext, @Req() request: Request) {
+  video(@Body() body: VideoGenerateDto, @CurrentAuth() auth: RequestAuthContext, @Req() request: Request) {
     const key = request.header('idempotency-key') ?? request.requestId;
-    return this.ai.createVideoJob(auth.userId, { prompt: body.prompt, modelId: body.modelId }, request.requestId, key);
+    return this.ai.createVideoJob(auth.userId, body, request.requestId, key);
   }
 
   @Get('video-generations/:jobId')

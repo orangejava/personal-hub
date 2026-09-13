@@ -281,6 +281,8 @@ export interface AiGenerationTask {
   title: string;
   prompt: string;
   modelId: string;
+  /** 任务创建时的模型展示名；列表优先用它，避免只剩 UUID。 */
+  modelName?: string;
   status: AiGenerationStatus;
   assetIds: string[];
   assets?: AiAsset[];

@@ -9,6 +9,7 @@ export interface AiGuestLimitAlertProps {
   toolName: string;
   dailyLimit?: number;
   remainingUses?: number;
+  requiresLogin?: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
   toolName,
   dailyLimit = 3,
   remainingUses = 1,
+  requiresLogin,
 }) => {
   const location = useLocation();
   if (!isGuest) return null;
@@ -28,14 +30,18 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
     <Alert
       showIcon
       className="ph-ai-guest-limit-alert"
-      type={exceeded ? 'warning' : 'info'}
-      title={exceeded ? '访客试用已用完' : '访客试用模式'}
+      type={requiresLogin || exceeded ? 'warning' : 'info'}
+      title={
+        requiresLogin ? '需要登录' : exceeded ? '访客试用已用完' : '访客试用模式'
+      }
       description={
         <Space orientation="vertical" size={4}>
           <Typography.Text>
-            {exceeded
-              ? `${toolName}今日访客试用次数已达 ${dailyLimit} 次上限。`
-              : `${toolName}今日访客可试用 ${dailyLimit} 次，剩余 ${remainingUses} 次。`}
+            {requiresLogin
+              ? `${toolName}需要登录后使用，访客无法直接生成。`
+              : exceeded
+                ? `${toolName}今日访客试用次数已达 ${dailyLimit} 次上限。`
+                : `${toolName}今日访客可试用 ${dailyLimit} 次，剩余 ${remainingUses} 次。`}
           </Typography.Text>
           <Typography.Text type="secondary">
             登录后可保存历史、使用会员额度，并解除访客试用次数限制。
@@ -48,7 +54,7 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
             `${location.pathname}${location.search}${location.hash}`,
           )}
         >
-          <Button size="small" type={exceeded ? 'primary' : 'default'}>
+          <Button size="small" type={exceeded || requiresLogin ? 'primary' : 'default'}>
             去登录
           </Button>
         </Link>

@@ -4,6 +4,12 @@ import React from 'react';
 
 type AiConfigValue = string | number;
 
+/** 接口可能把数字存成字符串，用宽松比较才能标出当前选中项。 */
+function isConfigOptionActive(option: AiConfigValue, current?: AiConfigValue) {
+  if (current === undefined || current === null || current === '') return false;
+  return String(option) === String(current);
+}
+
 interface AiConfigOption {
   label: React.ReactNode;
   value: AiConfigValue;
@@ -60,7 +66,7 @@ const AiConfigPopover: React.FC<AiConfigPopoverProps> = ({
             }
           >
             {group.options.map((option) => {
-              const active = option.value === group.value;
+              const active = isConfigOptionActive(option.value, group.value);
               return (
                 <button
                   className={[
@@ -93,6 +99,7 @@ const AiConfigPopover: React.FC<AiConfigPopoverProps> = ({
   return (
     <Popover
       arrow={false}
+      classNames={{ root: 'ph-ai-config-popover-root' }}
       content={content}
       placement="topLeft"
       title={title}

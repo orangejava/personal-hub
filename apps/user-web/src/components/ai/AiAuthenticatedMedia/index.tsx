@@ -6,6 +6,8 @@ interface AiAuthenticatedMediaProps {
   asset: AiAsset;
   className?: string;
   alt?: string;
+  /** 列表缩略图关掉原生控件，避免和 hover 操作条抢点击。 */
+  controls?: boolean;
 }
 
 /**
@@ -16,6 +18,7 @@ const AiAuthenticatedMedia: React.FC<AiAuthenticatedMediaProps> = ({
   asset,
   className,
   alt,
+  controls = true,
 }) => {
   const [src, setSrc] = useState<string>();
 
@@ -44,7 +47,16 @@ const AiAuthenticatedMedia: React.FC<AiAuthenticatedMediaProps> = ({
     return <div className={className} />;
   }
   if (asset.type === 'video') {
-    return <video className={className} controls src={src} />;
+    return (
+      <video
+        className={className}
+        controls={controls}
+        muted={!controls}
+        playsInline
+        preload="metadata"
+        src={src}
+      />
+    );
   }
   return <img alt={alt ?? asset.title} className={className} src={src} />;
 };

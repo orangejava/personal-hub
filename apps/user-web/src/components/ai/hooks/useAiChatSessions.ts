@@ -50,18 +50,22 @@ export function useAiChatSessions({
   }, [initialSessionId, initialSessions]);
 
   useEffect(() => {
+    if (initialMessages.length === 0) {
+      return;
+    }
     setMessagesBySession((current) => {
+      let changed = false;
       const next = { ...current };
       for (const message of initialMessages) {
         if (!message.sessionId) continue;
-        if (!next[message.sessionId]) {
-          next[message.sessionId] = [];
+        const existing = next[message.sessionId] ?? [];
+        if (existing.some((item) => item.id === message.id)) {
+          continue;
         }
-        if (!next[message.sessionId].some((item) => item.id === message.id)) {
-          next[message.sessionId] = [...next[message.sessionId], message];
-        }
+        next[message.sessionId] = [...existing, message];
+        changed = true;
       }
-      return next;
+      return changed ? next : current;
     });
   }, [initialMessages]);
 

@@ -8,8 +8,14 @@ interface UseAiChatOptions {
   modelId?: string;
   systemPrompt?: string;
   settings?: AiConversationSettings;
+  /** 还没有会话时先建一条，避免登录用户回落到匿名接口。 */
+  ensureSession?: () => Promise<string>;
   onMessagesChange?: (messages: AiMessage[]) => void;
   onComplete?: (messages: AiMessage[], tokenCount: number) => void;
+}
+
+function isPlaceholderSessionId(sessionId?: string) {
+  return !sessionId || sessionId === 'pending-session' || sessionId.startsWith('msg-');
 }
 
 function createMessage(
@@ -44,6 +50,7 @@ export function useAiChat({
   initialMessages,
   sessionId = 'pending-session',
   modelId,
+  ensureSession,
   onMessagesChange,
   onComplete,
 }: UseAiChatOptions) {
@@ -84,19 +91,26 @@ export function useAiChat({
   }, []);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    async (content: string) => {
       const normalized = content.trim();
       if (!normalized || streamingMessageId) {
         return;
       }
-      const userMessage = createMessage(sessionId, 'user', normalized);
-      const assistant = createMessage(sessionId, 'assistant', '', 'generating');
+      let resolvedSessionId = sessionId;
+      if (isPlaceholderSessionId(resolvedSessionId)) {
+        if (!ensureSession) {
+          return;
+        }
+        resolvedSessionId = await ensureSession();
+      }
+      const userMessage = createMessage(resolvedSessionId, 'user', normalized);
+      const assistant = createMessage(resolvedSessionId, 'assistant', '', 'generating');
       commitMessages((current) => [...current, userMessage, assistant]);
       setStreamingMessageId(assistant.id);
       const controller = new AbortController();
       abortRef.current = controller;
       void streamAiChat({
-        sessionId: sessionId.startsWith('msg-') || sessionId === 'pending-session' ? undefined : sessionId,
+        sessionId: resolvedSessionId,
         content: normalized,
         modelId,
         signal: controller.signal,
@@ -156,7 +170,7 @@ export function useAiChat({
         setStreamingMessageId(undefined);
       });
     },
-    [commitMessages, modelId, onComplete, sessionId, streamingMessageId],
+    [commitMessages, ensureSession, modelId, onComplete, sessionId, streamingMessageId],
   );
 
   const stopGenerating = useCallback(() => {
@@ -175,11 +189,13 @@ export function useAiChat({
     setStreamingMessageId(undefined);
   }, [abortLocal, commitMessages, streamingMessageId]);
 
-  const regenerate = useCallback(() => {
+  const regenerate = useCallback((messageId?: string) => {
     if (streamingMessageId) {
       return;
     }
-    const lastAssistant = [...messages].reverse().find((item) => item.role === 'assistant');
+    const lastAssistant = messageId
+      ? messages.find((item) => item.id === messageId && item.role === 'assistant')
+      : [...messages].reverse().find((item) => item.role === 'assistant');
     if (!lastAssistant || lastAssistant.id.startsWith('msg-')) {
       return;
     }

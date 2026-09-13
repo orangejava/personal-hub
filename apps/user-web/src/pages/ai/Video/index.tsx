@@ -1,12 +1,9 @@
 import { useModel, useSearchParams } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
-import type { AiAsset } from '@personal-hub/shared-types';
+import type { AiAsset, AiGenerationTask } from '@personal-hub/shared-types';
 import {
   App,
   Alert,
-  Button,
-  Descriptions,
-  Drawer,
   Skeleton,
   Space,
   Tag,
@@ -16,18 +13,19 @@ import {
   AiComposer,
   AiConfigPopover,
   type AiConfigGroup,
-  AiAuthenticatedMedia,
   AiGenerationStream,
   AiGuestLimitAlert,
+  AiMediaDetailModal,
   AiMediaListToolbar,
   type AiMediaTimePreset,
   AiQuotaAlert,
   AiWorkspaceFrame,
   useAiAvailableModels,
   useAiGeneration,
+  useAiMediaJobHistory,
 } from '@/components/ai';
 import AiLayout from '@/layouts/AiLayout';
-import { fetchAiGenerationJobs, fetchAiHome } from '@/services/ai';
+import { fetchAiHome } from '@/services/ai';
 
 const videoSizeOptions = [
   { label: '横屏 16:9', value: '16:9' },
@@ -59,24 +57,30 @@ function getVideoRatioIcon(size?: string) {
 
 const AiVideoPage: React.FC = () => {
   const { message } = App.useApp();
-  const { data: jobsPage, loading } = useRequest(() =>
-    fetchAiGenerationJobs({ toolType: 'video', pageSize: 20 }),
-  );
+  const {
+    historyTasks,
+    loading,
+    visibleCount: visibleRecordCount,
+    loadMore: loadMoreMediaRecords,
+    resetVisible,
+  } = useAiMediaJobHistory('video');
   const [searchParams] = useSearchParams();
   const { initialState } = useModel('@@initialState');
   const { runtimeConfig } = useModel('ai');
   const templateId = searchParams.get('templateId');
   const appliedTemplateIdRef = useRef<string | undefined>(undefined);
   const { data: homeData } = useRequest(fetchAiHome);
-  const [detailAsset, setDetailAsset] = useState<AiAsset | null>(null);
+  const [detail, setDetail] = useState<{
+    asset: AiAsset;
+    assets: AiAsset[];
+    task?: AiGenerationTask;
+  } | null>(null);
   const [mediaKeyword, setMediaKeyword] = useState('');
   const [timePreset, setTimePreset] = useState<AiMediaTimePreset>('all');
   const [dateRange, setDateRange] = useState<[string | undefined, string | undefined]>([
     undefined,
     undefined,
   ]);
-  const [visibleRecordCount, setVisibleRecordCount] = useState(10);
-  const historyTasks = useMemo(() => jobsPage?.list ?? [], [jobsPage?.list]);
   const initialAssets = useMemo(
     () => historyTasks[0]?.assets ?? [],
     [historyTasks],
@@ -113,11 +117,21 @@ const AiVideoPage: React.FC = () => {
     value: generation.draft.modelId,
     onDefaultModel: (modelId) => generation.updateDraft({ modelId }),
   });
+  const modelNames = useMemo(() => {
+    const fromHistory = historyTasks.flatMap((task) =>
+      task.modelName ? ([[task.modelId, task.modelName]] as const) : [],
+    );
+    const fromAvailable = modelState.models.map((model) => [model.id, model.name] as const);
+    return Object.fromEntries([...fromHistory, ...fromAvailable]);
+  }, [historyTasks, modelState.models]);
   const estimatedTokens = 1500 * (generation.draft.params.count ?? 1);
+  const isGuest = !initialState?.currentUser;
+  const videoTool = homeData?.tools.find((tool) => tool.code === 'video');
+  const requiresLogin = Boolean(videoTool?.requiresLogin);
   const quotaInsufficient =
+    !isGuest &&
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < estimatedTokens;
-  const isGuest = !initialState?.currentUser;
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const configGroups = useMemo<AiConfigGroup[]>(
     () => [
@@ -126,7 +140,7 @@ const AiVideoPage: React.FC = () => {
         title: '视频比例',
         type: 'grid',
         columns: 3,
-        value: generation.draft.params.size,
+        value: generation.draft.params.size ?? '16:9',
         options: videoSizeOptions.map((option) => ({
           ...option,
           icon: <span className={getVideoRatioIcon(String(option.value))} />,
@@ -137,7 +151,7 @@ const AiVideoPage: React.FC = () => {
         key: 'duration',
         title: '视频时长',
         type: 'segmented',
-        value: generation.draft.params.durationSeconds,
+        value: generation.draft.params.durationSeconds ?? 6,
         options: durationOptions,
         onChange: (durationSeconds) =>
           generation.updateParams({ durationSeconds: Number(durationSeconds) }),
@@ -147,7 +161,7 @@ const AiVideoPage: React.FC = () => {
         title: '镜头风格',
         type: 'grid',
         columns: 4,
-        value: generation.draft.params.style,
+        value: generation.draft.params.style ?? '产品运镜',
         options: videoStyleOptions,
         onChange: (style) => generation.updateParams({ style: String(style) }),
       },
@@ -176,16 +190,22 @@ const AiVideoPage: React.FC = () => {
     message.info(`已应用模板：${activeTemplate.title}`);
   }, [activeTemplate, generation.applyDraft, message]);
 
-  const generateAndConsumeQuota = async () => {
-    await generation.regenerate();
+  const generateAndConsumeQuota = async (source?: AiGenerationTask) => {
+    await generation.regenerate(source);
   };
-  const loadMoreMediaRecords = useCallback(() => {
-    setVisibleRecordCount((count) => Math.min(count + 10, 18));
-  }, []);
-
+  const handleViewDetail = useCallback(
+    (asset: AiAsset, siblings: AiAsset[] = [], task?: AiGenerationTask) => {
+      setDetail({
+        asset,
+        assets: siblings.length > 0 ? siblings : [asset],
+        task: task ?? generation.task,
+      });
+    },
+    [generation.task],
+  );
   useEffect(() => {
-    setVisibleRecordCount(10);
-  }, [mediaKeyword, timePreset, dateRange]);
+    resetVisible();
+  }, [mediaKeyword, timePreset, dateRange, resetVisible]);
 
   return (
     <AiLayout>
@@ -194,37 +214,46 @@ const AiVideoPage: React.FC = () => {
       ) : (
         <>
           <AiWorkspaceFrame
-            autoScrollKey={`${generation.task.id}:${generation.assets.length}`}
+            autoScrollKey={`${historyTasks.length}:${generation.task.id}:${generation.assets.length}`}
             onLoadMoreBefore={loadMoreMediaRecords}
-            showWelcome={generation.assets.length === 0}
+            showWelcome={
+              historyTasks.length === 0 &&
+              generation.assets.length === 0 &&
+              generation.task.status !== 'failed' &&
+              generation.task.status !== 'generating'
+            }
             welcome={{
               title: '描述一个想生成的视频画面',
-              description: '输入脚本或镜头想法，设置比例、时长与风格，先用 mock 创作流验证整体体验。',
+              description: '输入脚本或镜头想法，设置比例、时长与风格。',
             }}
+            rightPanel={(
+              <AiMediaListToolbar
+                dateRange={dateRange}
+                keyword={mediaKeyword}
+                timePreset={timePreset}
+                onDateRangeChange={setDateRange}
+                onKeywordChange={setMediaKeyword}
+                onTimePresetChange={setTimePreset}
+              />
+            )}
             messageArea={(
               <div className="ph-ai-media-workspace">
-                <AiMediaListToolbar
-                  dateRange={dateRange}
-                  keyword={mediaKeyword}
-                  timePreset={timePreset}
-                  onDateRangeChange={setDateRange}
-                  onKeywordChange={setMediaKeyword}
-                  onTimePresetChange={setTimePreset}
-                />
                 <AiGenerationStream
                   assets={generation.assets}
                   dateRange={dateRange}
                   history={historyTasks}
                   keyword={mediaKeyword}
+                  modelNames={modelNames}
                   prompt={generation.task.prompt}
                   task={generation.task}
                   timePreset={timePreset}
                   title={generation.task.title}
                   visibleCount={visibleRecordCount}
+                  onCopyPrompt={(nextPrompt) => generation.updateDraft({ prompt: nextPrompt })}
                   onEditAgain={generation.editAgain}
                   onRegenerate={generateAndConsumeQuota}
                   onUseAsAttachment={generation.useAsAttachment}
-                  onViewDetail={setDetailAsset}
+                  onViewDetail={handleViewDetail}
                 />
               </div>
             )}
@@ -249,7 +278,12 @@ const AiVideoPage: React.FC = () => {
                     onChange: (modelId) => generation.updateDraft({ modelId }),
                   }}
                   placeholder="描述视频内容、镜头和节奏"
-                  submitDisabled={!modelState.hasModels || quotaInsufficient || guestLimitExceeded}
+                  submitDisabled={
+                    !modelState.hasModels ||
+                    quotaInsufficient ||
+                    (isGuest && requiresLogin) ||
+                    (isGuest && guestLimitExceeded)
+                  }
                   submitLabel="生成视频"
                   value={generation.draft.prompt}
                   attachments={
@@ -272,15 +306,6 @@ const AiVideoPage: React.FC = () => {
                       />
                     </>
                   )}
-                  extraActions={(
-                    <Button
-                      disabled={generation.isSavingAssets}
-                      size="small"
-                      onClick={generateAndConsumeQuota}
-                    >
-                      重新生成
-                    </Button>
-                  )}
                   onChange={(prompt) => generation.updateDraft({ prompt })}
                   onClear={() => {
                     generation.updateDraft({ prompt: '' });
@@ -290,62 +315,40 @@ const AiVideoPage: React.FC = () => {
                   onStop={() => {
                     void generation.stop();
                   }}
-                  onSubmit={generateAndConsumeQuota}
+                  onSubmit={() => {
+                    void generateAndConsumeQuota();
+                  }}
                 />
                 <AiQuotaAlert
                   estimatedTokens={estimatedTokens}
                   quota={runtimeConfig.quota}
                   toolName="视频生成"
+                  visible={!isGuest}
                 />
                 <AiGuestLimitAlert
                   dailyLimit={homeData?.guestTrial?.dailyLimit}
                   exceeded={guestLimitExceeded}
                   isGuest={isGuest}
                   remainingUses={homeData?.guestTrial?.remaining}
+                  requiresLogin={requiresLogin}
                   toolName="视频生成"
                 />
               </Space>
             )}
           />
 
-          <Drawer
-            destroyOnHidden
-            open={Boolean(detailAsset)}
-            size="large"
-            title="视频详情"
-            onClose={() => setDetailAsset(null)}
-          >
-            {detailAsset && (
-              <div className="ph-ai-asset-detail">
-                {detailAsset && (
-                  <AiAuthenticatedMedia
-                    asset={detailAsset}
-                    className="ph-ai-asset-detail-preview"
-                  />
-                )}
-                <Descriptions column={1} size="small">
-                  <Descriptions.Item label="标题">
-                    {detailAsset.title}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="模型">
-                    {detailAsset.modelId}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="比例">
-                    {generation.task.params?.size}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="时长">
-                    {generation.task.params?.durationSeconds} 秒
-                  </Descriptions.Item>
-                  <Descriptions.Item label="预计消耗">
-                    1500 Token / 条
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Prompt">
-                    {detailAsset.prompt}
-                  </Descriptions.Item>
-                </Descriptions>
-              </div>
-            )}
-          </Drawer>
+          <AiMediaDetailModal
+            asset={detail?.asset}
+            assets={detail?.assets}
+            modelLabel={
+              detail
+                ? (modelNames[detail.asset.modelId] ?? detail.asset.modelId)
+                : undefined
+            }
+            open={Boolean(detail)}
+            task={detail?.task}
+            onClose={() => setDetail(null)}
+          />
         </>
       )}
     </AiLayout>

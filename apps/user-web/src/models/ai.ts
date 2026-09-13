@@ -1,11 +1,27 @@
 import type {
   AiQuotaConsumeInput,
   AiMembershipData,
+  AiNavigationItem,
   AiQuotaSummary,
   AiTool,
 } from '@personal-hub/shared-types';
 import { useCallback, useState } from 'react';
-import { consumeAiQuota, fetchAiHome, fetchAiMembership } from '@/services/ai';
+import {
+  consumeAiQuota,
+  fetchAiHome,
+  fetchAiMembership,
+  fetchAiNavigation,
+} from '@/services/ai';
+
+/**
+ * 导航缓存在模块级，不跟某个 layout 实例走。
+ * AI 页都是 layout:false，切页会重挂 AiLayout；如果缓存只放 hook ref，看起来就会反复打接口。
+ * 后台改完导航，用户切回前台后再过 STALE 才会静默复验，不轮询。
+ */
+const NAVIGATION_STALE_MS = 2 * 60 * 1000;
+const navigationCache: { data?: AiNavigationItem[]; fetchedAt: number } = {
+  fetchedAt: 0,
+};
 
 interface AiRuntimeConfig {
   brandName: string;
@@ -25,6 +41,9 @@ export default function AiModel() {
     brandName: 'Personal Hub AI',
   });
   const [membership, setMembership] = useState<AiMembershipData>();
+  const [navigation, setNavigation] = useState<AiNavigationItem[] | undefined>(
+    navigationCache.data,
+  );
   const [loading, setLoading] = useState(false);
 
   const updateRuntimeConfig = useCallback((patch: Partial<AiRuntimeConfig>) => {
@@ -65,6 +84,24 @@ export default function AiModel() {
   }, [updateRuntimeConfig]);
 
   /**
+   * 读取 AI 侧栏导航。新鲜缓存直接复用；过期后才请求，避免对话页连打。
+   */
+  const loadNavigation = useCallback(async (force = false) => {
+    const cached = navigationCache.data;
+    const fresh =
+      cached && Date.now() - navigationCache.fetchedAt < NAVIGATION_STALE_MS;
+    if (!force && fresh) {
+      setNavigation(cached);
+      return cached;
+    }
+    const data = await fetchAiNavigation();
+    navigationCache.data = data;
+    navigationCache.fetchedAt = Date.now();
+    setNavigation(data);
+    return data;
+  }, []);
+
+  /**
    * 刷新 AI Token 摘要到运行时。
    *
    * 真正扣减在 Nest 预占/结算；这里只同步首页余额展示。
@@ -83,11 +120,13 @@ export default function AiModel() {
   return {
     runtimeConfig,
     membership,
+    navigation,
     loading,
     setMembership,
     updateRuntimeConfig,
     loadHomeConfig,
     loadMembership,
+    loadNavigation,
     consumeQuota,
   };
 }

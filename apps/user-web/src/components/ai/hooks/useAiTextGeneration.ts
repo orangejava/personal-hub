@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { generateAiText } from '@/services/ai';
+import { generateAiText, stopAiMessage } from '@/services/ai';
 
 export type AiTextScenarioKey =
   | 'write'
@@ -53,6 +53,7 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
   const [lastSubmittedDraft, setLastSubmittedDraft] = useState<AiTextDraft>();
   const abortRef = useRef<AbortController | undefined>(undefined);
   const outputRef = useRef('');
+  const assistantMessageIdRef = useRef<string | undefined>(undefined);
 
   const scenarioHint = scenarioHints[draft.scenario];
   const canGenerate = draft.input.trim().length > 0 && !isGenerating;
@@ -78,14 +79,30 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
       abortRef.current = controller;
       setOutput('');
       outputRef.current = '';
+      assistantMessageIdRef.current = undefined;
       setIsGenerating(true);
       setLastSubmittedDraft(submittedDraft);
       try {
-        const response = await generateAiText(submittedDraft, controller.signal);
-        outputRef.current = response.output ?? '';
-        setOutput(response.output ?? '');
+        const response = await generateAiText(
+          submittedDraft,
+          controller.signal,
+          (event) => {
+            if (event.type === 'STARTED' && event.assistantMessageId) {
+              assistantMessageIdRef.current = event.assistantMessageId;
+            }
+            if (event.type === 'DELTA' && event.content) {
+              outputRef.current += event.content;
+              setOutput(outputRef.current);
+            }
+          },
+        );
+        outputRef.current = response.output ?? outputRef.current;
+        setOutput(outputRef.current);
         onComplete?.(submittedDraft, outputRef.current, response.estimatedTokens ?? tokenEstimate);
       } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
         const failed = error instanceof Error ? error.message : '文本生成失败，请稍后重试。';
         outputRef.current = failed;
         setOutput(failed);
@@ -109,9 +126,13 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
 
   const stop = useCallback(() => {
     if (!isGenerating) return;
+    const messageId = assistantMessageIdRef.current;
     abortLocal();
+    if (messageId) {
+      void stopAiMessage(messageId);
+    }
     setOutput((current) => {
-      const stoppedOutput = `${current}\n\n（已停止生成）`;
+      const stoppedOutput = current ? `${current}\n\n（已停止生成）` : '已停止生成';
       outputRef.current = stoppedOutput;
       return stoppedOutput;
     });

@@ -3,7 +3,7 @@
  * 新增公开页样式必须优先使用下列变量，禁止硬编码 rgba(0,0,0,...)
  */
 
-.ph-public-layout {
+:root {
   --ph-bg-layout: #f5f5f5;
   --ph-bg-container: #ffffff;
   --ph-bg-elevated: #ffffff;
@@ -15,20 +15,23 @@
   --ph-hero-gradient: linear-gradient(135deg, #eef4ff 0%, #f7f9fc 100%);
   --ph-code-bg: #f6f8fa;
   --ph-scrollbar-thumb: rgba(0, 0, 0, 0.15);
+}
 
+.ph-public-layout {
   min-height: 100vh;
   background: var(--ph-bg-layout);
   color: var(--ph-text-primary);
 }
 
+html.ph-theme-dark,
 .ph-public-dark {
   --ph-bg-layout: #000000;
   --ph-bg-container: #141414;
   --ph-bg-elevated: #1f1f1f;
-  --ph-bg-spotlight: #141414;
+  --ph-bg-spotlight: #1f1f1f;
   --ph-text-primary: rgba(255, 255, 255, 0.85);
-  --ph-text-secondary: rgba(255, 255, 255, 0.65);
-  --ph-text-tertiary: rgba(255, 255, 255, 0.45);
+  --ph-text-secondary: rgba(255, 255, 255, 0.45);
+  --ph-text-tertiary: rgba(255, 255, 255, 0.3);
   --ph-border-color: rgba(255, 255, 255, 0.12);
   --ph-hero-gradient: linear-gradient(135deg, #111a2c 0%, #141414 100%);
   --ph-code-bg: #1f1f1f;

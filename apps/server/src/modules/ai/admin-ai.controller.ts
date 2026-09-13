@@ -38,7 +38,7 @@ export class AdminAiController {
   @Get('navigation')
   @RequirePermission('ai:tool:manage', DataScope.ALL)
   navigation() {
-    return this.ai.listNavigation({ includeHidden: true });
+    return this.ai.listNavigation({ includeHidden: true, remapByTool: false });
   }
 
   @Patch('branding')
