@@ -10,18 +10,25 @@ import { changePassword, nestError } from '@/services/auth';
 const PASSWORD_POLICY =
   /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9\s]).{8,}$/;
 
+interface ChangePasswordFormValues {
+  currentPassword: string;
+  newPassword: string;
+  /** 仅供前端比较两次输入，后端 DTO 不接受该字段。 */
+  confirmPassword: string;
+}
+
 /** 临时密码首次登录后必须改密；成功后全部会话失效，回到登录页。 */
 const ChangePassword: React.FC = () => {
   const { setInitialState } = useModel('@@initialState');
   const { message } = App.useApp();
   const [errorText, setErrorText] = useState('');
 
-  const handleSubmit = async (values: {
-    currentPassword: string;
-    newPassword: string;
-  }) => {
+  const handleSubmit = async ({
+    currentPassword,
+    newPassword,
+  }: ChangePasswordFormValues) => {
     try {
-      await changePassword(values);
+      await changePassword({ currentPassword, newPassword });
       await setInitialState((s) => ({
         ...s,
         currentUser: undefined,
@@ -51,7 +58,7 @@ const ChangePassword: React.FC = () => {
           submitter={{ searchConfig: { submitText: '确认修改' } }}
           onFinish={async (values) =>
             handleSubmit(
-              values as { currentPassword: string; newPassword: string },
+              values as ChangePasswordFormValues,
             )
           }
         >

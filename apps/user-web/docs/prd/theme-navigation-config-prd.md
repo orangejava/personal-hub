@@ -70,13 +70,13 @@
 
 | Key | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `theme.primary_color` | string | `#2563EB` | 主色，按钮、链接、强调色 |
+| `theme.primary_color` | string | `#722ed1` | 主色，按钮、链接、强调色 |
 | `theme.secondary_color` | string | `#14B8A6` | 辅助色 |
 | `theme.accent_color` | string | `#F97316` | 强调色，提醒、徽标 |
 | `theme.background_color` | string | `#FFFFFF` | 默认背景 |
 | `theme.text_color` | string | `#111827` | 默认文字 |
 | `theme.radius` | string | `0.75rem` | 全局圆角 |
-| `theme.mode` | enum | `system` | `light` / `dark` / `system` |
+| `theme.mode` | enum | `dark` | `light` / `dark` / `system` |
 | `theme.allow_user_switch` | boolean | `true` | 是否允许用户手动切换明暗主题 |
 
 ### 3.3 导航配置
@@ -278,8 +278,8 @@ GET /api/system/config/public
     "description": "..."
   },
   "theme": {
-    "primaryColor": "#2563EB",
-    "mode": "system"
+    "primaryColor": "#722ed1",
+    "mode": "dark"
   },
   "navigation": {
     "publicPosition": "top"

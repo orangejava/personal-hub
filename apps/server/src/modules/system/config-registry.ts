@@ -197,7 +197,7 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     email: '',
   } satisfies SiteGeneral,
   'site.theme': {
-    colorPrimary: '#1677ff',
+    colorPrimary: '#722ed1',
     colorSuccess: '#52c41a',
     colorWarning: '#faad14',
     colorError: '#ff4d4f',
@@ -205,7 +205,7 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     colorAccent: '#F97316',
     borderRadius: 8,
     fontFamily: 'system',
-    mode: 'auto',
+    mode: 'dark',
     allowUserSwitch: true,
   } satisfies SiteTheme,
   'site.homepage': {

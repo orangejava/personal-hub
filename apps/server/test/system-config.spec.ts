@@ -14,6 +14,8 @@ describe('系统配置注册表', () => {
     expect(publicConfig.about.title).toBe('关于我');
     expect(publicConfig.navigation.publicPosition).toBe('top');
     expect(publicConfig.aiEnabled).toBe(true);
+    expect(publicConfig.theme.mode).toBe('dark');
+    expect(publicConfig.theme.colorPrimary).toBe('#722ed1');
   });
 
   it('拒绝非法颜色', () => {

@@ -3,8 +3,8 @@ import type { ProLayoutProps } from '@ant-design/pro-components';
 const Settings: ProLayoutProps & {
   logo?: string;
 } = {
-  navTheme: 'light',
-  colorPrimary: '#1677ff',
+  navTheme: 'realDark',
+  colorPrimary: '#722ed1',
   layout: 'mix',
   contentWidth: 'Fluid',
   fixedHeader: false,
