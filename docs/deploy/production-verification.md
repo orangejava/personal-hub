@@ -132,7 +132,7 @@ find /data/personal-hub/content-local -maxdepth 2 -type f | head -20
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
+  server node dist/cli/import-local-booklets.js \
   --source /var/import/content-local \
   --owner-email '<生产管理员邮箱>' \
   --dry-run
@@ -143,7 +143,7 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
+  server node dist/cli/import-local-booklets.js \
   --source /var/import/content-local \
   --owner-email '<生产管理员邮箱>' \
   --execute

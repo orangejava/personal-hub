@@ -85,8 +85,8 @@ docker compose --env-file .env.prod -f compose.prod.yml up -d  # 不重建镜像
 ### 1.3 发布后检查
 
 ```bash
-curl -sS http://127.0.0.1/api/v1/health/live   # Nginx 与 HTTP 进程可用时为 200
-curl -sS http://127.0.0.1/api/v1/health/ready  # migration 完成后，数据库、Redis、COS 均正常才为 200
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/live   # Nginx 与 HTTP 进程可用时输出 200
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/ready  # migration 完成后，数据库、Redis、COS 均正常时输出 200
 docker compose --env-file .env.prod -f compose.prod.yml ps
 ```
 
@@ -318,11 +318,11 @@ super admin 而失败。
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml up --build -d server-worker nginx
 docker compose --env-file .env.prod -f compose.prod.yml ps
-curl -sS http://127.0.0.1/api/v1/health/live
-curl -sS http://127.0.0.1/api/v1/health/ready
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/live
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/ready
 ```
 
-预期两个健康检查均为 200；`ready` 失败时先检查 COS、PostgreSQL、Redis 和 `server` 日志，
+两条命令应各输出一行 `200`；`ready` 失败时先检查 COS、PostgreSQL、Redis 和 `server` 日志，
 不要继续小册导入。
 
 ### 3.7 一次性导入小册到 COS
@@ -333,14 +333,16 @@ curl -sS http://127.0.0.1/api/v1/health/ready
 /data/personal-hub/content-local/
 ```
 
-不要把它直接当作容器路径，也不要把它复制进 `/opt/personal-hub/`。使用一次性只读挂载运行导入容器：
+不要把它直接当作容器路径，也不要把它复制进 `/opt/personal-hub/`。导入 CLI 会启动 Nest 应用，生产必须运行镜像构建时已生成的 `dist/cli` 文件；不要用 `npx tsx` 直接运行源码，否则缺少 Nest 装饰器元数据会导致依赖注入失败。使用一次性只读挂载运行导入容器：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
-  --source /var/import/content-local --dry-run
-# --rm 跑完删临时容器；--no-deps 不连带重启 postgres；:ro 只读挂载；--dry-run 不写 COS/数据库
+  server node dist/cli/import-local-booklets.js \
+  --source /var/import/content-local \
+  --owner-email '<生产超级管理员邮箱>' \
+  --dry-run
+# --rm 跑完删临时容器；--no-deps 不连带重启 postgres；:ro 只读挂载；--owner-email 显式指定内容归属；--dry-run 不写 COS/数据库
 ```
 
 确认 dry-run 输出后，执行正式导入：
@@ -348,8 +350,10 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
-  --source /var/import/content-local --execute  # 确认 dry-run 无误后再跑；不要重复正式导入
+  server node dist/cli/import-local-booklets.js \
+  --source /var/import/content-local \
+  --owner-email '<生产超级管理员邮箱>' \
+  --execute  # 确认 dry-run 无误后再跑；不要重复正式导入
 ```
 
 导入前必须确认 `server-worker` 正常运行。导入后检查 COS 对象、数据库元数据和阅读页面，
@@ -553,7 +557,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server-worker
-curl -sS http://127.0.0.1/api/v1/health/ready  # 503 时先修依赖，不要反复上传测试文件
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/ready  # 若输出 503，先修依赖，不要反复上传测试文件
 ```
 
 ### 7.3 COS 小册导入验证
@@ -569,7 +573,7 @@ find /data/personal-hub/content-local -maxdepth 2 -type f | head -20  # 确认�
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
+  server node dist/cli/import-local-booklets.js \
   --source /var/import/content-local \
   --owner-email '<生产管理员邮箱>' \
   --dry-run
@@ -581,7 +585,7 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
+  server node dist/cli/import-local-booklets.js \
   --source /var/import/content-local \
   --owner-email '<生产管理员邮箱>' \
   --execute  # 确认 dry-run 无误后再执行；不要重复正式导入

@@ -270,11 +270,14 @@ $COMPOSE exec -e SUPER_ADMIN_EMAIL='<生产管理员邮箱>' \
 ```bash
 $COMPOSE run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
-  server npx tsx src/cli/import-local-booklets.ts \
+  server node dist/cli/import-local-booklets.js \
   --source /var/import/content-local \
   --owner-email '<生产管理员邮箱>' \
   --dry-run
 ```
+
+生产镜像内的小册导入 CLI 必须运行构建产物 `node dist/cli/import-local-booklets.js`，不能用
+`npx tsx` 直接执行 TypeScript 源码：该 CLI 会启动 Nest 应用，源码即时转译不会生成 Nest 依赖注入需要的装饰器元数据。`prisma/seed.ts` 与超级管理员 bootstrap 不启动 Nest 应用，仍按上面的 `tsx` 命令执行。
 
 | 参数 | 含义 |
 | --- | --- |
@@ -289,8 +292,8 @@ $COMPOSE run --rm --no-deps \
 ## 7. 健康检查、端口与旧服务
 
 ```bash
-curl -sS http://127.0.0.1/api/v1/health/live
-curl -sS http://127.0.0.1/api/v1/health/ready
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/live
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1/api/v1/health/ready
 curl -i http://127.0.0.1/api/v1/health/ready
 curl -I http://<公网IP>/
 curl -I http://<公网IP>/admin/
@@ -299,7 +302,7 @@ sudo ss -lntp | grep -E ':80 |:8000 |:3001 |:5432 |:6379 ' || true
 systemctl is-active nginx postgresql redis-server
 ```
 
-`live` 只确认 Nest HTTP 进程存活；`ready` 同时检查 PostgreSQL、Redis、COS，任一异常返回 503。`curl -sS` 适合快速查看 JSON，`-i` 显示状态和 Header，`-I` 只请求 Header。迁移前 `ready` 为 503 属于预期；第二阶段后两项都应为 200。
+`live` 只确认 Nest HTTP 进程存活；`ready` 同时检查 PostgreSQL、Redis、COS，任一异常返回 503。前两条命令用 `-o /dev/null` 丢弃 JSON、用 `-w '%{http_code}\n'` 直接打印状态码；若不是 200，再用 `curl -i` 查看状态、Header 和响应体。`-I` 只请求 Header。迁移前 `ready` 为 503 属于预期；第二阶段后两项都应为 200。
 
 `ss`、`systemctl is-active` 是只读检查。生产不应对公网暴露 `3001`、`5432`、`6379`。宿主机 Nginx 若占用 80，才使用：
 
