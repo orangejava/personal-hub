@@ -1,7 +1,7 @@
 # 生产上线验收手册
 
 > 适用：公网 IP + Docker Compose 首版
-> 前置：[生产服务器操作手册](./production-runbook.md) 已完成首次启动、migration、seed 和 bootstrap
+> 前置：[生产服务器操作手册](./production-runbook.md) 已完成首次启动、migration、seed、bootstrap，以及第二阶段的 worker/Nginx 启动
 
 本手册用于上线后的真实环境验收。所有命令在服务器执行，所有浏览器操作使用公网地址。
 

@@ -1,6 +1,6 @@
 # 生产服务器操作手册
 
-> 状态：🟢 当前首版上线与日常运维权威手册（2026-09-15）
+> 状态：🟢 当前首版上线与日常运维权威手册（2026-09-16）
 > 适用：腾讯云服务器、`/opt/personal-hub/`、Docker Compose、公网 IP + HTTP 首版
 > 软件安装与检查：[production-prerequisites.md](./production-prerequisites.md)
 > 首次上线清单：[prod-startup-order.md](./prod-startup-order.md)
@@ -15,7 +15,7 @@
 ```text
 /opt/personal-hub/                  # 项目代码、Compose、部署脚本
 /data/personal-hub/content-local/   # 现有小册源文件；一次性导入后可清理
-/etc/personal-hub/.env              # 可选的生产密钥文件，不进 Git
+/opt/personal-hub/.env.prod         # 生产密钥文件，不进 Git
 Docker volumes                      # PostgreSQL、Redis 运行数据
 腾讯 COS                             # 小册、封面、附件等长期对象存储
 ```
@@ -24,13 +24,13 @@ Docker volumes                      # PostgreSQL、Redis 运行数据
 
 ```bash
 cd /opt/personal-hub
-export COMPOSE="docker compose --env-file .env.prod -f compose.prod.yml"
+export COMPOSE="docker compose --env-file .env.prod -f compose.prod.yml"  # 后续可写 $COMPOSE ps，避免每次重复敲
 ```
 
 如果当前 Shell 不支持把 Compose 命令保存为变量，直接展开为：
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml ps
+docker compose --env-file .env.prod -f compose.prod.yml ps  # 查看各容器是否 running / healthy
 ```
 
 不要执行会回显密钥的命令，例如把完整 `docker compose config` 输出复制到聊天或日志。
@@ -43,44 +43,51 @@ docker compose --env-file .env.prod -f compose.prod.yml ps
 
 ```bash
 cd /opt/personal-hub
-git status --short
-git log -1 --oneline
-git pull --ff-only
-chmod 600 .env.prod
+git status --short          # 工作区应干净，尤其不能把 .env.prod 提交上去
+git log -1 --oneline        # 记下当前 commit，回滚时用
+git pull --ff-only          # 只允许快进；有分叉时停下来，不要在生产做合并提交
+# 若报 dubious ownership，先把目录 chown 给当前用户，见第 4.6 节
+chmod 600 .env.prod         # 仅当前用户可读写生产密钥
 docker --version
 docker compose version
-docker compose --env-file .env.prod -f compose.prod.yml config --quiet
+docker compose --env-file .env.prod -f compose.prod.yml config --quiet  # 只校验变量能否插值；不要去掉 --quiet，以免打印密钥
 ```
 
 `.env.prod` 只从 [prod-env-worksheet.md](./prod-env-worksheet.md) 准备，不能提交 Git。
 
 ### 1.2 构建、启动和检查
 
+没有 Prisma migration 的普通发布可以直接启动全部服务：
+
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml up --build -d
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d  # --build 重建镜像；-d 后台运行
 docker compose --env-file .env.prod -f compose.prod.yml ps
-docker compose --env-file .env.prod -f compose.prod.yml logs --tail=100 server
+docker compose --env-file .env.prod -f compose.prod.yml logs --tail=100 server  # 先看最近启动日志，不要一上来 -f 卡住终端
+```
+
+如果本次包含 Prisma migration，必须先只启动依赖和 HTTP `server`，执行迁移后再启动
+`server-worker` 与 Nginx。`server` 的 `ready` 会查询已迁移的数据库，因此迁移前不能把
+Nginx 当作健康检查入口：
+
+```bash
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d postgres redis server
+docker compose --env-file .env.prod -f compose.prod.yml exec server \
+  npx prisma migrate deploy  # 只应用已有 migration，不会重置或删除数据
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d
 ```
 
 只有修改前端构建、Dockerfile 或依赖时才需要 `--build`。普通重启使用：
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml up -d
+docker compose --env-file .env.prod -f compose.prod.yml up -d  # 不重建镜像，只按当前配置启动或更新容器
 ```
 
 ### 1.3 发布后检查
 
 ```bash
-curl -sS http://127.0.0.1/api/v1/health/live
-curl -sS http://127.0.0.1/api/v1/health/ready
+curl -sS http://127.0.0.1/api/v1/health/live   # Nginx 与 HTTP 进程可用时为 200
+curl -sS http://127.0.0.1/api/v1/health/ready  # migration 完成后，数据库、Redis、COS 均正常才为 200
 docker compose --env-file .env.prod -f compose.prod.yml ps
-```
-
-如果本次包含新的 Prisma migration，启动后必须执行：
-
-```bash
-docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  npx prisma migrate deploy
 ```
 
 ---
@@ -91,8 +98,8 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml ps
-docker compose --env-file .env.prod -f compose.prod.yml top
-docker stats --no-stream
+docker compose --env-file .env.prod -f compose.prod.yml top  # 容器内进程，不是宿主机 top
+docker stats --no-stream  # 打一次 CPU/内存快照后退出，避免一直刷屏
 df -h
 free -h
 ```
@@ -100,8 +107,8 @@ free -h
 ### 2.2 重启单个服务
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml restart server
-docker compose --env-file .env.prod -f compose.prod.yml restart server-worker
+docker compose --env-file .env.prod -f compose.prod.yml restart server          # 只重启 API，不碰数据库 volume
+docker compose --env-file .env.prod -f compose.prod.yml restart server-worker  # 异步任务 / Outbox；只重启 server 不够
 docker compose --env-file .env.prod -f compose.prod.yml restart nginx
 ```
 
@@ -111,13 +118,13 @@ docker compose --env-file .env.prod -f compose.prod.yml restart nginx
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server-worker
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 nginx
-docker compose --env-file .env.prod -f compose.prod.yml logs -f server
+docker compose --env-file .env.prod -f compose.prod.yml logs -f server  # Ctrl+C 只断开日志，不会停容器
 ```
 
 停止服务但保留数据库和 Redis volume：
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml down
+docker compose --env-file .env.prod -f compose.prod.yml down  # 停容器、保留 named volume；不要加 -v
 ```
 
 **禁止随手执行 `docker compose down -v`。** `-v` 会删除 Compose 管理的持久化卷，可能造成生产数据丢失。
@@ -128,19 +135,111 @@ docker compose --env-file .env.prod -f compose.prod.yml down
 
 首次上线不能只执行 `compose up`。必须按下面顺序完成容器、数据库、管理员、小册和冒烟验证。
 
+如果服务器上还在跑阶段 A 的 PM2（`personal-hub-dev`，端口 8000），先做 3.0，再做 3.1。
+不要让 PM2 和 Compose 同时跑：PM2 会占内存，开机自启后还会把旧站点拉起来。
+
+### 3.0 停掉旧 PM2，再清理代码目录
+
+先看当前占用，不要直接删目录：
+
+```bash
+whoami
+pwd
+pm2 status                      # 常见进程名 personal-hub-dev；也可能叫 ecosystem.dev
+sudo ss -lntp | grep -E ':80 |:8000 |:3001 |:5432 |:6379 ' || true
+docker ps                       # 若已有旧 postgres/redis 容器，后面 Compose 可能抢端口
+ls -ld /opt/personal-hub
+```
+
+停 PM2 时必须同时看当前用户和 root。阶段 A 经常是 `sudo pm2 start`，所以 `pm2 status` 为空、`sudo pm2 status` 里却还有 `personal-hub-dev`。
+不要只 `kill` Node 进程：root 的 PM2 会立刻把它拉起来（`↺` 次数会往上加，CPU 也会升高）。
+
+```bash
+pm2 status                      # deploy 用户的列表
+sudo pm2 status                 # root 的列表；常见还在跑 personal-hub-dev
+sudo pm2 stop all
+sudo pm2 delete all             # 从 root 的进程列表里去掉
+sudo pm2 save --force           # 空列表也要写入 dump，否则重启可能复活旧进程
+sudo pm2 unstartup              # 取消 root 的 systemd 开机拉起；若打印 sudo 命令就原样执行
+sudo systemctl disable --now pm2-root "pm2-$(whoami)" 2>/dev/null || true
+pm2 stop all 2>/dev/null || true
+pm2 delete all 2>/dev/null || true
+pm2 save 2>/dev/null || true
+sudo pm2 status                 # 应没有 online 的应用
+sudo ss -lntp | grep ':8000 ' || echo "8000 already free"
+```
+
+`unstartup` 若提示要带 systemd 参数，把终端打印的那条 `sudo ...` 原样执行。
+
+`pm2 status` 为空、`pm2 stop all` 提示 `No process found` 时，只说明当前用户的 PM2 列表是空的。
+旧的 Node、宿主机 Nginx、本机 PostgreSQL / Redis 仍可能占着端口，必须再查进程：
+
+```bash
+sudo ss -lntp | grep -E ':80 |:8000 |:3001 |:5432 |:6379 '
+ps -o pid,ppid,user,cmd -fp <上面看到的pid>   # 例如 8000 上的 node
+sudo -n pm2 status 2>/dev/null || sudo pm2 status   # root 的 PM2 列表可能还有进程
+systemctl is-active nginx postgresql redis-server 2>/dev/null
+```
+
+Compose 的 Nginx 要绑宿主机 **80**，宿主机 Nginx 必须先停。8000 上的旧 Node 也要停。
+本机 PostgreSQL / Redis 会占内存；生产库走 Compose 容器，不要继续用宿主机这套：
+
+```bash
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+sudo systemctl stop postgresql redis-server 2>/dev/null || true
+sudo systemctl disable postgresql redis-server 2>/dev/null || true
+sudo ss -lntp | grep -E ':80 |:8000 |:5432 |:6379 ' || echo "ports freed"
+```
+
+8000 上的 Node 若属于 root 的 `personal-hub-dev`，用上面的 `sudo pm2 delete all`，不要单独 `kill`。
+
+`docker ps` 若报 `permission denied ... docker.sock`，当前用户还不在 `docker` 组：
+
+```bash
+sudo usermod -aG docker "$USER"
+```
+
+执行后必须退出 SSH 再登录。未重新登录前可临时用 `sudo docker ps`。
+
+删除 `/opt/personal-hub` 前必须离开该目录。人还在里面、旧 Node 还占着 `node_modules`，或属主是 root，都会删不掉。
+不要删 `/data/personal-hub/`，小册源在数据盘。若已经有 `.env.prod`，先备份：
+
+```bash
+cd ~                            # 必须先离开 /opt/personal-hub，否则会 Device or resource busy
+test -f /opt/personal-hub/.env.prod && cp -a /opt/personal-hub/.env.prod ~/env.prod.bak
+sudo chown -R "$USER:$USER" /opt/personal-hub
+sudo rm -rf /opt/personal-hub   # 连 .git 一起删；rm /opt/personal-hub/* 删不掉隐藏文件
+sudo mkdir -p /opt/personal-hub
+sudo chown "$USER:$USER" /opt/personal-hub
+ls -ld /opt/personal-hub        # 应为空目录，属主是当前用户，例如 deploy
+```
+
+若 `rm` 仍失败，看是谁占用：
+
+```bash
+sudo fuser -vm /opt/personal-hub
+```
+
+有输出就先停掉对应进程，再重新 `sudo rm -rf /opt/personal-hub`。空目录建好后，按第 6 节重新 clone，见 [production-prerequisites.md](./production-prerequisites.md#6-git-和项目目录检查)。
+
 ### 3.1 服务器和代码准备
 
 先完成 [production-prerequisites.md](./production-prerequisites.md)，确认 Docker、Compose、
-Git、磁盘、安全组和目录都通过检查。
+Git、磁盘、安全组和目录都通过检查。刚清空过 `/opt/personal-hub` 时用 `git clone`，不要 `git pull`。
 
 ```bash
 sudo apt update
-sudo apt install -y git curl ca-certificates
+sudo apt install -y git curl ca-certificates  # 完整安装步骤见 production-prerequisites.md
 docker --version
 docker compose version
 cd /opt/personal-hub
-git pull --ff-only
-ls -la /data/personal-hub/content-local/
+if [ -d .git ]; then
+  git pull --ff-only  # 已有仓库才只快进；有冲突先停
+else
+  git clone https://gitee.com/oralemon/personal-hub.git .  # 空目录首次拉取，末尾点号避免多套一层目录
+fi
+ls -la /data/personal-hub/content-local/  # 确认一次性小册源还在数据盘，不要复制进 /opt
 ```
 
 确认安全组至少允许 SSH 和 HTTP 80。没有域名和证书前不要依赖 443。
@@ -149,10 +248,10 @@ ls -la /data/personal-hub/content-local/
 
 ```bash
 cd /opt/personal-hub
-cp .env.prod.example .env.prod
-chmod 600 .env.prod
-${EDITOR:-vi} .env.prod
-docker compose --env-file .env.prod -f compose.prod.yml config --quiet
+cp .env.prod.example .env.prod  # 已有填好的 .env.prod 时不要执行，以免覆盖真实密钥
+chmod 600 .env.prod             # 仅当前用户可读写
+${EDITOR:-vi} .env.prod         # 使用 $EDITOR；未设置则用 vi
+docker compose --env-file .env.prod -f compose.prod.yml config --quiet  # 校验插值；成功应无输出
 ```
 
 填写和检查项见 `prod-env-worksheet.md`，重点包括：
@@ -166,24 +265,25 @@ docker compose --env-file .env.prod -f compose.prod.yml config --quiet
 
 不要把真实密钥写入命令历史、镜像、Git 或日志。
 
-### 3.3 启动 Compose
+### 3.3 第一阶段：启动依赖和 HTTP server
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml up --build -d
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d postgres redis server
 docker compose --env-file .env.prod -f compose.prod.yml ps
-curl -sS http://127.0.0.1/api/v1/health/live
+docker compose --env-file .env.prod -f compose.prod.yml logs --tail=100 server
 ```
 
-`ready` 在 migration 前可能是 503，这是预期现象。
+首次空数据库在 migration 前会使 `server` 的 `ready` 为 503，因而 Nginx 还不会启动。这是
+预期行为；此阶段只通过 `docker compose exec server` 运行迁移，不要访问 `127.0.0.1` 的 Nginx 入口。
 
 ### 3.4 数据库迁移和基线 seed
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  npx prisma migrate deploy
+  npx prisma migrate deploy  # 应用仓库里已有的 migration，不重置库
 
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  npx tsx prisma/seed.ts
+  npx tsx prisma/seed.ts  # 生产基线内容；禁止改用 seed:local-users
 ```
 
 生产禁止执行 `seed:local-users`，也不能使用开发密码 `HubDev!234`。
@@ -192,7 +292,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  ls node_modules/.bin/tsx
+  ls node_modules/.bin/tsx  # 只确认二进制存在；不要在生产容器里临时 npm i
 ```
 
 记录错误后停止导入，不要在生产容器里临时安装未知依赖。
@@ -205,13 +305,27 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 docker compose --env-file .env.prod -f compose.prod.yml exec \
   -e SUPER_ADMIN_EMAIL='生产管理员邮箱' \
   -e SUPER_ADMIN_TEMP_PASSWORD='一次性强密码' \
-  server npx tsx src/cli/bootstrap-super-admin.ts
+  server npx tsx src/cli/bootstrap-super-admin.ts  # -e 只注入这一次进程，不写入镜像
 ```
 
 使用公网 IP 登录后，立即修改一次性密码。该命令重复执行通常会因为已有 active
 super admin 而失败。
 
-### 3.6 一次性导入小册到 COS
+### 3.6 第二阶段：启动 worker 与 Nginx
+
+迁移、基线 seed 和管理员 bootstrap 全部成功后，才启动会消费异步任务的 worker 和公网入口：
+
+```bash
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d server-worker nginx
+docker compose --env-file .env.prod -f compose.prod.yml ps
+curl -sS http://127.0.0.1/api/v1/health/live
+curl -sS http://127.0.0.1/api/v1/health/ready
+```
+
+预期两个健康检查均为 200；`ready` 失败时先检查 COS、PostgreSQL、Redis 和 `server` 日志，
+不要继续小册导入。
+
+### 3.7 一次性导入小册到 COS
 
 服务器源目录固定为：
 
@@ -226,6 +340,7 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
   server npx tsx src/cli/import-local-booklets.ts \
   --source /var/import/content-local --dry-run
+# --rm 跑完删临时容器；--no-deps 不连带重启 postgres；:ro 只读挂载；--dry-run 不写 COS/数据库
 ```
 
 确认 dry-run 输出后，执行正式导入：
@@ -234,13 +349,13 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
   server npx tsx src/cli/import-local-booklets.ts \
-  --source /var/import/content-local --execute
+  --source /var/import/content-local --execute  # 确认 dry-run 无误后再跑；不要重复正式导入
 ```
 
 导入前必须确认 `server-worker` 正常运行。导入后检查 COS 对象、数据库元数据和阅读页面，
 确认无误后即可解除临时挂载；源目录是否删除由备份确认结果决定。
 
-### 3.7 首次上线冒烟
+### 3.8 首次上线冒烟
 
 依次验证：
 
@@ -265,8 +380,8 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 docker compose --env-file .env.prod -f compose.prod.yml ps
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 nginx
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
-curl -v http://127.0.0.1/api/v1/health/live
-sudo ss -lntp
+curl -v http://127.0.0.1/api/v1/health/live  # -v 看完整握手，区分 Nginx 502 和后端没起来
+sudo ss -lntp  # 确认 80 被 nginx 占用；5432/6379/3001 不应对公网
 ```
 
 先区分安全组、Nginx、server 进程和数据库 readiness，不要直接重建全部服务。
@@ -275,7 +390,7 @@ sudo ss -lntp
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
-curl -i http://127.0.0.1/api/v1/health/ready
+curl -i http://127.0.0.1/api/v1/health/ready  # 带响应头；503 时登录通常也会失败
 ```
 
 IP + HTTP 首版若 Cookie 带不回，优先检查生产 Cookie 的 `Secure` 开关；有 HTTPS 后再固定为
@@ -285,7 +400,7 @@ Secure Cookie。
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  env | awk -F= '/^SMTP_(HOST|PORT|SECURE|USER)=/ {print $1 "=" $2}'
+  env | awk -F= '/^SMTP_(HOST|PORT|SECURE|USER)=/ {print $1 "=" $2}'  # 故意不打印 SMTP_PASSWORD
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 ```
 
@@ -296,8 +411,8 @@ docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server-worker
-ls -la /data/personal-hub/content-local/
-df -h
+ls -la /data/personal-hub/content-local/  # 源目录是否存在、权限是否可读
+df -h  # 磁盘满会导致导入和上传失败
 ```
 
 检查 Endpoint、Bucket、权限、预签名风格、网络和 Worker。不要重复执行正式导入，先确认脚本的幂等行为和失败位置。
@@ -306,10 +421,33 @@ df -h
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml ps server-worker
-docker compose --env-file .env.prod -f compose.prod.yml logs -f server-worker
+docker compose --env-file .env.prod -f compose.prod.yml logs -f server-worker  # Ctrl+C 不断开容器
 ```
 
 图像、视频、Outbox 和部分文件任务依赖 Worker；只重启 `server` 不能代替 Worker。
+
+### 4.6 `git pull` 报 dubious ownership
+
+Git 发现 `/opt/personal-hub` 的属主不是当前用户（常见：root 创建或 clone，却用 `deploy` 去 pull）。
+
+先改属主，不要用 `sudo git pull`，也不要先加 `safe.directory`：
+
+```bash
+whoami
+ls -ld /opt/personal-hub /opt/personal-hub/.git
+sudo chown -R "$USER:$USER" /opt/personal-hub  # 代码目录交给当前用户，例如 deploy
+chmod 600 /opt/personal-hub/.env.prod 2>/dev/null || true
+git status --short
+git pull --ff-only
+```
+
+只有目录必须保持 root 属主时，才用 Git 提示的兜底：
+
+```bash
+git config --global --add safe.directory /opt/personal-hub
+```
+
+完整说明见 [production-prerequisites.md](./production-prerequisites.md#6-git-和项目目录检查)。
 
 ---
 
@@ -319,8 +457,8 @@ docker compose --env-file .env.prod -f compose.prod.yml logs -f server-worker
 
 ```bash
 df -h
-du -sh /opt/personal-hub /data/personal-hub 2>/dev/null
-docker system df
+du -sh /opt/personal-hub /data/personal-hub 2>/dev/null  # 代码盘和小册源各占多少
+docker system df  # 镜像、容器、构建缓存占用；清理前先确认可回滚版本
 ```
 
 清理镜像前先确认当前运行容器和可回滚版本，不要直接清理所有资源。
@@ -338,9 +476,9 @@ docker system df
 ### 5.3 安全检查
 
 ```bash
-chmod 600 /opt/personal-hub/.env.prod
-git status --short
-sudo ss -lntp
+chmod 600 /opt/personal-hub/.env.prod  # 密钥文件必须仅当前用户可读写
+git status --short                     # 不应出现 .env.prod
+sudo ss -lntp                          # 5432 / 6379 / 3001 不应对公网监听
 ```
 
 只开放 SSH、HTTP 80 和实际需要的端口；PostgreSQL、Redis、MinIO 管理端不暴露公网。
@@ -352,7 +490,7 @@ sudo ss -lntp
 普通停止：
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml down
+docker compose --env-file .env.prod -f compose.prod.yml down  # 停容器，保留数据库和 Redis volume
 ```
 
 应用版本回滚原则：
@@ -366,10 +504,10 @@ docker compose --env-file .env.prod -f compose.prod.yml down
 以下命令未经明确恢复方案不得执行：
 
 ```bash
-docker compose down -v
-docker volume prune
-docker system prune --volumes
-rm -rf /data/personal-hub/*
+docker compose down -v          # 删除 Compose volume，生产数据库会丢
+docker volume prune             # 删掉未被容器引用的 volume
+docker system prune --volumes   # 连同未使用 volume 一起清
+rm -rf /data/personal-hub/*     # 删除小册源文件，不可恢复
 ```
 
 ---
@@ -383,10 +521,10 @@ rm -rf /data/personal-hub/*
 确认服务器 `.env.prod` 中的值：
 
 ```text
-MINIO_ENDPOINT=https://cos.ap-shanghai.myqcloud.com
+MINIO_ENDPOINT=https://cos.<地域>.myqcloud.com
 MINIO_ACCESS_KEY=<CAM SecretId>
 MINIO_SECRET_KEY=<CAM SecretKey>
-MINIO_BUCKET=personal-hub-prod-1456485139
+MINIO_BUCKET=<完整桶名-APPID>
 ```
 
 变量名虽然仍是 `MINIO_*`，值必须来自腾讯 COS/CAM，不是 MinIO。
@@ -395,7 +533,7 @@ MINIO_BUCKET=personal-hub-prod-1456485139
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  env | awk -F= '/^MINIO_(ENDPOINT|ACCESS_KEY|BUCKET)=/ {print $1 "=" $2}'
+  env | awk -F= '/^MINIO_(ENDPOINT|ACCESS_KEY|BUCKET)=/ {print $1 "=" $2}'  # 不打印 MINIO_SECRET_KEY
 ```
 
 ### 7.2 COS 基础读写验证
@@ -415,7 +553,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server-worker
-curl -sS http://127.0.0.1/api/v1/health/ready
+curl -sS http://127.0.0.1/api/v1/health/ready  # 503 时先修依赖，不要反复上传测试文件
 ```
 
 ### 7.3 COS 小册导入验证
@@ -423,7 +561,7 @@ curl -sS http://127.0.0.1/api/v1/health/ready
 确认源目录存在：
 
 ```bash
-find /data/personal-hub/content-local -maxdepth 2 -type f | head -20
+find /data/personal-hub/content-local -maxdepth 2 -type f | head -20  # 确认源目录里确有小册文件
 ```
 
 先执行 dry-run，并显式指定生产超级管理员邮箱：
@@ -433,8 +571,9 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
   server npx tsx src/cli/import-local-booklets.ts \
   --source /var/import/content-local \
-  --owner-email '1294072632@qq.com' \
+  --owner-email '<生产管理员邮箱>' \
   --dry-run
+# :ro 只读挂载；--owner-email 指定内容归属的生产管理员；--dry-run 不写 COS/数据库
 ```
 
 确认小册数量、章节数量和告警后，再执行正式导入：
@@ -444,8 +583,8 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
   -v /data/personal-hub/content-local:/var/import/content-local:ro \
   server npx tsx src/cli/import-local-booklets.ts \
   --source /var/import/content-local \
-  --owner-email '1294072632@qq.com' \
-  --execute
+  --owner-email '<生产管理员邮箱>' \
+  --execute  # 确认 dry-run 无误后再执行；不要重复正式导入
 ```
 
 导入后验证：
@@ -472,14 +611,14 @@ AI_OPENAI_TIMEOUT_MS=60000
 配置后重新创建容器：
 
 ```bash
-docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate server server-worker
+docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate server server-worker  # 环境变量变更后必须重建容器才会生效
 ```
 
 确认 `server` 容器收到配置，但不要打印 API Key：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  env | awk -F= '/^AI_(TEXT_PROVIDER|OPENAI_BASE_URL|OPENAI_MODEL|OPENAI_TIMEOUT_MS)=/ {print $1 "=" $2}'
+  env | awk -F= '/^AI_(TEXT_PROVIDER|OPENAI_BASE_URL|OPENAI_MODEL|OPENAI_TIMEOUT_MS)=/ {print $1 "=" $2}'  # 不打印 API Key
 ```
 
 真实 AI 验证顺序：
@@ -498,8 +637,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  env | awk -F= '/^AI_TEXT_PROVIDER=|^AI_OPENAI_MODEL=|^AI_OPENAI_BASE_URL=/ {print $1 "=" $2}'
+  env | awk -F= '/^AI_TEXT_PROVIDER=|^AI_OPENAI_MODEL=|^AI_OPENAI_BASE_URL=/ {print $1 "=" $2}'  # 仍是 fake 时先看这三项是否进了容器
 ```
 
 如果厂商不是 OpenAI-compatible，不能只填地址，需要后续增加独立 Provider 适配器。
-

@@ -24,11 +24,11 @@
 
 1. 拉取目标代码版本；
 2. 检查 `.env.prod`；
-3. 构建并启动 Compose；
-4. 检查 PostgreSQL、Redis、server、worker、Nginx；
-5. 执行 `prisma migrate deploy`；
-6. 执行生产基线 seed；
-7. 执行 `bootstrap:super-admin`；
+3. 构建并启动 PostgreSQL、Redis 与 HTTP `server`（此时不启动 worker/Nginx）；
+4. 执行 `prisma migrate deploy`；
+5. 执行生产基线 seed；
+6. 执行 `bootstrap:super-admin`；
+7. 启动 `server-worker` 与 Nginx，并检查所有服务和健康接口；
 8. 管理员首次登录并立即改密；
 9. 将 `/data/personal-hub/content-local/` 临时只读挂载到导入容器；
 10. 执行小册导入 dry-run；

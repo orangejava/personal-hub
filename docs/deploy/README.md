@@ -7,7 +7,7 @@
 | --- | --- | --- |
 | [go-live-mainline.md](./go-live-mainline.md) | **当前主线**：首版上线（公网 IP + Compose，不做 M7） | 现在要上线时先读 |
 | [prod-env-worksheet.md](./prod-env-worksheet.md) | 当前生产配置与 `.env.prod` 填写表 | 准备生产环境时 |
-| [production-prerequisites.md](./production-prerequisites.md) | 服务器软件安装、资源、安全组和 Compose 前检查 | 第一次准备服务器时 |
+| [production-prerequisites.md](./production-prerequisites.md) | 服务器软件逐项检查、失败后安装、资源、安全组和 Compose 前检查 | 第一次准备服务器时 |
 | [production-runbook.md](./production-runbook.md) | **生产服务器实际操作总手册**：发布、日常运维、排障、备份、恢复 | 登录服务器操作时 |
 | [production-verification.md](./production-verification.md) | 上线后的真实环境验收：服务、登录、邮件、COS、AI、Worker、备份 | 部署完成后 |
 | [prod-startup-order.md](./prod-startup-order.md) | 首次上线检查清单 | 第一次上线时 |

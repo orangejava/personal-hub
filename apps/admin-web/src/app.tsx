@@ -28,8 +28,6 @@ import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
-const isDev = process.env.NODE_ENV === 'development';
-
 /** 只展示 Nest / mock 菜单里的后台子树 */
 function pickAdminMenu(menu: MenuItem[] | undefined): MenuItem[] {
   if (!menu) return [];
@@ -213,7 +211,8 @@ export const layout: RunTimeLayoutConfig = ({
 };
 
 export const request: RequestConfig = {
-  baseURL: isDev ? '' : '/api',
+  // Service 已使用 `/api/v1`，保持同源根路径才能命中 Nginx 的 API location。
+  baseURL: '',
   ...errorConfig,
 };
 
