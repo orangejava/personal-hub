@@ -3,6 +3,9 @@
 FROM node:22-bookworm-slim AS web-build
 
 WORKDIR /app
+# 腾讯云 CVM 访问 Debian 官方源可能长期低速；保留下面标准 apt 命令，仅在构建层改用已验证的镜像并强制 IPv4。
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+  && printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ git ca-certificates \
   && rm -rf /var/lib/apt/lists/*

@@ -4,6 +4,9 @@
 FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
+# 腾讯云 CVM 访问 Debian 官方源可能长期低速；保留下面标准 apt 命令，仅在构建层改用已验证的镜像并强制 IPv4。
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+  && printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 RUN apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
@@ -24,6 +27,9 @@ RUN pnpm --filter server build
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
+# runner 阶段是新的基础镜像，需要再次应用构建期镜像源与 IPv4 配置；不影响容器运行时网络。
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+  && printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
   && rm -rf /var/lib/apt/lists/*
