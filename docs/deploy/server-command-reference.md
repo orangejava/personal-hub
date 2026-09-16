@@ -361,8 +361,8 @@ rsync -avz --progress <本地目录>/ deploy@<服务器IP>:/data/personal-hub/co
 
 Docker 镜像已拉取、构建却停在容器内 `apt-get` 时，Docker Registry mirror 不会生效，因为 apt
 访问的是 Debian 软件源。生产 Dockerfile 会先将容器内的 `deb.debian.org` 改为腾讯云镜像并写入
-`Acquire::ForceIPv4` 配置；后续原有的 `apt-get update/install` 命令仍保留。这个改动只在镜像构建层内
-生效，不会改宿主机的软件源。
+`Acquire::ForceIPv4` 配置，再执行 apt 安装。原 Debian 官方源安装命令会完整注释保留作对照，当前不执行。
+这个改动只在镜像构建层内生效，不会改宿主机的软件源。
 
 ## 9. 快速排障组合
 
