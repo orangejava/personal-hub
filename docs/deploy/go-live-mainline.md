@@ -18,14 +18,14 @@ React-first 0–5 与 Nest **M0–M6** 已在本地闭环。后台治理（M7）
 
 ## 2. 本轮做 / 不做
 
-| 做 | 不做 |
-| --- | --- |
-| 填 `.env.prod`，按 [prod-startup-order.md](./prod-startup-order.md) 和 [production-runbook.md](./production-runbook.md) 起 Compose **并**迁移 / seed / bootstrap | 只 `compose up` 以为结束 |
-| 腾讯云 COS 私有桶 + CAM 子用户（变量仍叫 `MINIO_*`） | 生产再起 MinIO；M7 治理 |
-| QQ SMTP 已接线并完成配置准备；先本地验证，再写入生产 `.env.prod` | 改邮箱、TOTP（那是新功能，不是发信配置） |
-| 容器内 `bootstrap:super-admin`（禁止 `seed:local-users`） | Flutter、Next 抽离、二期编辑器 |
-| 健康检查 + 登录 / 内容 / AI home 冒烟 | 支付、增删模型、LoRA |
-| HTTP 下登录：通过 `COOKIE_SECURE=false` 允许公网 IP 首版使用 Cookie | 主题左/右导航、Logo 上传 |
+| 做                                                                                                                                                               | 不做                                     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| 填 `.env.prod`，按 [prod-startup-order.md](./prod-startup-order.md) 和 [production-runbook.md](./production-runbook.md) 起 Compose **并**迁移 / seed / bootstrap | 只 `compose up` 以为结束                 |
+| 腾讯云 COS 私有桶 + CAM 子用户（变量仍叫 `MINIO_*`）                                                                                                             | 生产再起 MinIO；M7 治理                  |
+| QQ SMTP 已接线并完成配置准备；先本地验证，再写入生产 `.env.prod`                                                                                                 | 改邮箱、TOTP（那是新功能，不是发信配置） |
+| 容器内 `bootstrap:super-admin`（禁止 `seed:local-users`）                                                                                                        | Flutter、Next 抽离、二期编辑器           |
+| 健康检查 + 登录 / 内容 / AI home 冒烟                                                                                                                            | 支付、增删模型、LoRA                     |
+| HTTP 下登录：通过 `COOKIE_SECURE=false` 允许公网 IP 首版使用 Cookie                                                                                              | 主题左/右导航、Logo 上传                 |
 
 ## 3. 首版实现状态与剩余验证
 
@@ -50,13 +50,13 @@ React-first 0–5 与 Nest **M0–M6** 已在本地闭环。后台治理（M7）
 
 **有域名 ≠ 自动 HTTPS。** 也不必买付费证书。大陆 CVM 用域名对外通常要备案。细节与 SMTP/COS 申请步骤见 [tencent-cloud-prep.md](./tencent-cloud-prep.md)。
 
-| 步骤 | 大概耗时 | 挡不挡 IP 上线 |
-| --- | --- | --- |
-| 后台改站点名 | 几分钟 | 否 |
-| 腾讯云注册 `personal-hub` 相关域名 | 实名通过后即可解析；被占用就换后缀 | 否 |
-| DNS A 到 CVM | 几分钟到数小时 | 否 |
-| 大陆备案 | 常见 7–20 个工作日 | 只挡「用域名访问」 |
-| 免费 DV SSL + Nginx 443 | 证书签发约几十分钟到一天 | 否；要域名 |
+| 步骤                               | 大概耗时                           | 挡不挡 IP 上线     |
+| ---------------------------------- | ---------------------------------- | ------------------ |
+| 后台改站点名                       | 几分钟                             | 否                 |
+| 腾讯云注册 `personal-hub` 相关域名 | 实名通过后即可解析；被占用就换后缀 | 否                 |
+| DNS A 到 CVM                       | 几分钟到数小时                     | 否                 |
+| 大陆备案                           | 常见 7–20 个工作日                 | 只挡「用域名访问」 |
+| 免费 DV SSL + Nginx 443            | 证书签发约几十分钟到一天           | 否；要域名         |
 
 以后只改 `PUBLIC_APP_ORIGIN`、Nginx `server_name`/证书、COS CORS，不必重做业务模块。
 

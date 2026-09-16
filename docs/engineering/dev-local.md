@@ -101,13 +101,13 @@ pnpm --filter user-web sync:booklets   # mock 小册，不是 Nest 导入
 
 ## 6. Prisma 注意
 
-| 命令 | 环境 |
-| --- | --- |
-| `prisma:migrate` | 只本地开发，会写新 migration |
+| 命令                                      | 环境                           |
+| ----------------------------------------- | ------------------------------ |
+| `prisma:migrate`                          | 只本地开发，会写新 migration   |
 | `prisma:deploy` / 容器内 `migrate deploy` | 应用已有 migration，生产用这个 |
-| `migrate reset` | 清空本地库，生产禁止 |
-| `seed:local-users` | 写入 `HubDev!234`，生产禁止 |
-| `prisma/seed.ts` | 角色菜单 + 当前还会带样例内容 |
+| `migrate reset`                           | 清空本地库，生产禁止           |
+| `seed:local-users`                        | 写入 `HubDev!234`，生产禁止    |
+| `prisma/seed.ts`                          | 角色菜单 + 当前还会带样例内容  |
 
 ---
 

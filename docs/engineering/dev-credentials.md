@@ -13,15 +13,15 @@
 
 ## 1. 本地地址
 
-| 用途 | 地址 |
-| --- | --- |
-| 用户端 React | http://localhost:8000 |
-| 管理端 React | http://localhost:8001 |
-| Nest API（经前端代理，不要直连登录/刷新） | http://localhost:3001/api/v1 |
-| Nest Swagger | http://localhost:3001/api/docs |
-| Mailpit 收信 | http://localhost:8025 |
-| MinIO S3 API | http://localhost:9000 |
-| MinIO Console | http://localhost:9001 |
+| 用途                                      | 地址                           |
+| ----------------------------------------- | ------------------------------ |
+| 用户端 React                              | http://localhost:8000          |
+| 管理端 React                              | http://localhost:8001          |
+| Nest API（经前端代理，不要直连登录/刷新） | http://localhost:3001/api/v1   |
+| Nest Swagger                              | http://localhost:3001/api/docs |
+| Mailpit 收信                              | http://localhost:8025          |
+| MinIO S3 API                              | http://localhost:9000          |
+| MinIO Console                             | http://localhost:9001          |
 
 启动（缺一步，AI 表或小册会 500 / 假 404）：
 
@@ -37,13 +37,13 @@ pnpm dev:worker        # ZIP 导入、AI 图/视频任务才需要
 pnpm booklet:import-local -- --source <本地小册目录> --execute
 ```
 
-| 命令 | Mock | 说明 |
-| --- | --- | --- |
-| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容、工作区、后台、AI 目录/Chat 已走 Nest |
-| `pnpm dev:worker` | — | Outbox + BullMQ：小册 ZIP、AI 图片/视频。只测 Chat/Text 可不启 |
-| `pnpm booklet:import-local` | — | 把本地小册目录写入 Nest，不再依赖 `dev:user:mock` |
-| `pnpm dev:user:mock` / `dev:admin:mock` | 开 | 仅排障或阶段 A；`/api/v1` 仍可能代理 Nest，页面数据会混 mock |
-| `pnpm build:user` / `build:admin` | 无 | `max build` 不跑 mock 中间件，产物不含 `mock/` |
+| 命令                                    | Mock | 说明                                                           |
+| --------------------------------------- | ---- | -------------------------------------------------------------- |
+| `pnpm dev:user` / `dev:admin`           | 关   | 日常联调 Nest。内容、工作区、后台、AI 目录/Chat 已走 Nest      |
+| `pnpm dev:worker`                       | —    | Outbox + BullMQ：小册 ZIP、AI 图片/视频。只测 Chat/Text 可不启 |
+| `pnpm booklet:import-local`             | —    | 把本地小册目录写入 Nest，不再依赖 `dev:user:mock`              |
+| `pnpm dev:user:mock` / `dev:admin:mock` | 开   | 仅排障或阶段 A；`/api/v1` 仍可能代理 Nest，页面数据会混 mock   |
+| `pnpm build:user` / `build:admin`       | 无   | `max build` 不跑 mock 中间件，产物不含 `mock/`                 |
 
 `dev:no-mock` 仍可用，等同默认 `dev`。`seed:local-users` 会跑基线 seed、重置固定账号、写入 Fake AI 目录与示例内容。
 
@@ -57,11 +57,11 @@ pnpm --filter server seed:local-users
 
 命令会重置本地库中的固定账号（已有 super_admin 只改这一条，不会再创建第二个系统所有者）。`NODE_ENV=production` 时拒绝执行。实现：`apps/server/src/cli/seed-local-dev-users.ts`。没有单独的 `ADMIN` 种子账号；进后台用系统所有者。
 
-| 角色 | 邮箱 | 密码 | 说明 |
-| --- | --- | --- | --- |
-| 系统所有者 | `owner@example.com` | `HubDev!234` | Nest `SUPER_ADMIN`，工作区 + 后台 + AI 配置 |
-| 编辑者 | `editor@example.com` | `HubDev!234` | Nest `EDITOR`，可上传小册（需 `booklet:write`） |
-| 普通会员 | `member@example.com` | `HubDev!234` | Nest `MEMBER`，含 `ai:use`；测 Chat / 额度 / 匿名认领 |
+| 角色       | 邮箱                 | 密码         | 说明                                                  |
+| ---------- | -------------------- | ------------ | ----------------------------------------------------- |
+| 系统所有者 | `owner@example.com`  | `HubDev!234` | Nest `SUPER_ADMIN`，工作区 + 后台 + AI 配置           |
+| 编辑者     | `editor@example.com` | `HubDev!234` | Nest `EDITOR`，可上传小册（需 `booklet:write`）       |
+| 普通会员   | `member@example.com` | `HubDev!234` | Nest `MEMBER`，含 `ai:use`；测 Chat / 额度 / 匿名认领 |
 
 打开 http://localhost:8000/user/login 用上表登录。`mustChangePassword` 为 `false`。密码都满足 Nest 策略，不要用下面 mock 表里的 `dev123456`。
 
@@ -73,11 +73,11 @@ pnpm --filter server seed:local-users
 
 ## 3. Mock 账号（仅 `UMI_APP_NEST_AUTH=0` / `dev:*:mock`）
 
-| 角色 | 邮箱 | 密码 | 说明 |
-| --- | --- | --- | --- |
-| 管理员 | `admin@example.com` | `yyQhItHlRe8Q9suV` | 强随机密码，可访问工作区 + 后台 |
-| 编辑者 | `editor@example.com` | `dev123456` | 可访问工作区、创建/发布内容、上传小册 |
-| 普通会员 | `member@example.com` | `dev123456` | 仅公开区阅读 + AI 入口 |
+| 角色     | 邮箱                 | 密码               | 说明                                  |
+| -------- | -------------------- | ------------------ | ------------------------------------- |
+| 管理员   | `admin@example.com`  | `yyQhItHlRe8Q9suV` | 强随机密码，可访问工作区 + 后台       |
+| 编辑者   | `editor@example.com` | `dev123456`        | 可访问工作区、创建/发布内容、上传小册 |
+| 普通会员 | `member@example.com` | `dev123456`        | 仅公开区阅读 + AI 入口                |
 
 - 账号定义：`apps/user-web/mock/data/devCredentials.ts`（管理端同名文件）
 - mock 校验：`apps/user-web/mock/data/users.ts`
@@ -90,14 +90,14 @@ pnpm --filter server seed:local-users
 
 权威连接串仍以 `apps/server/.env.example` 为准。图形工具连本机映射端口即可，不要再起一套本机 Postgres/Redis。
 
-| 服务 | 地址 | 账号 / 密码 |
-| --- | --- | --- |
-| PostgreSQL | `localhost:5432`，库名 `personal_hub` | `personal_hub` / `personal_hub_dev_password` |
-| Redis | `localhost:6379` | 密码 `personal_hub_redis_dev_password`；键前缀 `ph:dev:` |
-| Mailpit SMTP | `localhost:1025` | 无；发件人 `Personal Hub <noreply@localhost>` |
-| Mailpit UI | http://localhost:8025 | 无 |
-| MinIO S3 | `localhost:9000` | `personal_hub_minio` / `personal_hub_minio_dev_secret`，桶 `personal-hub-dev` |
-| MinIO Console | http://localhost:9001 | 同上 |
+| 服务          | 地址                                  | 账号 / 密码                                                                   |
+| ------------- | ------------------------------------- | ----------------------------------------------------------------------------- |
+| PostgreSQL    | `localhost:5432`，库名 `personal_hub` | `personal_hub` / `personal_hub_dev_password`                                  |
+| Redis         | `localhost:6379`                      | 密码 `personal_hub_redis_dev_password`；键前缀 `ph:dev:`                      |
+| Mailpit SMTP  | `localhost:1025`                      | 无；发件人 `Personal Hub <noreply@localhost>`                                 |
+| Mailpit UI    | http://localhost:8025                 | 无                                                                            |
+| MinIO S3      | `localhost:9000`                      | `personal_hub_minio` / `personal_hub_minio_dev_secret`，桶 `personal-hub-dev` |
+| MinIO Console | http://localhost:9001                 | 同上                                                                          |
 
 ```bash
 docker compose -f compose.dev.yml exec postgres psql -U personal_hub -d personal_hub
