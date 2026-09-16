@@ -61,7 +61,7 @@ Nest `server-worker` → Redis / PostgreSQL / 腾讯 COS
 - 生产不运行 MinIO 作为业务源数据；COS 是 FileAsset 的唯一对象源。
 - 用户端、管理端与 Nest **同站路径分流**（同一 Origin 的 `/`、`/admin`、`/api/v1`）。Refresh Cookie 走宿主 Cookie，生产业务 API **不开放 CORS**。开发环境才对 `localhost:8000` / `localhost:8001` 开放凭据请求。
 - 管理端生产构建必须带 `PUBLIC_PATH=/admin/`，否则 JS/CSS 会落到站点根路径，和用户端静态资源撞车。本地独立 Origin（`:8001`）继续用默认 `/`。
-- `/etc/personal-hub/.env` 存部署密钥，由 `docker compose --env-file` 注入；绝不提交 Git、写入镜像层或回显日志。骨架见仓库根 `compose.prod.yml` 与 `.env.prod.example`。
+- 项目目录的 `.env.prod` 存部署密钥，由 `docker compose --env-file .env.prod` 注入；绝不提交 Git、写入镜像层或回显日志。骨架见仓库根 `compose.prod.yml` 与 `.env.prod.example`。
 - API Key、SMTP、JWT、COS 凭证都仅来自环境变量/密钥管理。
 - 生产 Dockerfile / `compose.prod.yml` 骨架已在仓库根与 `apps/server/Dockerfile`、`deploy/nginx/`；镜像仓库、域名、TLS 证书仍待实际部署时填写，不要把骨架当成已发布。
 

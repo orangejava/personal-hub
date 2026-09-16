@@ -163,7 +163,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [deploy/README.md](./deploy/README.md)                                   | 部署文档总入口                                                 | ✅ 已完成   |
 | [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)               | **当前主线**：首版上线（公网 IP + Compose，不做 M7）           | 🟡 进行中   |
 | [deploy/prod-env-worksheet.md](./deploy/prod-env-worksheet.md)           | 生产 `.env.prod` 填空表                                       | 🟡 进行中   |
-| [deploy/production-prerequisites.md](./deploy/production-prerequisites.md) | 服务器软件安装、资源与安全组检查                             | ✅ 已完成   |
+| [deploy/production-prerequisites.md](./deploy/production-prerequisites.md) | 服务器软件逐项检查、失败后安装、资源与安全组检查             | ✅ 已完成   |
 | [deploy/production-runbook.md](./deploy/production-runbook.md)             | 生产服务器发布、运维、排障、备份和恢复                        | ✅ 文档已完成；待实际上线 |
 | [deploy/production-verification.md](./deploy/production-verification.md)   | 上线后的真实环境验收                                         | ✅ 已完成   |
 | [deploy/prod-startup-order.md](./deploy/prod-startup-order.md)           | 首次上线检查清单                                              | ✅ 文档已完成；待实际上线 |

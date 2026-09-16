@@ -27,7 +27,6 @@ import { mapPublicNavigation } from '@/auth/routeRegistry';
 import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
 
-const isDev = process.env.NODE_ENV === 'development';
 const loginPath = '/user/login';
 const changePasswordPath = '/user/change-password';
 const authPublicPaths = [
@@ -400,7 +399,8 @@ export const layout: RunTimeLayoutConfig = ({
 };
 
 export const request: RequestConfig = {
-  baseURL: isDev ? '' : '/api',
+  // 所有 Canonical 接口已带 `/api/v1`，生产同源时不能再叠加 `/api`。
+  baseURL: '',
   ...errorConfig,
 };
 

@@ -43,7 +43,7 @@ moveObject(fromKey, toKey)
 | 环境 | Provider                      | Endpoint / 凭证                                                   |
 | ---- | ----------------------------- | ----------------------------------------------------------------- |
 | 本地 | S3 Provider（MinIO endpoint） | Compose 服务 `minio`，开发账号仅存 `.env.local`                   |
-| 生产 | S3 Provider（COS endpoint）   | COS Bucket、Region、CAM 最小权限密钥，仅 `/etc/personal-hub/.env` |
+| 生产 | S3 Provider（COS endpoint）   | COS Bucket、Region、CAM 最小权限密钥，仅项目目录 `.env.prod` |
 
 不得让浏览器直接持有 COS / MinIO 永久密钥。需要下载时，Nest 先执行内容可见性和文件引用校验，再返回短期签名 URL 或通过 API 流式代理。
 
@@ -263,7 +263,7 @@ Nest 在宿主机热更新，通过 `.env.local` 连接 `localhost` 端口。Min
 ### 7.2 生产
 
 - COS Bucket 为私有读写，CAM 账号使用最小权限。
-- `apps/server` 容器通过 `/etc/personal-hub/.env` 读取 COS 凭据。
+- `apps/server` 容器通过 Compose 从项目目录 `.env.prod` 读取 COS 凭据。
 - PostgreSQL、Redis、server 由生产 Compose 编排；Nginx 只反向代理 API。
 - 上传临时目录、任务日志和对象存储凭据不进入 Git。
 - COS 生命周期规则可对已删除的临时 ZIP 与过期导入源文件单独配置；数据库备份不写入 COS，遵循部署策略中的本地备份与云盘快照规则。
