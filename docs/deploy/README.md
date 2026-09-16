@@ -8,6 +8,7 @@
 | [go-live-mainline.md](./go-live-mainline.md) | **当前主线**：首版上线（公网 IP + Compose，不做 M7） | 现在要上线时先读 |
 | [prod-env-worksheet.md](./prod-env-worksheet.md) | 当前生产配置与 `.env.prod` 填写表 | 准备生产环境时 |
 | [production-prerequisites.md](./production-prerequisites.md) | 服务器软件逐项检查、失败后安装、资源、安全组和 Compose 前检查 | 第一次准备服务器时 |
+| [server-command-reference.md](./server-command-reference.md) | 服务器命令字典：Docker Compose、Git、日志、备份与风险说明 | 不确定某条服务器命令作用时 |
 | [production-runbook.md](./production-runbook.md) | **生产服务器实际操作总手册**：发布、日常运维、排障、备份、恢复 | 登录服务器操作时 |
 | [production-verification.md](./production-verification.md) | 上线后的真实环境验收：服务、登录、邮件、COS、AI、Worker、备份 | 部署完成后 |
 | [prod-startup-order.md](./prod-startup-order.md) | 首次上线检查清单 | 第一次上线时 |
@@ -24,12 +25,13 @@
 1. [go-live-mainline.md](./go-live-mainline.md) — 主线边界
 2. [prod-env-worksheet.md](./prod-env-worksheet.md) — 先填 `.env.prod`
 3. [production-prerequisites.md](./production-prerequisites.md) — 安装并检查服务器
-4. [prod-startup-order.md](./prod-startup-order.md) — 再按序启动
-5. [tencent-cloud-prep.md](./tencent-cloud-prep.md) — COS / SMTP / 域名证书
-6. [production-runbook.md](./production-runbook.md) — 首次上线和服务器命令
-7. [production-verification.md](./production-verification.md) — 上线后的真实环境验收
-8. [../engineering/dev-local.md](../engineering/dev-local.md) — 本地开发命令
-9. [nest-compose-strategy.md](./nest-compose-strategy.md) — 拓扑与发布原则
+4. [server-command-reference.md](./server-command-reference.md) — 不确定服务器命令含义时查阅
+5. [prod-startup-order.md](./prod-startup-order.md) — 再按序启动
+6. [tencent-cloud-prep.md](./tencent-cloud-prep.md) — COS / SMTP / 域名证书
+7. [production-runbook.md](./production-runbook.md) — 首次上线和服务器命令
+8. [production-verification.md](./production-verification.md) — 上线后的真实环境验收
+9. [../engineering/dev-local.md](../engineering/dev-local.md) — 本地开发命令
+10. [nest-compose-strategy.md](./nest-compose-strategy.md) — 拓扑与发布原则
 
 Nest 本地启动不使用旧 PM2 文档：按 [`apps/server/README.md`](../../apps/server/README.md) 运行 `compose.dev.yml` 与 `pnpm dev:server`；生产服务器命令统一见 [production-runbook.md](./production-runbook.md)。
 

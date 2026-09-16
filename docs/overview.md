@@ -2,7 +2,7 @@
 
 > 个人知识平台 + AI 工具中台
 > 状态：React-first 阶段 0–5 与 Nest M0–M6 已落地；**当前主线是首版上线部署（公网 IP + Compose）**；M7 后台治理本轮不做
-> 最后更新：2026-09-13
+> 最后更新：2026-09-16
 
 ---
 
@@ -164,6 +164,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)               | **当前主线**：首版上线（公网 IP + Compose，不做 M7）           | 🟡 进行中   |
 | [deploy/prod-env-worksheet.md](./deploy/prod-env-worksheet.md)           | 生产 `.env.prod` 填空表                                       | 🟡 进行中   |
 | [deploy/production-prerequisites.md](./deploy/production-prerequisites.md) | 服务器软件逐项检查、失败后安装、资源与安全组检查             | ✅ 已完成   |
+| [deploy/server-command-reference.md](./deploy/server-command-reference.md) | 服务器命令字典：Compose、Git、日志、备份与风险说明           | ✅ 已完成   |
 | [deploy/production-runbook.md](./deploy/production-runbook.md)             | 生产服务器发布、运维、排障、备份和恢复                        | ✅ 文档已完成；待实际上线 |
 | [deploy/production-verification.md](./deploy/production-verification.md)   | 上线后的真实环境验收                                         | ✅ 已完成   |
 | [deploy/prod-startup-order.md](./deploy/prod-startup-order.md)           | 首次上线检查清单                                              | ✅ 文档已完成；待实际上线 |
