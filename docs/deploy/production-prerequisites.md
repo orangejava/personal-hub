@@ -543,6 +543,27 @@ docker pull nginx:1.27-alpine
 
 只有基础镜像能够稳定 `docker pull` 后，才重新执行生产 Compose 构建。
 
+### 8.1 Debian 构建依赖下载慢
+
+`server` 和 Nginx 前端构建均基于 `node:22-bookworm-slim`。镜像已拉取成功、但构建日志停在
+`apt-get update` 或 `apt-get install`，并且 CPU、内存、磁盘正常时，问题是**容器内 Debian 软件源**，
+不是 Docker Registry mirror。Registry mirror 只影响 `docker pull`，不影响 apt 下载。
+
+生产 Dockerfile 会把原 Debian 官方源安装命令完整注释保留，改为执行下面的腾讯云镜像命令：
+
+```dockerfile
+# 原 Debian 官方源命令保留作对照，当前不执行。
+# RUN apt-get update && apt-get install ...
+# 只影响镜像构建层，不修改宿主机 /etc/apt。
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+  && printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4 \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends <构建依赖>
+```
+
+这样 apt 实际访问腾讯云 Debian 镜像并只使用 IPv4。该配置在镜像构建层内生效，不会改变宿主机的
+Ubuntu 软件源，也不影响应用容器运行时的网络请求。
+
 ## 9. 上线前必须确认的外部服务
 
 - COS Bucket、地域、CAM 子用户权限；

@@ -3,7 +3,14 @@
 FROM node:22-bookworm-slim AS web-build
 
 WORKDIR /app
-RUN apt-get update \
+# 原 Debian 官方源安装命令保留作对照；腾讯云 CVM 实测下载过慢，当前不执行。
+# RUN apt-get update \
+#   && apt-get install -y --no-install-recommends python3 make g++ git ca-certificates \
+#   && rm -rf /var/lib/apt/lists/*
+# 当前构建命令：仅在镜像构建层切换腾讯云 Debian 镜像并强制 IPv4，不修改宿主机 apt 配置。
+RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.d/debian.sources \
+  && printf 'Acquire::ForceIPv4 "true";\n' > /etc/apt/apt.conf.d/99force-ipv4 \
+  && apt-get update \
   && apt-get install -y --no-install-recommends python3 make g++ git ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 RUN corepack enable
