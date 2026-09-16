@@ -16,6 +16,8 @@ RUN sed -i 's|deb.debian.org|mirrors.cloud.tencent.com|g' /etc/apt/sources.list.
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
+# 根锁文件声明了 pnpm patchedDependencies；必须在安装依赖前带入补丁文件。
+COPY patches ./patches
 COPY packages ./packages
 COPY apps/user-web/package.json apps/user-web/package.json
 COPY apps/admin-web/package.json apps/admin-web/package.json

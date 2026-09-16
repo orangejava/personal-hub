@@ -364,6 +364,11 @@ Docker 镜像已拉取、构建却停在容器内 `apt-get` 时，Docker Registr
 `Acquire::ForceIPv4` 配置，再执行 apt 安装。原 Debian 官方源安装命令会完整注释保留作对照，当前不执行。
 这个改动只在镜像构建层内生效，不会改宿主机的软件源。
 
+若构建在 `pnpm install --frozen-lockfile` 报 `ENOENT`，提示无法读取 `/app/patches/*.patch`，说明
+Dockerfile 在安装依赖前漏复制了根目录 `patches/`。该目录是 `pnpm-lock.yaml` 的
+`patchedDependencies` 的输入，必须与根 `package.json`、锁文件一起进入构建上下文；这不是 `.env.prod`、
+PostgreSQL 或 Redis 的配置错误。服务端和 Nginx 构建阶段都要复制它，避免前一阶段修复后在前端构建时重现。
+
 ## 9. 快速排障组合
 
 ### 网站打不开或 502
