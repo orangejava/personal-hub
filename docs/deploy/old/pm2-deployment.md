@@ -13,7 +13,7 @@
 | --- | --- |
 | 应用 | Monorepo 根目录下的 `apps/user-web`（Umi Max 4） |
 | 启动方式 | **dev 模式**（`max dev`），不是 `build` + 静态托管 |
-| 数据 | 小册在 `/data/.../content-local/` → **启动前自动** `sync:booklets` → `mock/data/local-booklets.generated.ts` |
+| 数据 | 小册在 `/data/personal-hub/content-local/` → **启动前自动** `sync:booklets` → `mock/data/local-booklets.generated.ts` |
 | 端口 | 默认 **8000**（Umi dev server） |
 | PM2 配置 | 仓库根 [`ecosystem.config.js`](../../ecosystem.config.js) + [`scripts/pm2-start-dev.sh`](../../scripts/pm2-start-dev.sh) |
 | Node | **≥ 22**（见根 `package.json` engines） |

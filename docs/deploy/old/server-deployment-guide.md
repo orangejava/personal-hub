@@ -2,7 +2,7 @@
 
 > 一页纸命令清单，仅适用于 `apps/user-web` 的 Umi mock + PM2 阶段，不适用于 Nest 服务。路线图见 [deployment-plan.md](./deployment-plan.md)；**PM2 排障见 [pm2-deployment.md](./pm2-deployment.md)**。
 > 细节见 [personal-remote-reading.md](./personal-remote-reading.md)。长期 Docker / CI/CD 见 [deployment.md](./deployment.md)。  
-> Nest 本地启动见 [`apps/server/README.md`](../../apps/server/README.md)，生产策略见 [nest-compose-strategy.md](./nest-compose-strategy.md)。
+> Nest 本地启动见 [`apps/server/README.md`](../../apps/server/README.md)，生产策略见 [nest-compose-strategy.md](../nest-compose-strategy.md)。
 > 最后更新：2026-07-27。
 
 ---

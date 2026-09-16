@@ -426,7 +426,7 @@ pnpm build
 
 ### 先读文档
 
-- [deployment.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/deploy/deployment.md)
+- [deployment.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/deploy/old/deployment.md)
 - [engineering-guide.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/engineering/engineering-guide.md)
 
 ### 子任务
@@ -443,8 +443,8 @@ pnpm build
 
 ### 完成后同步文档
 
-- `docs/deploy/deployment.md`
-- `docs/deploy/personal-remote-reading.md`
+- `docs/deploy/old/deployment.md`
+- `docs/deploy/old/personal-remote-reading.md`
 - `study/features/deployment.md`（若有运维学习笔记再补）
 
 ---

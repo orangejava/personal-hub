@@ -14,8 +14,11 @@ export interface PasswordResetEmailInput {
 }
 
 /**
- * 本切片只通过本地 Mailpit SMTP 发信。生产必须改成真实 SMTP 主机，
- * 不能把 MAILPIT_HOST 长期绑到生产环境。
+ * 统一封装验证邮件和密码重置邮件。
+ *
+ * 未配置 SMTP 账号时连接本地 Mailpit；配置 SMTP_USER / SMTP_PASSWORD 后，
+ * 使用真实 SMTP 服务（例如 QQ 邮箱授权码）发信。日志只记录连接初始化，
+ * 不记录账号密码或授权码。
  */
 @Injectable()
 export class MailService {
@@ -56,10 +59,20 @@ export class MailService {
 
   private getTransporter(): Transporter {
     if (this.transporter === null) {
+      const user = this.config.get('SMTP_USER');
+      const password = this.config.get('SMTP_PASSWORD');
+      if ((user === undefined) !== (password === undefined)) {
+        throw new Error('SMTP_USER 和 SMTP_PASSWORD 必须同时配置。');
+      }
+
+      const auth =
+        user === undefined || password === undefined ? undefined : { user, pass: password };
+      const secure = this.config.getOrThrow('SMTP_SECURE');
       this.transporter = nodemailer.createTransport({
-        host: this.config.getOrThrow('MAILPIT_HOST'),
-        port: this.config.getOrThrow('MAILPIT_PORT'),
-        secure: false,
+        host: this.config.getOrThrow('SMTP_HOST'),
+        port: this.config.getOrThrow('SMTP_PORT'),
+        secure,
+        ...(auth === undefined ? {} : { auth, requireTLS: !secure }),
       });
       this.logger.log('SMTP transporter initialized');
     }

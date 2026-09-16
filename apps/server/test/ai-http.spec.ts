@@ -495,7 +495,7 @@ describe('AI HTTP', () => {
       body: init?.body ? JSON.stringify(init.body) : undefined,
     });
     const text = await response.text();
-    let parsed: Envelope<unknown> = { requestId: 'none' };
+    let parsed: Envelope<unknown>;
     try {
       parsed = JSON.parse(text) as Envelope<unknown>;
     } catch {

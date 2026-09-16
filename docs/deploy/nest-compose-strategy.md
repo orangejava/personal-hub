@@ -1,7 +1,7 @@
 # NestJS Docker Compose 开发与生产策略
 
-> 状态：🟡 本地 `compose.dev.yml` 已落地；生产骨架 `compose.prod.yml` + Dockerfile 已写入仓库，尚未对真实域名/镜像仓库做过发布
-> 最后更新：2026-08-29
+> 状态：🟡 本地 `compose.dev.yml` 已落地；生产骨架 `compose.prod.yml` + Dockerfile 已写入仓库，尚未对真实机器发布。当前主线按公网 IP 发布，见 [go-live-mainline.md](./go-live-mainline.md)
+> 最后更新：2026-09-13
 > 关联：[后端实现约定](../backend/conventions.md)、[小册与文件 PRD](../prd/long-term/content-booklet-file-prd.md)
 
 ---
@@ -36,7 +36,7 @@ Nest 以宿主机 `pnpm --filter server dev` 热更新，并由 `.env.local` 连
 
 ## 3. 生产 Compose
 
-生产单服务器首版服务（**不要用 PM2 再起一套前端**。PM2 只属于阶段 A 的 Umi mock 远程阅读，见 [pm2-deployment.md](./pm2-deployment.md)）：
+生产单服务器首版服务（**不要用 PM2 再起一套前端**。PM2 只属于阶段 A 的 Umi mock 远程阅读，历史说明见 [old/pm2-deployment.md](./old/pm2-deployment.md)）：
 
 ```text
 Internet

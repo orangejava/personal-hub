@@ -27,7 +27,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import {
   createAdminAiModelConfig,
-  deleteAdminAiModelConfig,
   fetchAdminAiConfig,
   moveAdminAiToolSort,
   updateAdminAiBrandingConfig,
@@ -62,7 +61,6 @@ const AiConfig: React.FC = () => {
   const [savingProvider, setSavingProvider] = useState(false);
   const [savingBranding, setSavingBranding] = useState(false);
   const [savingModel, setSavingModel] = useState(false);
-  const [deletingModelId, setDeletingModelId] = useState<string>();
   const [savingTool, setSavingTool] = useState(false);
   const [savingNavId, setSavingNavId] = useState<string>();
   const { data, loading, error, run } = useRequest(fetchAdminAiConfig);
@@ -199,11 +197,6 @@ const AiConfig: React.FC = () => {
     setEditingModel(model);
   };
 
-  const openCreateModelDrawer = () => {
-    setCreatingModel(true);
-    setEditingModel(null);
-  };
-
   const closeModelDrawer = () => {
     setEditingModel(null);
     setCreatingModel(false);
@@ -302,20 +295,6 @@ const AiConfig: React.FC = () => {
       message.error(error instanceof Error ? error.message : '保存失败');
     } finally {
       setSavingModel(false);
-    }
-  };
-
-  /** 删除 AI 模型配置，mock 层会同步清理工具默认模型引用。 */
-  const handleModelDelete = async (model: AdminAiModelConfig) => {
-    setDeletingModelId(model.id);
-    try {
-      await deleteAdminAiModelConfig(model.id);
-      await run();
-      message.success('AI 模型已删除');
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '删除失败');
-    } finally {
-      setDeletingModelId(undefined);
     }
   };
 

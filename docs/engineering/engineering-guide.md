@@ -17,40 +17,41 @@
 
 ---
 
-## 当前本地启动（React-first）
+## 当前本地启动
+
+日常默认打 Nest，不要用 mock 当数据源。账号与端口见 [dev-credentials.md](./dev-credentials.md)。
 
 ```bash
-# 1. 安装依赖并生成本地小册 mock（没有本地小册时会生成空数据）
 git clone <repo-url>
 cd personal-hub
 nvm use
 pnpm install
 
-# 2. 启动用户端（默认无 mock，只打 Nest）
-pnpm dev:user
-# 需要内容/工作区/AI mock 时：pnpm dev:user:mock
+# 依赖 + 迁移 + 本地账号 / Fake AI 目录
+docker compose -f compose.dev.yml up -d
+# 复制 apps/server/.env.example 为 .env.local（若还没有）
+pnpm --filter server prisma:deploy
+pnpm --filter server seed:local-users
 
-# 3. 启动管理端（可选）
-pnpm dev:admin
-# 需要后台 CRUD mock 时：pnpm dev:admin:mock
+pnpm dev:server
+pnpm dev:user            # MOCK=none，http://localhost:8000
+pnpm dev:admin           # MOCK=none，http://localhost:8001
+pnpm dev:worker          # 小册 ZIP / AI 图视频才需要
 ```
 
-启动后：
+存量小册：`pnpm booklet:import-local -- --source <目录> --execute`，不要再靠 `sync:booklets` + mock。仅阶段 A 或排障才用 `pnpm dev:user:mock` / `dev:admin:mock`。
 
-- 用户端 React：http://localhost:8000
-- 管理端 React：http://localhost:8001
-
-React mock 开发不需要 `apps/next-web`、数据库、Docker 或 server 环境变量；`apps/server` 已完成阶段 0，按下一节单独启动。
+`apps/next-web` 仍是长期目标，当前不需要。
 
 ---
 
 ## Nest 阶段 0 本地开发入口
 
-> 阶段 0 已落地。实现细节见 [Nest Server 实现记录](../implementation/foundation/nest-server-bootstrap.md)；需求与验收边界仍以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为准。
+> Nest M0–M6 已落地（脚手架、Auth、系统配置、内容、文件/小册、AI）。实现入口见 [apps/server/docs/README.md](../../apps/server/docs/README.md)。当前产品主线是上线部署，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md)。
 
 - 复制 `apps/server/.env.example` 为 `apps/server/.env.local` 后，执行 `docker compose -f compose.dev.yml up -d`、`pnpm --filter server prisma:generate`、`pnpm --filter server prisma:deploy` 与 `pnpm dev:server`。
 - 目录固定为 `apps/server`，本地使用 `pnpm --filter server dev` 在宿主机热更新。
-- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷。真实基础设施测试、readiness 故障自动化和 server CI 已在阶段 0 收口，后续 Auth 测试继续沿用此质量基线。
+- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷。真实基础设施测试、readiness 故障自动化和 server CI 已在阶段 0 收口。
 - 全局 API 前缀为 `/api/v1`；旧 React mock `/api/*` 仅作迁移线索。
 - 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
 - MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。
@@ -391,17 +392,23 @@ async publishContent(@Param('id') id: string) { ... }
 
 ---
 
+本地开发命令速查见 [dev-local.md](./dev-local.md)。生产服务器操作见 [../deploy/production-runbook.md](../deploy/production-runbook.md)，首次上线清单见 [../deploy/prod-startup-order.md](../deploy/prod-startup-order.md)。
+
 ## 当前常用命令
 
 ```bash
-pnpm dev:user                          # 用户端，默认无 mock
-pnpm dev:user:mock                     # 用户端 + Umi mock
+pnpm dev:user                          # 用户端，默认无 mock，打 Nest
 pnpm dev:admin                         # 管理端，默认无 mock
-pnpm dev:admin:mock                    # 管理端 + Umi mock
+pnpm dev:server                        # Nest API :3001
+pnpm dev:worker                        # Outbox / BullMQ
+pnpm booklet:import-local              # 存量小册导入 Nest
+pnpm --filter server seed:local-users  # 本地账号 + Fake AI 目录
 pnpm build:user                        # 构建用户端（不含 mock）
-pnpm --filter user-web lint           # Biome + TypeScript 检查
-pnpm --filter user-web test           # Vitest 单元测试
-pnpm --filter user-web sync:booklets  # 同步本地小册 mock
+pnpm --filter user-web lint            # Biome + TypeScript 检查
+pnpm --filter user-web test            # Vitest 单元测试
+# 仅排障 / 阶段 A：
+pnpm dev:user:mock
+pnpm --filter user-web sync:booklets   # 只生成 mock 小册数据，不是 Nest 导入
 ```
 
 ---

@@ -20,6 +20,12 @@ describe('validateEnv', () => {
     expect(env.NODE_ENV).toBe('development');
     expect(env.CORS_ORIGIN).toEqual(['http://localhost:8000', 'http://localhost:8001']);
     expect(env.PUBLIC_APP_ORIGIN).toBe('http://localhost:8000');
+    expect(env.COOKIE_SECURE).toBe(false);
+    expect(env.SMTP_HOST).toBe('localhost');
+    expect(env.SMTP_PORT).toBe(1025);
+    expect(env.SMTP_USER).toBeUndefined();
+    expect(env.SMTP_PASSWORD).toBeUndefined();
+    expect(env.SMTP_SECURE).toBe(false);
     expect(env.MAILPIT_HOST).toBe('localhost');
     expect(env.MAILPIT_PORT).toBe(1025);
     expect(env.MAIL_FROM).toBe('Personal Hub <noreply@localhost>');
@@ -55,5 +61,23 @@ describe('validateEnv', () => {
       CORS_ORIGIN: '',
     });
     expect(env.CORS_ORIGIN).toEqual([]);
+  });
+
+  it('requires complete OpenAI-compatible settings when real AI is enabled', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnvironment,
+        AI_TEXT_PROVIDER: 'openai_compatible',
+      }),
+    ).toThrow();
+
+    const env = validateEnv({
+      ...validEnvironment,
+      AI_TEXT_PROVIDER: 'openai_compatible',
+      AI_OPENAI_BASE_URL: 'https://api.example.com/v1',
+      AI_OPENAI_API_KEY: 'test-key',
+      AI_OPENAI_MODEL: 'test-model',
+    });
+    expect(env.AI_TEXT_PROVIDER).toBe('openai_compatible');
   });
 });

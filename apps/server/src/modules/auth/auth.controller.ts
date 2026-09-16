@@ -214,7 +214,7 @@ export class AuthController {
       ip: this.clientIp(request),
       requestId: request.requestId,
     });
-    clearRefreshCookie(response, { secure: this.config.getOrThrow('NODE_ENV') === 'production' });
+    clearRefreshCookie(response, { secure: this.config.getOrThrow('COOKIE_SECURE') });
     return { loggedOut: true };
   }
 
@@ -262,7 +262,7 @@ export class AuthController {
       requestId: request.requestId,
     });
     if (!keepCurrent) {
-      clearRefreshCookie(response, { secure: this.config.getOrThrow('NODE_ENV') === 'production' });
+      clearRefreshCookie(response, { secure: this.config.getOrThrow('COOKIE_SECURE') });
     }
     return result;
   }
@@ -306,7 +306,7 @@ export class AuthController {
       ip: this.clientIp(request),
       requestId: request.requestId,
     });
-    clearRefreshCookie(response, { secure: this.config.getOrThrow('NODE_ENV') === 'production' });
+    clearRefreshCookie(response, { secure: this.config.getOrThrow('COOKIE_SECURE') });
     return result;
   }
 
@@ -320,7 +320,7 @@ export class AuthController {
 
   private writeRefreshCookie(response: Response, token: string): void {
     setRefreshCookie(response, token, {
-      secure: this.config.getOrThrow('NODE_ENV') === 'production',
+      secure: this.config.getOrThrow('COOKIE_SECURE'),
     });
   }
 

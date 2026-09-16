@@ -1,10 +1,10 @@
 # 部署方案
 
 > 状态：🟢 长期 Nest 生产入口；文末旧草案仅供追溯
-> 最后更新：2026-08-29
-> 当前依据：[Nest Compose 策略](./nest-compose-strategy.md)
+> 最后更新：2026-09-13
+> 当前依据：[Nest Compose 策略](../nest-compose-strategy.md)；**当前主线**：[go-live-mainline.md](../go-live-mainline.md)
 
-> **权威提示**：Nest 生产部署唯一依据是 [Nest Compose 策略](./nest-compose-strategy.md)。当前后端为 `apps/server`，生产 API 位于 `/api/v1`，认证为 JWT-only + Argon2id，生产对象存储唯一使用腾讯 COS。
+> **权威提示**：Nest 生产部署唯一依据是 [Nest Compose 策略](../nest-compose-strategy.md)。当前后端为 `apps/server`，生产 API 位于 `/api/v1`，认证为 JWT-only + Argon2id，生产对象存储唯一使用腾讯 COS。
 >
 > **完整路线图（阶段 A/B/C、Gitee、目录约定）** → [deployment-plan.md](./deployment-plan.md)
 > **个人远程阅读 + COS** → [personal-remote-reading.md](./personal-remote-reading.md)
@@ -12,18 +12,19 @@
 
 ---
 
-## 当前阶段：本地开发
+## 当前阶段：本地开发 + 首版上线主线
 
-日常联调是三个宿主机进程 + Compose 依赖，不是 PM2：
+日常联调是宿主机进程 + Compose 依赖，不是 PM2。账号见 [../../engineering/dev-credentials.md](../../engineering/dev-credentials.md)。要把这套发到公网 IP，见 [go-live-mainline.md](../go-live-mainline.md)。
 
 | 项     | 方式                                                                                    |
 | ------ | --------------------------------------------------------------------------------------- |
-| 用户端 | `pnpm dev:user`（无 mock）或 `pnpm dev:user:mock` → http://localhost:8000 |
-| 管理端 | `pnpm dev:admin` 或 `pnpm dev:admin:mock` → http://localhost:8001        |
+| 用户端 | `pnpm dev:user`（无 mock）→ http://localhost:8000 |
+| 管理端 | `pnpm dev:admin` → http://localhost:8001        |
 | API    | `pnpm dev:server` → http://localhost:3001/api/v1                                        |
+| Worker | `pnpm dev:worker`（ZIP / AI 图视频） |
 | 依赖   | `compose.dev.yml`：PostgreSQL、Redis、MinIO、Mailpit                                    |
 
-生产不要把管理端加进 `ecosystem.config.js`；拓扑见 [Nest Compose 策略](./nest-compose-strategy.md)。**当前不必按生产拓扑搭建本地环境。**
+生产不要把管理端加进 `ecosystem.config.js`；拓扑见 [Nest Compose 策略](../nest-compose-strategy.md)。**当前不必按生产拓扑搭建本地环境。**
 
 ---
 
@@ -37,7 +38,7 @@
 | Redis / 队列 | `ioredis` 封装；通用限流通过项目自定义 `ThrottlerStorage`；关键异步使用 Outbox + BullMQ                                                                                    |
 | 备份         | PostgreSQL 每日逻辑备份保留 14 天；部署、迁移前额外备份；上线前和重大迁移前进行隔离恢复演练                                                                                |
 | 发布         | 构建并推送目标镜像后，短维护窗口内停止 `server` / `server-worker`、备份、`prisma migrate deploy`、启动与 readiness/关键 API/队列检查；应用镜像可回滚，数据库迁移默认只前进 |
-| 告警         | 最低事件、渠道占位、阈值与恢复责任见 [Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位)                                                       |
+| 告警         | 最低事件、渠道占位、阈值与恢复责任见 [Compose 策略 §5.1](../nest-compose-strategy.md#51-最低告警与巡检上线前必须落位)                                                       |
 
 不得在本文或实施配置中猜测服务器地址、镜像仓库、域名或密钥；这些只在实际部署时由受控运维配置提供。
 
@@ -45,7 +46,7 @@
 
 ## 已归档的早期 Docker / Nginx / CI 草案（不可执行）
 
-> 本节及其后续示例中出现的 `apps/web`、`apps/api`、`/api`、PM2 API、生产 MinIO、7 天备份、对象存储备份数据库和示例镜像名均已废弃，**不得复制执行**。保留文字仅用于理解历史迁移背景；当前实现请回到上方“ Nest 生产收口”及 [Nest Compose 策略](./nest-compose-strategy.md)。
+> 本节及其后续示例中出现的 `apps/web`、`apps/api`、`/api`、PM2 API、生产 MinIO、7 天备份、对象存储备份数据库和示例镜像名均已废弃，**不得复制执行**。保留文字仅用于理解历史迁移背景；当前实现请回到上方“ Nest 生产收口”及 [Nest Compose 策略](../nest-compose-strategy.md)。
 
 ### 本地开发（Docker Compose，历史草案）
 

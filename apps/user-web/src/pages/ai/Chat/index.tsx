@@ -540,7 +540,7 @@ const AiChatPage: React.FC = () => {
                   </>
                 )}
                 extraActions={(
-                  <Button disabled={isGenerating} size="small" onClick={regenerate}>
+                  <Button disabled={isGenerating} size="small" onClick={() => regenerate()}>
                     重新生成
                   </Button>
                 )}

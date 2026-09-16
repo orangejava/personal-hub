@@ -1,10 +1,10 @@
 # 二期产品（暂不进入当前开发主线）
 
-> 状态：想法与后置清单，**不是当前 Nest 文件/小册域的开发依据**
-> 最后更新：2026-09-08
-> 当前主线：[项目总纲](../../overview.md)；文件域契约仍以 [content-booklet-file-prd.md](../../prd/long-term/content-booklet-file-prd.md) 为准
+> 状态：想法与后置清单，**不是当前开发依据**
+> 最后更新：2026-09-13
+> 当前主线：[首版上线](../../deploy/go-live-mainline.md)；文件域契约仍以 [content-booklet-file-prd.md](../../prd/long-term/content-booklet-file-prd.md) 为准
 
-当前产品（一期 / React-first + Nest M1–M5）只做已经排期的能力。下面这些项**会做或可能做，但不进当前刀序**。Agent 开新功能时不要把本目录当成立刻实现的 PRD。
+当前产品（一期 / React-first + Nest M0–M6）只做已经排期的能力。下面这些项**会做或可能做，但不进当前刀序**。Agent 开新功能时不要把本目录当成立刻实现的 PRD。
 
 ## 目录
 
@@ -19,4 +19,4 @@
 
 - **二期**：产品上仍想要，只是现在不排期。
 - **跳过**：例如阶段 5.5 Next API Bridge，不再做。
-- **一期后置但仍属同一条 Nest 主线**：AI 域（M6）、Flutter。它们写在总纲后置待办，不重复抄进本目录的实现计划。
+- **一期后置、不进上线主线**：账号安全、主题剩余 UI、AI 加深、域名/HTTPS、M7 治理、Flutter。写在 [总纲后置待办](../../overview.md)，不重复抄进本目录。

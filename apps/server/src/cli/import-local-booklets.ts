@@ -26,7 +26,8 @@ function parseArgs(argv: string[]) {
   const sourceIndex = argv.indexOf('--source');
   const ownerIndex = argv.indexOf('--owner-email');
   const source = sourceIndex >= 0 ? argv[sourceIndex + 1] : '';
-  const ownerEmail = ownerIndex >= 0 ? argv[ownerIndex + 1] : 'owner@example.com';
+  const ownerEmail =
+    ownerIndex >= 0 ? argv[ownerIndex + 1] : (process.env.SUPER_ADMIN_EMAIL ?? 'owner@example.com');
   return {
     source,
     ownerEmail,

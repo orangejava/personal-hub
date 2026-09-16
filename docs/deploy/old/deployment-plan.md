@@ -1,10 +1,10 @@
 # personal-hub 完整部署计划
 
 > 状态：🟢 阶段 A 权威；Nest 生产路线已收口至 Compose
-> 最后更新：2026-08-02
+> 最后更新：2026-09-13
 > 适用：Ubuntu 24.04 / 2 核 4G / 个人远程阅读 → 后续 NestJS 全栈
 
-> **Nest 阶段请勿使用本文 B/C 命令**：`apps/api`、PM2 API、`/api/*`、生产 MinIO 与 COS 数据库备份已过期。以 [Nest Compose 策略](./nest-compose-strategy.md) 和 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md) 为准。
+> **Nest 阶段请勿使用本文 B/C 命令**：`apps/api`、PM2 API、`/api/*`、生产 MinIO 与 COS 数据库备份已过期。以 [Nest Compose 策略](../nest-compose-strategy.md) 和 [Nest Server 脚手架 PRD](../../prd/long-term/nest-server-bootstrap-prd.md) 为准。
 
 **与其它文档关系：**
 
@@ -20,7 +20,7 @@
 
 ## Nest 生产路线（当前）
 
-阶段 A 的 `react-web dev + mock + PM2` 操作仍保持有效；它不等同于 Nest 生产部署。进入后端阶段后，废弃本文旧 B/C 的 `apps/api`、PM2 API、`/api/*`、生产 MinIO 与旧备份命令，统一执行 [Nest Compose 策略](./nest-compose-strategy.md)：
+阶段 A 的 `react-web dev + mock + PM2` 操作仍保持有效；它不等同于 Nest 生产部署。进入后端阶段后，废弃本文旧 B/C 的 `apps/api`、PM2 API、`/api/*`、生产 MinIO 与旧备份命令，统一执行 [Nest Compose 策略](../nest-compose-strategy.md)：
 
 ```text
 Nginx → /、/admin、/api/v1 → Compose server
@@ -33,7 +33,7 @@ Compose server-worker → Outbox dispatcher + BullMQ worker
 - 后端目录为 `apps/server`；认证为 JWT-only，密码使用 Argon2id。
 - 本地用 MinIO 模拟 S3，生产通过 AWS SDK v3 Provider 使用腾讯 COS；生产不运行 MinIO 作为业务源数据。
 - PostgreSQL 每日逻辑备份保留 14 天；发布/迁移前额外备份，且上线前和重大迁移前必须完成隔离恢复演练。
-- 最低告警、渠道占位、阈值、巡检与恢复责任以 [Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为准。
+- 最低告警、渠道占位、阈值、巡检与恢复责任以 [Compose 策略 §5.1](../nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为准。
 
 ---
 
@@ -47,8 +47,8 @@ flowchart LR
 
 | 阶段  | 运行形态                                   | 后端                            | 小册数据                                            | 你现在在哪       |
 | ----- | ------------------------------------------ | ------------------------------- | --------------------------------------------------- | ---------------- |
-| **A** | PM2 跑 `pnpm --filter user-web dev:mock`            | Umi mock                        | rsync → `/data/.../content-local` + `sync:booklets` | **已部署第一版** |
-| **B** | Compose `server` + `server-worker` + Nginx | `apps/server` NestJS，`/api/v1` | 腾讯 COS 为唯一生产对象存储                         | 未开始           |
+| **A** | PM2 跑 `pnpm --filter user-web dev:mock`            | Umi mock                        | rsync → `/data/personal-hub/content-local/` + `sync:booklets` | 已部署第一版     |
+| **B** | Compose `server` + `server-worker` + Nginx | `apps/server` NestJS，`/api/v1` | 一次性读取 `/data/personal-hub/content-local/`，长期存 COS | **当前主线（公网 IP，见 [go-live-mainline.md](../go-live-mainline.md)）** |
 | **C** | 多应用 + 域名 + 自动化发布                 | NestJS 全模块                   | COS 为主                                            | 长期             |
 
 **原则：** 阶段 A 与 B/C **共用同一套服务器目录规范**；只增服务、不换盘位，避免以后迁 NestJS 时再搬数据。
@@ -57,13 +57,13 @@ flowchart LR
 
 ## 2. 代码与数据：分开还是放同一项目下？
 
-### 结论：**分开目录，代码里用软链接入（推荐，保持现状）**
+### 结论：**项目代码与服务器数据分开；生产小册以 COS 为长期存储**
 
 | 类型                  | 服务器路径                                | 是否进 Git    | 说明                                                        |
 | --------------------- | ----------------------------------------- | ------------- | ----------------------------------------------------------- |
 | **代码**              | `/opt/personal-hub/`                      | ✅ Gitee 管理 | Monorepo：`apps/user-web`、`packages/`；后续 `apps/server` |
-| **小册源文件**        | `/data/personal-hub/content-local/`       | ❌            | 体积大、更新频；不进仓库                                    |
-| **软链**              | `/opt/personal-hub/content-local` → 上项  | —             | 让 `sync:booklets` 脚本路径与本地一致                       |
+| **小册源文件**        | `/data/personal-hub/content-local/`       | ❌            | 阶段 A 或首版导入的源目录；生产导入成功后以 COS 为准         |
+| **阶段 A 软链**       | `/opt/personal-hub/content-local` → 上项  | —             | 仅供旧 PM2/mock 流程使用；Nest 生产不依赖该软链             |
 | **环境变量**          | `/etc/personal-hub/.env`                  | ❌            | 密钥；软链到仓库根或 API 目录                               |
 | **运行时缓存**        | `/var/cache/personal-hub/`                | ❌            | 阶段 B 章节 LRU                                             |
 | **数据库/Redis 数据** | `/data/personal-hub/postgres/`、`redis/`  | ❌            | 阶段 B Docker 卷                                            |
@@ -78,7 +78,7 @@ flowchart LR
 | 备份策略分离：代码=Git，数据=rsync/COS    | 重装系统时要手工挑目录                                     |
 | 与 Docker 卷、COS 长期方案一致            | 不符合 Linux FHS 常见实践（`/opt` 装软件，`/data` 存数据） |
 
-**不要**在 `/opt/personal-hub/content-local/` 放实体小册目录；**只要软链**。
+**不要**在 `/opt/personal-hub/content-local/` 放实体小册目录。阶段 A 如果仍运行旧的 PM2/mock 流程，可以建立软链；Nest 生产导入时直接使用 `/data/personal-hub/content-local/` 的一次性只读挂载，导入成功后以 COS 为准。
 
 ### 目录总览（阶段 A → B 共用）
 
@@ -90,11 +90,10 @@ flowchart LR
 ├── packages/shared-types/
 ├── ecosystem.config.js             # 阶段 A PM2 标准配置
 ├── ecosystem.prod.cjs              # 阶段 B 规划：api + 可选 web
-├── content-local -> /data/personal-hub/content-local
 └── .env -> /etc/personal-hub/.env  # 阶段 B
 
 /data/personal-hub/
-├── content-local/                  # 小册 Markdown（阶段 A rsync）
+├── content-local/                  # 阶段 A/mock 或首版导入的临时源文件
 ├── postgres/                       # 阶段 B
 ├── redis/                          # 阶段 B
 ├── uploads/                        # 阶段 B
@@ -290,7 +289,7 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 
 ## 6. 阶段 B：接入 NestJS 的历史部署草案
 
-> **已过期，禁止按本节操作**：下文 `apps/api`、PM2 API、`/api/*`、COS 数据库备份与生产 MinIO 的约定已经被替代。Nest 阶段的唯一部署依据是 [Nest Compose 策略](./nest-compose-strategy.md)，应用目录为 `apps/server`，API 前缀为 `/api/v1`。
+> **已过期，禁止按本节操作**：下文 `apps/api`、PM2 API、`/api/*`、COS 数据库备份与生产 MinIO 的约定已经被替代。Nest 阶段的唯一部署依据是 [Nest Compose 策略](../nest-compose-strategy.md)，应用目录为 `apps/server`，API 前缀为 `/api/v1`。
 
 > `apps/server` 阶段 0 已创建；以下仍是**已过期**的目录与服务增量草案，不要求搬迁阶段 A 数据。
 
@@ -331,7 +330,7 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 | 项                                 | 处理                              |
 | ---------------------------------- | --------------------------------- |
 | `personal-hub-dev`（dev mock）     | 切 B 后停止，改 Nginx 托管 dist   |
-| `/data/personal-hub/content-local` | 可保留作备份；生产正文以 COS 为准 |
+| `/data/personal-hub/content-local` | 阶段 A 继续使用；Nest 首版仅作为一次性导入源，验证 COS 后可清理 |
 | mock 账号                          | 换 NestJS JWT / 登录              |
 | 安全组                             | 关闭公网 8000，只开 80/443        |
 
@@ -366,5 +365,5 @@ sudo tcpdump -ni any -c 10 'tcp dst port 8000'
 - [server-deployment-guide.md](./server-deployment-guide.md) — 命令一页纸
 - [personal-remote-reading.md](./personal-remote-reading.md) — mock/COS/缓存/API 改造细节
 - [deployment.md](./deployment.md) — Docker、Nginx、备份、CI/CD 模板
-- [../foundation/architecture.md](../foundation/architecture.md) — 多应用架构
-- [../backend/canonical-api.md](../backend/canonical-api.md) — Canonical Nest API 契约
+- [../../foundation/architecture.md](../../foundation/architecture.md) — 多应用架构
+- [../../backend/canonical-api.md](../../backend/canonical-api.md) — Canonical Nest API 契约

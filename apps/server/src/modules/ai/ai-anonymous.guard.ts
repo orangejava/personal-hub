@@ -26,6 +26,7 @@ export class AiAnonymousGuard implements CanActivate {
       response,
       this.config.getOrThrow('JWT_REFRESH_SECRET'),
       hashIp(request.ip),
+      { secure: this.config.getOrThrow('COOKIE_SECURE') },
     );
     return true;
   }
@@ -41,7 +42,7 @@ export class AiAnonymousGuard implements CanActivate {
       response,
       this.config.getOrThrow('JWT_REFRESH_SECRET'),
       hashIp(request.ip),
-      { createIfMissing: false },
+      { createIfMissing: false, secure: this.config.getOrThrow('COOKIE_SECURE') },
     );
   }
 }

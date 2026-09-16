@@ -1,7 +1,7 @@
 # 长期全栈 PRD
 
 > 目标：未来 Next 公开前台/工作区 + React 管理台 + `apps/server`（NestJS）+ PostgreSQL + Redis
-> **当前日常开发仍以 React-first 为准**；本节描述技术栈无关的最终产品与后端契约。Nest 编码时以本目录、`docs/backend/canonical-*.md` 与 `docs/backend/conventions.md` 为唯一事实来源；产品文档负责功能/UI 说明，不单独定义 DTO、密码算法、会话或权限实现。
+> **当前日常开发主线是首版上线**（见 [../../deploy/go-live-mainline.md](../../deploy/go-live-mainline.md)），不是继续开 M7。本节描述技术栈无关的最终产品与后端契约。Nest 编码时以本目录、`docs/backend/canonical-*.md` 与 `docs/backend/conventions.md` 为唯一事实来源；产品文档负责功能/UI 说明，不单独定义 DTO、密码算法、会话或权限实现。
 > 上级索引：[../README.md](../README.md)
 
 ---

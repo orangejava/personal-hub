@@ -232,7 +232,7 @@ MVP（可用版）       → 工程骨架 + 配置底座 + 内容阅读闭环
 
 ### 参考文档
 
-- [deployment.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/deploy/deployment.md)
+- [deployment.md](/Users/wangchaocheng/Documents/Code/git/projects/personal-hub/docs/deploy/old/deployment.md)
 - [历史执行手册](./development-plan.md)
 
 ### 阶段完成标记

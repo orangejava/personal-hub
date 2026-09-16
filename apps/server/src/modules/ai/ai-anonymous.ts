@@ -55,7 +55,7 @@ export async function ensureAnonymousSubject(
   response: Response,
   secret: string,
   ipHash: string | null,
-  options?: { createIfMissing?: boolean },
+  options?: { createIfMissing?: boolean; secure?: boolean },
 ): Promise<string | null> {
   const existingId = readSignedAnonymousId(request, secret);
   if (existingId) {
@@ -74,7 +74,7 @@ export async function ensureAnonymousSubject(
       lastIpHash: ipHash,
     },
   });
-  setAnonymousCookie(response, created.id, secret, process.env.NODE_ENV === 'production');
+  setAnonymousCookie(response, created.id, secret, options?.secure ?? false);
   request.aiAnonymousId = created.id;
   return created.id;
 }

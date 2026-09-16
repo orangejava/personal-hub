@@ -1,6 +1,6 @@
 # apps/server 文档
 
-Nest 工程约定与已落地切片。跨端 HTTP/数据契约仍在仓库根 `docs/backend/`。
+Nest 工程约定与已落地切片（M0–M6）。跨端 HTTP/数据契约仍在仓库根 `docs/backend/`。当前产品主线是上线部署，不是 M7，见 [../../docs/deploy/go-live-mainline.md](../../docs/deploy/go-live-mainline.md)。
 
 | 文档 | 内容 |
 | --- | --- |

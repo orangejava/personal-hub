@@ -110,7 +110,7 @@ flowchart LR
 | 路由 | 规则 |
 | --- | --- |
 | `GET /api/v1/health/live` | 仅确认 HTTP 进程可运行，成功使用 `{ data, requestId }`。 |
-| `GET /api/v1/health/ready` | 检查 PostgreSQL 与 Redis；任一不可用时返回 `503` 和 `{ error, requestId }`。 |
+| `GET /api/v1/health/ready` | 检查 PostgreSQL、Redis 与对象存储；任一不可用时返回 `503` 和 `{ error, requestId }`。 |
 | `GET /api/docs` | 仅开发/预发布环境开放的 Swagger UI，不受 `/api/v1` 全局 API 前缀约束。 |
 
 - 每次请求都必须由服务端生成 UUID `requestId`，同时写入响应体、`X-Request-Id` 和结构化日志。

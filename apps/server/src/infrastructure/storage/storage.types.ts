@@ -22,6 +22,8 @@ export interface ObjectHead {
  * 业务只依赖这组能力。本地 MinIO 与生产 COS 共用 AWS SDK S3 协议。
  */
 export interface StorageProvider {
+  /** 只验证 Bucket 是否可访问，不读写业务对象。 */
+  checkConnection(): Promise<void>;
   putObject(key: string, body: Buffer, contentType: string): Promise<void>;
   getObject(key: string): Promise<Buffer>;
   /**

@@ -1,7 +1,7 @@
 # 后台运营、高权限治理与审计后端需求确认稿
 
-> 状态：🟢 已确认；最终端点、权限码和数据模型以 Canonical 文档为准
-> 最后更新：2026-08-02
+> 状态：🟢 已确认；**本轮不实施（M7 后置）**。当前主线是上线部署，见 [../../deploy/go-live-mainline.md](../../deploy/go-live-mainline.md)
+> 最后更新：2026-09-13
 > 适用：`apps/server` 的 Admin、User、Role、AuditLog 模块
 > 关联：[Auth、会话与 RBAC](./auth-rbac-session-prd.md)、[系统配置与菜单管理](./system-config-menu-prd.md)、[内容阅读域](./content-reading-domain-prd.md)
 

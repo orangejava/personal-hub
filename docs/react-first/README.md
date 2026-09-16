@@ -1,7 +1,7 @@
 # React-first 实施路线总入口
 
-> 状态：阶段 0-5 已完成；Web 已拆为用户端 `apps/user-web` 与管理端 `apps/admin-web`
-> 最后更新：2026-08-28
+> 状态：阶段 0-5 已完成；Web 已拆为用户端 `apps/user-web` 与管理端 `apps/admin-web`。当前主线已转到 Nest 上线，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md)
+> 最后更新：2026-09-13
 > 路线决策长文已迁入 `docs/history/`，不再作为当前开发依据。
 
 ## 当前应用边界

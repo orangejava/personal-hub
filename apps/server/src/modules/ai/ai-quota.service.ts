@@ -2,7 +2,6 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   AiQuotaTransactionType,
   AiReservationStatus,
-  Prisma,
 } from '@prisma/client';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';

@@ -9,7 +9,7 @@ import { HealthCheck, HealthCheckService } from '@nestjs/terminus';
 import { Public } from '../../common/decorators/public.decorator';
 import { InfrastructureHealthIndicator } from './health.indicator';
 
-/** live 只证明进程在；ready 才探 Postgres/Redis，避免存活探针被依赖拖死。 */
+/** live 只证明进程在；ready 才探关键依赖，避免存活探针被依赖拖死。 */
 @Public()
 @ApiTags('Health')
 @Controller('health')
@@ -29,13 +29,14 @@ export class HealthController {
 
   @Get('ready')
   @HealthCheck()
-  @ApiOperation({ summary: '就绪检查', description: '确认 PostgreSQL 与 Redis 均可用。' })
+  @ApiOperation({ summary: '就绪检查', description: '确认 PostgreSQL、Redis 与对象存储均可用。' })
   @ApiOkResponse({ description: '所有关键依赖可用。' })
   @ApiServiceUnavailableResponse({ description: '至少一个关键依赖不可用。' })
   ready() {
     return this.health.check([
       () => this.infrastructure.database(),
       () => this.infrastructure.redisConnection(),
+      () => this.infrastructure.objectStorage(),
     ]);
   }
 }

@@ -37,7 +37,7 @@ readiness
 
 1. 复制 `apps/server/.env.example` 为本机 `.env.local`，启动 `docker compose -f compose.dev.yml up -d`。
 2. 执行 `pnpm --filter server prisma:generate`、`pnpm --filter server prisma:deploy`、`pnpm dev:server`。
-3. 访问 `/api/v1/health/live`、`/api/v1/health/ready` 和 `/api/docs`；停止 Redis 或 PostgreSQL 时，readiness 应返回不可用。
+3. 访问 `/api/v1/health/live`、`/api/v1/health/ready` 和 `/api/docs`；停止 Redis、PostgreSQL 或对象存储时，readiness 应返回不可用。
 4. 开发服务启动后，终端只输出 API/health 与 Swagger 两条访问摘要；error 日志应与普通日志使用不同颜色。
 
 > 质量收口状态：mock HTTP 测试覆盖成功、404 信封与 Redis 故障；Testcontainers 使用临时 PostgreSQL/Redis 执行正式 migration 并验证 readiness；根目录 `.github/workflows/server-ci.yml` 在 CI 执行格式、Lint、类型、测试和构建检查。

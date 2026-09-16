@@ -1,7 +1,7 @@
 # 主题与导航配置 PRD
 
-> 状态：🟡 首版已够用；剩余项已后置，不阻塞 Nest M2
-> 最后更新：2026-08-13
+> 状态：🟡 首版已够用；剩余项已后置，不阻塞上线
+> 最后更新：2026-09-13
 > 优先级：P2（后置）
 > 适用范围：公开前台、登录后工作区、运营端后台、系统配置接口
 
@@ -9,17 +9,19 @@
 
 ## 0. 已落地 vs 后置
 
-**已够用（mock 阶段）**：
+**已够用**：
 
 - 公开区顶部导航 + `PublicThemeDrawer` 明暗/主色切换
 - 工作区 / 后台沿用 Pro `SettingDrawer`
-- 后台 `/admin/system/theme` 可改主色、圆角、默认模式（mock）
+- 匿名首页读 Nest `GET /api/v1/public/site-config`、`GET /api/v1/public/navigation`；站点显示名后台可改
+- 后台 `/admin/system/theme` 可改主色、圆角、默认模式（部分仍是前端本地，未全部写回配置组）
 
-**后置（等 SystemConfig 真实 API 后再补，不阻塞 M2）**：
+**后置（不阻塞首版上线；域名也不在本 PRD）**：
 
 - 公开区按配置切换左/右导航布局
-- 后台主题表单补齐：站点信息、Logo/favicon、辅助色/强调色、导航位置、功能开关、预览区
-- 配置从真实 `system_configs` 读写并刷新前台生效
+- 后台主题表单补齐：Logo/favicon 上传、辅助色/强调色、导航位置、功能开关、预览区
+- 主题 token 全部从 `system_configs` 读写并刷新前台
+- 域名 / HTTPS：见 [../../../../docs/deploy/go-live-mainline.md](../../../../docs/deploy/go-live-mainline.md) §3，首版用公网 IP
 
 ---
 

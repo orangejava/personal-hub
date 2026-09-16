@@ -1,6 +1,8 @@
 # Personal Hub Nest Server
 
-NestJS + Express 后端运行底座。阶段 0 仅提供配置校验、PostgreSQL/Redis 连接、结构化日志、健康检查和 Swagger，不含业务领域接口。
+NestJS + Express 后端。阶段 0 脚手架与 **M1–M6**（Auth、系统配置/菜单、内容、文件/小册、AI）已落地。跨端契约在仓库根 `docs/backend/`；切片说明在 [docs/README.md](./docs/README.md)。
+
+当前产品主线是首版上线，不是继续开 M7。见 [docs/deploy/go-live-mainline.md](../../docs/deploy/go-live-mainline.md)。本地账号见 [docs/engineering/dev-credentials.md](../../docs/engineering/dev-credentials.md)。
 
 ## 本地启动
 
@@ -9,7 +11,10 @@ cp apps/server/.env.example apps/server/.env.local
 docker compose -f compose.dev.yml up -d
 pnpm --filter server prisma:generate
 pnpm --filter server prisma:deploy
+pnpm --filter server seed:local-users
 pnpm dev:server
+# ZIP / AI 图视频：
+pnpm dev:worker
 ```
 
 - Swagger：`http://localhost:3001/api/docs`
@@ -18,7 +23,7 @@ pnpm dev:server
 - Mailpit：`http://localhost:8025`
 - MinIO Console：`http://localhost:9001`
 
-`.env.local` 仅供本机使用，不得提交。后续领域接口实现前，先阅读仓库根 `AGENTS.md` 与 `AGENT.md`。
+页面请走 `http://localhost:8000`，不要直接打开 `:3001` 登录。`.env.local` 仅供本机使用，不得提交。
 
 ## 质量命令
 

@@ -212,7 +212,9 @@ function resolveNavStatus(item: AiNavItem, tools?: AiTool[]): AiToolStatus | und
   return item.navStatus;
 }
 
-function isUnavailableStatus(status?: AiToolStatus) {
+function isUnavailableStatus(
+  status?: AiToolStatus,
+): status is Exclude<AiToolStatus, 'enabled'> {
   return status === 'comingSoon' || status === 'disabled';
 }
 
@@ -324,10 +326,7 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
       const status = resolveNavStatus(item, tools);
       const unavailable =
         !item.children && isUnavailableStatus(status);
-      const statusLabel =
-        unavailable && status && status !== 'enabled'
-          ? toolStatusText[status]
-          : undefined;
+      const statusLabel = isUnavailableStatus(status) ? toolStatusText[status] : undefined;
       const targetPath = item.children
         ? firstAvailableChild(item, tools)?.path ?? item.path
         : item.path;

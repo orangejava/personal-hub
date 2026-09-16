@@ -3,7 +3,7 @@
 > 状态：🟢 已确认；上传 API 和 FileAsset 字段以 Canonical 文档为准
 > 最后更新：2026-08-02
 > 适用：`apps/server` 的 File、Booklet、ImportJob、Storage 模块
-> 关联：[内容、阅读、收藏与进度](./content-reading-domain-prd.md)、[远程阅读部署方案](../../deploy/personal-remote-reading.md)
+> 关联：[内容、阅读、收藏与进度](./content-reading-domain-prd.md)、[生产导入与运维手册](../../deploy/production-runbook.md)
 
 ---
 

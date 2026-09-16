@@ -230,4 +230,4 @@ services:
 
 - [NestJS 学习手册](../../study/nestjs-learning-handbook.md)
 - [Prisma + PostgreSQL 学习手册](../../study/prisma-postgres-learning-handbook.md)
-- [部署计划](../deploy/deployment-plan.md)
+- [部署计划](../deploy/old/deployment-plan.md)

@@ -5,7 +5,7 @@
 > 目标：Ubuntu 24.04 / 2 核 4G / 60GB 服务器上部署 react-first，小册存腾讯 COS，架构对齐后续 React + Next.js + NestJS 生产形态
 > **总览**：[deployment-plan.md](./deployment-plan.md) · **速查**：[server-deployment-guide.md](./server-deployment-guide.md)
 
-> **历史提示**：本文涉及 `apps/api`、`/api/**`、PM2 API、旧 API / 数据模型草案的 Nest 规划不可执行。Nest 目录、API 与 Compose 以 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)、[Canonical API](../backend/canonical-api.md) 和 [Nest Compose 策略](./nest-compose-strategy.md) 为准。
+> **历史提示**：本文涉及 `apps/api`、`/api/**`、PM2 API、旧 API / 数据模型草案的 Nest 规划不可执行。Nest 目录、API 与 Compose 以 [Nest Server 脚手架 PRD](../../prd/long-term/nest-server-bootstrap-prd.md)、[Canonical API](../../backend/canonical-api.md) 和 [Nest Compose 策略](../nest-compose-strategy.md) 为准。
 
 ---
 
@@ -46,7 +46,7 @@ flowchart TB
 1. 阶段 A 仍用 Monorepo 里的 `apps/user-web`，Git 工作流不变。
 2. 小册目录（`meta.json` + 章节 md）与阶段 B 的 COS 布局一致，以后 rsync 可换成 `booklet:push`。
 3. 前端现有 mock service 的 `/api/*` 路径只是迁移线索；阶段 B 以 `/api/v1` Canonical 契约替换数据源。
-4. 阶段 A **刻意不引入** NestJS / Docker / Nginx；阶段 B 仅遵循 [Nest Compose 策略](./nest-compose-strategy.md)，下文历史草案不再可执行。
+4. 阶段 A **刻意不引入** NestJS / Docker / Nginx；阶段 B 仅遵循 [Nest Compose 策略](../nest-compose-strategy.md)，下文历史草案不再可执行。
 
 **阶段 A 操作：见 [§ A 当前部署步骤](#a-当前部署步骤dev--直连-8000)**。
 
@@ -58,7 +58,7 @@ flowchart TB
 
 - 认证为 JWT-only，密码使用 Argon2id；不沿用本文历史 API、PM2 API 或旧 Token 设想。
 - PostgreSQL 每日逻辑备份保留 14 天，发布/迁移前增加备份；上线前、重大迁移前须在隔离实例完成恢复演练。
-- 告警事件、渠道占位、阈值、巡检和恢复责任以 [Nest Compose 策略 §5.1](./nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为唯一依据。
+- 告警事件、渠道占位、阈值、巡检和恢复责任以 [Nest Compose 策略 §5.1](../nest-compose-strategy.md#51-最低告警与巡检上线前必须落位) 为唯一依据。
 
 ---
 
@@ -140,7 +140,7 @@ flowchart LR
 │   └── personal-hub/                 # 【代码】Git 仓库根目录
 │       ├── apps/
 │       ├── packages/
-│       ├── content-local -> /data/.../content-local   # 软链，勿放实体大目录
+│       ├── content-local -> /data/personal-hub/content-local   # 阶段 A 软链，Nest 生产不依赖
 │       ├── ecosystem.config.js
 │       └── ...
 ├── data/
@@ -159,7 +159,7 @@ flowchart LR
 | 路径                               | 阶段 A           | 阶段 B                      |
 | ---------------------------------- | ---------------- | --------------------------- |
 | `/opt/personal-hub`                | 必建：代码 + PM2 | 同左                        |
-| `/data/personal-hub/content-local` | 必建：小册       | 可改为 COS 同步落盘或仅备份 |
+| `/data/personal-hub/content-local` | 阶段 A 必建：小册 | Nest 首版一次性导入源；验证 COS 后可清理 |
 | `/var/cache/personal-hub`          | 可不建           | 章节 LRU 缓存               |
 | `/etc/personal-hub`                | 可不建           | 生产环境变量                |
 
@@ -201,11 +201,11 @@ pnpm install
 # prepare 会跑 sync:booklets；尚未 rsync 小册时可能是空/仅示例
 ```
 
-**若第一版为 tar/scp 手动上传、目录无 `.git`：** 见 [deployment-plan.md §5.2](./deployment-plan.md#52-从第一版手动上传迁移到-gitee你的现状)，保留 `/data/personal-hub/content-local` 即可。
+**若第一版为 tar/scp 手动上传、目录无 `.git`：** 见 [deployment-plan.md §5.2](./deployment-plan.md#52-从第一版手动上传迁移到-gitee你的现状)，保留 `/data/personal-hub/content-local` 作为阶段 A 或一次性导入源即可。
 
 ### A.3 同步小册（本地 → 服务器）
 
-小册实体放在 `/data/personal-hub/content-local/`（与代码分离）。
+小册源文件目前位于 `/data/personal-hub/content-local/`（与代码分离）。Nest 生产导入完成并验证 COS 后，不要求继续长期保留实体小册目录。
 
 **在本地电脑执行（推荐只传白名单，节省磁盘与时间）：**
 
@@ -872,8 +872,8 @@ flowchart LR
 - [pm2-deployment.md](./pm2-deployment.md) — **PM2 部署权威**（阶段 A 命令与排障）
 - [deployment.md](./deployment.md) — 长期 Docker / CI/CD
 - [server-deployment-guide.md](./server-deployment-guide.md) — 一页速查
-- [../backend/canonical-api.md](../backend/canonical-api.md) — Canonical API 契约
-- [../backend/canonical-data-model.md](../backend/canonical-data-model.md) — 内容与章节数据模型
-- [../prd/react-first/phase-5-5-next-api-bridge-prd.md](../prd/react-first/phase-5-5-next-api-bridge-prd.md) — 本文选择直接最小 NestJS，跳过 Next API Bridge
-- [../foundation/architecture.md](../foundation/architecture.md) — 多应用架构总览
-- [../README.md](../README.md) — docs 目录放置规范
+- [../../backend/canonical-api.md](../../backend/canonical-api.md) — Canonical API 契约
+- [../../backend/canonical-data-model.md](../../backend/canonical-data-model.md) — 内容与章节数据模型
+- [../../prd/react-first/phase-5-5-next-api-bridge-prd.md](../../prd/react-first/phase-5-5-next-api-bridge-prd.md) — 本文选择直接最小 NestJS，跳过 Next API Bridge
+- [../../foundation/architecture.md](../../foundation/architecture.md) — 多应用架构总览
+- [../../README.md](../../README.md) — docs 目录放置规范

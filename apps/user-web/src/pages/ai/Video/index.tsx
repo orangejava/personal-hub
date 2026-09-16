@@ -297,15 +297,13 @@ const AiVideoPage: React.FC = () => {
                       </div>
                     ) : undefined
                   }
-                  leadingActions={(
-                    <>
-                      <AiConfigPopover
-                        buttonText={`生成配置 ${configSummary}`}
-                        groups={configGroups}
-                        title="视频生成配置"
-                      />
-                    </>
-                  )}
+                  leadingActions={
+                    <AiConfigPopover
+                      buttonText={`生成配置 ${configSummary}`}
+                      groups={configGroups}
+                      title="视频生成配置"
+                    />
+                  }
                   onChange={(prompt) => generation.updateDraft({ prompt })}
                   onClear={() => {
                     generation.updateDraft({ prompt: '' });
@@ -341,7 +339,7 @@ const AiVideoPage: React.FC = () => {
             asset={detail?.asset}
             assets={detail?.assets}
             modelLabel={
-              detail
+              detail?.asset.modelId
                 ? (modelNames[detail.asset.modelId] ?? detail.asset.modelId)
                 : undefined
             }

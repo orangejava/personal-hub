@@ -5,6 +5,7 @@ import {
   CreateMultipartUploadCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -31,18 +32,23 @@ export class S3StorageProvider implements StorageProvider {
 
   constructor(config: ConfigService<Env, true>) {
     const raw = config.getOrThrow('MINIO_ENDPOINT');
-    const { endpoint, useSsl } = parseS3Endpoint(raw);
+    const { endpoint, forcePathStyle, region, useSsl } = parseS3Endpoint(raw);
     this.bucket = config.getOrThrow('MINIO_BUCKET');
     this.client = new S3Client({
-      region: 'us-east-1',
+      region,
       endpoint,
-      forcePathStyle: true,
+      // 腾讯 COS 使用虚拟主机风格；本地 MinIO 继续使用 path style。
+      forcePathStyle,
       tls: useSsl,
       credentials: {
         accessKeyId: config.getOrThrow('MINIO_ACCESS_KEY'),
         secretAccessKey: config.getOrThrow('MINIO_SECRET_KEY'),
       },
     });
+  }
+
+  async checkConnection(): Promise<void> {
+    await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
   }
 
   async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
@@ -192,12 +198,23 @@ export class S3StorageProvider implements StorageProvider {
   }
 }
 
-export function parseS3Endpoint(raw: string): { endpoint: string; useSsl: boolean } {
+export function parseS3Endpoint(raw: string): {
+  endpoint: string;
+  forcePathStyle: boolean;
+  region: string;
+  useSsl: boolean;
+} {
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
     const url = new URL(raw);
-    return { endpoint: `${url.protocol}//${url.host}`, useSsl: url.protocol === 'https:' };
+    const cosRegion = url.hostname.match(/^cos\.([^.]+)\.myqcloud\.com$/)?.[1];
+    return {
+      endpoint: `${url.protocol}//${url.host}`,
+      forcePathStyle: !cosRegion,
+      region: cosRegion ?? 'us-east-1',
+      useSsl: url.protocol === 'https:',
+    };
   }
-  return { endpoint: `http://${raw}`, useSsl: false };
+  return { endpoint: `http://${raw}`, forcePathStyle: true, region: 'us-east-1', useSsl: false };
 }
 
 /**

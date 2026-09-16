@@ -28,6 +28,7 @@ export async function seedContentTaxonomy(client: PrismaClient): Promise<void> {
  * 给首页/内容中心准备几篇可公开阅读的样例。依赖已有 editor 或 super_admin 账号。
  */
 export async function seedSampleContents(client: PrismaClient): Promise<void> {
+  const publicAppOrigin = (process.env.PUBLIC_APP_ORIGIN ?? 'http://localhost:8000').replace(/\/$/, '');
   const author =
     (await client.user.findFirst({
       where: { role: { code: RoleCode.EDITOR }, status: 'ACTIVE' },
@@ -88,7 +89,7 @@ export async function seedSampleContents(client: PrismaClient): Promise<void> {
       externalUrl: 'https://github.com/example/personal-hub',
       extra: {
         githubUrl: 'https://github.com/example/personal-hub',
-        previewUrl: 'http://localhost:8000',
+        previewUrl: publicAppOrigin,
         techStack: ['React', 'NestJS', 'PostgreSQL'],
       },
     },

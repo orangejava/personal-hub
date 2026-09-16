@@ -1,10 +1,13 @@
 # 本地开发常用信息
 
-> 状态：✅ 已确定（2026-08-30）
-> 适用范围：本地 mock 与 Nest 联调。**生产环境禁止使用本组密码。**
+> 状态：✅ 已确定（2026-09-13）
+> 适用范围：本地 Nest 联调。**生产环境禁止使用本组密码。**
 > 其它文档（工程指南、`.env.example`、实现说明）原文不变；日常查账号、端口、邮箱先看这一页。
+> 当前主线是上线部署，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md)。生产账号只走 `bootstrap:super-admin`，不要把本页密码拷到服务器。
 
-当前 React 默认 **不加载 Umi mock**（`MOCK=none`）。登录与**内容中心/工作区文档/后台分类标签**走 Nest `/api/v1`。AI、用量、本地 71 本小册正文若还要 mock，用下面的 `:mock` 命令。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
+当前 React 默认 **不加载 Umi mock**（`MOCK=none`）。登录、公开内容、工作区、后台分类/标签/文件、AI 目录与 SSE 都走 Nest `/api/v1`。也可在 `http://localhost:8000/user/register` 自行注册；验证 / 重置邮件只出现在本地 Mailpit，不会发到公网。管理端没有独立登录页，未登录访问 `http://localhost:8001` 会跳回用户端登录。
+
+不要用 `pnpm dev:user:mock` 测 Nest：页面会混 mock，和 Canonical 对不上（尤其是 AI）。阶段 A PM2 个人远程阅读才走 `dev:mock`。
 
 ---
 
@@ -18,8 +21,9 @@
 | Nest Swagger | http://localhost:3001/api/docs |
 | Mailpit 收信 | http://localhost:8025 |
 | MinIO S3 API | http://localhost:9000 |
+| MinIO Console | http://localhost:9001 |
 
-启动：
+启动（缺一步，AI 表或小册会 500 / 假 404）：
 
 ```bash
 docker compose -f compose.dev.yml up -d
@@ -28,18 +32,20 @@ pnpm --filter server seed:local-users
 pnpm dev:server
 pnpm dev:user          # MOCK=none，只打 Nest
 pnpm dev:admin         # MOCK=none
-# 需要内容/工作区/AI/后台 mock 时：
-pnpm dev:user:mock
-pnpm dev:admin:mock
+pnpm dev:worker        # ZIP 导入、AI 图/视频任务才需要
+# 存量小册目录导入（不要用 mock 扫目录）：
+pnpm booklet:import-local -- --source <本地小册目录> --execute
 ```
 
 | 命令 | Mock | 说明 |
 | --- | --- | --- |
-| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容列表/详情/工作区文档已走 Nest；AI 与本地小册正文仍空或 404 |
-| `pnpm dev:user:mock` / `dev:admin:mock` | 开 | 保留 `mock/` 文件；`/api/v1` 仍代理 Nest，登录仍走真实鉴权 |
+| `pnpm dev:user` / `dev:admin` | 关 | 日常联调 Nest。内容、工作区、后台、AI 目录/Chat 已走 Nest |
+| `pnpm dev:worker` | — | Outbox + BullMQ：小册 ZIP、AI 图片/视频。只测 Chat/Text 可不启 |
+| `pnpm booklet:import-local` | — | 把本地小册目录写入 Nest，不再依赖 `dev:user:mock` |
+| `pnpm dev:user:mock` / `dev:admin:mock` | 开 | 仅排障或阶段 A；`/api/v1` 仍可能代理 Nest，页面数据会混 mock |
 | `pnpm build:user` / `build:admin` | 无 | `max build` 不跑 mock 中间件，产物不含 `mock/` |
 
-`dev:no-mock` 仍可用，等同默认 `dev`。阶段 A PM2 个人远程阅读走 `dev:mock`（见 `scripts/pm2-start-dev.sh`），避免默认无 mock 后小册列表为空。
+`dev:no-mock` 仍可用，等同默认 `dev`。`seed:local-users` 会跑基线 seed、重置固定账号、写入 Fake AI 目录与示例内容。
 
 ---
 
@@ -49,21 +55,23 @@ pnpm dev:admin:mock
 pnpm --filter server seed:local-users
 ```
 
-命令会重置本地库中的固定账号（已有 super_admin 只改这一条，不会再创建第二个系统所有者）。`NODE_ENV=production` 时拒绝执行。实现：`apps/server/src/cli/seed-local-dev-users.ts`。
+命令会重置本地库中的固定账号（已有 super_admin 只改这一条，不会再创建第二个系统所有者）。`NODE_ENV=production` 时拒绝执行。实现：`apps/server/src/cli/seed-local-dev-users.ts`。没有单独的 `ADMIN` 种子账号；进后台用系统所有者。
 
 | 角色 | 邮箱 | 密码 | 说明 |
 | --- | --- | --- | --- |
-| 系统所有者 | `owner@example.com` | `HubDev!234` | Nest `SUPER_ADMIN`，可进工作区 + 后台 |
-| 编辑者 | `editor@example.com` | `HubDev!234` | Nest `EDITOR` |
-| 普通会员 | `member@example.com` | `HubDev!234` | Nest `MEMBER` |
+| 系统所有者 | `owner@example.com` | `HubDev!234` | Nest `SUPER_ADMIN`，工作区 + 后台 + AI 配置 |
+| 编辑者 | `editor@example.com` | `HubDev!234` | Nest `EDITOR`，可上传小册（需 `booklet:write`） |
+| 普通会员 | `member@example.com` | `HubDev!234` | Nest `MEMBER`，含 `ai:use`；测 Chat / 额度 / 匿名认领 |
 
-打开 http://localhost:8000/user/login 用上表登录。`mustChangePassword` 为 `false`。
+打开 http://localhost:8000/user/login 用上表登录。`mustChangePassword` 为 `false`。密码都满足 Nest 策略，不要用下面 mock 表里的 `dev123456`。
 
 首次空库可用 `bootstrap:super-admin`（读 `.env.local` 的 `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_TEMP_PASSWORD`）。示例默认邮箱仍是 `owner@example.com`，临时密码见 `apps/server/.env.example` 的 `ReplaceWithAOneTimePassword!1`，登录后必须改密。日常忘了密码，重新跑 `seed:local-users` 即可。
 
+测后台 AI 配置：所有者登录后从用户端进管理端，打开 http://localhost:8001/admin/ai/config。
+
 ---
 
-## 3. Mock 账号（仅 `UMI_APP_NEST_AUTH=0`）
+## 3. Mock 账号（仅 `UMI_APP_NEST_AUTH=0` / `dev:*:mock`）
 
 | 角色 | 邮箱 | 密码 | 说明 |
 | --- | --- | --- | --- |
@@ -88,7 +96,8 @@ pnpm --filter server seed:local-users
 | Redis | `localhost:6379` | 密码 `personal_hub_redis_dev_password`；键前缀 `ph:dev:` |
 | Mailpit SMTP | `localhost:1025` | 无；发件人 `Personal Hub <noreply@localhost>` |
 | Mailpit UI | http://localhost:8025 | 无 |
-| MinIO | `localhost:9000` | `personal_hub_minio` / `personal_hub_minio_dev_secret`，桶 `personal-hub-dev` |
+| MinIO S3 | `localhost:9000` | `personal_hub_minio` / `personal_hub_minio_dev_secret`，桶 `personal-hub-dev` |
+| MinIO Console | http://localhost:9001 | 同上 |
 
 ```bash
 docker compose -f compose.dev.yml exec postgres psql -U personal_hub -d personal_hub
@@ -112,8 +121,10 @@ docker compose -f compose.dev.yml exec redis redis-cli -a personal_hub_redis_dev
 - 上述密码**仅用于本地开发**，不得用于生产。
 - 生产首个 `super_admin` 只通过容器内 `bootstrap:super-admin` 创建，密码来自部署环境变量。
 - 浏览器必须走 `http://localhost:8000` 打开页面；Umi 代理须把浏览器 `Origin` 原样转给 Nest。若 Nest 实际收到 `http://127.0.0.1:3001`，logout/refresh 会 `403 AUTH_ORIGIN_FORBIDDEN`（浏览器 Network 里仍可能显示 localhost）。
+- 不要直接打开 `http://localhost:3001` 登录（Origin 不对会 403）。
 
 ## 相关决策
 
-- 小册上传：仅 `editor` / `admin`（需 `booklet:write`），`member` 不可上传。
-- 域名与站点名：暂未确定；开发环境直接访问 `http://localhost:8000`。
+- 小册上传：仅 `editor` / 后台角色（需 `booklet:write`），`member` 不可上传。
+- 站点显示名：开发期用 Nest `system_configs`，后台可改；与有没有域名无关。
+- 域名：首版上线用公网 IP，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md) §3。开发环境继续 `http://localhost:8000`。

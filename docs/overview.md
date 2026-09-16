@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 mock 闭环已完成；Nest 阶段 0 + M1 + M2 Auth + M3 系统配置与菜单 + M4 内容域 + M5 文件/小册 + **M6 AI 域（Fake + OpenAI-compatible 适配层）** 已落地
-> 最后更新：2026-09-11
+> 状态：React-first 阶段 0–5 与 Nest M0–M6 已落地；**当前主线是首版上线部署（公网 IP + Compose）**；M7 后台治理本轮不做
+> 最后更新：2026-09-13
 
 ---
 
@@ -41,7 +41,7 @@
 
 React-first 相关文档见 [react-first/README.md](./react-first/README.md)。这组文档是实施路线补充，不替代下方产品与长期架构文档。
 
-> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M6 AI 域已落地（Fake 默认，可切 OpenAI-compatible）**。进度台账见 [completed/README.md](./completed/README.md)。
+> 进度：阶段 0-5 已完成；**阶段 5.5 Next API Bridge 已确认跳过**。Nest **M6 AI 域已落地（Fake 默认，可切 OpenAI-compatible）**。当前主线见 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)。进度台账见 [completed/README.md](./completed/README.md)。
 
 ---
 
@@ -100,6 +100,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | 文档                                                                               | 内容                                               | 状态        |
 | ---------------------------------------------------------------------------------- | -------------------------------------------------- | ----------- |
 | [engineering/engineering-guide.md](./engineering/engineering-guide.md)             | 工程开发指南（环境/目录/规范）                     | ✅ 已完成   |
+| [engineering/dev-local.md](./engineering/dev-local.md)                             | 本地开发命令速查                                   | ✅ 已完成   |
 | [engineering/git-commit-convention.md](./engineering/git-commit-convention.md)     | Git 提交入口（stub → `.agents/skills/git-commit`） | ✅ 已迁移   |
 | [../.agents/skills/git-commit/SKILL.md](../.agents/skills/git-commit/SKILL.md)     | Git 提交权威规范（跨工具 skill）                   | ✅ 已完成   |
 | [../.agents/skills/tsx-structure/SKILL.md](../.agents/skills/tsx-structure/SKILL.md) | TSX 方法放置（纯函数上提 / 长回调具名）            | ✅ 已完成   |
@@ -160,12 +161,15 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | 文档                                                                     | 内容                                                           | 状态        |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------- |
 | [deploy/README.md](./deploy/README.md)                                   | 部署文档总入口                                                 | ✅ 已完成   |
-| [deploy/deployment-plan.md](./deploy/deployment-plan.md)                 | 阶段 A 部署计划；Nest B/C 已迁移到 Compose 策略                | 🟡 部分历史 |
-| [deploy/pm2-deployment.md](./deploy/pm2-deployment.md)                   | PM2 部署权威（阶段 A：dev + mock）                             | ✅ 已完成   |
-| [deploy/server-deployment-guide.md](./deploy/server-deployment-guide.md) | React mock + PM2 一页速查（不适用于 Nest）                     | ✅ 已完成   |
-| [deploy/personal-remote-reading.md](./deploy/personal-remote-reading.md) | 个人远程阅读细节（阶段 A/B、COS、缓存）                        | ✅ 已完成   |
-| [deploy/deployment.md](./deploy/deployment.md)                           | 长期生产（Docker / CI/CD）                                     | ✅ 已完成   |
+| [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)               | **当前主线**：首版上线（公网 IP + Compose，不做 M7）           | 🟡 进行中   |
+| [deploy/prod-env-worksheet.md](./deploy/prod-env-worksheet.md)           | 生产 `.env.prod` 填空表                                       | 🟡 进行中   |
+| [deploy/production-prerequisites.md](./deploy/production-prerequisites.md) | 服务器软件安装、资源与安全组检查                             | ✅ 已完成   |
+| [deploy/production-runbook.md](./deploy/production-runbook.md)             | 生产服务器发布、运维、排障、备份和恢复                        | ✅ 文档已完成；待实际上线 |
+| [deploy/production-verification.md](./deploy/production-verification.md)   | 上线后的真实环境验收                                         | ✅ 已完成   |
+| [deploy/prod-startup-order.md](./deploy/prod-startup-order.md)           | 首次上线检查清单                                              | ✅ 文档已完成；待实际上线 |
+| [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md)           | 腾讯云域名 / HTTPS / SMTP / COS                               | 🟡 进行中   |
 | [deploy/nest-compose-strategy.md](./deploy/nest-compose-strategy.md)     | Nest Compose、COS 对象存储、数据库备份、健康检查与手工发布策略 | ✅ 已确定   |
+| [deploy/old/README.md](./deploy/old/README.md)                           | 阶段 A 和旧部署方案归档                                       | 📚 历史资料 |
 
 > 原 `docs/operations/` 已更名为 `docs/deploy/`。
 
@@ -197,12 +201,13 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-09-08）
+## 当前开发主线（2026-09-13）
 
-1. **已落地**：Nest **M2–M5**：Auth、系统配置菜单、内容域、**文件/小册**（预签名上传、ZIP 异步导入、单章正文、封面/Logo 签名 URL、CLI 存量迁移）。Web 已拆为用户端 `:8000` 与管理端 `:8001`。本地前端默认 `MOCK=none`。
-2. **接下来**：Nest **AI 域**。存量小册用 `pnpm booklet:import-local`，不再依赖 `dev:user:mock` 扫描目录。
-3. **明确跳过**：阶段 5.5 Next API Bridge。
-4. **明确后置**：改邮箱、TOTP、真实 SMTP、后台禁用/改角色/额度、主题与导航剩余 UI、域名与站点名、Flutter；二期编辑器等见 [product/phase-2](./product/phase-2/README.md)。
+1. **已落地**：React-first 0–5；Nest **M0–M6**（Auth、系统配置/菜单、内容、文件/小册、AI Fake + OpenAI-compatible）。Web 已拆用户端 `:8000` / 管理端 `:8001`。本地前端默认 `MOCK=none`。存量小册用 `pnpm booklet:import-local`，不要用 `dev:user:mock` 当 Nest 数据源。
+2. **接下来（主线）**：首版上线部署。公网 IP + `compose.prod.yml`（Nginx 同站 `/`、`/admin`、`/api/v1`）。细节见 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)。
+3. **本轮明确不做**：后台治理 M7（禁用用户 / 改角色 / 调额度 / 审计列表 / 自定义角色）。契约仍在 [prd/long-term/admin-governance-audit-prd.md](./prd/long-term/admin-governance-audit-prd.md)，上线后再排。
+4. **明确跳过**：阶段 5.5 Next API Bridge。
+5. **明确后置（不挡上线）**：账号安全（改邮箱、TOTP）、主题剩余 UI、AI 配置中心与 AI 加深（后台管理真 Key / 自定义 Provider / 支付 / 增删模型）、域名与 HTTPS、Flutter；二期编辑器见 [product/phase-2](./product/phase-2/README.md)。
 
 ---
 
@@ -223,15 +228,18 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] 管理员初始账号密码约定（见 `engineering/dev-credentials.md` → Nest 用 `seed:local-users`；mock 另表；生产 bootstrap 另行设置）
 - [x] Nest 阶段 0 自动化质量收口：Testcontainers、readiness 故障自动化与 server CI（见 `prd/long-term/nest-server-bootstrap-prd.md` §5.1）
 - [x] 阶段 5.5 Next API Bridge：已确认跳过，直接走 Nest
-- [x] Nest M2 Auth 第 1–8 刀：登录、权限菜单、注册验证、验证码、设备会话、强制改密、忘记密码、后台踢全部设备（见 [implementation/auth/README.md](./implementation/auth/README.md)）。改邮箱 / TOTP / 真实 SMTP / 禁用改角色仍后置。
+- [x] Nest M2 Auth 第 1–8 刀：登录、权限菜单、注册验证、验证码、设备会话、强制改密、忘记密码、后台踢全部设备（见 [implementation/auth/README.md](./implementation/auth/README.md)）。QQ 真实 SMTP 已接线；改邮箱 / TOTP / 禁用改角色仍后置。
 - [x] Nest M3 系统配置与菜单 3.1–3.3（见 [apps/server/docs/implementation/system/README.md](../apps/server/docs/implementation/system/README.md)）。左/右导航 UI 仍后置。Logo 签名 URL 已在 M5 接线；Logo 上传控件仍可后置。
 - [x] Nest M4 内容域 4.1–4.5（见 [apps/server/docs/implementation/content/README.md](../apps/server/docs/implementation/content/README.md)）。
 - [x] Nest M5 文件/小册 5.1–5.7（见 [apps/server/docs/implementation/file/README.md](../apps/server/docs/implementation/file/README.md)）。站内 PDF/Word 编辑器与文件策略后台页见二期。
 - [x] Nest M6 AI 域（见 [apps/server/docs/implementation/ai/README.md](../apps/server/docs/implementation/ai/README.md)）。品牌/导航写库；文本可切 OpenAI-compatible 适配层；真实厂商 Key、支付、团队、LoRA/ComfyUI 执行后置。新增/删除模型仍后置。
 
-### 后置待办（不阻塞 AI 域）
+### 后置待办（不阻塞首版上线）
 
-- [ ] 域名与站点名称最终确认（开发期使用 `http://localhost:8000`；站点名已可由 Nest `system_configs` 改）
+- [ ] 域名 / HTTPS / 备案后置，见 [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md) 与 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md) 最后一节。站点名后台可改，不挡上线。
 - [ ] 主题与导航剩余 UI：公开区左/右导航布局、后台主题表单补齐（Logo 文件 / SEO / 功能开关 / 预览）（见 `prd/react-first/theme-navigation-config-prd.md`）
+- [ ] 账号安全：改邮箱、TOTP
+- [ ] AI 配置中心与 AI 加深：后台加密管理真实厂商 Key、系统预置/用户自定义 Provider、支付、增删模型、LoRA/ComfyUI（M6 Fake / 适配层已够首版）
+- [ ] M7 后台治理：禁用用户 / 改角色 / 额度 / 审计列表（上线后另排）
 - [ ] Flutter App（Web 主链路稳定后再补 `prd/long-term/flutter-app-prd.md`）
 - [ ] 二期产品想法（编辑器、文件策略后台页、物理清理等）见 [product/phase-2/README.md](./product/phase-2/README.md)

@@ -53,7 +53,7 @@ const AiMediaPromptConfig: React.FC<AiMediaPromptConfigProps> = ({
   return (
     <span className="ph-ai-media-prompt-config">
       {items.map((item, index) => (
-        <React.Fragment key={`${item}-${index}`}>
+        <React.Fragment key={item}>
           {index > 0 && (
             <span className="ph-ai-media-prompt-config-sep" aria-hidden>
               ·

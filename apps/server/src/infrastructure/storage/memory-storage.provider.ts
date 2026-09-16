@@ -15,6 +15,8 @@ export class MemoryStorageProvider implements StorageProvider {
   private readonly objects = new Map<string, { body: Buffer; contentType: string }>();
   private readonly multipart = new Map<string, Map<number, Buffer>>();
 
+  async checkConnection(): Promise<void> {}
+
   async putObject(key: string, body: Buffer, contentType: string): Promise<void> {
     this.objects.set(key, { body, contentType });
   }
@@ -62,6 +64,7 @@ export class MemoryStorageProvider implements StorageProvider {
   }
 
   async createSignedDownloadUrl(key: string, _expiresInSeconds?: number): Promise<string> {
+    void _expiresInSeconds;
     return `memory://download/${encodeURIComponent(key)}`;
   }
 

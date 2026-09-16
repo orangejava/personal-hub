@@ -1,7 +1,7 @@
 # React 功能到 Canonical Nest 后端需求总览
 
 > 状态：🟢 已确认；后续开发按领域 PRD、Canonical API 和数据模型拆分
-> 最后更新：2026-08-02
+> 最后更新：2026-09-13
 > 目的：把 React-first 已实现的页面/Mock 能力映射到不依赖 React 的 NestJS 领域要求。
 
 ---
@@ -55,8 +55,8 @@ React-first 文档记录当前实现阶段；不得再把其 mock 路径当成�
 3. SystemConfig/Menu/公开配置，接入首页与导航。
 4. Content/Category/Tag/Favorite/Reading，接入公开阅读与工作区。
 5. Storage/Upload/BookletImport/CLI，接入文件和小册。
-6. AI 基础、额度账本、SSE、图片任务、资产库。
-7. Admin 聚合、审计、后台配置和统计。
+6. AI 基础、额度账本、SSE、图片任务、资产库。✅ M6 已落地
+7. Admin 聚合、审计、后台配置和统计。**本轮后置（不做 M7）**；当前主线改为首版上线，见 [../../deploy/go-live-mainline.md](../../deploy/go-live-mainline.md)。
 
 每个阶段开始前，必须完成以下“领域实施前契约检查清单”；不把本总览当成跳过细节设计的理由：
 
