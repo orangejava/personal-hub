@@ -1,13 +1,13 @@
 # 文档内容与创作工具体系
 
-> 状态：� 已完成细化
-> 最后更新：2026-06-02
+> 状态：🟢 产品与 UI 说明；数据、状态与接口以 [Canonical 数据模型](../backend/canonical-data-model.md)、[Canonical API](../backend/canonical-api.md) 和长期内容 PRD 为准
+> 最后更新：2026-09-09
 
 ---
 
 ## 语义边界调整
 
-当前项目不再把“小册 / PDF / Markdown / 富文本 / Word”简单理解成一组平铺的 `content type`，而是拆成两层：
+当前 React-first 页面将“小册 / PDF / Markdown / 富文本 / Word”展示为创作入口；未来 Nest 统一以 Canonical 内容域落地。它仍拆成两层：
 
 ### 第一层：文档内容域
 
@@ -47,20 +47,20 @@
 | 字段        | 类型     | 说明                                                       |
 | ----------- | -------- | ---------------------------------------------------------- |
 | id          | UUID     | 唯一标识                                                   |
-| title       | string   | 内容标题，最多 500 字符                                    |
+| title       | string   | 草稿可为空或临时标题；发布必须为 1～200 字                 |
 | type        | enum     | 见下方枚举                                                 |
 | summary     | text     | 摘要，不填时系统自动截取 contentRaw 前 200 字              |
-| contentRaw  | text     | 原始内容（Markdown 文本 / 富文本 HTML 等）                 |
-| contentHtml | text     | 渲染后 HTML，服务端缓存，避免前端重复渲染                  |
+| contentRaw  | text     | Markdown 原文；富文本改存编辑器 JSON                       |
+| contentHtml | text     | 服务端净化后的派生产物，前端不直接写入                     |
 | toc         | JSONB    | 目录结构（`[{level, text, anchor}]`）                      |
 | sourceType  | enum     | upload（用户上传）/ import（系统导入）/ manual（手动创建） |
-| categoryId  | UUID     | 所属分类（必填，单选）                                     |
-| cover       | string   | 封面图 URL                                                 |
-| fileId      | UUID     | 关联文件 ID（PDF / Word 等文件型文档）                    |
+| categoryId  | UUID     | 草稿可为空；发布必须为有效、启用分类                       |
+| cover       | UUID     | `coverFileId`，关联 FileAsset，不信任前端 URL              |
+| fileId      | UUID     | `primaryFileId`，关联 READY FileAsset                      |
 | externalUrl | string   | 外部链接地址（link 类型）                                  |
 | extraMeta   | JSONB    | 类型专属扩展数据（项目卡片、小册元数据、Word 元数据等）    |
-| visibility  | enum     | public / login / private                                   |
-| status      | enum     | draft / published / archived                               |
+| visibility  | enum     | `PUBLIC` / `LOGIN` / `PRIVATE`，独立于状态                 |
+| status      | enum     | `DRAFT` / `PUBLISHED` / `ARCHIVED`                         |
 | isFeatured  | boolean  | 是否精选（首页推荐优先展示）                               |
 | readCount   | int      | 累计阅读次数                                               |
 | wordCount   | int      | 字数（Markdown / 富文本类型计算）                          |
@@ -71,18 +71,17 @@
 
 ### type 枚举
 
-| 值               | 说明                                                      |
-| ---------------- | --------------------------------------------------------- |
-| `juejin_booklet` | 掘金小册（含章节子表）                                    |
-| `pdf`            | PDF 文档                                                  |
-| `word`           | Word 文档（`.docx` 为主）                                 |
-| `markdown`       | Markdown 笔记                                             |
-| `richtext`       | 富文本文档（基于 Textbus，支持协作）                      |
-| `link`           | 外部链接（展示卡片，点击跳转外站）                        |
-| `project`        | 项目/作品（复用内容模型，`extraMeta` 存 GitHub/预览 URL） |
-| `video`          | 视频（后续版本）                                          |
+| 值                 | 说明                                     |
+| ------------------ | ---------------------------------------- |
+| `MARKDOWN`         | Markdown 笔记                            |
+| `RICH_TEXT`        | 富文本编辑器 JSON                        |
+| `BOOKLET`          | 小册（导入来源另以 `importSource` 表达） |
+| `PDF` / `WORD`     | 关联主文件的文件型内容                   |
+| `LINK` / `PROJECT` | 经校验的 HTTPS 外链                      |
 
-### extraMeta JSONB 结构（按 type）
+### 扩展展示元数据（按类型）
+
+以下仅描述 UI 展示所需的可扩展信息；Canonical 主字段、正文和章节存储以数据模型为准，不将其作为可直接写入的通用 `extraMeta` 契约。
 
 ```json
 // project 类型
@@ -92,7 +91,7 @@
   "techStack": ["React", "NestJS", "PostgreSQL"]
 }
 
-// juejin_booklet 类型（小册元数据）
+// BOOKLET 导入展示元数据
 {
   "originalAuthor": "作者名",
   "totalChapters": 24,
@@ -112,14 +111,14 @@
 
 ## 文档阅读与工具能力的对应关系
 
-| 文档类型 | 阅读 / 查看 | 上传 | 编辑 | 下载 / 导出 | 协作 | 说明 |
-|---|---|---|---|---|---|---|
-| 掘金小册 | ✅ | ✅ | 章节级维护 | ✅ | ❌ | 有独立小册管理区 |
-| PDF | ✅ | ✅ | ❌（首版不内建） | ✅ | ❌ | 保留阅读，编辑交给外部成熟工具 |
-| Word | ✅ | ✅ | ✅ | ✅ | 后续 | 以 `.docx` 为主 |
-| Markdown | ✅ | ✅ | ✅ | ✅ | 后续 | 编辑后支持预览 |
-| 富文本 | ✅ | ✅ | ✅ | ✅ | ✅ | 基于 Textbus |
-| 外部链接 | ✅ | 手动录入 | ❌ | 跳外链 | ❌ | 仅做资源卡片 |
+| 文档类型     | 阅读 / 查看 | 上传                     | 编辑             | 下载 / 导出       | 协作 | 说明                           |
+| ------------ | ----------- | ------------------------ | ---------------- | ----------------- | ---- | ------------------------------ |
+| BOOKLET 小册 | ✅          | 经 `booklet:import` 授权 | 导入后元信息维护 | 按版权/可见性校验 | ❌   | 有独立小册管理区               |
+| PDF          | ✅          | ✅                       | ❌（首版不内建） | ✅                | ❌   | 保留阅读，编辑交给外部成熟工具 |
+| Word         | ✅          | ✅                       | 二期想法         | ✅                | ❌   | 一期仅 `.docx` 预览/下载；编辑见产品二期 |
+| Markdown     | ✅          | ✅                       | ✅               | ✅                | 后续 | 编辑后支持预览                 |
+| 富文本       | ✅          | ✅                       | ✅               | ✅                | ✅   | 基于 Textbus                   |
+| 外部链接     | ✅          | 手动录入                 | ❌               | 跳外链            | ❌   | 仅做资源卡片                   |
 
 > 这里的“编辑能力”属于工作区工具域，不代表所有阅读页都承担编辑职责。
 
@@ -147,18 +146,18 @@
 
 `content_chapters` 表：
 
-| 字段        | 类型     | 说明                   |
-| ----------- | -------- | ---------------------- |
-| id          | UUID     | —                      |
-| contentId   | UUID     | 关联主表 `contents.id` |
-| title       | string   | 章节标题               |
-| contentRaw  | text     | 章节 Markdown 原文     |
-| contentHtml | text     | 渲染后 HTML            |
+| 字段        | 类型     | 说明                       |
+| ----------- | -------- | -------------------------- |
+| id          | UUID     | —                          |
+| contentId   | UUID     | 关联主表 `contents.id`     |
+| title       | string   | 章节标题                   |
+| contentRaw  | text     | 章节 Markdown 原文         |
+| contentHtml | text     | 渲染后 HTML                |
 | toc         | JSONB    | 章节标题目录（`h2/h3/h4`） |
-| wordCount   | int      | 章节字数，首版可为空   |
-| sort        | int      | 排序序号（从 1 开始）  |
-| createdAt   | datetime | —                      |
-| updatedAt   | datetime | —                      |
+| wordCount   | int      | 章节字数，首版可为空       |
+| sort        | int      | 排序序号（从 1 开始）      |
+| createdAt   | datetime | —                          |
+| updatedAt   | datetime | —                          |
 
 **章节目录展示方式（阅读页）**：
 
@@ -175,9 +174,9 @@
 
 ---
 
-## 掘金小册管理方案
+## 小册导入与版权边界
 
-> 针对本地合法拥有的掘金小册资源，首版强调“登录后上传、登录后下载、上传后可直接阅读”。
+> 现有工作区小册管理页面保留为 React mock/UI 入口；真实导入、下载和可见性必须由 Nest 服务端执行。
 
 ### 目录规范
 
@@ -205,13 +204,11 @@ booklet-dir/
 
 ### 导入流程
 
-1. 登录用户在工作区「小册管理」中上传 ZIP 包或选择已整理目录
-2. 后端解析 `meta.json`，提取元数据
-3. 按文件名数字前缀排序，逐章解析 Markdown
-4. 生成 `contents` 主记录（type = `juejin_booklet`）+ 对应 `content_chapters` 子记录
-5. 默认状态为 `draft`，可由拥有权限的用户继续整理后发布
-6. 导入结果页展示：成功章节数 / 失败原因
-7. 上传成功后，可直接进入阅读页验证章节结构
+1. 用户先经上传会话上传 ZIP，完成后得到临时 `FileAsset`。
+2. 仅拥有 `booklet:import` 且满足 `OWN/ALL` 的主体可创建异步导入任务；创建和重试均必须使用幂等键。
+3. Worker 在隔离目录校验 ZIP 并解析可选 `meta.json`、Markdown 章节；前端轮询任务，不在 HTTP 请求中同步解压。
+4. 成功后创建 `BOOKLET`、章节索引和对象存储正文，默认 **`DRAFT + PRIVATE + private_until_licensed`**。
+5. 导入作者与管理员可在结果页查看进度、成功数、受限告警与失败原因；章节阅读按单章加载。
 
 ### 小册管理区能力
 
@@ -225,19 +222,19 @@ booklet-dir/
 - 编辑小册元信息
 - 删除小册
 
-### 权限说明
+### 权限与版权说明
 
-- 上传入口：必须登录，首版放在工作区中
-- 下载入口：必须登录
-- 是否允许所有登录用户上传，或仍沿用 `content:upload` 权限控制，开发时再最终确认
+- 仅登录不是导入授权；必须校验 Canonical `booklet:import` 动作权限及 `OWN/ALL` 范围。
+- 导入小册即使被发布，仍仅作者/管理员可阅读、下载和管理。
+- 导入版权闸（`PRIVATE_UNTIL_LICENSED`）不能只靠前端显隐。编辑者发布写入内容审核队列；管理员通过（或所有者直接发布）且目标为 `LOGIN` / `PUBLIC` 时填写版权说明并清闸。`import-license` 仅作内部实现。
+- **AI 审核**只作为后续阶段：不调用模型、不自动通过或驳回。
 
-> 如果后续坚持“所有登录用户都可上传小册”，则需要把小册上传权限从现有内容上传权限里拆出来，单独定义权限点。
+### 首版安全限制
 
-### 首版限制
-
-- 仅支持纯 Markdown 格式章节，不处理章节内嵌图片的自动上传（图片保留原链接）
-- 不支持增量更新，若需重新导入须先删除原记录
-- 下载对象首版以原始导入包或导出 ZIP 为主，不做复杂格式转换
+- 仅支持 Markdown 章节 ZIP；`meta.json` 可选，缺失时补全元数据而非拒绝合法章节。
+- ZIP 最大 50 MB、解压总量最大 500 MB、最多 1,000 章、单章最大 2 MB。
+- 拒绝路径穿越、符号链接、未知文件、非法编码和 ZIP bomb；Markdown 渲染前净化 HTML。
+- 章节列表不返回正文，正文只能通过单章接口按需读取；原始 ZIP 也遵从内容可见性校验。
 
 ---
 
@@ -265,22 +262,13 @@ PDF 在当前项目里的定位是：
 
 ## Word 文档策略
 
-Word 在当前项目中的定位不是纯附件，而是可打开、可编辑、可导出的文档类型。
-
-首版目标：
+Word 在当前主线（一期）按**文件型内容**处理，不是站内编辑器：
 
 - 上传 `.docx`
-- 打开文档
-- 编辑文档
-- 保存文档
-- 下载文档
+- 阅读页预览
+- 下载
 
-建议实现方向：
-
-- 主存储仍走文件型文档
-- 阅读时可转预览结构
-- 编辑时使用独立 Word 编辑器界面
-- 保存后回写文档内容与版本信息
+站内打开 / 编辑 / 保存回写是**二期想法**，见 [phase-2/content-editors.md](./phase-2/content-editors.md)，不进入 Nest 文件/小册域验收。
 
 ---
 

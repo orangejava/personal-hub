@@ -1,0 +1,205 @@
+/**
+ * 页面布局容器与间距
+ */
+
+.ph-container {
+  max-width: var(--ph-content-max-width);
+  margin: 0 auto;
+  padding: 0 var(--ph-page-padding);
+}
+
+.ph-reading {
+  max-width: var(--ph-reading-width);
+  margin: 0 auto;
+  min-width: 0;
+}
+
+.ph-content-detail-layout {
+  display: flex;
+  gap: 24px;
+  max-width: 100%;
+}
+
+.ph-content-detail-main {
+  flex: 1;
+}
+
+.ph-content-detail-toc {
+  width: var(--ph-booklet-toc-width);
+  flex: 0 0 var(--ph-booklet-toc-width);
+  position: sticky;
+  top: calc(var(--ph-header-height) + 16px);
+  align-self: flex-start;
+  max-height: calc(100vh - var(--ph-header-height) - 32px);
+  overflow: hidden;
+  background: var(--ph-bg-layout);
+}
+
+.ph-page {
+  padding: var(--ph-page-padding);
+}
+
+.ph-booklet-sidebar-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 工作区顶栏：avatar 容器不再整块 hover 高亮（各 action 独立样式） */
+.ant-pro-global-header-header-actions-avatar {
+  padding: 0 !important;
+  background: transparent !important;
+
+  &:hover {
+    background: transparent !important;
+  }
+}
+.ant-pro-sider.ant-layout-sider.ant-pro-sider-fixed {
+  left: unset;
+}
+.ant-pro-sider-collapsed .ant-pro-sider-link span:not([role='img']) {
+  display: none;
+}
+
+.ant-layout {
+  min-height: 100vh;
+}
+
+.ant-pro-page-container,
+.ant-pro-page-container-children-container,
+.ant-pro-card,
+.ant-table-wrapper {
+  max-width: 100%;
+}
+
+/* 列表随页面滚动。overflow:auto 即使内容没溢出也会挂一条空滚动条。 */
+.ant-table-wrapper,
+.ant-table-wrapper .ant-table-container,
+.ant-table-wrapper .ant-table-content,
+.ant-table-wrapper .ant-table-body,
+.ant-pro-table .ant-table-wrapper,
+.ant-pro-table .ant-table-container,
+.ant-pro-table .ant-table-content,
+.ant-pro-table .ant-table-body {
+  overflow: hidden !important;
+  max-height: none !important;
+  height: auto !important;
+}
+
+@media (max-width: 768px) {
+  .ph-content-detail-layout {
+    display: block;
+  }
+
+  .ph-content-detail-toc {
+    width: 100%;
+    margin-top: 24px;
+  }
+}
+
+.ph-content-card-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: rgba(22, 119, 255, 0.06);
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.ph-content-card-cover-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/** 内容中心卡片：等高布局，描述区固定两行 */
+.ph-content-card {
+  height: 100%;
+
+  .ant-card-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 196px;
+    padding: 16px;
+  }
+
+  .ant-card-meta {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .ant-card-meta-detail {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .ant-card-meta-title {
+    min-width: 0;
+    margin-bottom: 8px !important;
+
+    a {
+      display: block;
+      color: inherit;
+    }
+  }
+}
+
+.ph-content-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ph-content-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.ph-inline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ph-inline-list-item {
+  min-height: 64px;
+  padding: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+}
+
+.ph-inline-list-item:last-child {
+  border-bottom: 0;
+}
+
+.ph-inline-list-title {
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 500;
+}
+
+.ph-inline-list-description {
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+}

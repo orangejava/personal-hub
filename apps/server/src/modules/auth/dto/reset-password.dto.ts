@@ -1,0 +1,20 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { PASSWORD_POLICY } from '../password';
+
+export class ResetPasswordDto {
+  @ApiProperty()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(256)
+  token!: string;
+
+  @ApiProperty({ example: 'HubDev!234' })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  @Matches(PASSWORD_POLICY, {
+    message: '密码至少 8 位，且必须包含大写、小写、数字和特殊字符',
+  })
+  newPassword!: string;
+}

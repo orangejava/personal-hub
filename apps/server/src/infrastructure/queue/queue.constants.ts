@@ -1,0 +1,9 @@
+export const BOOKLET_IMPORT_QUEUE = 'booklet-import';
+export const BOOKLET_IMPORT_JOB = 'process';
+export const BOOKLET_IMPORT_EVENT = 'BOOKLET_IMPORT_REQUESTED';
+export const AI_IMAGE_GENERATION_QUEUE = 'ai-image-generation';
+export const AI_VIDEO_GENERATION_QUEUE = 'ai-video-generation';
+export const AI_IMAGE_GENERATION_JOB = 'process';
+export const AI_VIDEO_GENERATION_JOB = 'process';
+export const AI_IMAGE_GENERATION_EVENT = 'AI_IMAGE_GENERATION_REQUESTED';
+export const AI_VIDEO_GENERATION_EVENT = 'AI_VIDEO_GENERATION_REQUESTED';

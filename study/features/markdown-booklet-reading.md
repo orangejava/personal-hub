@@ -29,9 +29,9 @@ while (m) {
   m = re.exec(md);
 }
 ```
-本地小册扫描根路径（脚本在 `src/scripts/`，往上两级到 `apps/react-web`，再往上两级到 monorepo 根）：
+本地小册扫描根路径（脚本在 `src/scripts/`，往上两级到 `apps/user-web`，再往上两级到 monorepo 根）：
 ```ts
-const ROOT = resolve(__filename, '../../..');        // apps/react-web
+const ROOT = resolve(__filename, '../../..');        // apps/user-web
 const REPO_ROOT = resolve(ROOT, '../..');            // monorepo 根
 ```
 

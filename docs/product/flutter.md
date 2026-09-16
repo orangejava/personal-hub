@@ -1,7 +1,7 @@
 # Flutter App
 
-> 状态：� 已完成细化
-> 最后更新：2026-05-31
+> 状态：📋 产品范围已细化；实施后置（Web 主链路稳定后再做）
+> 最后更新：2026-08-13
 
 ---
 
@@ -71,11 +71,12 @@ Flutter App 作为 Web 端的移动延伸，复用后端 API，**不承接后台
 
 ## 接入方式
 
-- 完全复用 NestJS 后端 RESTful API，不单独建接口
+- 完全复用 NestJS 后端 RESTful API，不单独建接口；端点、错误码与数据模型以 `docs/backend/canonical-*.md` 为准。
 - **Token 认证**：
-  - Access Token 存 `flutter_secure_storage`（有效期 15 分钟）
+  - Access Token 存 `flutter_secure_storage`（有效期 8 小时）
   - Refresh Token 存 `flutter_secure_storage`（有效期 7 天）
   - Dio 拦截器自动处理 Token 刷新（401 → 刷新 → 重试）
+- Flutter 的 Refresh Token 请求体传输与设备安全策略在 Web 主链路稳定后，以独立 Flutter PRD 定稿；不得降低同一 `SessionService` 的会话撤销、轮换与版本校验语义。
 - **AI 流式输出**：SSE（Server-Sent Events），使用 `http` 包的 `send()` 流式读取
 
 ---

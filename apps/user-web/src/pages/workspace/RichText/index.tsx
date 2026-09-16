@@ -1,0 +1,241 @@
+import {
+  ContentType,
+  ContentVisibility,
+  ContentVisibilityLabel,
+} from '@personal-hub/shared-types';
+import {
+  ArrowLeftOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
+} from '@ant-design/icons';
+import { history, useModel, useParams } from '@umijs/max';
+import { App, Button, Drawer, Form, Input, Select, Space, Tooltip } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import TextbusEditor, {
+  type TextbusEditorHandle,
+} from '@/components/workspace/TextbusEditor';
+import { PageContainer } from '@/components/shared';
+import { useRequest } from '@/hooks/useRequest';
+import { fetchContentMeta } from '@/services/content';
+import {
+  createContent,
+  fetchAppContent,
+  publishContent,
+  updateContent,
+} from '@/services/workspace';
+
+const defaultBody =
+  '<h2>富文本草稿</h2><p>使用 Textbus 编辑，保存后可在公开阅读页预览。</p>';
+const visibilityOptions = Object.values(ContentVisibility).map((value) => ({
+  label: ContentVisibilityLabel[value],
+  value,
+}));
+
+/** 富文本编辑：Textbus 编辑器 + 草稿/发布。文档协议仍用 { html } 占位。 */
+const RichText: React.FC = () => {
+  const { message } = App.useApp();
+  const params = useParams<{ id: string }>();
+  const isEdit = !!params.id;
+  const editorRef = useRef<TextbusEditorHandle>(null);
+  const { initialState, setInitialState } = useModel('@@initialState');
+  const isFullscreen = !!initialState?.workspaceEditorFullscreen;
+
+  const [title, setTitle] = useState('');
+  const [initialHtml, setInitialHtml] = useState(defaultBody);
+  const [ready, setReady] = useState(!isEdit);
+  // 直接从编辑器首次保存时不改路由，避免 Textbus 被重新创建而导致页面闪动。
+  const [draftId, setDraftId] = useState<string>();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [form] = Form.useForm();
+  const { data: contentMeta } = useRequest(fetchContentMeta);
+  const categoryOptions = (contentMeta?.categories ?? []).map((item) => ({
+    label: item.name,
+    value: item.slug,
+  }));
+
+  useEffect(() => {
+    if (!isEdit || !params.id) {
+      return;
+    }
+    let cancelled = false;
+    void fetchAppContent(params.id).then((detail) => {
+      if (cancelled) {
+        return;
+      }
+      setTitle(detail.title);
+      setInitialHtml(detail.body || defaultBody);
+      form.setFieldsValue({
+        summary: detail.summary,
+        categorySlug: detail.categorySlug,
+        visibility: detail.visibility ?? ContentVisibility.Private,
+      });
+      setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [form, isEdit, params.id]);
+
+  // 退出编辑页后必须恢复工作区框架，避免全屏状态遗留到其他业务页面。
+  useEffect(
+    () => () => {
+      void setInitialState((state) =>
+        state?.workspaceEditorFullscreen
+          ? { ...state, workspaceEditorFullscreen: false }
+          : state,
+      );
+    },
+    [setInitialState],
+  );
+
+  const toggleFullscreen = () => {
+    void setInitialState((state) => ({
+      ...state,
+      workspaceEditorFullscreen: !state?.workspaceEditorFullscreen,
+    }));
+  };
+
+  /** 返回文档管理页，避免编辑页只能依赖侧栏进行导航。 */
+  const returnToContentList = () => {
+    history.push('/workspace/content');
+  };
+
+  const save = async (status: 'draft' | 'published') => {
+    try {
+      const body = editorRef.current?.getHTML() ?? '';
+      const values = await form.validateFields();
+      const id = params.id ?? draftId;
+      const normalizedTitle = title.trim();
+      const needsCategory = !id || status === 'published';
+      if (needsCategory && !values.categorySlug) {
+        form.setFields([
+          {
+            name: 'categorySlug',
+            errors: [
+              !id ? '创建内容前请选择一个分类' : '发布前请选择一个分类',
+            ],
+          },
+        ]);
+        setDrawerOpen(true);
+        return;
+      }
+      if (status === 'published' && (normalizedTitle.length < 1 || normalizedTitle.length > 200)) {
+        message.error('发布前需要 1～200 字标题');
+        return;
+      }
+      const payload = {
+        title: normalizedTitle,
+        body,
+        type: ContentType.RichText,
+        status,
+        ...values,
+      };
+      const saved = id
+        ? await updateContent(id, payload)
+        : await createContent(payload);
+      if (!id) {
+        setDraftId(saved.id);
+      }
+      // 先保留创建得到的 ID，发布失败时下次保存仍更新同一份草稿。
+      if (status === 'published') {
+        const published = await publishContent(saved.id);
+        message.success(published.reviewStatus === 'PENDING' ? '已提交审核' : '已发布');
+      } else {
+        message.success('已保存草稿');
+      }
+    } catch {
+      // 失败 toast 由全局 errorHandler 读 Nest error.message
+    }
+  };
+
+  return (
+    <PageContainer
+      className="ph-workspace-editor-page"
+      title={isEdit ? '编辑富文本' : '新建富文本'}
+      extra={
+        <Space>
+          <Button icon={<ArrowLeftOutlined />} onClick={returnToContentList}>
+            返回文档管理
+          </Button>
+          <Tooltip title={isFullscreen ? '退出全屏' : '全屏编辑'}>
+            <Button
+              aria-label={isFullscreen ? '退出全屏' : '全屏编辑'}
+              icon={
+                isFullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />
+              }
+              onClick={toggleFullscreen}
+            />
+          </Tooltip>
+          <Button onClick={() => setDrawerOpen(true)}>基础信息</Button>
+          <Button onClick={() => void save('draft')}>保存草稿</Button>
+          <Button type="primary" onClick={() => void save('published')}>
+            发布
+          </Button>
+        </Space>
+      }
+    >
+      <Input
+        size="large"
+        placeholder="标题"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        style={{ marginBottom: 16 }}
+      />
+      {ready ? (
+        <TextbusEditor
+          key={params.id ?? 'new'}
+          ref={editorRef}
+          initialHtml={initialHtml}
+          minHeight="0"
+        />
+      ) : null}
+      <Drawer
+        forceRender
+        title="基础信息"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        size={400}
+        extra={
+          <Space>
+            <Button onClick={() => setDrawerOpen(false)}>取消</Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                form.submit();
+              }}
+            >
+              保存信息
+            </Button>
+          </Space>
+        }
+      >
+        {/* 抽屉保存只确认分类/可见性/摘要；正文仍由保存草稿或发布写入服务端。 */}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={() => setDrawerOpen(false)}
+        >
+          <Form.Item name="summary" label="摘要">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item
+            name="categorySlug"
+            label="分类"
+            extra="首次创建和发布都必须选择启用中的分类，后续可在此修改。"
+          >
+            <Select
+              allowClear
+              options={categoryOptions}
+              placeholder="请选择分类"
+            />
+          </Form.Item>
+          <Form.Item name="visibility" label="可见性" initialValue={ContentVisibility.Private}>
+            <Select options={visibilityOptions} />
+          </Form.Item>
+        </Form>
+      </Drawer>
+    </PageContainer>
+  );
+};
+
+export default RichText;

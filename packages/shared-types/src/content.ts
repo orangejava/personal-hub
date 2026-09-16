@@ -60,7 +60,10 @@ export interface ContentItem {
   type: ContentType;
   summary: string;
   cover?: string;
+  /** 分类 slug，筛选与写接口使用，不作为默认展示文案。 */
   categorySlug?: string;
+  /** 分类展示名；列表/卡片优先显示该字段。 */
+  categoryName?: string;
   tags?: string[];
   viewCount: number;
   favoriteCount: number;
@@ -80,6 +83,16 @@ export interface ContentItem {
   createdAt?: string;
   /** 最近更新时间，工作区列表优先展示该字段。 */
   updatedAt?: string;
+  /** 公开列表中 LOGIN 内容对访客锁定，详情需登录。 */
+  locked?: boolean;
+  /** 当前登录用户是否已收藏。 */
+  isFavorited?: boolean;
+  /** 是否精选；公开首页与后台运营使用。 */
+  isFeatured?: boolean;
+  /** ZIP 导入后为 PRIVATE_UNTIL_LICENSED，审核通过并允许公开前不能改非私有可见性。 */
+  importRestriction?: 'NONE' | 'PRIVATE_UNTIL_LICENSED';
+  /** 最近一条内容审核状态；无审核记录时为 null。 */
+  reviewStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED' | null;
 }
 
 /** 内容详情 */
@@ -98,6 +111,87 @@ export interface ContentDetail extends ContentItem {
   createdAt: string;
   /** 详情页必须具备更新时间。 */
   updatedAt: string;
+}
+
+/** 内容审核状态（与 Nest / Prisma UPPER_SNAKE 对齐） */
+export type ContentReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
+
+/** 后台内容审核队列项 */
+export interface ContentReviewItem {
+  id: string;
+  status: ContentReviewStatus;
+  requestedVisibility: 'PUBLIC' | 'LOGIN' | 'PRIVATE';
+  copyrightNote: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  decidedAt: string | null;
+  requester: { id: string; nickname: string };
+  reviewer: { id: string; nickname: string } | null;
+  content: {
+    id: string;
+    type: string;
+    title: string;
+    status: string;
+    visibility: string;
+    importRestriction: 'NONE' | 'PRIVATE_UNTIL_LICENSED';
+    author: { id: string; nickname: string };
+  };
+}
+
+/** 工作区「上传任务」中的当前用户文件 */
+export interface AppFileListItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  /** 以该文件为主文件的内容，便于跳转草稿 */
+  contentId: string | null;
+}
+
+/** 工作区小册导入任务 */
+export interface BookletImportJobItem {
+  id: string;
+  status: string;
+  progress: number;
+  contentId: string | null;
+  totalChapters?: number;
+  successCount?: number;
+  failureCount?: number;
+  errorCode: string | null;
+  errorMessage: string | null;
+  sourceFileId: string;
+  createdAt?: string;
+  originalName?: string | null;
+}
+
+/**
+ * 工作区统一上传任务。文件与小册导入共用时间序列和分页，而非客户端拉全量再合并。
+ */
+export interface UploadTaskItem {
+  id: string;
+  taskType: 'FILE' | 'BOOKLET_IMPORT';
+  originalName: string;
+  mimeType: string | null;
+  size: number | null;
+  purpose: string | null;
+  status: string;
+  progress: number | null;
+  contentId: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+/** 上传任务分页结果中的轮询标记来自全量任务，而不是当前页。 */
+export interface UploadTaskListResult {
+  list: UploadTaskItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasActiveBookletImports: boolean;
 }
 
 /** 阅读进度记录 */

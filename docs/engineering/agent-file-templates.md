@@ -1,42 +1,42 @@
 # 目录级 AGENT.md 模板
 
-> 状态：规划中
-> 最后更新：2026-06-27
-> 目标：工程创建后，在前端、运营端、后端目录分别放置局部开发规范，避免后续实现细节漂移。
+> 状态：🟡 部分已落地
+> 最后更新：2026-08-08
+> 目标：在前端、运营端、后端目录分别放置局部开发规范，避免后续实现细节漂移。
 >
 > ⚠️ **当前阶段已按 React-first 落地**：实际目录级规范见
-> `apps/react-web/AGENT.md`（含 `.agent/` 分模块细则）与 `packages/shared-types/AGENT.md`。
-> 下方模板最初按 Next.js（`apps/web`）路径编写，保留作为 Next.js 阶段（`apps/next-web`）与后端（`apps/api`）的参考。
+> `apps/user-web/AGENT.md`（含 `.agent/` 分模块细则）与 `packages/shared-types/AGENT.md`。
+> 下方前端模板面向未来 `apps/next-web`；后端模板可在当前 `apps/server` 出现领域模块后按需落地。
 > React-first 阶段请以上述实际 AGENT.md 为准。
 
 ---
 
 ## 1. 落地位置
 
-工程骨架创建后，应新增：
+未来 Next.js 或后端领域模块创建时，可新增：
 
-| 文件 | 适用范围 |
-|---|---|
-| `apps/web/AGENT.md` | 公开前台 + 工作区 + Web 通用规范 |
-| `apps/web/app/admin/AGENT.md` | 运营端 / 后台管理台专用规范 |
-| `apps/api/AGENT.md` | 后端 NestJS API 专用规范 |
+| 文件                          | 适用范围                         |
+| ----------------------------- | -------------------------------- |
+| `apps/next-web/AGENT.md`      | Next.js 公开前台 + Web 通用规范  |
+| `apps/next-web/app/admin/AGENT.md` | Next.js 运营端 / 后台管理台专用规范 |
+| `apps/server/AGENT.md`        | 后端 NestJS 专用规范             |
 
 说明：
 
-- 当前工程目录还没创建，所以本文件先保存模板。
-- 真正搭建工程时，应把下方模板复制到对应目录。
+- `apps/user-web/AGENT.md` 与 `packages/shared-types/AGENT.md` 已存在；`apps/server` 当前由仓库根 `AGENT.md` 约束。
+- 真正搭建对应模块时，应把下方模板复制到对应目录。
 - 如果后续目录调整，必须同步更新本文件和实际 `AGENT.md`。
 
 ---
 
-## 2. `apps/web/AGENT.md` 模板
+## 2. `apps/next-web/AGENT.md` 模板
 
 ```md
 # Web 前台与工作区开发规范
 
 ## 适用范围
 
-本文件适用于 `apps/web` 下除 `/app/admin` 之外的前台、工作区和 Web 通用代码。
+本文件适用于 `apps/next-web` 下除 `/app/admin` 之外的前台、工作区和 Web 通用代码。
 
 ## 技术栈
 
@@ -98,14 +98,14 @@
 
 ---
 
-## 3. `apps/web/app/admin/AGENT.md` 模板
+## 3. `apps/next-web/app/admin/AGENT.md` 模板
 
 ```md
 # 运营端 / 后台管理台开发规范
 
 ## 适用范围
 
-本文件适用于 `apps/web/app/admin` 及后台管理相关组件。
+本文件适用于 `apps/next-web/app/admin` 及后台管理相关组件。
 
 ## 技术栈
 
@@ -153,19 +153,19 @@
 
 ---
 
-## 4. `apps/api/AGENT.md` 模板
+## 4. `apps/server/AGENT.md` 模板
 
 ```md
 # 后端 API 开发规范
 
 ## 适用范围
 
-本文件适用于 `apps/api` 下所有 NestJS 后端代码。
+本文件适用于 `apps/server` 下所有 NestJS 后端代码。
 
 ## 技术栈
 
 - NestJS
-- Fastify Adapter
+- Express Adapter
 - Prisma
 - PostgreSQL
 - Redis

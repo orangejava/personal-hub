@@ -1,0 +1,27 @@
+name: Server CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter server exec prisma generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/personal_hub?schema=public
+      - run: pnpm --filter server format:check
+      - run: pnpm --filter server lint
+      - run: pnpm --filter server typecheck
+      - run: pnpm --filter server test
+      - run: pnpm --filter server build

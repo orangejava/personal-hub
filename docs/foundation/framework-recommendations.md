@@ -1,8 +1,10 @@
 # 项目框架推荐与分析
 
-> 状态：✅ 长期推荐已完成；React-first 阶段路线已补充
-> 最后更新：2026-06-27
-> 适用范围：Web 前台、登录后工作区、后台管理台、后端 API、Flutter App、工程基础设施
+> 状态：📚 框架取舍历史分析；React-first 阶段路线已补充
+> 最后更新：2026-08-02
+> 适用范围：Web 前台、登录后工作区、后台管理台、Flutter App 的框架取舍背景。
+>
+> **Nest 实施提示**：本文写于 Canonical 后端契约收口前，任何涉及 `apps/api`、Passport、bcrypt、MinIO 生产方案、cache-manager 或旧 API 的段落均不再是实现依据。Nest 只遵循 [技术栈](./tech-stack.md)、[依赖目录](../engineering/nest-dependency-catalog.md)、[后端实现约定](../backend/conventions.md) 与 [Nest Server 脚手架 PRD](../prd/long-term/nest-server-bootstrap-prd.md)。
 
 ---
 
@@ -15,7 +17,7 @@
 
 本项目当前已经确认主线技术栈，本文不重新推翻既定选型，而是补充每个框架的使用边界、适用模块、取舍理由和后续扩展策略。
 
-> 阶段性补充：当前实施路线先在 `apps/react-web` 中使用 React + Umi + Ant Design Pro 完成首版 Web 功能，后续再将适合 SEO 的公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型方案不变。详细见 [../react-first/README.md](../react-first/README.md)。
+> 阶段性补充：当前实施路线先在 `apps/user-web` 中使用 React + Umi + Ant Design Pro 完成首版 Web 功能，后续再将适合 SEO 的公开页面抽到 Next.js 15。后端、数据库、缓存、Monorepo 和共享类型方案不变。详细见 [../react-first/README.md](../react-first/README.md)。
 
 ---
 
@@ -25,40 +27,40 @@
 
 当前项目的长期框架主线已经足够清晰。实施上先走 React-first 路线，再逐步补齐 Next.js 与 NestJS：
 
-| 层级 | 推荐框架 / 方案 | 结论 |
-|---|---|---|
-| Web 长期应用 | Next.js 15 + React + App Router | ✅ 长期主框架 |
-| Web 首版实施 | React + Umi + Ant Design Pro | 🟡 当前阶段先行 |
-| Web 样式 | Tailwind CSS v4 | ✅ 主样式方案 |
-| 前台 / 工作区 UI | shadcn/ui + Radix UI | ✅ 主 UI 方案 |
-| 后台管理 UI | Ant Design v5 + @ant-design/pro-components | ✅ 后台专用 |
-| Web 服务端数据 | Next.js Server Component + fetch | ✅ SEO 页面优先 |
-| Web 客户端数据 | TanStack Query v5 | ✅ 交互页面优先 |
-| Web 客户端状态 | Zustand | ✅ 轻量全局状态 |
-| 后端 API | NestJS + Fastify Adapter | ✅ 主后端框架 |
-| ORM | Prisma | ✅ 主数据访问层 |
-| API 文档 | Swagger / OpenAPI | ✅ 必选 |
-| 数据库 | PostgreSQL 16 | ✅ 主数据库 |
-| 缓存 | Redis 7 | ✅ 缓存 / 限流 / 会话辅助 |
-| 移动端 | Flutter + Riverpod + Dio + go_router | ✅ 后置接入 |
-| Monorepo | Turborepo + pnpm workspace | ✅ 工程组织方式 |
-| 本地基础设施 | Docker Compose | ✅ 数据库 / Redis / MinIO / Meilisearch |
+| 层级             | 推荐框架 / 方案                            | 结论                                    |
+| ---------------- | ------------------------------------------ | --------------------------------------- |
+| Web 长期应用     | Next.js 15 + React + App Router            | ✅ 长期主框架                           |
+| Web 首版实施     | React + Umi + Ant Design Pro               | 🟡 当前阶段先行                         |
+| Web 样式         | Tailwind CSS v4                            | ✅ 主样式方案                           |
+| 前台 / 工作区 UI | shadcn/ui + Radix UI                       | ✅ 主 UI 方案                           |
+| 后台管理 UI      | Ant Design v5 + @ant-design/pro-components | ✅ 后台专用                             |
+| Web 服务端数据   | Next.js Server Component + fetch           | ✅ SEO 页面优先                         |
+| Web 客户端数据   | TanStack Query v5                          | ✅ 交互页面优先                         |
+| Web 客户端状态   | Zustand                                    | ✅ 轻量全局状态                         |
+| 后端 API         | NestJS + Express Adapter                   | ✅ 主后端框架                           |
+| ORM              | Prisma                                     | ✅ 主数据访问层                         |
+| API 文档         | Swagger / OpenAPI                          | ✅ 必选                                 |
+| 数据库           | PostgreSQL 16                              | ✅ 主数据库                             |
+| 缓存             | Redis 7                                    | ✅ 缓存 / 限流 / 会话辅助               |
+| 移动端           | Flutter + Riverpod + Dio + go_router       | ✅ 后置接入                             |
+| Monorepo         | Turborepo + pnpm workspace                 | ✅ 工程组织方式                         |
+| 本地基础设施     | Docker Compose                             | ✅ 数据库 / Redis / MinIO / Meilisearch |
 
 ### 2.2 仍需补充确认，但不阻塞框架选型
 
 检查现有文档后，仍有一些业务级或体验级确认项。它们会影响后续页面细节和配置，不影响当前框架推荐：
 
-| 确认项 | 所在文档 | 是否阻塞框架选型 | 建议处理阶段 |
-|---|---|---:|---|
-| 前台视觉设计系统：颜色、字体、组件规范 | `docs/overview.md` | 否 | Web 页面开发前 |
-| 域名与站点名称最终确认 | `docs/overview.md` | 否 | 部署前 |
-| 管理员初始账号密码约定 | `docs/overview.md` | 否 | Seed / 部署前 |
-| AI 工具旧版重复内容中的待细化标记 | `docs/product/ai-tools.md` | 否 | 开发 AI 模块前统一清理 |
-| 普通会员是否允许上传小册 | `docs/product/workspace.md` | 否 | 内容权限开发前 |
-| 注册是否必须邮箱验证、密码策略细则 | `docs/product/auth-rbac.md` | 否 | 认证模块开发前 |
-| 第三方登录首版是否启用 | `docs/product/auth-rbac.md` | 否 | OAuth 接入前 |
+| 确认项                                 | 所在文档                    | 是否阻塞框架选型 | 建议处理阶段           |
+| -------------------------------------- | --------------------------- | ---------------: | ---------------------- |
+| 前台视觉设计系统：颜色、字体、组件规范 | `docs/overview.md`          |               否 | Web 页面开发前         |
+| 域名与站点名称最终确认                 | `docs/overview.md`          |               否 | 部署前                 |
+| 管理员初始账号密码约定                 | `docs/overview.md`          |               否 | Seed / 部署前          |
+| AI 工具旧版重复内容中的待细化标记      | `docs/product/ai-tools.md`  |               否 | 开发 AI 模块前统一清理 |
+| 普通会员是否允许上传小册               | `docs/product/workspace.md` |               否 | 内容权限开发前         |
+| 注册是否必须邮箱验证、密码策略细则     | `docs/product/auth-rbac.md` |               否 | 认证模块开发前         |
+| 第三方登录首版是否启用                 | `docs/product/auth-rbac.md` |               否 | OAuth 接入前           |
 
-建议：先按 React-first 文档搭建 `apps/react-web` 与共享类型；进入对应业务模块前，再逐项确认上述细节。
+建议：先按 React-first 文档搭建 `apps/user-web` 与共享类型；进入对应业务模块前，再逐项确认上述细节。
 
 ---
 
@@ -72,7 +74,7 @@
 - 后续内容阅读：`/content/:id`
 - 可选迁移：部分工作区或 AI 工具页面
 
-React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速跑通完整业务体验。
+React-first 阶段，上述页面先由 `apps/user-web` 实现，用来快速跑通完整业务体验。
 
 **推荐理由**：
 
@@ -91,12 +93,12 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| Vite + React | 适合纯 SPA，但公开内容 SEO、服务端渲染、部署一体化能力不如 Next.js |
-| Nuxt | 适合 Vue 技术栈，但本项目目标之一是在实战中切换到 React / Next.js 体系 |
-| Remix | 数据加载模型优秀，但当前项目文档、学习资料和工程规划已围绕 Next.js 展开 |
-| Astro | 适合内容站，但本项目还有工作区、AI 工具、后台管理等复杂交互，不适合作为唯一主框架 |
+| 替代方案     | 不作为主选的原因                                                                  |
+| ------------ | --------------------------------------------------------------------------------- |
+| Vite + React | 适合纯 SPA，但公开内容 SEO、服务端渲染、部署一体化能力不如 Next.js                |
+| Nuxt         | 适合 Vue 技术栈，但本项目目标之一是在实战中切换到 React / Next.js 体系            |
+| Remix        | 数据加载模型优秀，但当前项目文档、学习资料和工程规划已围绕 Next.js 展开           |
+| Astro        | 适合内容站，但本项目还有工作区、AI 工具、后台管理等复杂交互，不适合作为唯一主框架 |
 
 ---
 
@@ -154,12 +156,12 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| Material UI | 组件完整，但视觉风格较重，个人前台定制成本偏高 |
-| Chakra UI | 易用，但与 Tailwind / shadcn 组合相比，可复制定制和生态热度略弱 |
-| Headless UI | 可用，但 shadcn/ui 已经提供更完整的组件起点 |
-| Mantine | 组件丰富，但会引入另一套样式系统，与 Tailwind 主线不够统一 |
+| 替代方案    | 不作为主选的原因                                                |
+| ----------- | --------------------------------------------------------------- |
+| Material UI | 组件完整，但视觉风格较重，个人前台定制成本偏高                  |
+| Chakra UI   | 易用，但与 Tailwind / shadcn 组合相比，可复制定制和生态热度略弱 |
+| Headless UI | 可用，但 shadcn/ui 已经提供更完整的组件起点                     |
+| Mantine     | 组件丰富，但会引入另一套样式系统，与 Tailwind 主线不够统一      |
 
 ---
 
@@ -189,17 +191,17 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 **使用边界**：
 
 - 主要在 `/admin` 路由范围内作为主 UI 框架，工作区也可以适度使用 Pro Components 提高效率。
-- 当前阶段确认完整克隆 Ant Design Pro 到 `apps/react-web` 后改造；这属于 Monorepo 内首版 React 应用，不是与主工程割裂的独立后台。
+- 当前阶段确认完整克隆 Ant Design Pro 到 `apps/user-web` 后改造；这属于 Monorepo 内首版 React 应用，不是与主工程割裂的独立后台。
 - 不建议把 Ant Design 组件扩散到公开前台，避免视觉割裂。
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| 独立部署的 Ant Design Pro 后台 | 管理台能力强，但会增加部署和认证同步成本；当前采用 Monorepo 内 `apps/react-web`，不独立部署 |
-| Refine | 后台 CRUD 效率高，但会带来新的抽象体系，当前项目没必要额外引入 |
-| React Admin | 更适合标准资源管理后台，本项目需要与 Next.js、RBAC、AI 配置深度整合 |
-| shadcn/ui 自建后台 | 视觉统一，但表格、筛选、复杂表单开发成本明显高于 Ant Design |
+| 替代方案                       | 不作为主选的原因                                                                            |
+| ------------------------------ | ------------------------------------------------------------------------------------------- |
+| 独立部署的 Ant Design Pro 后台 | 管理台能力强，但会增加部署和认证同步成本；当前采用 Monorepo 内 `apps/user-web`，不独立部署 |
+| Refine                         | 后台 CRUD 效率高，但会带来新的抽象体系，当前项目没必要额外引入                              |
+| React Admin                    | 更适合标准资源管理后台，本项目需要与 Next.js、RBAC、AI 配置深度整合                         |
+| shadcn/ui 自建后台             | 视觉统一，但表格、筛选、复杂表单开发成本明显高于 Ant Design                                 |
 
 ---
 
@@ -288,14 +290,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 3.7 内容渲染与编辑框架
 
-| 场景 | 推荐框架 | 使用理由 |
-|---|---|---|
-| Markdown 服务端高亮 | Shiki | 代码块 HTML 输出质量高，适合内容页 SSR |
-| AI 回复 Markdown | react-markdown + remark-gfm | 适合客户端流式内容逐步渲染 |
-| HTML 安全净化 | rehype-sanitize | 渲染用户输入 HTML 前必须净化，降低 XSS 风险 |
-| 富文本编辑 | Tiptap | 基于 ProseMirror，扩展性强，适合内容创作 |
-| PDF 阅读 | react-pdf / pdfjs-dist | 适合站内 PDF 基础预览、翻页、缩放 |
-| Word 预览 | mammoth 或服务端转换方案 | 首版以阅读预览为主，不做复杂在线编辑 |
+| 场景                | 推荐框架                    | 使用理由                                    |
+| ------------------- | --------------------------- | ------------------------------------------- |
+| Markdown 服务端高亮 | Shiki                       | 代码块 HTML 输出质量高，适合内容页 SSR      |
+| AI 回复 Markdown    | react-markdown + remark-gfm | 适合客户端流式内容逐步渲染                  |
+| HTML 安全净化       | rehype-sanitize             | 渲染用户输入 HTML 前必须净化，降低 XSS 风险 |
+| 富文本编辑          | Tiptap                      | 基于 ProseMirror，扩展性强，适合内容创作    |
+| PDF 阅读            | react-pdf / pdfjs-dist      | 适合站内 PDF 基础预览、翻页、缩放           |
+| Word 预览           | mammoth 或服务端转换方案    | 首版以阅读预览为主，不做复杂在线编辑        |
 
 **注意事项**：
 
@@ -322,11 +324,11 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **替代方案分析**：
 
-| 替代方案 | 建议 |
-|---|---|
-| ECharts | 后续如果统计图复杂、交互强，可以再引入 |
+| 替代方案 | 建议                                              |
+| -------- | ------------------------------------------------- |
+| ECharts  | 后续如果统计图复杂、交互强，可以再引入            |
 | Chart.js | 简单图表可用，但 React 生态体验不如 Recharts 顺滑 |
-| D3 | 能力强，但开发成本高，首版不建议直接使用 |
+| D3       | 能力强，但开发成本高，首版不建议直接使用          |
 
 ---
 
@@ -362,17 +364,17 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| Express | 灵活但缺少工程约束，模块变多后容易松散 |
-| Fastify 纯框架 | 性能好，但需要自行补齐模块、依赖注入、Swagger、权限结构 |
-| Hono | 轻量现代，但对本项目这种完整后台和复杂业务域来说工程约束偏少 |
-| Next.js API Routes | 适合轻后端，不适合作为 Web + Flutter 共用的完整 API 中台 |
-| tRPC | 类型体验好，但 Flutter 无法直接享受同等收益，跨端 API 文档不如 REST + OpenAPI 通用 |
+| 替代方案           | 不作为主选的原因                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| Express            | 灵活但缺少工程约束，模块变多后容易松散                                             |
+| Fastify 纯框架     | 性能好，但需要自行补齐模块、依赖注入、Swagger、权限结构                            |
+| Hono               | 轻量现代，但对本项目这种完整后台和复杂业务域来说工程约束偏少                       |
+| Next.js API Routes | 适合轻后端，不适合作为 Web + Flutter 共用的完整 API 中台                           |
+| tRPC               | 类型体验好，但 Flutter 无法直接享受同等收益，跨端 API 文档不如 REST + OpenAPI 通用 |
 
 ---
 
-### 4.2 HTTP 适配器：Fastify
+### 4.2 HTTP 适配器：Express
 
 **使用范围**：
 
@@ -382,14 +384,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **推荐理由**：
 
-- 性能优于 Express。
-- 对流式响应和高并发接口更友好。
-- 与 NestJS 的 `@nestjs/platform-fastify` 可稳定集成。
+- middleware 生态成熟，Cookie、安全头、第三方 SDK 的示例和接入方式更普遍。
+- 与 NestJS 的 `@nestjs/platform-express` 稳定集成，适合当前阶段维护与学习。
+- AI 流式能力由 Nest SSE、取消处理、代理超时和并发策略共同保障，不把 HTTP 框架基准吞吐当作首要优化点。
 
 **使用边界**：
 
-- 文件上传需要注意 Fastify 生态下的 multipart 方案，不直接照搬 Express + multer 示例。
-- 中间件和插件接入时优先查 NestJS + Fastify 的组合写法。
+- 文件上传默认使用预签名直传；需要服务端接收文件时再评估 Nest + Multer 的边界。
+- middleware 接入遵循 NestJS + Express 的组合写法，避免 Controller 直接耦合原生响应对象。
 
 ---
 
@@ -418,12 +420,12 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| TypeORM | NestJS 生态常见，但类型体验和迁移体验不如 Prisma 直观 |
-| Drizzle | 类型强、轻量，但当前学习资料和数据库文档已经围绕 Prisma 展开 |
-| Sequelize | 生态成熟，但 TypeScript 体验和现代工程体验不如 Prisma |
-| 直接 SQL | 控制力最强，但首版开发效率和类型安全不足 |
+| 替代方案  | 不作为主选的原因                                             |
+| --------- | ------------------------------------------------------------ |
+| TypeORM   | NestJS 生态常见，但类型体验和迁移体验不如 Prisma 直观        |
+| Drizzle   | 类型强、轻量，但当前学习资料和数据库文档已经围绕 Prisma 展开 |
+| Sequelize | 生态成熟，但 TypeScript 体验和现代工程体验不如 Prisma        |
+| 直接 SQL  | 控制力最强，但首版开发效率和类型安全不足                     |
 
 ---
 
@@ -482,13 +484,13 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 4.6 缓存、限流与任务框架
 
-| 能力 | 推荐框架 / 库 | 使用范围 |
-|---|---|---|
-| Redis 客户端 | ioredis | 会话辅助、缓存、限流计数 |
-| Nest 缓存封装 | @nestjs/cache-manager | 统一缓存管理 |
-| 限流 | @nestjs/throttler | 登录、注册、AI 试用接口 |
-| 定时任务 | @nestjs/schedule | 日志清理、过期 Token 清理、备份辅助 |
-| 事件总线 | @nestjs/event-emitter | 内容发布后清缓存、用量记录解耦 |
+| 能力          | 推荐框架 / 库         | 使用范围                            |
+| ------------- | --------------------- | ----------------------------------- |
+| Redis 客户端  | ioredis               | 会话辅助、缓存、限流计数            |
+| Nest 缓存封装 | @nestjs/cache-manager | 统一缓存管理                        |
+| 限流          | @nestjs/throttler     | 登录、注册、AI 试用接口             |
+| 定时任务      | @nestjs/schedule      | 日志清理、过期 Token 清理、备份辅助 |
+| 事件总线      | @nestjs/event-emitter | 内容发布后清缓存、用量记录解耦      |
 
 **推荐理由**：
 
@@ -500,11 +502,11 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 4.7 文件与对象存储框架
 
-| 阶段 | 推荐方案 | 使用理由 |
-|---|---|---|
-| 首版本地开发 | 本地磁盘存储 | 简单、成本低、便于调试 |
-| 生产增强 | MinIO | 兼容 S3 语义，便于后续迁移对象存储 |
-| 图片处理 | sharp | 头像压缩、封面裁剪、缩略图生成 |
+| 阶段         | 推荐方案     | 使用理由                           |
+| ------------ | ------------ | ---------------------------------- |
+| 首版本地开发 | 本地磁盘存储 | 简单、成本低、便于调试             |
+| 生产增强     | MinIO        | 兼容 S3 语义，便于后续迁移对象存储 |
+| 图片处理     | sharp        | 头像压缩、封面裁剪、缩略图生成     |
 
 **使用边界**：
 
@@ -544,25 +546,25 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 5.2 Flutter 配套框架
 
-| 能力 | 推荐框架 | 推荐理由 |
-|---|---|---|
-| 状态管理 | Riverpod | 声明式、可测试、适合异步状态 |
-| 网络请求 | Dio | 拦截器能力强，适合 Token 刷新和统一错误处理 |
-| 路由 | go_router | 声明式路由，支持深链接 |
-| 本地缓存 | Isar | 性能好，适合最近阅读和历史记录缓存 |
-| 安全存储 | flutter_secure_storage | 适合保存 Token |
-| PDF 阅读 | flutter_pdfview | 原生性能更稳 |
-| Markdown | flutter_markdown | 覆盖移动端基础阅读需求 |
-| 图片缓存 | cached_network_image | 降低图片重复加载成本 |
+| 能力     | 推荐框架               | 推荐理由                                    |
+| -------- | ---------------------- | ------------------------------------------- |
+| 状态管理 | Riverpod               | 声明式、可测试、适合异步状态                |
+| 网络请求 | Dio                    | 拦截器能力强，适合 Token 刷新和统一错误处理 |
+| 路由     | go_router              | 声明式路由，支持深链接                      |
+| 本地缓存 | Isar                   | 性能好，适合最近阅读和历史记录缓存          |
+| 安全存储 | flutter_secure_storage | 适合保存 Token                              |
+| PDF 阅读 | flutter_pdfview        | 原生性能更稳                                |
+| Markdown | flutter_markdown       | 覆盖移动端基础阅读需求                      |
+| 图片缓存 | cached_network_image   | 降低图片重复加载成本                        |
 
 **替代方案分析**：
 
-| 替代方案 | 不作为主选的原因 |
-|---|---|
-| React Native | 与 Web React 心智接近，但项目已明确选择 Flutter |
-| 原生 iOS / Android | 性能和平台能力最强，但个人项目维护成本高 |
-| GetX | 上手快，但长期结构约束和可测试性不如 Riverpod |
-| Provider | 简单可用，但复杂异步状态下 Riverpod 更稳 |
+| 替代方案           | 不作为主选的原因                                |
+| ------------------ | ----------------------------------------------- |
+| React Native       | 与 Web React 心智接近，但项目已明确选择 Flutter |
+| 原生 iOS / Android | 性能和平台能力最强，但个人项目维护成本高        |
+| GetX               | 上手快，但长期结构约束和可测试性不如 Riverpod   |
+| Provider           | 简单可用，但复杂异步状态下 Riverpod 更稳        |
 
 ---
 
@@ -637,18 +639,18 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ## 7. 框架使用边界总表
 
-| 模块 | 应使用 | 不建议使用 |
-|---|---|---|
-| 公开前台 | Next.js RSC + Tailwind + shadcn/ui | 大面积 Ant Design |
-| 内容阅读页 | Server Component + Shiki + 安全 HTML 渲染 | 全客户端 SPA 渲染 |
-| 工作区 | Client Component + TanStack Query + Zustand + shadcn/ui | 用 Zustand 缓存所有服务端数据 |
-| AI 工具页 | Client Component + SSE + TanStack Query | 每个 token 都做复杂 Markdown 高亮 |
-| 后台管理台 | Ant Design + Pro Components | 单独起 Ant Design Pro 工程 |
-| 后端 API | NestJS + Fastify + Prisma | Next.js API Routes 承载核心业务 |
-| 权限控制 | NestJS Guard + RBAC | 只靠前端按钮隐藏 |
-| 移动端 | Flutter + Dio + Riverpod | 单独建移动端专用 API |
-| 工程组织 | Turborepo + pnpm workspace | 多仓库过早拆分 |
-| 首版部署 | Docker Compose + Nginx | 过早引入 Kubernetes |
+| 模块       | 应使用                                                  | 不建议使用                        |
+| ---------- | ------------------------------------------------------- | --------------------------------- |
+| 公开前台   | Next.js RSC + Tailwind + shadcn/ui                      | 大面积 Ant Design                 |
+| 内容阅读页 | Server Component + Shiki + 安全 HTML 渲染               | 全客户端 SPA 渲染                 |
+| 工作区     | Client Component + TanStack Query + Zustand + shadcn/ui | 用 Zustand 缓存所有服务端数据     |
+| AI 工具页  | Client Component + SSE + TanStack Query                 | 每个 token 都做复杂 Markdown 高亮 |
+| 后台管理台 | Ant Design + Pro Components                             | 单独起 Ant Design Pro 工程        |
+| 后端 API   | NestJS + Express + Prisma                               | Next.js API Routes 承载核心业务   |
+| 权限控制   | NestJS Guard + RBAC                                     | 只靠前端按钮隐藏                  |
+| 移动端     | Flutter + Dio + Riverpod                                | 单独建移动端专用 API              |
+| 工程组织   | Turborepo + pnpm workspace                              | 多仓库过早拆分                    |
+| 首版部署   | Docker Compose + Nginx                                  | 过早引入 Kubernetes               |
 
 ---
 
@@ -658,13 +660,13 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.1 Web 主框架
 
-| 框架 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Next.js | SSR / SSG / RSC 能力完整，SEO 友好，App Router 适合按前台、工作区、后台拆路由组，React 生态成熟 | 学习曲线比纯 SPA 高，Server / Client Component 边界需要习惯 | 高 | ✅ 选择 |
-| Vite + React | 启动快，心智简单，适合纯前端 SPA 和后台系统 | SEO、服务端渲染、内容站首屏能力需要额外补，公开内容页不占优 | 中 | 不作为主框架 |
-| Nuxt | Vue 生态下的 SSR 首选，适合已有 Vue 团队 | 本项目目标之一是切换 React / Next.js 体系，继续 Vue 会削弱学习目标 | 中 | 不选 |
-| Remix | 数据加载模型清晰，表单和服务端交互体验好 | 国内资料和团队熟悉度通常不如 Next.js，生态组合与本文档主线不一致 | 中 | 备选 |
-| Astro | 内容站性能好，Markdown / 静态内容体验优秀 | 工作区、AI 工具、后台管理等复杂交互较多，单独用 Astro 会割裂工程 | 中 | 可作为纯内容站备选，不作为主框架 |
+| 框架         | 优点                                                                                            | 缺点                                                               | 适配度 | 结论                             |
+| ------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------ | -------------------------------- |
+| Next.js      | SSR / SSG / RSC 能力完整，SEO 友好，App Router 适合按前台、工作区、后台拆路由组，React 生态成熟 | 学习曲线比纯 SPA 高，Server / Client Component 边界需要习惯        | 高     | ✅ 选择                          |
+| Vite + React | 启动快，心智简单，适合纯前端 SPA 和后台系统                                                     | SEO、服务端渲染、内容站首屏能力需要额外补，公开内容页不占优        | 中     | 不作为主框架                     |
+| Nuxt         | Vue 生态下的 SSR 首选，适合已有 Vue 团队                                                        | 本项目目标之一是切换 React / Next.js 体系，继续 Vue 会削弱学习目标 | 中     | 不选                             |
+| Remix        | 数据加载模型清晰，表单和服务端交互体验好                                                        | 国内资料和团队熟悉度通常不如 Next.js，生态组合与本文档主线不一致   | 中     | 备选                             |
+| Astro        | 内容站性能好，Markdown / 静态内容体验优秀                                                       | 工作区、AI 工具、后台管理等复杂交互较多，单独用 Astro 会割裂工程   | 中     | 可作为纯内容站备选，不作为主框架 |
 
 最终选择 Next.js 的原因：
 
@@ -676,14 +678,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.2 前台 / 工作区 UI 框架
 
-| 框架 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| shadcn/ui + Radix UI | 可复制源码，可深度定制，适合个人品牌和前台页面，和 Tailwind 配合好 | 不是传统安装即用组件库，部分复杂组件需要自己组合 | 高 | ✅ 选择 |
-| Ant Design | 组件完整，表格表单能力强，后台效率高 | 视觉偏后台，前台品牌化成本高 | 中 | 仅用于后台 |
-| Material UI | 组件完整，生态成熟 | Material 风格较强，想做个性化前台需要覆盖较多样式 | 中 | 不作为主选 |
-| Chakra UI | 易用，API 友好 | 与 Tailwind 主线不完全统一，长期定制和生态热度不如 shadcn/ui | 中 | 备选 |
-| Mantine | 组件丰富，功能完整 | 会引入另一套样式系统，与 Tailwind + shadcn/ui 主线重复 | 中 | 备选 |
-| Headless UI | 无样式组件，适合完全自定义 | 组件覆盖不如 shadcn/ui 完整，需要更多手写样式和组合 | 中 | 可局部参考 |
+| 框架                 | 优点                                                               | 缺点                                                         | 适配度 | 结论       |
+| -------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------ | ------ | ---------- |
+| shadcn/ui + Radix UI | 可复制源码，可深度定制，适合个人品牌和前台页面，和 Tailwind 配合好 | 不是传统安装即用组件库，部分复杂组件需要自己组合             | 高     | ✅ 选择    |
+| Ant Design           | 组件完整，表格表单能力强，后台效率高                               | 视觉偏后台，前台品牌化成本高                                 | 中     | 仅用于后台 |
+| Material UI          | 组件完整，生态成熟                                                 | Material 风格较强，想做个性化前台需要覆盖较多样式            | 中     | 不作为主选 |
+| Chakra UI            | 易用，API 友好                                                     | 与 Tailwind 主线不完全统一，长期定制和生态热度不如 shadcn/ui | 中     | 备选       |
+| Mantine              | 组件丰富，功能完整                                                 | 会引入另一套样式系统，与 Tailwind + shadcn/ui 主线重复       | 中     | 备选       |
+| Headless UI          | 无样式组件，适合完全自定义                                         | 组件覆盖不如 shadcn/ui 完整，需要更多手写样式和组合          | 中     | 可局部参考 |
 
 最终选择 shadcn/ui + Radix UI 的原因：
 
@@ -695,13 +697,13 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.3 后台管理 UI 框架
 
-| 框架 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Ant Design + Pro Components | 表格、表单、筛选、布局成熟，后台开发效率高 | 视觉偏运营后台，不适合公开前台 | 高 | ✅ 选择 |
-| Ant Design Pro 独立工程 | 后台能力完整，有成熟模板 | 多一个前端工程会增加认证、部署、类型共享和维护成本 | 中 | 不单独起工程 |
-| Refine | CRUD 抽象强，适合快速搭管理后台 | 会引入新的资源抽象体系，和当前 Next.js + 自定义 RBAC 结合成本更高 | 中 | 备选 |
-| React Admin | 资源管理能力成熟 | 更适合标准数据后台，本项目有较多定制配置和内容工作流 | 中 | 不作为主选 |
-| shadcn/ui 自建后台 | 视觉统一，可定制 | ProTable / ProForm 级能力要自己补，后台开发成本高 | 中 | 不作为后台主选 |
+| 框架                        | 优点                                       | 缺点                                                              | 适配度 | 结论           |
+| --------------------------- | ------------------------------------------ | ----------------------------------------------------------------- | ------ | -------------- |
+| Ant Design + Pro Components | 表格、表单、筛选、布局成熟，后台开发效率高 | 视觉偏运营后台，不适合公开前台                                    | 高     | ✅ 选择        |
+| Ant Design Pro 独立工程     | 后台能力完整，有成熟模板                   | 多一个前端工程会增加认证、部署、类型共享和维护成本                | 中     | 不单独起工程   |
+| Refine                      | CRUD 抽象强，适合快速搭管理后台            | 会引入新的资源抽象体系，和当前 Next.js + 自定义 RBAC 结合成本更高 | 中     | 备选           |
+| React Admin                 | 资源管理能力成熟                           | 更适合标准数据后台，本项目有较多定制配置和内容工作流              | 中     | 不作为主选     |
+| shadcn/ui 自建后台          | 视觉统一，可定制                           | ProTable / ProForm 级能力要自己补，后台开发成本高                 | 中     | 不作为后台主选 |
 
 最终选择 Ant Design + Pro Components 的原因：
 
@@ -713,13 +715,13 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.4 CSS 与主题方案
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Tailwind CSS | 快速、约束强、响应式方便，适合 shadcn/ui 和主题变量 | 类名较多，需要团队习惯工具类写法 | 高 | ✅ 选择 |
-| CSS Modules | Next.js 原生支持，局部样式隔离好 | 组件化效率不如 Tailwind，主题变量和样式组合需要更多手写 | 中 | 可局部使用 |
-| Sass / Less | 传统成熟，适合复杂样式组织 | 与 shadcn/ui / Tailwind 主线重复，容易形成两套样式体系 | 中 | 不作为主线 |
-| Styled Components | JS 中写样式，动态样式能力强 | SSR 和运行时成本需要关注，与 Tailwind 主线不一致 | 低 | 不选 |
-| Vanilla Extract | 类型安全 CSS，适合大型设计系统 | 学习和配置成本更高，首版没必要 | 中 | 后续可评估 |
+| 方案              | 优点                                                | 缺点                                                    | 适配度 | 结论       |
+| ----------------- | --------------------------------------------------- | ------------------------------------------------------- | ------ | ---------- |
+| Tailwind CSS      | 快速、约束强、响应式方便，适合 shadcn/ui 和主题变量 | 类名较多，需要团队习惯工具类写法                        | 高     | ✅ 选择    |
+| CSS Modules       | Next.js 原生支持，局部样式隔离好                    | 组件化效率不如 Tailwind，主题变量和样式组合需要更多手写 | 中     | 可局部使用 |
+| Sass / Less       | 传统成熟，适合复杂样式组织                          | 与 shadcn/ui / Tailwind 主线重复，容易形成两套样式体系  | 中     | 不作为主线 |
+| Styled Components | JS 中写样式，动态样式能力强                         | SSR 和运行时成本需要关注，与 Tailwind 主线不一致        | 低     | 不选       |
+| Vanilla Extract   | 类型安全 CSS，适合大型设计系统                      | 学习和配置成本更高，首版没必要                          | 中     | 后续可评估 |
 
 最终选择 Tailwind CSS 的原因：
 
@@ -731,14 +733,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.5 前端数据与状态管理
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Next.js RSC + fetch | SEO 友好，减少客户端请求，适合内容页 | 交互密集页面不适合全靠 RSC | 高 | ✅ SEO 页面选择 |
-| TanStack Query | 服务端状态缓存、分页、重试、失效机制成熟 | 需要理解 queryKey 和缓存失效 | 高 | ✅ 客户端数据选择 |
-| Zustand | API 简单，适合轻量全局状态 | 不适合承载大量服务端列表数据 | 高 | ✅ 客户端状态选择 |
-| Redux Toolkit | 规范强，生态成熟 | 样板和心智成本更高，当前项目状态复杂度暂不需要 | 中 | 暂不选 |
-| Jotai | 原子化状态灵活 | 团队约束需要更明确，服务端状态仍需其他方案 | 中 | 备选 |
-| SWR | 简洁，适合轻量请求缓存 | 复杂分页、失效和后台列表场景不如 TanStack Query 完整 | 中 | 备选 |
+| 方案                | 优点                                     | 缺点                                                 | 适配度 | 结论              |
+| ------------------- | ---------------------------------------- | ---------------------------------------------------- | ------ | ----------------- |
+| Next.js RSC + fetch | SEO 友好，减少客户端请求，适合内容页     | 交互密集页面不适合全靠 RSC                           | 高     | ✅ SEO 页面选择   |
+| TanStack Query      | 服务端状态缓存、分页、重试、失效机制成熟 | 需要理解 queryKey 和缓存失效                         | 高     | ✅ 客户端数据选择 |
+| Zustand             | API 简单，适合轻量全局状态               | 不适合承载大量服务端列表数据                         | 高     | ✅ 客户端状态选择 |
+| Redux Toolkit       | 规范强，生态成熟                         | 样板和心智成本更高，当前项目状态复杂度暂不需要       | 中     | 暂不选            |
+| Jotai               | 原子化状态灵活                           | 团队约束需要更明确，服务端状态仍需其他方案           | 中     | 备选              |
+| SWR                 | 简洁，适合轻量请求缓存                   | 复杂分页、失效和后台列表场景不如 TanStack Query 完整 | 中     | 备选              |
 
 最终组合：
 
@@ -750,32 +752,32 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.6 后端框架
 
-| 框架 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| NestJS | 模块化、依赖注入、Guard、Pipe、Interceptor、Swagger 集成完善，适合中大型后端 | 学习成本高于 Express / Fastify 纯框架 | 高 | ✅ 选择 |
-| Express | 简单自由，资料多 | 缺少结构约束，模块多后容易散，权限和校验需要自行组织 | 中 | 不作为主选 |
-| Fastify | 性能好，插件体系成熟 | 单独使用时仍需自己组织模块、DI、Swagger、权限结构 | 中 | 作为 NestJS Adapter |
-| Hono | 轻量、现代、适合边缘运行 | 对复杂 RBAC、后台、AI、文件、日志等完整系统约束不足 | 中 | 不作为主选 |
-| Next.js API Routes | 前后端一体，轻量接口方便 | Flutter 复用、后台复杂接口、模块化扩展不占优 | 低 | 不承载核心业务 |
-| tRPC | 类型体验极佳 | Flutter 不直接受益，OpenAPI 通用性弱于 REST | 中 | 不作为主 API 方案 |
+| 框架               | 优点                                                                         | 缺点                                                 | 适配度 | 结论                |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------- | ------ | ------------------- |
+| NestJS             | 模块化、依赖注入、Guard、Pipe、Interceptor、Swagger 集成完善，适合中大型后端 | 学习成本高于 Express / Fastify 纯框架                | 高     | ✅ 选择             |
+| Express            | 简单自由，资料多                                                             | 缺少结构约束，模块多后容易散，权限和校验需要自行组织 | 中     | 不作为主选          |
+| Fastify            | 性能好，插件体系成熟                                                         | 单独使用时仍需自己组织模块、DI、Swagger、权限结构    | 中     | 后续压测出现明确瓶颈时再评估 |
+| Hono               | 轻量、现代、适合边缘运行                                                     | 对复杂 RBAC、后台、AI、文件、日志等完整系统约束不足  | 中     | 不作为主选          |
+| Next.js API Routes | 前后端一体，轻量接口方便                                                     | Flutter 复用、后台复杂接口、模块化扩展不占优         | 低     | 不承载核心业务      |
+| tRPC               | 类型体验极佳                                                                 | Flutter 不直接受益，OpenAPI 通用性弱于 REST          | 中     | 不作为主 API 方案   |
 
-最终选择 NestJS + Fastify Adapter 的原因：
+最终选择 NestJS + Express Adapter 的原因：
 
 - 后端模块多，用户也希望预留更多扩展性。
 - 认证、RBAC、内容、AI、文件、日志都适合 NestJS 模块化。
-- Fastify Adapter 兼顾性能和 SSE 流式响应。
+- 当前尚未出现 HTTP 层高并发瓶颈，优先选择成熟 middleware 生态和较低的适配成本。
 
 ---
 
 ### 8.7 ORM 与数据库访问
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Prisma | Schema 清晰、类型安全、迁移流程直观，适合学习和快速开发 | 极复杂 SQL 和高级查询需要 raw SQL 辅助 | 高 | ✅ 选择 |
-| TypeORM | NestJS 生态常见，装饰器风格 | 类型体验、迁移体验和现代开发体验不如 Prisma 直观 | 中 | 不作为主选 |
-| Drizzle | 类型强、轻量、接近 SQL | 学习资料和既有文档已围绕 Prisma，首版切换收益不大 | 中 | 备选 |
-| Sequelize | 成熟稳定 | TypeScript 体验和现代工程体验相对弱 | 低 | 不选 |
-| 直接 SQL | 控制力最强，性能可控 | 首版开发效率低，类型安全和迁移管理成本高 | 中 | 仅复杂查询局部使用 |
+| 方案      | 优点                                                    | 缺点                                              | 适配度 | 结论               |
+| --------- | ------------------------------------------------------- | ------------------------------------------------- | ------ | ------------------ |
+| Prisma    | Schema 清晰、类型安全、迁移流程直观，适合学习和快速开发 | 极复杂 SQL 和高级查询需要 raw SQL 辅助            | 高     | ✅ 选择            |
+| TypeORM   | NestJS 生态常见，装饰器风格                             | 类型体验、迁移体验和现代开发体验不如 Prisma 直观  | 中     | 不作为主选         |
+| Drizzle   | 类型强、轻量、接近 SQL                                  | 学习资料和既有文档已围绕 Prisma，首版切换收益不大 | 中     | 备选               |
+| Sequelize | 成熟稳定                                                | TypeScript 体验和现代工程体验相对弱               | 低     | 不选               |
+| 直接 SQL  | 控制力最强，性能可控                                    | 首版开发效率低，类型安全和迁移管理成本高          | 中     | 仅复杂查询局部使用 |
 
 最终选择 Prisma 的原因：
 
@@ -787,15 +789,15 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.8 数据库、缓存与搜索
 
-| 能力 | 候选方案 | 优点 | 缺点 | 结论 |
-|---|---|---|---|---|
-| 主数据库 | PostgreSQL | JSONB、全文搜索、关系建模强，适合内容系统 | 运维心智略高于 SQLite | ✅ 选择 |
-| 主数据库 | MySQL | 普及度高，资料多 | JSON、全文搜索、半结构化内容灵活性不如 PostgreSQL | 不选 |
-| 主数据库 | SQLite | 简单、零运维 | 不适合后续多用户、后台、AI 用量等持续增长场景 | 不选 |
-| 缓存 | Redis | 缓存、限流、会话辅助成熟 | 需要额外服务 | ✅ 选择 |
-| 搜索 | PostgreSQL FTS | 首版无需额外服务，和主库一致 | 中文分词和搜索体验有限 | ✅ 首版选择 |
-| 搜索 | Meilisearch | 搜索体验好，facet、高亮友好 | 多维护一个服务 | 后续增强 |
-| 搜索 | Elasticsearch | 能力强 | 运维复杂，个人项目过重 | 暂不选 |
+| 能力     | 候选方案       | 优点                                      | 缺点                                              | 结论        |
+| -------- | -------------- | ----------------------------------------- | ------------------------------------------------- | ----------- |
+| 主数据库 | PostgreSQL     | JSONB、全文搜索、关系建模强，适合内容系统 | 运维心智略高于 SQLite                             | ✅ 选择     |
+| 主数据库 | MySQL          | 普及度高，资料多                          | JSON、全文搜索、半结构化内容灵活性不如 PostgreSQL | 不选        |
+| 主数据库 | SQLite         | 简单、零运维                              | 不适合后续多用户、后台、AI 用量等持续增长场景     | 不选        |
+| 缓存     | Redis          | 缓存、限流、会话辅助成熟                  | 需要额外服务                                      | ✅ 选择     |
+| 搜索     | PostgreSQL FTS | 首版无需额外服务，和主库一致              | 中文分词和搜索体验有限                            | ✅ 首版选择 |
+| 搜索     | Meilisearch    | 搜索体验好，facet、高亮友好               | 多维护一个服务                                    | 后续增强    |
+| 搜索     | Elasticsearch  | 能力强                                    | 运维复杂，个人项目过重                            | 暂不选      |
 
 最终选择 PostgreSQL + Redis + PostgreSQL FTS 起步：
 
@@ -806,14 +808,14 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.9 Markdown、富文本与文档渲染
 
-| 场景 | 候选方案 | 优点 | 缺点 | 结论 |
-|---|---|---|---|---|
-| Markdown 高亮 | Shiki | 高亮质量高，服务端渲染友好 | 比轻量高亮库重一些 | ✅ 内容页选择 |
-| Markdown 客户端渲染 | react-markdown | React 生态成熟，适合 AI 流式回复 | 大型静态内容不如预渲染 HTML 高效 | ✅ AI 回复选择 |
-| HTML 安全 | rehype-sanitize | 能做白名单净化，降低 XSS 风险 | 需要维护安全白名单 | ✅ 必选 |
-| 富文本 | Tiptap | 生态成熟，上手资料多 | 协作和复杂文档能力需扩展 | 备选 |
-| 富文本 | Textbus | 更贴近文档编辑和协作方向 | 生态和资料相对小众 | 内容系统文档中作为富文本方向 |
-| PDF | react-pdf / pdfjs-dist | Web 内嵌预览成熟 | 编辑能力弱 | ✅ 阅读选择 |
+| 场景                | 候选方案               | 优点                             | 缺点                             | 结论                         |
+| ------------------- | ---------------------- | -------------------------------- | -------------------------------- | ---------------------------- |
+| Markdown 高亮       | Shiki                  | 高亮质量高，服务端渲染友好       | 比轻量高亮库重一些               | ✅ 内容页选择                |
+| Markdown 客户端渲染 | react-markdown         | React 生态成熟，适合 AI 流式回复 | 大型静态内容不如预渲染 HTML 高效 | ✅ AI 回复选择               |
+| HTML 安全           | rehype-sanitize        | 能做白名单净化，降低 XSS 风险    | 需要维护安全白名单               | ✅ 必选                      |
+| 富文本              | Tiptap                 | 生态成熟，上手资料多             | 协作和复杂文档能力需扩展         | 备选                         |
+| 富文本              | Textbus                | 更贴近文档编辑和协作方向         | 生态和资料相对小众               | 内容系统文档中作为富文本方向 |
+| PDF                 | react-pdf / pdfjs-dist | Web 内嵌预览成熟                 | 编辑能力弱                       | ✅ 阅读选择                  |
 
 最终策略：
 
@@ -825,12 +827,12 @@ React-first 阶段，上述页面先由 `apps/react-web` 实现，用来快速�
 
 ### 8.10 Flutter 移动端技术栈
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Flutter | 跨 iOS / Android，一套 UI，适合内容阅读和 AI 工具 | 需要学习 Dart 和 Flutter 体系 | 高 | ✅ 选择 |
-| React Native | 与 React 心智接近 | 移动端原生适配和依赖兼容要投入维护 | 中 | 不作为主选 |
-| 原生 iOS / Android | 性能和平台能力最佳 | 个人项目维护两套端成本过高 | 低 | 不选 |
-| PWA | 成本低，Web 直接复用 | 原生体验、离线、推送、文件能力有限 | 中 | 可作为过渡 |
+| 方案               | 优点                                              | 缺点                               | 适配度 | 结论       |
+| ------------------ | ------------------------------------------------- | ---------------------------------- | ------ | ---------- |
+| Flutter            | 跨 iOS / Android，一套 UI，适合内容阅读和 AI 工具 | 需要学习 Dart 和 Flutter 体系      | 高     | ✅ 选择    |
+| React Native       | 与 React 心智接近                                 | 移动端原生适配和依赖兼容要投入维护 | 中     | 不作为主选 |
+| 原生 iOS / Android | 性能和平台能力最佳                                | 个人项目维护两套端成本过高         | 低     | 不选       |
+| PWA                | 成本低，Web 直接复用                              | 原生体验、离线、推送、文件能力有限 | 中     | 可作为过渡 |
 
 Flutter 配套选择：
 
@@ -844,12 +846,12 @@ Flutter 配套选择：
 
 ### 8.11 Monorepo 与构建工具
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Turborepo + pnpm workspace | 上手成本低，适合 Web + API + shared-types，构建缓存清晰 | 超大型仓库治理能力不如 Nx 全家桶完整 | 高 | ✅ 选择 |
-| Nx | 规则强、插件多、适合大型企业 Monorepo | 概念和配置更重，个人项目首版有点厚 | 中 | 备选 |
-| npm / yarn workspace | 原生简单 | 构建编排和缓存能力弱于 Turborepo | 中 | 不作为主选 |
-| 多仓库 | 边界清晰 | 类型共享、联调、版本同步成本高 | 低 | 首版不选 |
+| 方案                       | 优点                                                    | 缺点                                 | 适配度 | 结论       |
+| -------------------------- | ------------------------------------------------------- | ------------------------------------ | ------ | ---------- |
+| Turborepo + pnpm workspace | 上手成本低，适合 Web + API + shared-types，构建缓存清晰 | 超大型仓库治理能力不如 Nx 全家桶完整 | 高     | ✅ 选择    |
+| Nx                         | 规则强、插件多、适合大型企业 Monorepo                   | 概念和配置更重，个人项目首版有点厚   | 中     | 备选       |
+| npm / yarn workspace       | 原生简单                                                | 构建编排和缓存能力弱于 Turborepo     | 中     | 不作为主选 |
+| 多仓库                     | 边界清晰                                                | 类型共享、联调、版本同步成本高       | 低     | 首版不选   |
 
 最终选择 Turborepo + pnpm workspace：
 
@@ -860,12 +862,12 @@ Flutter 配套选择：
 
 ### 8.12 部署与基础设施
 
-| 方案 | 优点 | 缺点 | 适配度 | 结论 |
-|---|---|---|---|---|
-| Docker Compose + Nginx | 成本低、结构清晰、适合个人服务器 | 多实例和弹性能力有限 | 高 | ✅ 首版选择 |
-| Vercel + 独立 API | Next.js 部署体验好 | 国内访问、后端 API、数据库、文件服务需要拆开处理 | 中 | 备选 |
-| Kubernetes | 扩展能力强，生产标准化 | 运维复杂，个人项目首版过重 | 低 | 后续再考虑 |
-| Serverless | 弹性好，免服务器运维 | 长连接/SSE、文件处理、数据库连接管理要额外设计 | 中 | 不作为首版 |
+| 方案                   | 优点                             | 缺点                                             | 适配度 | 结论        |
+| ---------------------- | -------------------------------- | ------------------------------------------------ | ------ | ----------- |
+| Docker Compose + Nginx | 成本低、结构清晰、适合个人服务器 | 多实例和弹性能力有限                             | 高     | ✅ 首版选择 |
+| Vercel + 独立 API      | Next.js 部署体验好               | 国内访问、后端 API、数据库、文件服务需要拆开处理 | 中     | 备选        |
+| Kubernetes             | 扩展能力强，生产标准化           | 运维复杂，个人项目首版过重                       | 低     | 后续再考虑  |
+| Serverless             | 弹性好，免服务器运维             | 长连接/SSE、文件处理、数据库连接管理要额外设计   | 中     | 不作为首版  |
 
 最终选择 Docker Compose + Nginx：
 
@@ -877,22 +879,22 @@ Flutter 配套选择：
 
 ### 8.13 总体选择矩阵
 
-| 维度 | 最终选择 | 核心原因 |
-|---|---|---|
-| Web 主框架 | Next.js | 兼顾内容 SEO、工作区交互和后台内嵌 |
-| 前台 UI | shadcn/ui + Radix UI | 高度可定制，适合个人品牌和主题配置 |
-| 后台 UI | Ant Design + Pro Components | 表格表单效率最高 |
-| CSS | Tailwind CSS | 与 shadcn/ui 和主题变量匹配 |
-| 服务端状态 | RSC + fetch / TanStack Query | SEO 页面和交互页面分工清晰 |
-| 客户端状态 | Zustand | 简单轻量，足够支撑全局状态 |
-| 后端 | NestJS + Fastify | 模块化、扩展性、Swagger、SSE 兼顾 |
-| ORM | Prisma | 类型安全，适合学习和快速建模 |
-| 数据库 | PostgreSQL | 内容系统、JSONB、全文搜索适配度高 |
-| 缓存 | Redis | 限流、缓存、阅读数去重、会话辅助 |
-| 搜索 | PostgreSQL FTS → Meilisearch | 首版轻量，后续增强 |
-| 移动端 | Flutter + Riverpod + Dio | 跨端体验和 API 复用 |
-| Monorepo | Turborepo + pnpm | 轻量统一管理 Web / API / shared-types |
-| 部署 | Docker Compose + Nginx | 个人项目首版成本和可控性最好 |
+| 维度       | 最终选择                     | 核心原因                              |
+| ---------- | ---------------------------- | ------------------------------------- |
+| Web 主框架 | Next.js                      | 兼顾内容 SEO、工作区交互和后台内嵌    |
+| 前台 UI    | shadcn/ui + Radix UI         | 高度可定制，适合个人品牌和主题配置    |
+| 后台 UI    | Ant Design + Pro Components  | 表格表单效率最高                      |
+| CSS        | Tailwind CSS                 | 与 shadcn/ui 和主题变量匹配           |
+| 服务端状态 | RSC + fetch / TanStack Query | SEO 页面和交互页面分工清晰            |
+| 客户端状态 | Zustand                      | 简单轻量，足够支撑全局状态            |
+| 后端       | NestJS + Express             | 模块化、扩展性、Swagger 与成熟 middleware 生态 |
+| ORM        | Prisma                       | 类型安全，适合学习和快速建模          |
+| 数据库     | PostgreSQL                   | 内容系统、JSONB、全文搜索适配度高     |
+| 缓存       | Redis                        | 限流、缓存、阅读数去重、会话辅助      |
+| 搜索       | PostgreSQL FTS → Meilisearch | 首版轻量，后续增强                    |
+| 移动端     | Flutter + Riverpod + Dio     | 跨端体验和 API 复用                   |
+| Monorepo   | Turborepo + pnpm             | 轻量统一管理 Web / API / shared-types |
+| 部署       | Docker Compose + Nginx       | 个人项目首版成本和可控性最好          |
 
 ---
 
@@ -904,7 +906,7 @@ Flutter 配套选择：
 
 - Turborepo + pnpm workspace
 - Next.js 15
-- NestJS + Fastify
+- NestJS + Express
 - Prisma
 - PostgreSQL + Redis Docker Compose
 - shared-types
@@ -974,7 +976,7 @@ Flutter 配套选择：
 
 从框架角度看，当前项目不需要继续横向比较更多框架。最稳妥的下一步是：
 
-1. 按 `docs/engineering/development-plan.md` 的 Phase 0 搭建 Monorepo 工程骨架。
+1. 按 `docs/prd/long-term/nest-server-bootstrap-prd.md` 搭建 `apps/server` 工程骨架。
 2. 先跑通 Next.js、NestJS、Prisma、PostgreSQL、Redis 和 Swagger。
 3. 在进入具体页面开发前，再确认前台视觉设计系统。
 4. 在进入认证模块前，再确认邮箱验证、密码策略和管理员初始账号。

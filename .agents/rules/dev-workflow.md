@@ -2,8 +2,10 @@
 
 ## 先规划，后改代码
 
-- 动手前用中文说明：现象/目标 → 原因/限制 → 方案 → 计划改动的文件
-- 需求不清先澄清；未说明思路前不直接大改代码
+- 动手前用中文说明：现象/目标 → 原因/限制 → 方案 → 计划改动的文件 → 验收通过/故意忽略
+- 需求不清先澄清；未说明思路、用户未确认前不直接大改代码
+- 涉及 Nest / API / Prisma / api-client / Umi request / mock 时，计划必须符合 `.agents/skills/fullstack-impact/SKILL.md`（全局解包、文件级清单、忽略项写后续阶段）
+- 涉及新增或修改 tsx 时，计划必须符合 `.agents/skills/tsx-structure/SKILL.md`（纯函数放组件上方；长回调不写在标签里；不要把 form 提交抽到 utils）
 
 ## 安全增量
 

@@ -36,8 +36,8 @@
 
 这个项目不是单一前端仓库，而是至少包含：
 
-- `apps/web`
-- `apps/api`
+- `apps/user-web`
+- `apps/server`
 - `packages/shared-types`
 
 未来还会有：
@@ -63,8 +63,8 @@
 ```text
 personal-hub/
 ├── apps/
-│   ├── web/
-│   ├── api/
+│   ├── react-web/
+│   ├── server/
 │   └── mobile/      # 后置
 ├── packages/
 │   └── shared-types/
@@ -91,16 +91,17 @@ pnpm add -D turbo typescript eslint prettier @types/node
 - `apps/*`
 - `packages/*`
 
-### Step 3：初始化 `apps/web`
+### Step 3：初始化 `apps/user-web`
 
 ```bash
-pnpm dlx create-next-app@latest apps/web --ts --app --eslint --src-dir=false --use-pnpm --tailwind
+# 当前仓库已使用 Umi + Ant Design Pro 创建 apps/user-web；
+# 后续 Next.js 公开前台位于 apps/next-web。
 ```
 
-### Step 4：初始化 `apps/api`
+### Step 4：初始化 `apps/server`
 
 ```bash
-pnpm dlx @nestjs/cli new apps/api --package-manager pnpm
+# 当前仓库已完成 Nest + Express 阶段 0；新领域模块在 apps/server 内扩展。
 ```
 
 ### Step 5：初始化共享包
@@ -112,7 +113,7 @@ mkdir -p packages/shared-types/src
 ### Step 6：启动本地服务
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
+docker compose -f compose.dev.yml up -d
 ```
 
 ---
@@ -146,10 +147,10 @@ pnpm test
 ```
 
 ```bash
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
-docker compose -f docker-compose.dev.yml logs
-docker compose -f docker-compose.dev.yml down
+docker compose -f compose.dev.yml up -d
+docker compose -f compose.dev.yml ps
+docker compose -f compose.dev.yml logs
+docker compose -f compose.dev.yml down
 ```
 
 ---
@@ -184,8 +185,8 @@ docker compose -f docker-compose.dev.yml down
 
 ## 9. 当前阶段最小实践任务
 
-1. 跑通 `apps/web`
-2. 跑通 `apps/api`
+1. 跑通 `apps/user-web`
+2. 跑通 `apps/server`
 3. 跑通 PostgreSQL 容器
 4. 跑通 Redis 容器
 5. 让根目录一个命令能同时启动 Web 和 API

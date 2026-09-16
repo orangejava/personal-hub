@@ -1,7 +1,6 @@
 /**
  * 后台运营相关类型（阶段 4 mock / 后续 NestJS 对齐）
  */
-import type { PermissionCode } from './permission';
 import type { MenuItem } from './permission';
 import type { AiToolStatus, AiToolType } from './ai';
 import type { UserRole } from './user';
@@ -16,12 +15,23 @@ export interface AdminUserRecord {
   createdAt: string;
 }
 
-/** 后台角色 */
+/** 后台权限目录项，与 Nest `PERMISSION_CATALOG` 对齐。 */
+export interface AdminPermissionItem {
+  code: string;
+  group: string;
+  label: string;
+  description: string;
+}
+
+/** 后台角色。code 是 Nest `RoleCode`，permissions 是目录里的权限码。 */
 export interface AdminRoleRecord {
-  code: UserRole;
+  code: string;
   name: string;
   description?: string;
-  permissions: PermissionCode[];
+  isProtected?: boolean;
+  /** 角色权限的乐观锁版本；保存时必须回传读取到的值。 */
+  version: number;
+  permissions: string[];
 }
 
 /** 操作审计日志 */
@@ -65,6 +75,8 @@ export interface AdminFileRecord {
   createdAt: string;
   /** 文件用途：封面、正文附件、文档预览或 AI 资产等。 */
   usage?: 'cover' | 'attachment' | 'preview' | 'asset';
+  /** Nest `FilePurpose` 枚举；后台列表优先展示这个，而不是旧 mock 的 usage。 */
+  purpose?: string;
   /** 存储位置，后续接 MinIO 时用于迁移。 */
   storage?: 'local' | 'minio';
   /** 引用该文件的内容 ID，用于删除前阻止误删。 */
@@ -147,10 +159,20 @@ export interface CategoryMutationInput {
 export interface AdminFileQuery {
   mimeGroup?: 'image' | 'pdf' | 'word' | 'other';
   keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface AdminFilePage {
+  list: AdminFileRecord[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 /** 后台 AI 厂商配置。API Key 只返回脱敏值，明文只允许后端保存。 */
 export interface AdminAiProviderConfig {
+  id: string;
   code: string;
   name: string;
   baseUrl: string;
@@ -210,6 +232,7 @@ export interface AdminAiModelMutationInput {
 
 /** 后台 AI 工具配置，阶段 5 先用于 mock 启停和默认模型展示。 */
 export interface AdminAiToolConfig {
+  id: string;
   code: AiToolType;
   name: string;
   status: AiToolStatus;
@@ -234,10 +257,12 @@ export interface AdminAiToolMutationInput {
   sort?: number;
 }
 
-/** 后台 AI 品牌配置，阶段 5 用于驱动 AI Layout 和首页品牌展示。 */
+/** 后台 AI 品牌配置。 */
 export interface AdminAiBrandingConfig {
   brandName: string;
   logoText: string;
+  aiEnabled?: boolean;
+  version?: number;
   updatedAt: string;
 }
 
@@ -245,6 +270,36 @@ export interface AdminAiBrandingConfig {
 export interface AdminAiBrandingMutationInput {
   brandName?: string;
   logoText?: string;
+  aiEnabled?: boolean;
+}
+
+/** 后台 AI 导航项。隐藏不展示；禁用/即将上线仍展示但不可进入。 */
+export interface AdminAiNavigationItem {
+  id: string;
+  code: string;
+  label: string;
+  icon: string;
+  group: string;
+  routeKey: string;
+  path: string;
+  visible: boolean;
+  status: AiToolStatus;
+  requiresLogin: boolean;
+  sortOrder: number;
+  parentId?: string | null;
+  description: string;
+  toolCode?: AiToolType;
+  version: number;
+}
+
+export interface AdminAiNavigationMutationInput {
+  label?: string;
+  visible?: boolean;
+  status?: AiToolStatus;
+  sortOrder?: number;
+  requiresLogin?: boolean;
+  description?: string;
+  version: number;
 }
 
 /** 后台 AI 配置页聚合数据。 */
@@ -253,6 +308,7 @@ export interface AdminAiConfigData {
   providers: AdminAiProviderConfig[];
   models: AdminAiModelConfig[];
   tools: AdminAiToolConfig[];
+  navigation?: AdminAiNavigationItem[];
 }
 
 /** 后台 AI 统计汇总。 */

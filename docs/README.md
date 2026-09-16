@@ -12,14 +12,16 @@
 | --- | --- | --- |
 | `docs/overview.md` | 总索引、产品定位、子文档入口 | 长文细节 |
 | `docs/foundation/` | 技术栈、架构图、框架取舍 | 单次功能 PRD、部署命令 |
-| `docs/product/` | 产品功能范围（前台/工作区/后台/内容/AI） | 实现细节、运维步骤 |
-| `docs/backend/` | API 清单、数据库 Schema | 前端页面说明 |
-| `docs/react-first/` | React-first **路线与架构**（非阶段 PRD） | 运维、单次功能实现记录 |
+| `docs/product/` | 产品功能范围（前台/工作区/后台/内容/AI）；二期想法在 `product/phase-2/` | 实现细节、运维步骤；二期目录不是当前开发依据 |
+| `docs/backend/` | **跨端契约**：API 清单、数据模型、mock 迁移对照 | 单应用实现说明、Nest 工程约定（已迁 `apps/server/docs`） |
+| `apps/<name>/docs/` | **该应用专属** PRD、实现说明、应用结构 | 跨端产品范围、Canonical API、整站部署 |
+| `docs/react-first/` | React-first **路线索引**（长文已迁 history 或 apps） | 运维、单次功能实现记录 |
 | `docs/prd/` | **可指导开发的需求/验收**（按 react-first / long-term） | 服务器命令、部署目录规划 |
 | `docs/engineering/` | 本地开发环境、工具链、凭证；commit 仅留 stub 入口 | 完整 commit 规范、生产部署命令 |
 | `docs/deploy/` | **部署 / 上线 / 备份 / 服务器目录** | 产品需求、页面交互 PRD |
 | `docs/implementation/` | **已落地**实现说明、调用链 | 未实施的方案稿、纯 PRD |
 | `docs/completed/` | 进度台账（只做索引） | 长实现文（链到 implementation） |
+| `docs/history/` | 已被替代的完整决策、方案与复盘 | 当前开发依据、可执行部署命令 |
 | `.agents/` | 跨工具 rules / skills | 产品长文 |
 | `study/`（仓库根） | 可复用学习笔记 / 手册 | 项目契约的唯一真相源 |
 
@@ -35,6 +37,7 @@
 | 未做完的方案写成 `implementation/` | 先放 `prd/` 或 `deploy/` 方案稿 |
 | 同一主题复制两份长文 | 一份权威 + 别处短链 |
 | 新增文档不更新索引 | 必须更新本目录 README 或 `overview.md` |
+| 将过期方案保留在当前目录 | 移至 `docs/history/`，并在文首注明替代依据 |
 
 ---
 
@@ -52,6 +55,9 @@
 
 - 部署：[deploy/README.md](./deploy/README.md)
 - Git commit skill：[`.agents/skills/git-commit/SKILL.md`](../.agents/skills/git-commit/SKILL.md)
+- 前后端 API 影响面：[`.agents/skills/fullstack-impact/SKILL.md`](../.agents/skills/fullstack-impact/SKILL.md)
+- TSX 方法放置：[`.agents/skills/tsx-structure/SKILL.md`](../.agents/skills/tsx-structure/SKILL.md)
+- 全栈代码审查：[`.agents/skills/fullstack-code-review/SKILL.md`](../.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/`）
 - docs 内 stub：[engineering/git-commit-convention.md](./engineering/git-commit-convention.md)
 
 ---

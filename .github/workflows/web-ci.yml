@@ -1,0 +1,25 @@
+name: Web CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @personal-hub/app-origins typecheck
+      - run: pnpm --filter @personal-hub/api-client typecheck
+      - run: pnpm --filter user-web tsc
+      - run: pnpm --filter user-web biome:lint
+      - run: pnpm --filter admin-web tsc
+      - run: pnpm --filter admin-web biome:lint

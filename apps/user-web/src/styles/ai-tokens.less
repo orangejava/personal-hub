@@ -1,0 +1,40 @@
+/**
+ * AI 工作台专属变量。
+ * 写在 :root / html.ph-theme-dark，让 Popover 等挂到 body 的层也能继承。
+ * 深浅色都用「相对容器的黑/白混合」，换主题色时不会再出现白底深字或反过来。
+ */
+
+:root {
+  --ph-ai-sidebar-width: 248px;
+  --ph-ai-sidebar-collapsed-width: 72px;
+  --ph-ai-topbar-height: 56px;
+  --ph-ai-input-height: 72px;
+  --ph-ai-bg: var(--ph-bg-layout, #f6f8fb);
+  --ph-ai-panel-bg: var(--ph-bg-container, #ffffff);
+  --ph-ai-elevated: var(--ph-bg-elevated, #ffffff);
+  --ph-ai-muted: var(--ph-bg-spotlight, #f3f4f6);
+  --ph-ai-border: var(--ph-border-color, rgba(15, 23, 42, 0.08));
+  --ph-ai-text: var(--ph-text-primary, rgba(15, 23, 42, 0.88));
+  --ph-ai-text-secondary: var(--ph-text-secondary, rgba(15, 23, 42, 0.45));
+  --ph-ai-text-disabled: color-mix(in srgb, var(--ph-ai-text) 40%, transparent);
+  --ph-ai-status-bg: color-mix(in srgb, var(--ph-ai-text) 6%, transparent);
+  /* 浅色：轨道略沉、选中项浮起为白卡片 */
+  --ph-ai-control-track: color-mix(in srgb, var(--ph-ai-text) 6%, var(--ph-ai-panel-bg));
+  --ph-ai-control-active: var(--ph-ai-elevated);
+  --ph-ai-radius: 12px;
+}
+
+html.ph-theme-dark {
+  --ph-ai-bg: var(--ph-bg-layout, #000000);
+  --ph-ai-panel-bg: var(--ph-bg-container, #141414);
+  --ph-ai-elevated: color-mix(in srgb, #fff 12%, var(--ph-bg-container, #141414));
+  --ph-ai-muted: color-mix(in srgb, #000 28%, var(--ph-bg-container, #141414));
+  --ph-ai-border: var(--ph-border-color, rgba(255, 255, 255, 0.12));
+  --ph-ai-text: var(--ph-text-primary, rgba(255, 255, 255, 0.85));
+  --ph-ai-text-secondary: var(--ph-text-secondary, rgba(255, 255, 255, 0.45));
+  --ph-ai-text-disabled: color-mix(in srgb, var(--ph-ai-text) 38%, transparent);
+  --ph-ai-status-bg: rgba(255, 255, 255, 0.08);
+  /* 深色：轨道比面板更深，选中项比面板更亮，避免再出现白底选项 */
+  --ph-ai-control-track: color-mix(in srgb, #000 32%, var(--ph-ai-panel-bg));
+  --ph-ai-control-active: color-mix(in srgb, #fff 14%, var(--ph-ai-panel-bg));
+}

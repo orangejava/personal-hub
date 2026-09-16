@@ -1,0 +1,146 @@
+# 生产 Compose 骨架。不要用 PM2 再起前端。
+#
+# 启动（插值变量来自 --env-file，不是服务 env_file）：
+#   cp .env.prod.example .env.prod   # 填真实值，不要提交
+#   docker compose --env-file .env.prod -f compose.prod.yml up --build
+#
+# Nest / Redis / Postgres 的环境变量都从 --env-file 插值进来，不要另写一份未提交的 env_file 路径。
+# 不写镜像仓库、域名或真实密码。
+name: personal-hub-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env.prod}
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env.prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env.prod}
+    volumes:
+      - personal_hub_prod_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set in .env.prod}
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?set in .env.prod}",
+      ]
+    volumes:
+      - personal_hub_prod_redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL:?set in env file}
+      REDIS_URL: ${REDIS_URL:?set in env file}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-ph:prod}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set in env file}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set in env file}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set in env file}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?set in env file}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set in env file}
+      MINIO_BUCKET: ${MINIO_BUCKET:?set in env file}
+      SMTP_HOST: ${SMTP_HOST:?set in env file}
+      SMTP_PORT: ${SMTP_PORT:?set in env file}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      MAIL_FROM: ${MAIL_FROM:-Personal Hub <noreply@localhost>}
+      AI_TEXT_PROVIDER: ${AI_TEXT_PROVIDER:-fake}
+      AI_OPENAI_BASE_URL: ${AI_OPENAI_BASE_URL:-}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-}
+      AI_OPENAI_TIMEOUT_MS: ${AI_OPENAI_TIMEOUT_MS:-60000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/api/v1/health/ready').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  server-worker:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    command: ["node", "dist/worker"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set in env file}
+      REDIS_URL: ${REDIS_URL:?set in env file}
+      REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-ph:prod}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      PUBLIC_APP_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?set in env file}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set in env file}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?set in env file}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?set in env file}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?set in env file}
+      MINIO_BUCKET: ${MINIO_BUCKET:?set in env file}
+      SMTP_HOST: ${SMTP_HOST:?set in env file}
+      SMTP_PORT: ${SMTP_PORT:?set in env file}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      MAIL_FROM: ${MAIL_FROM:-Personal Hub <noreply@localhost>}
+      AI_TEXT_PROVIDER: ${AI_TEXT_PROVIDER:-fake}
+      AI_OPENAI_BASE_URL: ${AI_OPENAI_BASE_URL:-}
+      AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
+      AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-}
+      AI_OPENAI_TIMEOUT_MS: ${AI_OPENAI_TIMEOUT_MS:-60000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/nginx/Dockerfile
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  personal_hub_prod_postgres:
+  personal_hub_prod_redis:

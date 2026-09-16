@@ -1,9 +1,10 @@
 # AI 工具平台 PRD
 
-> 状态：规划中
-> 最后更新：2026-06-09
+> 状态：🟢 已确认；本文件定义 AI 领域规则，API、数据与工程约束以 Canonical 文档为准
+> 最后更新：2026-08-02
 > 优先级：P2
-> 适用范围：`/ai`、`/ai/chat`、`/ai/text`、`/ai/image`、`/workspace/ai/history`、`/workspace/usage`
+> 适用范围：`/ai`、`/ai/chat`、`/ai/text`、`/ai/image`、`/ai/video`、`/app/ai/*`
+> 关联：[Canonical API](../../backend/canonical-api.md)、[Canonical 数据模型](../../backend/canonical-data-model.md)、[后端实现约定](../../backend/conventions.md)
 
 ---
 
@@ -16,14 +17,14 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 - 工具广场展示 Chat、文本生成、图片生成入口。
 - Chat 支持多会话、流式输出、历史保存、重新生成、复制。
 - 文本生成支持多场景模板、流式输出、复制和重新生成。
-- 图片生成支持基础参数、结果展示和下载。
+- 图片生成支持基础参数、异步任务、结果展示、下载、资产库与文件夹。
 - 登录用户消耗统一 Token 配额。
-- 未登录用户仅可试用 Chat / 文本生成，且不保存历史。
+- 未登录用户仅可试用 Chat / 文本生成；历史在匿名主体下保存 30 天，首次登录自动认领。
 - 后台可配置模型和厂商，用户端只展示可见模型。
 
 暂不做：
 
-- 视频生成。
+- 真实视频厂商接入；首版保留 `MockVideoProvider` 和视频任务 API，未来替换 Provider。
 - 支付充值。
 - AI 结果一键发布到内容库。
 - 复杂 Prompt 市场。
@@ -33,17 +34,16 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 ## 2. 用户角色与权限
 
-| 角色 | Chat | 文本生成 | 图片生成 | 历史保存 | 用量查看 |
-|---|---:|---:|---:|---:|---:|
-| 访客 | ✅ 试用 | ✅ 试用 | ❌ | ❌ | ❌ |
-| 普通会员 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 编辑者 | ✅ | ✅ | ✅ | ✅ | ✅ |
-| 管理员 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 角色     |    Chat | 文本生成 | 图片生成 | 历史保存 | 用量查看 |
+| -------- | ------: | -------: | -------: | -------: | -------: |
+| 访客     | ✅ 试用 |  ✅ 试用 |       ❌ |       ❌ |       ❌ |
+| 普通会员 |      ✅ |       ✅ |       ✅ |       ✅ |       ✅ |
+| 编辑者   |      ✅ |       ✅ |       ✅ |       ✅ |       ✅ |
+| 管理员   |      ✅ |       ✅ |       ✅ |       ✅ |       ✅ |
 
 限制：
 
-- 访客 Chat 每日 3 轮。
-- 访客文本生成每日 3 次，单次输出限制 500 字以内。
+- 访客 Chat/Text 的具体频率与并发由后台策略配置；服务端以匿名 HttpOnly Cookie + IP Hash 限流并保存 30 天可认领历史。
 - 图片生成必须登录。
 - Token 不足时禁止发起生成。
 
@@ -51,16 +51,16 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 ## 3. 页面清单
 
-| 路由 | 页面 | 说明 |
-|---|---|---|
-| `/ai` | 工具广场 | 工具卡片入口 |
-| `/ai/chat` | AI 对话 | 多会话 Chat |
-| `/ai/text` | 文本生成 | 场景模板生成 |
-| `/ai/image` | 图片生成 | 文生图 |
-| `/workspace/ai/history` | AI 历史 | 会话列表、继续对话、删除 |
-| `/workspace/usage` | 我的用量 | Token 汇总、趋势、明细 |
-| `/admin/ai/config` | AI 配置 | 厂商和模型配置 |
-| `/admin/ai/stats` | AI 统计 | 全平台统计 |
+| 路由                    | 页面     | 说明                     |
+| ----------------------- | -------- | ------------------------ |
+| `/ai`                   | 工具广场 | 工具卡片入口             |
+| `/ai/chat`              | AI 对话  | 多会话 Chat              |
+| `/ai/text`              | 文本生成 | 场景模板生成             |
+| `/ai/image`             | 图片生成 | 文生图                   |
+| `/workspace/ai/history` | AI 历史  | 会话列表、继续对话、删除 |
+| `/workspace/usage`      | 我的用量 | Token 汇总、趋势、明细   |
+| `/admin/ai/config`      | AI 配置  | 厂商和模型配置           |
+| `/admin/ai/stats`       | AI 统计  | 全平台统计               |
 
 ---
 
@@ -68,15 +68,15 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 卡片字段：
 
-| 字段 | 说明 |
-|---|---|
-| `toolType` | chat / text / image / video |
-| `name` | 工具名称 |
-| `description` | 一句话说明 |
-| `icon` | 图标 |
-| `isEnabled` | 是否启用 |
-| `requiresLogin` | 是否要求登录 |
-| `usageCount` | 使用次数，后续可选 |
+| 字段            | 说明                        |
+| --------------- | --------------------------- |
+| `toolType`      | chat / text / image / video |
+| `name`          | 工具名称                    |
+| `description`   | 一句话说明                  |
+| `icon`          | 图标                        |
+| `isEnabled`     | 是否启用                    |
+| `requiresLogin` | 是否要求登录                |
+| `usageCount`    | 使用次数，后续可选          |
 
 状态：
 
@@ -108,46 +108,46 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 ### 5.2 会话字段
 
-| 字段 | 说明 |
-|---|---|
-| `id` | 会话 ID |
-| `title` | 会话标题，默认第一条消息前 20 字 |
-| `modelId` | 使用模型 |
-| `systemPrompt` | 系统提示词 |
-| `messageCount` | 消息数 |
-| `totalTokens` | 累计消耗 |
-| `lastMessageAt` | 最后消息时间 |
+| 字段            | 说明                             |
+| --------------- | -------------------------------- |
+| `id`            | 会话 ID                          |
+| `title`         | 会话标题，默认第一条消息前 20 字 |
+| `modelId`       | 使用模型                         |
+| `systemPrompt`  | 系统提示词                       |
+| `messageCount`  | 消息数                           |
+| `totalTokens`   | 累计消耗                         |
+| `lastMessageAt` | 最后消息时间                     |
 
 ### 5.3 消息字段
 
-| 字段 | 说明 |
-|---|---|
-| `id` | 消息 ID |
-| `role` | user / assistant / system |
-| `content` | 消息内容 |
-| `status` | streaming / done / error |
-| `tokenCount` | token 数 |
-| `feedback` | thumbs_down / null |
-| `createdAt` | 创建时间 |
+| 字段         | 说明                                                    |
+| ------------ | ------------------------------------------------------- |
+| `id`         | 消息 ID                                                 |
+| `role`       | user / assistant / system                               |
+| `content`    | 消息内容                                                |
+| `status`     | `STREAMING` / `DONE` / `STOPPED` / `FAILED` / `BLOCKED` |
+| `tokenCount` | token 数                                                |
+| `feedback`   | thumbs_down / null                                      |
+| `createdAt`  | 创建时间                                                |
 
 ### 5.4 功能逻辑
 
 - 新对话：创建空会话，第一条消息后自动命名。
 - 发送消息：追加用户消息，发起 SSE，流式追加助手消息。
-- 停止生成：中断当前请求，消息状态标为 `error` 或 `stopped`。
-- 重新生成：仅对最后一条 AI 回复可用。
+- 停止生成：终止厂商流，保留已产生部分，消息状态标为 `STOPPED`，按实际使用量结算。
+- 重新生成：保留旧回复，使用 `variantGroupId` 关联候选；默认展示最新候选。
 - 删除会话：二次确认。
 - 引用内容：从内容库选择一篇内容，作为上下文注入请求，不直接展示全文。
 - System Prompt：高级设置面板编辑，随会话保存。
 
 ### 5.5 SSE 事件
 
-| type | 说明 |
-|---|---|
-| `delta` | 增量文本 |
-| `done` | 完成，带 tokenUsage |
-| `error` | 错误 |
-| `quota_exceeded` | 配额不足 |
+| type      | 说明                                         |
+| --------- | -------------------------------------------- |
+| `STARTED` | 已创建助手消息，携带 `assistantMessageId`    |
+| `DELTA`   | 增量文本                                     |
+| `DONE`    | 完成，携带输入/输出 Token 与平台额度结算摘要 |
+| `ERROR`   | 不可恢复错误分类；HTTP 已受理后的流内错误    |
 
 ---
 
@@ -155,15 +155,15 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 ### 6.1 场景
 
-| 场景 | 输入 | 参数 |
-|---|---|---|
-| 写作辅助 | 主题或草稿 | 输出长度、语气 |
-| 改写润色 | 原文 | 语气 |
-| 摘要提炼 | 原文 | 摘要条数、输出长度 |
-| 扩写 | 原文 | 输出长度、语气 |
-| 翻译 | 原文 | 目标语言 |
-| 续写 | 原文 | 输出长度 |
-| 自定义 Prompt | 指令 + 原文 | 模型 |
+| 场景          | 输入        | 参数               |
+| ------------- | ----------- | ------------------ |
+| 写作辅助      | 主题或草稿  | 输出长度、语气     |
+| 改写润色      | 原文        | 语气               |
+| 摘要提炼      | 原文        | 摘要条数、输出长度 |
+| 扩写          | 原文        | 输出长度、语气     |
+| 翻译          | 原文        | 目标语言           |
+| 续写          | 原文        | 输出长度           |
+| 自定义 Prompt | 指令 + 原文 | 模型               |
 
 ### 6.2 页面结构
 
@@ -192,14 +192,14 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 字段：
 
-| 字段 | 类型 | 默认值 | 说明 |
-|---|---|---|---|
-| `prompt` | string | 空 | 必填，最多 1000 字 |
-| `negativePrompt` | string | 空 | 反向提示词 |
-| `size` | enum | 1024x1024 | 1:1 / 16:9 / 9:16 |
-| `count` | number | 1 | 1 / 2 / 4 |
-| `style` | enum | realistic | 写实 / 动漫 / 油画 / 自定义 |
-| `modelId` | string | 默认模型 | 图片模型 |
+| 字段             | 类型   | 默认值    | 说明                        |
+| ---------------- | ------ | --------- | --------------------------- |
+| `prompt`         | string | 空        | 必填，最多 1000 字          |
+| `negativePrompt` | string | 空        | 反向提示词                  |
+| `size`           | enum   | 1024x1024 | 1:1 / 16:9 / 9:16           |
+| `count`          | number | 1         | 1 / 2 / 4                   |
+| `style`          | enum   | realistic | 写实 / 动漫 / 油画 / 自定义 |
+| `modelId`        | string | 默认模型  | 图片模型                    |
 
 规则：
 
@@ -221,10 +221,11 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 扣减规则：
 
-- 生成前预检查余额。
-- 生成完成后按实际消耗扣减。
-- SSE 中断时按已产生 token 记录。
-- 扣减写入 `ai_usage_logs` 和 `token_transactions`。
+- 服务端按模型最大允许输出预占平台额度。
+- 生成完成后按厂商实际 input/output 用量和平台计费规则结算，多余预占释放。
+- SSE 中断时保存部分输出并按已产生用量结算。
+- 账务写入额度预占、使用记录和不可变交易账本；前端不得单独调用扣费接口。
+- 邮箱首次验证成功时，按角色权益的 `verificationGrantAmount` 一次性写入初始 `GRANT` 交易；首版默认 `10000` 平台额度。该值可由受控后台权益配置调整，但注册/验证请求不可传入。
 
 用量页：
 
@@ -235,30 +236,40 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 
 ---
 
-## 9. API 草案
+## 9. API 与异步边界
 
-| 模块 | 接口 |
-|---|---|
-| 模型 | `GET /api/ai/models` |
-| Chat | `GET /api/ai/sessions`、`POST /api/ai/sessions`、`POST /api/ai/sessions/:id/messages` |
-| 文本 | `POST /api/ai/text/generate` |
-| 图片 | `POST /api/ai/image/generate` |
-| 用量 | `GET /api/usage/summary`、`GET /api/usage/logs`、`GET /api/usage/trend` |
-| 后台配置 | `GET /api/admin/ai/providers`、`GET /api/admin/ai/models` |
-| 后台统计 | `GET /api/admin/stats/ai/summary`、`GET /api/admin/stats/ai/trend` |
+全部路径以前缀 `/api/v1` 为准；下表仅说明 AI 领域的调用语义，完整端点和 DTO 以 [Canonical API](../../backend/canonical-api.md#45-ai) 为准。
+
+| 场景               | 端点分区与语义                                                                                                                    |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 登录用户工具与用量 | `/app/ai/home`、`/app/ai/models`、`/app/usage`                                                                                    |
+| Chat               | `/app/ai/sessions` 管理会话；消息历史按 cursor 读取；`POST /app/ai/sessions/:sessionId/messages` 使用 SSE，必填 `Idempotency-Key` |
+| 文本               | `POST /app/ai/text-generations` 使用 SSE，必填 `Idempotency-Key`                                                                  |
+| 图片               | `POST /app/ai/image-generations` 返回 `202` 任务；客户端轮询 `/:jobId`，必填 `Idempotency-Key`                                    |
+| 视频               | `POST /app/ai/video-generations` 返回 MockVideoProvider 任务；客户端轮询，不接真实视频厂商                                        |
+| 模板与资产         | `/app/ai/templates`、`/app/ai/assets`、`/app/ai/asset-folders` 使用资源 REST                                                      |
+| 匿名试用           | 仅 `/public/ai/chat` 与 `/public/ai/text-generations` 使用 SSE；服务端匿名 Cookie + IP Hash 限流                                  |
+| 后台 AI            | `/admin/ai/config`、`/admin/ai/stats` 仅聚合读取；providers/models/tools/templates/entitlements 使用独立资源写接口                |
+
+规则：
+
+- Chat、文本、重新生成、图片、视频等生成发起接口必须带新 `Idempotency-Key`；网络重试使用原 Key。
+- 图片、视频和导入均以业务任务资源轮询，不复用 Chat SSE。
+- 客户端不得自行扣减额度或在流结束后补写消息；服务端在 SSE 生命周期内持久化消息并预占、结算或释放额度。
+- 匿名记录在首次登录时由服务端事务性认领，不能依赖浏览器 localStorage 转移历史。
 
 ---
 
 ## 10. 状态与异常
 
-| 场景 | 行为 |
-|---|---|
-| 模型不可用 | 禁用发送按钮并提示 |
-| Token 不足 | 展示配额不足提示 |
-| SSE 中断 | 保留已生成内容，允许重新生成 |
-| 访客超限 | 弹登录引导 |
-| 厂商 API 错误 | 展示错误，不扣除未产生的配额 |
-| 删除会话 | 二次确认 |
+| 场景          | 行为                                                       |
+| ------------- | ---------------------------------------------------------- |
+| 模型不可用    | 服务端拒绝不在权益内或已禁用模型；前端按返回错误提示       |
+| Token 不足    | 服务端预占失败返回 `AI_QUOTA_INSUFFICIENT`，不创建生成任务 |
+| SSE 中断      | 保留已生成内容，标记 `STOPPED`，按实际使用量结算           |
+| 访客超限      | 返回限流错误并引导登录；匿名历史仍按 30 天规则保留         |
+| 厂商 API 错误 | 标记 `FAILED`，释放未使用预占；不自动切换模型              |
+| 删除会话      | 软删除，二次确认仅是前端体验，不替代服务端归属校验         |
 
 ---
 
@@ -271,3 +282,13 @@ AI 工具平台是项目主线能力，负责把内容库、模型厂商、用�
 - Token 消耗能记录并反映到用量页。
 - 配额不足时不能继续生成。
 - 后台禁用模型后用户端不可选择。
+- 图片/视频任务可轮询终态；Chat/Text 只通过 SSE 流式完成。
+- 访客在 30 天内登录后可看到被自动认领的 Chat/Text 历史。
+
+## 12. 模块实施前契约清单
+
+- OpenAPI/DTO：SSE `STARTED/DELTA/DONE` 事件、图片/视频轮询资源、cursor 消息列表、匿名 Cookie 认领和资产操作的请求/响应均须定稿。
+- 计费：每个启用模型必须配置受控的平台定价规则（输入、输出或固定额度）、最大预占、并发和频率阈值；缺失规则的模型不可启用。
+- 错误与幂等：覆盖 `AI_MODEL_NOT_AVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_CONCURRENCY_LIMITED` 及生成失败；生成请求必须验证 `Idempotency-Key`。
+- 数据与测试：验证初始 10,000 授予不重复、预占/结算/释放原子性、SSE 停止、匿名 30 天认领、任务重试和 Fake Provider HTTP E2E。
+- 前端迁移：删除 mock 的前端扣费和流结束后 persist 行为，改为消费服务端 SSE 与资源轮询。

@@ -2,7 +2,7 @@
 
 > 面向开发者的环境搭建、目录规范、命名约定、核心决策规则。开始编码前必读。
 >
-> **阅读提示**：当前可运行应用是 `apps/react-web`。文中 Next.js / NestJS / Docker 内容属于长期目标，不能作为当前环境的启动步骤。
+> **阅读提示**：当前可运行应用是用户端 `apps/user-web`（`:8000`）、管理端 `apps/admin-web`（`:8001`）与 `apps/server`。Next.js 仍是长期目标；Nest 本地依赖通过 Compose 启动，服务在宿主机热更新。
 
 ---
 
@@ -12,41 +12,119 @@
 | ----------------------- | -------- | ---------------------------------------- |
 | Node.js                 | ≥ 22 LTS | 使用 `.nvmrc` 锁定，建议 `nvm use`       |
 | pnpm                    | ≥ 9      | 包管理器，`npm i -g pnpm`                |
-| Docker + Docker Compose | 可选     | 进入 NestJS 阶段后用于 PostgreSQL、Redis |
+| Docker + Docker Compose | Nest 开发必需 | 运行 PostgreSQL、Redis、MinIO 与 Mailpit；仅 React mock 开发可不安装 |
 | Git                     | 任意     | —                                        |
 
 ---
 
-## 当前本地启动（React-first）
+## 当前本地启动
+
+日常默认打 Nest，不要用 mock 当数据源。账号与端口见 [dev-credentials.md](./dev-credentials.md)。
 
 ```bash
-# 1. 安装依赖并生成本地小册 mock（没有本地小册时会生成空数据）
 git clone <repo-url>
 cd personal-hub
 nvm use
 pnpm install
 
-# 2. 启动 Umi mock 应用
-pnpm dev:react
+# 依赖 + 迁移 + 本地账号 / Fake AI 目录
+docker compose -f compose.dev.yml up -d
+# 复制 apps/server/.env.example 为 .env.local（若还没有）
+pnpm --filter server prisma:deploy
+pnpm --filter server seed:local-users
+
+pnpm dev:server
+pnpm dev:user            # MOCK=none，http://localhost:8000
+pnpm dev:admin           # MOCK=none，http://localhost:8001
+pnpm dev:worker          # 小册 ZIP / AI 图视频才需要
 ```
 
-启动后：
+存量小册：`pnpm booklet:import-local -- --source <目录> --execute`，不要再靠 `sync:booklets` + mock。仅阶段 A 或排障才用 `pnpm dev:user:mock` / `dev:admin:mock`。
 
-- React Web（公开前台、工作区、后台和 AI mock）：http://localhost:8000
-
-当前阶段不需要 `apps/web`、`apps/api`、数据库、Docker 或环境变量文件；这些目录尚未创建。
+`apps/next-web` 仍是长期目标，当前不需要。
 
 ---
 
-## 长期全栈启动参考（尚未实施）
+## Nest 阶段 0 本地开发入口
 
-以下内容描述未来 `apps/next-web` + `apps/api` 落地后的目标流程，不可直接在当前仓库执行。
+> Nest M0–M6 已落地（脚手架、Auth、系统配置、内容、文件/小册、AI）。实现入口见 [apps/server/docs/README.md](../../apps/server/docs/README.md)。当前产品主线是上线部署，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md)。
+
+- 复制 `apps/server/.env.example` 为 `apps/server/.env.local` 后，执行 `docker compose -f compose.dev.yml up -d`、`pnpm --filter server prisma:generate`、`pnpm --filter server prisma:deploy` 与 `pnpm dev:server`。
+- 目录固定为 `apps/server`，本地使用 `pnpm --filter server dev` 在宿主机热更新。
+- `compose.dev.yml` 仅运行 PostgreSQL、Redis、MinIO、MinIO init job、Mailpit；Testcontainers 不复用开发卷。真实基础设施测试、readiness 故障自动化和 server CI 已在阶段 0 收口。
+- 全局 API 前缀为 `/api/v1`；旧 React mock `/api/*` 仅作迁移线索。
+- 认证是 JWT-only，密码使用 Argon2id；Redis 统一经 `ioredis` 封装，异步任务使用 Outbox + BullMQ。
+- MinIO 仅是本地 S3 兼容模拟；生产业务对象存储唯一使用腾讯 COS，统一由 AWS SDK v3 Provider 访问。
+
+### 查看 Docker 里的 Postgres / Redis
+
+Compose 已经把端口映射到本机，**不要再单独安装一套 PostgreSQL / Redis 服务**（会和 5432、6379 抢端口）。只需用客户端连上去。
+
+| 服务 | 地址 | 账号 / 密码 |
+| --- | --- | --- |
+| PostgreSQL | `localhost:5432`，库名 `personal_hub` | `personal_hub` / `personal_hub_dev_password` |
+| Redis | `localhost:6379` | 密码 `personal_hub_redis_dev_password` |
+| Mailpit | 浏览器 `http://localhost:8025` | 无 |
+
+命令行：
+
+```bash
+# 容器内 psql（不用本机安装）
+docker compose -f compose.dev.yml exec postgres psql -U personal_hub -d personal_hub
+
+# 本机已装 psql 时
+psql "postgresql://personal_hub:personal_hub_dev_password@localhost:5432/personal_hub"
+
+# Redis
+docker compose -f compose.dev.yml exec redis redis-cli -a personal_hub_redis_dev_password
+```
+
+图形工具新建连接即可，**不要再启动本机 PostgreSQL / Redis 服务**。权威账号见 `apps/server/.env.example`。
+
+#### pgAdmin
+
+1. 先确认容器在跑：`docker compose -f compose.dev.yml ps`，`postgres` 应为 healthy。
+2. 打开 pgAdmin → 左侧 **Servers** 右键 → **Register** → **Server**。
+3. **General**：Name 填 `personal-hub-dev`（仅显示名，随便起）。
+4. **Connection** 按下面填：
+
+| 字段 | 值 |
+| --- | --- |
+| Host name/address | `127.0.0.1`（不要用容器名；Docker 已映射到本机） |
+| Port | `5432` |
+| Maintenance database | `personal_hub` |
+| Username | `personal_hub` |
+| Password | `personal_hub_dev_password` |
+| Save password | 可勾选（仅本地） |
+
+5. 保存后展开该服务器 → **Databases** → `personal_hub` → **Schemas** → **public** → **Tables**。用户表看 `users`（邮箱列是 `email_normalized`）。
+
+连不上时：本机若另装过 Postgres 占用了 `5432`，先停掉本机服务，或看 `docker compose ps` 的端口映射。
+
+#### Redis Insight
+
+1. 确认 `redis` 容器 healthy。
+2. 打开 Redis Insight → **Add Redis database**。
+3. 按下面填：
+
+| 字段 | 值 |
+| --- | --- |
+| Host | `127.0.0.1` |
+| Port | `6379` |
+| Username | `default`（Redis 7 用 requirepass 时走默认用户；留空若连不上再填这个） |
+| Password | `personal_hub_redis_dev_password` |
+
+4. 连上后 key 带前缀 `ph:dev:`（例如会话 `ph:dev:auth:session:...`）。用浏览器过滤 `ph:dev:` 即可。
 
 ---
 
-## 环境变量说明
+## Nest 环境变量原则
 
-### apps/api/.env.example
+`apps/server/.env.example` 只列变量名、格式、必填性与安全说明，不能放真实密钥、服务器地址、镜像仓库或默认生产账号。`@nestjs/config + Zod` 必须在启动时校验环境变量，缺失或格式错误即阻止启动。基础设施地址、JWT、COS、SMTP 与厂商 Key 由本地私有环境文件或生产密钥管理注入；可运营配置保存在 PostgreSQL 配置表。
+
+### 已降级的环境变量样例
+
+以下 `apps/api`、本地磁盘上传与演示密钥样例只用于解释早期设想，**禁止复制到新工程或生产环境**：
 
 ```env
 # ── 数据库 ──────────────────────────────────────
@@ -87,7 +165,8 @@ SMTP_FROM="noreply@yourdomain.com"
 # ── 服务配置 ─────────────────────────────────────
 PORT=3001
 NODE_ENV=development
-CORS_ORIGIN="http://localhost:3000"
+CORS_ORIGIN="http://localhost:8000,http://localhost:8001"
+PUBLIC_APP_ORIGIN="http://localhost:8000"
 
 # ── 后台管理默认账号（seed 用，生产另行生成）────
 # React mock 环境见 docs/engineering/dev-credentials.md
@@ -106,7 +185,7 @@ NEXT_PUBLIC_SITE_URL="http://localhost:3000"
 NEXT_PUBLIC_SITE_NAME="Personal Hub"
 ```
 
-> 生产环境变量通过服务器 `/etc/personal-hub/.env` 注入，不提交到 Git。
+> 生产环境变量通过受控密钥文件或密钥管理注入，不提交到 Git；具体服务器路径在实际部署运维文档确认前不预设。
 
 ---
 
@@ -161,15 +240,17 @@ apps/next-web/
 └── public/                     ← 静态资源
 ```
 
-### apps/api（NestJS，未来）
+### apps/server（NestJS，阶段 0 已落地）
 
 ```
-apps/api/
+apps/server/
 ├── src/
-│   ├── main.ts                 ← 应用入口，Fastify 适配器配置
+│   ├── main.ts                 ← 创建应用、读取配置并监听端口
+│   ├── bootstrap.ts            ← Express middleware、全局管道、Swagger 与 HTTP 横切配置
 │   ├── app.module.ts           ← 根模块
+│   ├── infrastructure/         ← Prisma、Redis、Storage、Queue、日志实现
 │   ├── modules/                ← 业务模块（每模块独立目录）
-│   │   └── auth/
+│   │   └── auth/               ← Auth 阶段按需新增的领域模块示例
 │   │       ├── auth.module.ts
 │   │       ├── auth.controller.ts
 │   │       ├── auth.service.ts
@@ -182,14 +263,14 @@ apps/api/
 │   │   ├── filters/
 │   │   ├── interceptors/
 │   │   └── pipes/
-│   └── prisma/
-│       ├── prisma.module.ts
-│       └── prisma.service.ts
+│   └── common/
+│       ├── guards/
+│       └── filters/
 ├── prisma/
 │   ├── schema.prisma
 │   ├── migrations/
 │   └── seed.ts
-└── .env
+└── .env.local                  ← 本机私有环境文件，不提交
 ```
 
 ---
@@ -223,7 +304,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 }
 
 // components/public/ContentDetail.tsx — Client Component
-("use client");
+('use client');
 // 处理收藏、目录跳转等交互
 ```
 
@@ -253,7 +334,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 | 常量                 | `UPPER_SNAKE_CASE`              | `MAX_FILE_SIZE`             |
 | TypeScript 类型/接口 | `PascalCase`                    | `ContentDto`, `UserRole`    |
 | CSS 类名（Tailwind） | 直接使用工具类，组合放 `cn()`   | —                           |
-| API 路径             | `kebab-case`                    | `/api/ai-sessions`          |
+| API 路径             | `kebab-case`                    | `/api/v1/app/ai-sessions`   |
 | 数据库字段           | `snake_case`（Prisma 自动映射） | `created_at` → `createdAt`  |
 
 ---
@@ -271,7 +352,7 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 
 - `accessToken`：存内存（Zustand store），不写 localStorage / cookie
 - `refreshToken`：由后端写入 `HttpOnly Cookie`，前端不直接读取
-- `accessToken` 过期（401）→ 自动调用 `/auth/refresh` 换新 token → 重试原请求
+- `accessToken` 过期（401）→ 自动调用 `/api/v1/auth/refresh` 换新 token → 重试原请求
 - 刷新失败 → 清空 Zustand 认证状态 → 跳转 `/auth/login`
 
 ### SSE 规范（AI 对话流式输出）
@@ -290,12 +371,11 @@ async function ContentPage({ params }: { params: { slug: string } }) {
 - 统一由 `GlobalExceptionFilter` 捕获，返回格式：
   ```json
   {
-    "code": 40001,
-    "message": "用户名或密码错误",
-    "timestamp": "2025-01-01T00:00:00Z"
+    "error": { "code": "AUTH_INVALID_CREDENTIALS", "message": "用户名或密码错误", "details": [] },
+    "requestId": "uuid"
   }
   ```
-- 业务错误抛 `BusinessException(code, message)`
+- 业务错误使用全大写领域错误码；`requestId` 同时写入响应、日志、审计、outbox 与队列上下文
 - 参数校验错误 → `class-validator` 自动返回 400
 
 ### 权限校验规范（后端）
@@ -312,34 +392,41 @@ async publishContent(@Param('id') id: string) { ... }
 
 ---
 
+本地开发命令速查见 [dev-local.md](./dev-local.md)。生产服务器操作见 [../deploy/production-runbook.md](../deploy/production-runbook.md)，首次上线清单见 [../deploy/prod-startup-order.md](../deploy/prod-startup-order.md)。
+
 ## 当前常用命令
 
 ```bash
-pnpm dev:react                         # 启动当前 React-first 应用
-pnpm build:react                       # 构建当前应用
-pnpm --filter react-web lint           # Biome + TypeScript 检查
-pnpm --filter react-web test           # Vitest 单元测试
-pnpm --filter react-web sync:booklets  # 同步本地小册 mock
+pnpm dev:user                          # 用户端，默认无 mock，打 Nest
+pnpm dev:admin                         # 管理端，默认无 mock
+pnpm dev:server                        # Nest API :3001
+pnpm dev:worker                        # Outbox / BullMQ
+pnpm booklet:import-local              # 存量小册导入 Nest
+pnpm --filter server seed:local-users  # 本地账号 + Fake AI 目录
+pnpm build:user                        # 构建用户端（不含 mock）
+pnpm --filter user-web lint            # Biome + TypeScript 检查
+pnpm --filter user-web test            # Vitest 单元测试
+# 仅排障 / 阶段 A：
+pnpm dev:user:mock
+pnpm --filter user-web sync:booklets   # 只生成 mock 小册数据，不是 Nest 导入
 ```
 
 ---
 
-## Prisma 常用命令（未来 apps/api 创建后启用）
+## Prisma 常用命令（当前 apps/server）
 
 ```bash
-cd apps/api
-
 # 创建迁移（开发时，修改 schema 后执行）
-pnpm prisma migrate dev --name add_xxx_field
+pnpm --filter server prisma:migrate -- --name add_xxx_field
 
 # 应用迁移（生产）
-pnpm prisma migrate deploy
+pnpm --filter server prisma:deploy
 
 # 重置数据库（开发）
-pnpm prisma migrate reset
+pnpm --filter server exec dotenv -e .env.local -- prisma migrate reset
 
 # 打开 Prisma Studio（图形化查看数据）
-pnpm prisma studio
+pnpm --filter server prisma:studio
 
 # 重新生成 Prisma Client（修改 schema 后）
 pnpm prisma generate

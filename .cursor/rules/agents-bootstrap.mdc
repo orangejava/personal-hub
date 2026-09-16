@@ -19,6 +19,16 @@ alwaysApply: true
 
 `.agents/skills/git-commit/SKILL.md`
 
+涉及 Nest / API / Prisma / api-client / Umi request / mock 时，**必须**遵循：
+
+`.agents/skills/fullstack-impact/SKILL.md`
+
+涉及新增或修改 `apps/*/src/**/*.tsx` 时，**必须**遵循：
+
+`.agents/skills/tsx-structure/SKILL.md`
+
+未贴 fullstack-impact 的完整计划且用户未确认前，禁止改业务代码。
+
 未获用户明确授权不得执行 `git commit` 或 `git push`。
 
 ## 文档放置

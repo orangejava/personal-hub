@@ -1,0 +1,91 @@
+/**
+ * 公开区主题抽屉样式（对齐 Pro SettingDrawer 色块/风格块交互）
+ */
+.ph-public-theme-drawer {
+  .ph-theme-style-list {
+    display: flex;
+    gap: 16px;
+  }
+
+  .ph-theme-style-item {
+    position: relative;
+    width: 44px;
+    height: 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+    &.active {
+      outline: 2px solid var(--ph-color-primary);
+      outline-offset: 1px;
+    }
+  }
+
+  .ph-theme-style-light {
+    background: #fff;
+
+    &::before {
+      content: '';
+      display: block;
+      height: 10px;
+      background: #fff;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    &::after {
+      content: '';
+      display: block;
+      width: 12px;
+      height: 100%;
+      background: #fff;
+      border-right: 1px solid #f0f0f0;
+    }
+  }
+
+  .ph-theme-style-dark {
+    background: #141414;
+
+    &::before {
+      content: '';
+      display: block;
+      height: 10px;
+      background: #141414;
+      border-bottom: 1px solid #303030;
+    }
+
+    &::after {
+      content: '';
+      display: block;
+      width: 12px;
+      height: 100%;
+      background: #1f1f1f;
+      border-right: 1px solid #303030;
+    }
+  }
+
+  .ph-theme-color-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .ph-theme-color-block {
+    width: 20px;
+    height: 20px;
+    border-radius: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+
+    &.active {
+      box-shadow: 0 0 0 2px #fff, 0 0 0 3px currentColor;
+    }
+  }
+}

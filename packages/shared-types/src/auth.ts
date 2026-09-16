@@ -9,6 +9,8 @@ import { PermissionCode } from './permission';
 export interface LoginParams {
   email: string;
   password: string;
+  challengeId?: string;
+  captchaAnswer?: string;
 }
 
 /** 登录返回数据 */
@@ -28,6 +30,8 @@ export interface User {
   permissions: PermissionCode[];
   /** 账号是否启用 */
   status: 'active' | 'disabled';
+  /** 临时密码首次登录后必须先改密 */
+  mustChangePassword?: boolean;
   createdAt: string;
 }
 

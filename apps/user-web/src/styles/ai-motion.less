@@ -1,0 +1,33 @@
+@import './ai-tokens.less';
+
+.ph-ai-generating {
+  position: relative;
+}
+
+.ph-ai-generating::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 1em;
+  margin-left: 4px;
+  vertical-align: -2px;
+  background: var(--ph-color-primary);
+  animation: ph-ai-caret 1s steps(2, start) infinite;
+}
+
+@keyframes ph-ai-caret {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-ai-generating::after {
+    animation: none;
+  }
+}
+
