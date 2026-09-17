@@ -18,7 +18,7 @@ services:
     volumes:
       - personal_hub_prod_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 5s
       timeout: 5s
       retries: 12
@@ -30,16 +30,16 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?set in .env.prod}
     command:
       [
-        "redis-server",
-        "--appendonly",
-        "yes",
-        "--requirepass",
-        "${REDIS_PASSWORD:?set in .env.prod}",
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:?set in .env.prod}',
       ]
     volumes:
       - personal_hub_prod_redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
       interval: 5s
       timeout: 5s
       retries: 12
@@ -83,9 +83,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://127.0.0.1:3001/api/v1/health/ready').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
         ]
       interval: 10s
@@ -97,7 +97,7 @@ services:
     build:
       context: .
       dockerfile: apps/server/Dockerfile
-    command: ["node", "dist/worker"]
+    command: ['node', 'dist/worker']
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL:?set in env file}
@@ -134,11 +134,15 @@ services:
     build:
       context: .
       dockerfile: deploy/nginx/Dockerfile
+      args:
+        # 静态前端在构建期固化跳转 Origin；生产同站时两个应用都必须指向公网根地址。
+        UMI_APP_USER_WEB_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
+        UMI_APP_ADMIN_WEB_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
     depends_on:
       server:
         condition: service_healthy
     ports:
-      - "80:80"
+      - '80:80'
     restart: unless-stopped
 
 volumes:

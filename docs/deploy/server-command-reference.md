@@ -8,12 +8,12 @@
 
 ## 1. 风险标记与固定前缀
 
-| 标记 | 含义 | 示例 |
-| --- | --- | --- |
-| 只读 | 查看状态，不启动、不写入、不删除 | `docker compose ps`、`docker volume ls`、`curl -I` |
-| 改运行状态 | 启动、停止或重启服务，通常保留数据 | `docker compose up`、`restart`、`down` |
-| 写入数据 | 写数据库、COS 或宿主机文件 | migration、seed、备份、正式导入 |
-| 高风险 | 可能删除数据、配置或代码 | `down -v`、`docker volume prune`、`rm -rf` |
+| 标记       | 含义                               | 示例                                               |
+| ---------- | ---------------------------------- | -------------------------------------------------- |
+| 只读       | 查看状态，不启动、不写入、不删除   | `docker compose ps`、`docker volume ls`、`curl -I` |
+| 改运行状态 | 启动、停止或重启服务，通常保留数据 | `docker compose up`、`restart`、`down`             |
+| 写入数据   | 写数据库、COS 或宿主机文件         | migration、seed、备份、正式导入                    |
+| 高风险     | 可能删除数据、配置或代码           | `down -v`、`docker volume prune`、`rm -rf`         |
 
 生产 Compose 命令默认在服务器项目目录执行：
 
@@ -26,33 +26,33 @@ export COMPOSE="docker compose --env-file .env.prod -f compose.prod.yml"
 
 ## 2. Shell、文件与系统检查
 
-| 命令 | 作用 | 风险 / 使用时机 |
-| --- | --- | --- |
-| `pwd` | 显示当前目录 | 只读；clone、删除前先确认位置 |
-| `cd /opt/personal-hub` | 切换到项目目录 | 不修改文件 |
-| `whoami` / `id` / `groups` | 查看当前用户、用户组与权限 | 只读；排查 sudo / Docker 权限 |
-| `sudo -v` | 验证并刷新 sudo 凭证 | 会要求输入密码，不改业务配置 |
-| `cat /etc/os-release` / `uname -m` | 查看 Ubuntu 版本与 CPU 架构 | 只读；当前文档按 Ubuntu x86_64 编写 |
-| `free -h` / `df -h` | 查看内存 / 磁盘 | 只读；重点看 `/`、`/data` |
-| `du -sh /opt/personal-hub /data/personal-hub` | 汇总代码和数据目录大小 | 只读；磁盘排障 |
-| `ls -ld <路径>` / `ls -la <路径>` | 查看路径存在性、属主、权限、内容 | 只读 |
-| `test -f <文件>` | 判断文件是否存在 | 只读；存在时退出码为 0 |
-| `find <目录> -maxdepth 2 -type f \| head -20` | 预览前 20 个文件 | 只读；用于检查小册导入源 |
+| 命令                                          | 作用                             | 风险 / 使用时机                     |
+| --------------------------------------------- | -------------------------------- | ----------------------------------- |
+| `pwd`                                         | 显示当前目录                     | 只读；clone、删除前先确认位置       |
+| `cd /opt/personal-hub`                        | 切换到项目目录                   | 不修改文件                          |
+| `whoami` / `id` / `groups`                    | 查看当前用户、用户组与权限       | 只读；排查 sudo / Docker 权限       |
+| `sudo -v`                                     | 验证并刷新 sudo 凭证             | 会要求输入密码，不改业务配置        |
+| `cat /etc/os-release` / `uname -m`            | 查看 Ubuntu 版本与 CPU 架构      | 只读；当前文档按 Ubuntu x86_64 编写 |
+| `free -h` / `df -h`                           | 查看内存 / 磁盘                  | 只读；重点看 `/`、`/data`           |
+| `du -sh /opt/personal-hub /data/personal-hub` | 汇总代码和数据目录大小           | 只读；磁盘排障                      |
+| `ls -ld <路径>` / `ls -la <路径>`             | 查看路径存在性、属主、权限、内容 | 只读                                |
+| `test -f <文件>`                              | 判断文件是否存在                 | 只读；存在时退出码为 0              |
+| `find <目录> -maxdepth 2 -type f \| head -20` | 预览前 20 个文件                 | 只读；用于检查小册导入源            |
 
 ### 2.1 Shell 组合符号
 
 部署文档中的以下写法用于控制命令输出和失败行为，本身不是新的服务：
 
-| 写法 | 含义 | 本项目中的用途 |
-| --- | --- | --- |
-| `cmd1 \| cmd2` | 将左边标准输出传给右边 | `grep` 过滤端口、`awk` 筛选非敏感环境变量、`tee` 写软件源 |
-| `cmd1 && cmd2` | 只有 `cmd1` 成功才执行 `cmd2` | 检查 `.env.prod` 存在后再备份 |
-| `cmd1 \|\| cmd2` | 左边失败时执行右边 | 尝试 `ssh` 服务名后再尝试 `sshd`；允许可选检查失败 |
-| `2>/dev/null` | 丢弃标准错误输出 | 对可选旧服务、可能不存在的文件保持脚本安静 |
-| `> 文件` | 将标准输出写入文件，已有文件会覆盖 | 将 `pg_dump` 输出写入新的带时间戳备份文件 |
-| `$(cmd)` | 用命令输出替换当前位置 | 生成备份时间戳、读取系统架构或 Ubuntu 代号 |
-| `head -n1` / `grep` / `awk` | 截断或过滤输出 | 只显示版本第一行、过滤端口和敏感变量；不会改原始数据 |
-| `true` | 总是以成功退出 | 与 `\|\| true` 配合，让“没有匹配结果”不阻断后续检查 |
+| 写法                        | 含义                               | 本项目中的用途                                            |
+| --------------------------- | ---------------------------------- | --------------------------------------------------------- |
+| `cmd1 \| cmd2`              | 将左边标准输出传给右边             | `grep` 过滤端口、`awk` 筛选非敏感环境变量、`tee` 写软件源 |
+| `cmd1 && cmd2`              | 只有 `cmd1` 成功才执行 `cmd2`      | 检查 `.env.prod` 存在后再备份                             |
+| `cmd1 \|\| cmd2`            | 左边失败时执行右边                 | 尝试 `ssh` 服务名后再尝试 `sshd`；允许可选检查失败        |
+| `2>/dev/null`               | 丢弃标准错误输出                   | 对可选旧服务、可能不存在的文件保持脚本安静                |
+| `> 文件`                    | 将标准输出写入文件，已有文件会覆盖 | 将 `pg_dump` 输出写入新的带时间戳备份文件                 |
+| `$(cmd)`                    | 用命令输出替换当前位置             | 生成备份时间戳、读取系统架构或 Ubuntu 代号                |
+| `head -n1` / `grep` / `awk` | 截断或过滤输出                     | 只显示版本第一行、过滤端口和敏感变量；不会改原始数据      |
+| `true`                      | 总是以成功退出                     | 与 `\|\| true` 配合，让“没有匹配结果”不阻断后续检查       |
 
 ### 2.2 环境文件和随机密钥
 
@@ -64,13 +64,13 @@ openssl rand -hex 32
 vi .env.prod
 ```
 
-| 命令 | 作用 | 注意 |
-| --- | --- | --- |
-| `cp -a` | 备份 `.env.prod`，保留权限和时间属性 | 会创建备份；不要提交 Git |
-| `cp .env.prod.example .env.prod` | 根据模板创建生产环境文件 | 会覆盖同名文件；只有 `.env.prod` 尚不存在时才能执行 |
-| `chmod 600` | 仅当前用户可读写密钥文件 | 会改变权限；生产必须执行 |
-| `openssl rand -hex 32` | 生成 32 字节随机十六进制文本 | 每个密码 / JWT 密钥使用不同结果；hex 可直接放入连接串 |
-| `vi .env.prod` | 编辑生产配置 | 会修改文件；不要发送文件内容 |
+| 命令                             | 作用                                 | 注意                                                  |
+| -------------------------------- | ------------------------------------ | ----------------------------------------------------- |
+| `cp -a`                          | 备份 `.env.prod`，保留权限和时间属性 | 会创建备份；不要提交 Git                              |
+| `cp .env.prod.example .env.prod` | 根据模板创建生产环境文件             | 会覆盖同名文件；只有 `.env.prod` 尚不存在时才能执行   |
+| `chmod 600`                      | 仅当前用户可读写密钥文件             | 会改变权限；生产必须执行                              |
+| `openssl rand -hex 32`           | 生成 32 字节随机十六进制文本         | 每个密码 / JWT 密钥使用不同结果；hex 可直接放入连接串 |
+| `vi .env.prod`                   | 编辑生产配置                         | 会修改文件；不要发送文件内容                          |
 
 `POSTGRES_PASSWORD` 与 `DATABASE_URL` 必须使用同一个值，`REDIS_PASSWORD` 与 `REDIS_URL` 同理；数据库、Redis、两个 JWT 密钥应分别生成。
 
@@ -84,15 +84,15 @@ git pull --ff-only
 git clone https://gitee.com/oralemon/personal-hub.git .
 ```
 
-| 命令 | 作用 | 注意 |
-| --- | --- | --- |
-| `git status --short` | 简洁显示工作区改动 | 只读；发布前应干净，`.env.prod` 不应出现 |
-| `git log -1 --oneline` | 显示当前部署 commit | 只读；发布和回滚记录它 |
-| `git rev-parse --short HEAD` | 只输出当前 `HEAD` 的短 commit ID | 只读；上线验收时确认访问的代码版本 |
-| `git remote -v` | 显示 Gitee / GitHub 远程地址 | 只读 |
-| `git ls-remote <仓库> HEAD` | 只探测远程仓库及网络是否可达 | 只读；不下载代码 |
-| `git pull --ff-only` | 仅快进方式更新代码 | 会更新代码；有分叉时停止，不在生产自动合并 |
-| `git clone ... .` | 第一次将代码克隆进当前目录 | 会写代码；末尾 `.` 防止多套一层目录，已有 `.git` 时不可重复执行 |
+| 命令                         | 作用                             | 注意                                                            |
+| ---------------------------- | -------------------------------- | --------------------------------------------------------------- |
+| `git status --short`         | 简洁显示工作区改动               | 只读；发布前应干净，`.env.prod` 不应出现                        |
+| `git log -1 --oneline`       | 显示当前部署 commit              | 只读；发布和回滚记录它                                          |
+| `git rev-parse --short HEAD` | 只输出当前 `HEAD` 的短 commit ID | 只读；上线验收时确认访问的代码版本                              |
+| `git remote -v`              | 显示 Gitee / GitHub 远程地址     | 只读                                                            |
+| `git ls-remote <仓库> HEAD`  | 只探测远程仓库及网络是否可达     | 只读；不下载代码                                                |
+| `git pull --ff-only`         | 仅快进方式更新代码               | 会更新代码；有分叉时停止，不在生产自动合并                      |
+| `git clone ... .`            | 第一次将代码克隆进当前目录       | 会写代码；末尾 `.` 防止多套一层目录，已有 `.git` 时不可重复执行 |
 
 属主导致 `dubious ownership` 时：
 
@@ -142,14 +142,14 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.
   | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 ```
 
-| 命令 / 参数 | 作用 | 风险 / 注意 |
-| --- | --- | --- |
-| `update-ca-certificates` | 将已安装的 CA 证书更新到系统信任库 | 改变系统证书缓存；仅在证书包安装或修复后使用 |
-| `install -m 0755 -d` | 创建 keyring 目录并设定目录权限 | 会写入 `/etc/apt`；不是安装应用程序 |
-| `curl -fsSL ... -o docker.asc` | 下载 Docker CE 仓库的 GPG 公钥到指定文件 | `-f` 将 HTTP 失败视为错误，`-sS` 降低正常输出但保留错误，`-L` 跟随重定向；需要核对来源与路径 |
-| `chmod a+r docker.asc` | 允许 apt 读取公钥 | 会修改文件权限；只针对公钥文件 |
-| `dpkg --print-architecture` | 输出当前 Debian/Ubuntu 包架构，例如 `amd64` | 只读；用于生成与机器匹配的软件源行 |
-| `echo ... \| sudo tee ... > /dev/null` | 以 sudo 将 Docker 软件源行写进 `/etc/apt/sources.list.d/docker.list` | 会覆盖该文件；`tee` 必须在 sudo 后，末尾重定向仅隐藏回显，不会取消写入 |
+| 命令 / 参数                            | 作用                                                                 | 风险 / 注意                                                                                  |
+| -------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `update-ca-certificates`               | 将已安装的 CA 证书更新到系统信任库                                   | 改变系统证书缓存；仅在证书包安装或修复后使用                                                 |
+| `install -m 0755 -d`                   | 创建 keyring 目录并设定目录权限                                      | 会写入 `/etc/apt`；不是安装应用程序                                                          |
+| `curl -fsSL ... -o docker.asc`         | 下载 Docker CE 仓库的 GPG 公钥到指定文件                             | `-f` 将 HTTP 失败视为错误，`-sS` 降低正常输出但保留错误，`-L` 跟随重定向；需要核对来源与路径 |
+| `chmod a+r docker.asc`                 | 允许 apt 读取公钥                                                    | 会修改文件权限；只针对公钥文件                                                               |
+| `dpkg --print-architecture`            | 输出当前 Debian/Ubuntu 包架构，例如 `amd64`                          | 只读；用于生成与机器匹配的软件源行                                                           |
+| `echo ... \| sudo tee ... > /dev/null` | 以 sudo 将 Docker 软件源行写进 `/etc/apt/sources.list.d/docker.list` | 会覆盖该文件；`tee` 必须在 sudo 后，末尾重定向仅隐藏回显，不会取消写入                       |
 
 先用 `dpkg -l | awk '/docker|containerd/ {print $1, $2, $3}'` 查看已安装的 Docker / containerd 包。`awk` 按匹配行提取列，只读；若已有正在使用的 `docker.io` 或 `docker-ce`，不要直接追加另一套软件源或混装软件包。
 
@@ -192,16 +192,16 @@ docker stats --no-stream
 docker system df
 ```
 
-| 命令 | 作用 | 是否启动服务 |
-| --- | --- | --- |
-| `config --quiet` | 校验 Compose YAML 和环境变量能否插值；成功无输出 | 否 |
-| `ps` | 列出当前 Compose 服务状态 | 否 |
-| `ps -a` | 连已停止的 Compose 容器也列出 | 否 |
-| `top` | 显示容器内进程 | 否 |
-| `logs --tail=200 <服务>` | 显示最近 200 行日志 | 否 |
-| `logs -f <服务>` | 持续跟踪日志；`Ctrl+C` 只退出日志 | 否 |
-| `docker stats --no-stream` | 输出一次 CPU / 内存快照 | 否 |
-| `docker system df` | 汇总镜像、容器、构建缓存占用 | 否 |
+| 命令                       | 作用                                             | 是否启动服务 |
+| -------------------------- | ------------------------------------------------ | ------------ |
+| `config --quiet`           | 校验 Compose YAML 和环境变量能否插值；成功无输出 | 否           |
+| `ps`                       | 列出当前 Compose 服务状态                        | 否           |
+| `ps -a`                    | 连已停止的 Compose 容器也列出                    | 否           |
+| `top`                      | 显示容器内进程                                   | 否           |
+| `logs --tail=200 <服务>`   | 显示最近 200 行日志                              | 否           |
+| `logs -f <服务>`           | 持续跟踪日志；`Ctrl+C` 只退出日志                | 否           |
+| `docker stats --no-stream` | 输出一次 CPU / 内存快照                          | 否           |
+| `docker system df`         | 汇总镜像、容器、构建缓存占用                     | 否           |
 
 不要执行不带 `--quiet` 的 `docker compose config` 并把输出发送出去，它会展开 `.env.prod` 内的密钥。
 
@@ -210,6 +210,7 @@ docker system df
 ```bash
 $COMPOSE up -d
 $COMPOSE up --build -d
+$COMPOSE up --build -d server server-worker nginx
 $COMPOSE up --build -d postgres redis server
 $COMPOSE up --build -d server-worker nginx
 $COMPOSE restart server
@@ -218,14 +219,15 @@ $COMPOSE restart nginx
 $COMPOSE up -d --force-recreate server server-worker
 ```
 
-| 命令 | 作用 | 适用时机 |
-| --- | --- | --- |
-| `up -d` | 按当前配置后台启动或更新服务 | 普通重启，不需要重建镜像 |
-| `up --build -d` | 重建镜像后启动全部服务 | Dockerfile、依赖或前端构建变化后 |
-| `up --build -d postgres redis server` | 仅启动依赖与 HTTP API | 首次迁移前的第一阶段 |
-| `up --build -d server-worker nginx` | 启动 Worker 与公网入口 | migration、seed、bootstrap 成功后 |
-| `restart <服务>` | 重启一个已存在容器，保留 volume | 单服务异常或配置未改变时 |
-| `up -d --force-recreate ...` | 重建指定容器以读取新环境变量 | 修改 `.env.prod` 后；不删除数据卷 |
+| 命令                                       | 作用                            | 适用时机                                                                                             |
+| ------------------------------------------ | ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `up -d`                                    | 按当前配置后台启动或更新服务    | 普通重启，不需要重建镜像                                                                             |
+| `up --build -d`                            | 重建镜像后启动全部服务          | Dockerfile、依赖或前端构建变化后                                                                     |
+| `up --build -d server server-worker nginx` | 重建并替换全部应用服务          | 常用代码发布；更新 API、Worker、容器内 Nginx 的 Web 静态文件，不重建 PostgreSQL/Redis。              |
+| `up --build -d postgres redis server`      | 仅启动依赖与 HTTP API           | 首次迁移前的第一阶段                                                                                 |
+| `up --build -d server-worker nginx`        | 启动 Worker 与公网入口          | migration、seed、bootstrap 成功后                                                                    |
+| `restart <服务>`                           | 重启一个已存在容器，保留 volume | 单服务进程异常且代码、镜像、环境变量均未改变时；不会构建或读取新代码。                               |
+| `up -d --force-recreate ...`               | 重建指定容器以读取新环境变量    | 修改仅供运行时读取的 `.env.prod` 后；不删除数据卷。`PUBLIC_APP_ORIGIN` 还需 `up --build ... nginx`。 |
 
 首次空数据库必须先启动 `postgres redis server`，完成 migration、seed 和管理员创建后，才启动 Worker 与 Nginx。Nginx 依赖 `server` 健康，不能在 migration 前作为健康检查入口。
 
@@ -238,12 +240,12 @@ docker volume prune
 docker system prune --volumes
 ```
 
-| 命令 | 作用 | 风险 |
-| --- | --- | --- |
-| `down` | 停止并删除 Compose 容器和网络，保留 named volume | 可用于普通停止 |
-| `down -v` | 同时删除 Compose 管理的数据卷 | 高风险，会删除 PostgreSQL / Redis 数据 |
-| `docker volume prune` | 删除所有未被容器引用的数据卷 | 高风险，范围不只本项目 |
-| `docker system prune --volumes` | 清理未使用镜像、容器、网络和数据卷 | 高风险，范围不只本项目 |
+| 命令                            | 作用                                             | 风险                                   |
+| ------------------------------- | ------------------------------------------------ | -------------------------------------- |
+| `down`                          | 停止并删除 Compose 容器和网络，保留 named volume | 可用于普通停止                         |
+| `down -v`                       | 同时删除 Compose 管理的数据卷                    | 高风险，会删除 PostgreSQL / Redis 数据 |
+| `docker volume prune`           | 删除所有未被容器引用的数据卷                     | 高风险，范围不只本项目                 |
+| `docker system prune --volumes` | 清理未使用镜像、容器、网络和数据卷               | 高风险，范围不只本项目                 |
 
 生产环境未经明确恢复方案不得执行后三条。
 
@@ -257,13 +259,18 @@ $COMPOSE exec server npx tsx prisma/seed.ts
 $COMPOSE exec -e SUPER_ADMIN_EMAIL='<生产管理员邮箱>' \
   -e SUPER_ADMIN_TEMP_PASSWORD='<一次性强密码>' \
   server npx tsx src/cli/bootstrap-super-admin.ts
+$COMPOSE exec -e SUPER_ADMIN_EMAIL='<生产管理员邮箱>' \
+  server npx tsx src/cli/repair-super-admin-ai-quota.ts
+$COMPOSE exec server npx tsx src/cli/sync-ai-catalog.ts
 ```
 
-| 命令 | 作用 | 写入影响 |
-| --- | --- | --- |
-| `prisma migrate deploy` | 应用已有 migration | 写数据库结构和 migration 记录，不重置数据库 |
-| `tsx prisma/seed.ts` | 写生产基线角色、菜单和样例内容 | 写数据库；禁止使用 `seed:local-users` |
-| `bootstrap-super-admin.ts` | 创建或受控提升生产超级管理员 | 写数据库；`-e` 仅传给本次进程，不写入镜像 |
+| 命令                             | 作用                                          | 写入影响                                                                  |
+| -------------------------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `prisma migrate deploy`          | 应用已有 migration                            | 写数据库结构和 migration 记录，不重置数据库                               |
+| `tsx prisma/seed.ts`             | 写生产基线角色、菜单和样例内容                | 写数据库；禁止使用 `seed:local-users`                                     |
+| `bootstrap-super-admin.ts`       | 创建或受控提升生产超级管理员                  | 写数据库；`-e` 仅传给本次进程，不写入镜像                                 |
+| `repair-super-admin-ai-quota.ts` | 补齐旧版超级管理员缺失的首发 AI 额度          | 只处理指定 active super_admin；使用幂等账本键，重复执行不重复赠送。       |
+| `sync-ai-catalog.ts`             | 将 AI 文本目录同步到当前 `.env.prod` Provider | 只写 AI 目录/受控旧模型 ID；不跑完整 seed，不写样例内容，不输出 API Key。 |
 
 `run` 创建临时容器，适合一次性导入：
 
@@ -277,15 +284,15 @@ $COMPOSE run --rm --no-deps \
 ```
 
 生产镜像内的小册导入 CLI 必须运行构建产物 `node dist/cli/import-local-booklets.js`，不能用
-`npx tsx` 直接执行 TypeScript 源码：该 CLI 会启动 Nest 应用，源码即时转译不会生成 Nest 依赖注入需要的装饰器元数据。`prisma/seed.ts` 与超级管理员 bootstrap 不启动 Nest 应用，仍按上面的 `tsx` 命令执行。
+`npx tsx` 直接执行 TypeScript 源码：该 CLI 会启动 Nest 应用，源码即时转译不会生成 Nest 依赖注入需要的装饰器元数据。`prisma/seed.ts`、超级管理员 bootstrap、额度修复和 AI 目录同步均不启动 Nest 应用，仍按上面的 `tsx` 命令执行。
 
-| 参数 | 含义 |
-| --- | --- |
-| `--rm` | 命令结束后删除临时容器 |
-| `--no-deps` | 不自动启动或重启数据库、Redis 等依赖 |
-| `-v 宿主机:容器内:ro` | 只读挂载小册源，防止脚本改源文件 |
-| `--dry-run` | 只扫描和报告，不写 COS / 数据库 |
-| `--execute` | 正式导入，会写 COS 与数据库；仅 dry-run 确认后使用 |
+| 参数                  | 含义                                               |
+| --------------------- | -------------------------------------------------- |
+| `--rm`                | 命令结束后删除临时容器                             |
+| `--no-deps`           | 不自动启动或重启数据库、Redis 等依赖               |
+| `-v 宿主机:容器内:ro` | 只读挂载小册源，防止脚本改源文件                   |
+| `--dry-run`           | 只扫描和报告，不写 COS / 数据库                    |
+| `--execute`           | 正式导入，会写 COS 与数据库；仅 dry-run 确认后使用 |
 
 正式导入只将 `--dry-run` 改为 `--execute`。导入前确认 `server-worker` 正常、`ready` 为 200。
 

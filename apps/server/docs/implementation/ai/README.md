@@ -1,40 +1,40 @@
 # Nest M6 AI 域
 
-登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。文本 Provider 默认 Fake；可切 `OPENAI_COMPATIBLE` 适配层，不要求真实厂商 Key。
+登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。文本 Provider 默认内置演示；可切 `OPENAI_COMPATIBLE` 适配层，真实 Key 只存在部署环境变量。
 
 ## 刀序（一次性落地）
 
-| 刀 | 内容 | 主要文件 |
-| --- | --- | --- |
-| 6.0 | Canonical §4.5/4.6：stop/cancel、SSE 事件、`ph_ai_anon`、公开 home/models/sessions | `docs/backend/canonical-api.md` |
-| 6.1 | Prisma AI 表 + migration + seed（含角色额度） | `prisma/schema.prisma`、`prisma/migrations/20260909070000_ai_domain/`、`prisma/seed-ai.ts` |
-| 6.2 | 额度账本：预占 / 结算 / 释放 / 过期；不足 409 | `ai-quota.service.ts` |
-| 6.3 | Fake Provider + SSE + Redis `ai:stop:{id}` | `providers/`、`ai-runtime.service.ts` |
-| 6.4 | 目录读：home / models / tools / entitlement | `app-ai.controller.ts`、`public-ai.controller.ts` |
-| 6.5 | Chat/Text SSE 写路径 + 会话互斥 | `ai.service.ts` `streamChat` |
-| 6.6 | 显式 stop / job cancel | `POST .../messages/:id/stop`、`.../cancel` |
-| 6.7 | 匿名 Cookie Guard + 登录认领（失败不阻断） | `ai-anonymous.guard.ts`、`auth.service.ts` |
-| 6.8 | 图/视频 job + Outbox + worker `processJob` | `AiImageProcessor` / `AiVideoProcessor` |
-| 6.9 | 资产 / 文件夹 / usage | `app-ai.controller.ts`、`GET /app/usage` |
-| 6.10 | 后台 config PATCH 模型启停；不保留 mock 野路径 | `admin-ai.controller.ts` |
-| 6.11 | 前端接 Canonical；SSE 用 `fetch`；不再客户端扣费 | `apps/user-web/src/services/ai.ts` |
+| 刀   | 内容                                                                               | 主要文件                                                                                   |
+| ---- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 6.0  | Canonical §4.5/4.6：stop/cancel、SSE 事件、`ph_ai_anon`、公开 home/models/sessions | `docs/backend/canonical-api.md`                                                            |
+| 6.1  | Prisma AI 表 + migration + seed（含角色额度）                                      | `prisma/schema.prisma`、`prisma/migrations/20260909070000_ai_domain/`、`prisma/seed-ai.ts` |
+| 6.2  | 额度账本：预占 / 结算 / 释放 / 过期；不足 409                                      | `ai-quota.service.ts`                                                                      |
+| 6.3  | Fake Provider + SSE + Redis `ai:stop:{id}`                                         | `providers/`、`ai-runtime.service.ts`                                                      |
+| 6.4  | 目录读：home / models / tools / entitlement                                        | `app-ai.controller.ts`、`public-ai.controller.ts`                                          |
+| 6.5  | Chat/Text SSE 写路径 + 会话互斥                                                    | `ai.service.ts` `streamChat`                                                               |
+| 6.6  | 显式 stop / job cancel                                                             | `POST .../messages/:id/stop`、`.../cancel`                                                 |
+| 6.7  | 匿名 Cookie Guard + 登录认领（失败不阻断）                                         | `ai-anonymous.guard.ts`、`auth.service.ts`                                                 |
+| 6.8  | 图/视频 job + Outbox + worker `processJob`                                         | `AiImageProcessor` / `AiVideoProcessor`                                                    |
+| 6.9  | 资产 / 文件夹 / usage                                                              | `app-ai.controller.ts`、`GET /app/usage`                                                   |
+| 6.10 | 后台 config PATCH 模型启停；不保留 mock 野路径                                     | `admin-ai.controller.ts`                                                                   |
+| 6.11 | 前端接 Canonical；SSE 用 `fetch`；不再客户端扣费                                   | `apps/user-web/src/services/ai.ts`                                                         |
 
 ## 默认决策（已写死，不再问）
 
-| 项 | 决定 |
-| --- | --- |
-| 权限 | Nest 新增 `ai:use`，授给 MEMBER / EDITOR / ADMIN / SUPER_ADMIN；访客走 `/public/ai` |
-| 停止 | `POST .../messages/:id/stop` 与 job `.../cancel`；本机 AbortController + Redis `ai:stop:{id}` |
-| 关页没点停止 | 只靠 reservation TTL（5 分钟），不断连自动 stop |
-| 额度不足 | `409` `AI_QUOTA_INSUFFICIENT` |
-| 并发/限流 | `429` `AI_CONCURRENCY_LIMITED`；会话互斥 `409` `AI_GENERATION_IN_PROGRESS` |
-| Provider | 默认 Fake / MockVideo；`AI_TEXT_PROVIDER=openai_compatible` 且有 Key 时走 OpenAI 兼容适配层 |
-| 登录认领匿名历史 | 尽量认领，失败不阻断登录 |
-| Chat/Text | `ai_messages` + HTTP SSE（Skip 信封） |
-| 图片/视频 | `ai_generation_jobs` + Outbox + `server-worker` |
-| 前端枚举 | Nest `UPPER_SNAKE`；页面小写，映射在 service |
-| 公开 DTO | 禁止 `simulateFailure` |
-| 后台 branding / tools/move | 不保留 mock 野路径；排序用 `sortOrder` |
+| 项                         | 决定                                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| 权限                       | Nest 新增 `ai:use`，授给 MEMBER / EDITOR / ADMIN / SUPER_ADMIN；访客走 `/public/ai`                                                     |
+| 停止                       | `POST .../messages/:id/stop` 与 job `.../cancel`；本机 AbortController + Redis `ai:stop:{id}`                                           |
+| 关页没点停止               | 只靠 reservation TTL（5 分钟），不断连自动 stop                                                                                         |
+| 额度不足                   | `409` `AI_QUOTA_INSUFFICIENT`                                                                                                           |
+| 并发/限流                  | `429` `AI_CONCURRENCY_LIMITED`；会话互斥 `409` `AI_GENERATION_IN_PROGRESS`                                                              |
+| Provider                   | 默认内置演示 / MockVideo；`AI_TEXT_PROVIDER=openai_compatible` 且有完整配置时走 OpenAI 兼容适配层；生产用 `sync-ai-catalog.ts` 同步目录 |
+| 登录认领匿名历史           | 尽量认领，失败不阻断登录                                                                                                                |
+| Chat/Text                  | `ai_messages` + HTTP SSE（Skip 信封）                                                                                                   |
+| 图片/视频                  | `ai_generation_jobs` + Outbox + `server-worker`                                                                                         |
+| 前端枚举                   | Nest `UPPER_SNAKE`；页面小写，映射在 service                                                                                            |
+| 公开 DTO                   | 禁止 `simulateFailure`                                                                                                                  |
+| 后台 branding / tools/move | 不保留 mock 野路径；排序用 `sortOrder`                                                                                                  |
 
 ## 调用链
 
@@ -42,7 +42,7 @@
 2. 停止：写 `stopRequestedAt` + Redis `ai:stop:{id}` + 本机 `AbortController`。
 3. 图片：`createImageJob` 写 job + outbox → worker `AiImageProcessor` → `processJob`。HTTP 测试直调 `processJob`。任务 `assets` 走 `/app/ai/assets/:id/content` 鉴权二进制，前端 blob URL 展示。
 4. 匿名写接口用 `AiAnonymousGuard` mint Cookie；GET home/models/navigation 只 peek，不新建主体。
-5. 本地 `seed:local-users` 会写 Fake 目录、AI 导航和已有用户额度账本。
+5. 本地 `seed:local-users` 会写内置演示目录、AI 导航和已有用户额度账本；生产切真实文本配置时只能运行 `sync-ai-catalog.ts`，不要重跑完整 seed。该同步只切当前环境指定的 Chat/Text 默认模型、模板关联与权益中的旧模型 ID，保留后台工具开关、访客试用、排序、模型运营字段和模板状态。
 6. 结算：Prisma 不能对同一字段同时 `increment` + `decrement`，必须算绝对值再 `update`。
 7. 字段映射：camelCase 模型字段必须 `@map` 到 migration 的 snake_case（如 `finish_reason`、`tool_types`）。
 8. 品牌写 `system_configs.ai.branding`；左侧导航独立表 `AiNavigationItem`，隐藏不返回，禁用/即将上线仍返回。生成类接口和会员/创作中心读接口会再校验工具或导航状态，`409 AI_TOOL_UNAVAILABLE`，不能只靠前端拦截。
@@ -83,10 +83,10 @@ pnpm --filter admin-web typecheck
 
 账号（密码都是 `HubDev!234`）：
 
-| 角色 | 邮箱 | 用来测什么 |
-| --- | --- | --- |
-| 普通会员 | `member@example.com` | Chat / 额度 / 认领 |
-| 系统所有者 | `owner@example.com` | 后台禁用模型后再回用户端 |
+| 角色       | 邮箱                 | 用来测什么               |
+| ---------- | -------------------- | ------------------------ |
+| 普通会员   | `member@example.com` | Chat / 额度 / 认领       |
+| 系统所有者 | `owner@example.com`  | 后台禁用模型后再回用户端 |
 
 ## 手动验证（按顺序）
 
@@ -156,9 +156,9 @@ node apps/server/scripts/openai-compatible-stub.mjs
 
 ## 页面像 404 时对照
 
-| 你看到的 | 实际原因 | 怎么处理 |
-| --- | --- | --- |
-| 「抱歉，您访问的页面不存在」 | 打到了没有路由的路径（例如旧的 `/ai/create`），或 Umi 编译失败 | 用 `/ai` 或 `/ai/chat`；看跑 `dev:user` 的终端有没有 webpack error |
-| 工作台里大红「加载失败」 | `GET /public/ai/home` 或 `/app/ai/home` 500 | 先做 A 节 curl |
-| 模型下拉是灰的「选择对话模型」 | 未登录打错接口 / 未 seed / 没有 `ai:use` | 重新 `seed:local-users` 后重新登录 |
-| Chat 一结束跳登录页 | 访客误打了 `/app/ai/entitlement` | 需要当前前端：未登录不请求账本 |
+| 你看到的                       | 实际原因                                                       | 怎么处理                                                           |
+| ------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 「抱歉，您访问的页面不存在」   | 打到了没有路由的路径（例如旧的 `/ai/create`），或 Umi 编译失败 | 用 `/ai` 或 `/ai/chat`；看跑 `dev:user` 的终端有没有 webpack error |
+| 工作台里大红「加载失败」       | `GET /public/ai/home` 或 `/app/ai/home` 500                    | 先做 A 节 curl                                                     |
+| 模型下拉是灰的「选择对话模型」 | 未登录打错接口 / 未 seed / 没有 `ai:use`                       | 重新 `seed:local-users` 后重新登录                                 |
+| Chat 一结束跳登录页            | 访客误打了 `/app/ai/entitlement`                               | 需要当前前端：未登录不请求账本                                     |

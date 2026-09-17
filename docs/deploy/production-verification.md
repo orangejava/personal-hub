@@ -216,8 +216,9 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 ```
 
-如果页面仍显示 Fake，确认 `AI_TEXT_PROVIDER` 为
-`openai_compatible`，并确认模型 ID 来自 OpenRouter 当前模型列表。
+如果页面仍显示内置演示模型，确认 `AI_TEXT_PROVIDER` 为
+`openai_compatible`、模型 ID 来自 OpenRouter 当前模型列表，然后执行 runbook §7.4 的
+`sync-ai-catalog.ts`。这一步只同步 AI 目录，不会输出 API Key 或重跑完整 seed。
 
 ## 10. Worker 和异步任务
 

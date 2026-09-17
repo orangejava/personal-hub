@@ -2,13 +2,13 @@ import {
   AiModality,
   AiNavGroup,
   AiNavStatus,
-  AiQuotaTransactionType,
   AiTemplateStatus,
   AiToolCode,
   AiToolGroup,
   AiToolStatus,
   PrismaClient,
 } from '@prisma/client';
+import { grantVerificationQuotaIfMissing } from './ai-quota';
 
 const TEXT_SCENARIOS = [
   { scenario: 'write', title: '写作辅助', prompt: '根据主题写出结构清晰的文章。' },
@@ -19,110 +19,149 @@ const TEXT_SCENARIOS = [
   { scenario: 'custom', title: '自定义', prompt: '严格遵循用户指令。' },
 ] as const;
 
-/**
- * 写入 Fake Provider 与默认可运营目录。可重复执行。
- */
-export async function seedAiCatalog(client: PrismaClient): Promise<void> {
-  const provider = await client.aiProvider.upsert({
-    where: { code: 'fake' },
-    create: {
-      code: 'fake',
-      label: 'Fake Provider',
-      enabled: true,
-      authEnvKey: null,
-      timeoutMs: 15000,
-    },
-    update: { label: 'Fake Provider', enabled: true },
-  });
+export interface SeedAiCatalogOptions {
+  /** 初始基线可以重置默认权益；生产配置同步只替换已淘汰的文本模型 ID。 */
+  resetEntitlements?: boolean;
+  /** 只有初始/本地 seed 才为现有用户补齐首发额度；生产目录同步不触碰账本。 */
+  grantMissingQuota?: boolean;
+  /**
+   * 生产同步必须保留后台运营配置，只切换受控文本模型及其关联。
+   * 初始/本地 seed 不传该项，仍写入完整基线目录。
+   */
+  preserveOperationalConfig?: boolean;
+}
 
-  const chatModel = await upsertModel(client, provider.id, {
+/**
+ * 写入与当前文本 Provider 对齐的 AI 目录。可重复执行。
+ *
+ * API Key 始终只存在环境变量；目录表只保存其变量名，供后台展示配置状态。
+ */
+export async function seedAiCatalog(
+  client: PrismaClient,
+  options: SeedAiCatalogOptions = {},
+): Promise<void> {
+  const realTextCatalog = readRealTextCatalog();
+  const preserveOperationalConfig = options.preserveOperationalConfig ?? false;
+  const fakeProvider = await upsertFakeProvider(
+    client,
+    realTextCatalog !== null,
+    preserveOperationalConfig,
+  );
+
+  const fakeChatModel = await upsertModel(client, fakeProvider.id, {
     modelKey: 'fake-chat',
-    displayName: 'Fake Chat',
+    displayName: '内置对话演示',
     toolTypes: [AiToolCode.CHAT, AiToolCode.TEXT],
     modality: AiModality.TEXT,
     guestAllowed: true,
-    isDefault: true,
+    isDefault: !realTextCatalog,
     inputPricePer1k: 1,
     outputPricePer1k: 2,
     maxReserveAmount: 800,
+    enabled: !realTextCatalog,
+    userVisible: !realTextCatalog,
   });
-  const imageModel = await upsertModel(client, provider.id, {
-    modelKey: 'fake-image',
-    displayName: 'Fake Image',
-    toolTypes: [AiToolCode.IMAGE],
-    modality: AiModality.IMAGE,
-    guestAllowed: false,
-    isDefault: true,
-    inputPricePer1k: 0,
-    outputPricePer1k: 0,
-    fixedPlatformCost: 500,
-    maxReserveAmount: 500,
-    supportsStreaming: false,
-  });
-  const videoModel = await upsertModel(client, provider.id, {
-    modelKey: 'fake-video',
-    displayName: 'Fake Video',
-    toolTypes: [AiToolCode.VIDEO],
-    modality: AiModality.VIDEO,
-    guestAllowed: false,
-    isDefault: true,
-    enabled: true,
-    userVisible: true,
-    inputPricePer1k: 0,
-    outputPricePer1k: 0,
-    fixedPlatformCost: 800,
-    maxReserveAmount: 800,
-    supportsStreaming: false,
-  });
+  const imageModel = await upsertModel(
+    client,
+    fakeProvider.id,
+    {
+      modelKey: 'fake-image',
+      displayName: '图片生成（占位）',
+      toolTypes: [AiToolCode.IMAGE],
+      modality: AiModality.IMAGE,
+      guestAllowed: false,
+      isDefault: true,
+      inputPricePer1k: 0,
+      outputPricePer1k: 0,
+      fixedPlatformCost: 500,
+      maxReserveAmount: 500,
+      supportsStreaming: false,
+    },
+    preserveOperationalConfig,
+  );
+  const videoModel = await upsertModel(
+    client,
+    fakeProvider.id,
+    {
+      modelKey: 'fake-video',
+      displayName: '视频生成（占位）',
+      toolTypes: [AiToolCode.VIDEO],
+      modality: AiModality.VIDEO,
+      guestAllowed: false,
+      isDefault: true,
+      enabled: true,
+      userVisible: true,
+      inputPricePer1k: 0,
+      outputPricePer1k: 0,
+      fixedPlatformCost: 800,
+      maxReserveAmount: 800,
+      supportsStreaming: false,
+    },
+    preserveOperationalConfig,
+  );
 
-  await upsertTool(client, {
-    code: AiToolCode.CHAT,
-    name: 'AI 对话',
-    description: '多会话流式对话',
-    icon: 'robot',
-    sortOrder: 10,
-    requiresLogin: false,
-    guestTrialEnabled: true,
-    groupName: AiToolGroup.CREATE,
-    defaultModelId: chatModel.id,
-    status: AiToolStatus.ENABLED,
-  });
-  await upsertTool(client, {
-    code: AiToolCode.TEXT,
-    name: '文本生成',
-    description: '按场景生成或改写文本',
-    icon: 'edit',
-    sortOrder: 20,
-    requiresLogin: false,
-    guestTrialEnabled: true,
-    groupName: AiToolGroup.CREATE,
-    defaultModelId: chatModel.id,
-    status: AiToolStatus.ENABLED,
-  });
-  await upsertTool(client, {
-    code: AiToolCode.IMAGE,
-    name: '图片生成',
-    description: '文生图异步任务',
-    icon: 'picture',
-    sortOrder: 30,
-    requiresLogin: true,
-    guestTrialEnabled: false,
-    groupName: AiToolGroup.CREATE,
-    defaultModelId: imageModel.id,
-    status: AiToolStatus.ENABLED,
-  });
-  await upsertTool(client, {
-    code: AiToolCode.VIDEO,
-    name: '视频生成',
-    description: '文生视频异步任务',
-    icon: 'videoCamera',
-    sortOrder: 40,
-    requiresLogin: true,
-    guestTrialEnabled: false,
-    groupName: AiToolGroup.CREATE,
-    defaultModelId: videoModel.id,
-    status: AiToolStatus.COMING_SOON,
-  });
+  const chatModel = realTextCatalog
+    ? await upsertRealTextModel(client, realTextCatalog, preserveOperationalConfig)
+    : fakeChatModel;
+
+  await upsertTool(
+    client,
+    {
+      code: AiToolCode.CHAT,
+      name: 'AI 对话',
+      description: '多会话流式对话',
+      icon: 'robot',
+      sortOrder: 10,
+      requiresLogin: false,
+      guestTrialEnabled: true,
+      groupName: AiToolGroup.CREATE,
+      defaultModelId: chatModel.id,
+      status: AiToolStatus.ENABLED,
+    },
+    preserveOperationalConfig,
+  );
+  await upsertTool(
+    client,
+    {
+      code: AiToolCode.TEXT,
+      name: '文本生成',
+      description: '按场景生成或改写文本',
+      icon: 'edit',
+      sortOrder: 20,
+      requiresLogin: false,
+      guestTrialEnabled: true,
+      groupName: AiToolGroup.CREATE,
+      defaultModelId: chatModel.id,
+      status: AiToolStatus.ENABLED,
+    },
+    preserveOperationalConfig,
+  );
+  if (!preserveOperationalConfig) {
+    await upsertTool(client, {
+      code: AiToolCode.IMAGE,
+      name: '图片生成',
+      description: '文生图异步任务',
+      icon: 'picture',
+      sortOrder: 30,
+      requiresLogin: true,
+      guestTrialEnabled: false,
+      groupName: AiToolGroup.CREATE,
+      defaultModelId: imageModel.id,
+      status: AiToolStatus.ENABLED,
+    });
+    await upsertTool(client, {
+      code: AiToolCode.VIDEO,
+      name: '视频生成',
+      description: '文生视频异步任务',
+      icon: 'videoCamera',
+      sortOrder: 40,
+      requiresLogin: true,
+      guestTrialEnabled: false,
+      groupName: AiToolGroup.CREATE,
+      defaultModelId: videoModel.id,
+      status: AiToolStatus.COMING_SOON,
+    });
+  }
 
   for (const [index, item] of TEXT_SCENARIOS.entries()) {
     await client.aiTemplate.upsert({
@@ -139,30 +178,41 @@ export async function seedAiCatalog(client: PrismaClient): Promise<void> {
         sortOrder: (index + 1) * 10,
         modelId: chatModel.id,
       },
-      update: {
-        title: item.title,
-        prompt: item.prompt,
-        status: AiTemplateStatus.ENABLED,
-      },
+      update: preserveOperationalConfig
+        ? { modelId: chatModel.id }
+        : {
+            title: item.title,
+            prompt: item.prompt,
+            status: AiTemplateStatus.ENABLED,
+            modelId: chatModel.id,
+          },
+    });
+  }
+
+  if (realTextCatalog) {
+    // 已有会话仍引用旧文本演示模型时，继续发送会被禁用模型拦住；只替换该受控默认模型。
+    await client.aiConversation.updateMany({
+      where: { modelId: fakeChatModel.id },
+      data: { modelId: chatModel.id },
     });
   }
 
   const modelIds = [chatModel.id, imageModel.id, videoModel.id];
   const toolCodes = [AiToolCode.CHAT, AiToolCode.TEXT, AiToolCode.IMAGE, AiToolCode.VIDEO];
-  await client.aiEntitlement.updateMany({
-    data: {
-      maxConcurrent: 2,
-      rpm: 30,
-      rpd: 300,
-      guestRpm: 5,
-      guestRpd: 20,
-      allowedModelIds: modelIds,
-      allowedToolCodes: toolCodes,
-    },
+  await syncEntitlements(client, {
+    reset: options.resetEntitlements ?? true,
+    modelIds,
+    oldTextModelId: fakeChatModel.id,
+    newTextModelId: chatModel.id,
+    toolCodes,
   });
 
-  await grantSeedQuotaAccounts(client);
-  await seedAiNavigation(client);
+  if (options.grantMissingQuota ?? true) {
+    await grantSeedQuotaAccounts(client);
+  }
+  if (!preserveOperationalConfig) {
+    await seedAiNavigation(client);
+  }
 }
 
 /**
@@ -467,35 +517,183 @@ async function upsertNav(
 async function grantSeedQuotaAccounts(client: PrismaClient): Promise<void> {
   const users = await client.user.findMany({ select: { id: true, roleId: true } });
   for (const user of users) {
-    const entitlement = await client.aiEntitlement.findUnique({ where: { roleId: user.roleId } });
-    const amount = entitlement?.verificationGrantAmount ?? 0n;
-    const account = await client.aiQuotaAccount.upsert({
-      where: { userId: user.id },
-      create: { userId: user.id, availableAmount: 0n, reservedAmount: 0n },
-      update: {},
-    });
-    const idempotencyKey = `email-verify-grant:${user.id}`;
-    const existing = await client.aiQuotaTransaction.findUnique({ where: { idempotencyKey } });
-    if (existing !== null || amount <= 0n) {
-      continue;
-    }
-    const nextAvailable = account.availableAmount + amount;
-    await client.aiQuotaAccount.update({
-      where: { id: account.id },
-      data: { availableAmount: nextAvailable, version: { increment: 1 } },
-    });
-    await client.aiQuotaTransaction.create({
+    await grantVerificationQuotaIfMissing(client, user, 'SEED_LOCAL_GRANT');
+  }
+}
+
+/**
+ * 初始 seed 写入基线权益；已运行生产环境只替换受控模型 ID，避免覆盖运营已调过的额度和限流。
+ */
+async function syncEntitlements(
+  client: PrismaClient,
+  input: {
+    reset: boolean;
+    modelIds: string[];
+    oldTextModelId: string;
+    newTextModelId: string;
+    toolCodes: AiToolCode[];
+  },
+): Promise<void> {
+  if (input.reset) {
+    await client.aiEntitlement.updateMany({
       data: {
-        accountId: account.id,
-        type: AiQuotaTransactionType.GRANT,
-        amount,
-        availableBalanceAfter: nextAvailable,
-        reservedBalanceAfter: account.reservedAmount,
-        source: 'SEED_LOCAL_GRANT',
-        idempotencyKey,
+        maxConcurrent: 2,
+        rpm: 30,
+        rpd: 300,
+        guestRpm: 5,
+        guestRpd: 20,
+        allowedModelIds: input.modelIds,
+        allowedToolCodes: input.toolCodes,
       },
     });
+    return;
   }
+
+  const entitlements = await client.aiEntitlement.findMany({
+    select: { id: true, allowedModelIds: true },
+  });
+  for (const entitlement of entitlements) {
+    const currentModelIds = Array.isArray(entitlement.allowedModelIds)
+      ? entitlement.allowedModelIds.filter((id): id is string => typeof id === 'string')
+      : null;
+    if (currentModelIds === null) {
+      continue;
+    }
+    const next = [
+      ...new Set(
+        currentModelIds.map((id) =>
+          id === input.oldTextModelId ? input.newTextModelId : String(id),
+        ),
+      ),
+    ];
+    if (
+      next.length !== currentModelIds.length ||
+      next.some((id, index) => id !== currentModelIds[index])
+    ) {
+      await client.aiEntitlement.update({
+        where: { id: entitlement.id },
+        data: { allowedModelIds: next },
+      });
+    }
+  }
+}
+
+interface RealTextCatalog {
+  baseUrl: string;
+  modelKey: string;
+}
+
+/**
+ * 初始 seed 负责补齐完整 Provider 基线；生产同步不改后台可能已调整的 Provider 开关和文案。
+ */
+async function upsertFakeProvider(
+  client: PrismaClient,
+  realTextCatalogEnabled: boolean,
+  preserveOperationalConfig: boolean,
+) {
+  const existing = await client.aiProvider.findUnique({ where: { code: 'fake' } });
+  if (existing && preserveOperationalConfig) {
+    return existing;
+  }
+  const label = realTextCatalogEnabled ? '内置媒体占位服务' : '内置演示服务';
+  if (existing) {
+    return client.aiProvider.update({
+      where: { id: existing.id },
+      data: { label, enabled: true, authEnvKey: null },
+    });
+  }
+  return client.aiProvider.create({
+    data: {
+      code: 'fake',
+      label,
+      enabled: true,
+      authEnvKey: null,
+      timeoutMs: 15000,
+    },
+  });
+}
+
+/**
+ * 仅当三项真实上游配置均存在时切换文本目录，避免半填环境把可用 Fake 目录误关掉。
+ */
+function readRealTextCatalog(): RealTextCatalog | null {
+  if (process.env.AI_TEXT_PROVIDER !== 'openai_compatible') {
+    return null;
+  }
+  const baseUrl = process.env.AI_OPENAI_BASE_URL?.trim();
+  const modelKey = process.env.AI_OPENAI_MODEL?.trim();
+  const apiKey = process.env.AI_OPENAI_API_KEY?.trim();
+  if (!baseUrl || !modelKey || !apiKey) {
+    throw new Error(
+      'AI_TEXT_PROVIDER=openai_compatible 时必须同时设置 AI_OPENAI_BASE_URL、AI_OPENAI_API_KEY、AI_OPENAI_MODEL。',
+    );
+  }
+  return { baseUrl, modelKey };
+}
+
+/** 把文本模型目录绑定到已验证的 OpenAI-compatible 运行时配置。 */
+async function upsertRealTextModel(
+  client: PrismaClient,
+  catalog: RealTextCatalog,
+  preserveOperationalConfig: boolean,
+) {
+  const existingProvider = await client.aiProvider.findUnique({
+    where: { code: 'openai-compatible' },
+  });
+  const provider = existingProvider
+    ? await client.aiProvider.update({
+        where: { id: existingProvider.id },
+        // Base URL 是部署环境的事实来源；其它字段由后台运营配置负责。
+        data: preserveOperationalConfig
+          ? { baseUrl: catalog.baseUrl }
+          : {
+              label: 'OpenAI 兼容文本服务',
+              baseUrl: catalog.baseUrl,
+              enabled: true,
+              authEnvKey: 'AI_OPENAI_API_KEY',
+            },
+      })
+    : await client.aiProvider.create({
+        data: {
+          code: 'openai-compatible',
+          label: 'OpenAI 兼容文本服务',
+          baseUrl: catalog.baseUrl,
+          enabled: true,
+          authEnvKey: 'AI_OPENAI_API_KEY',
+        },
+      });
+  const model = await upsertModel(
+    client,
+    provider.id,
+    {
+      modelKey: catalog.modelKey,
+      displayName: catalog.modelKey,
+      toolTypes: [AiToolCode.CHAT, AiToolCode.TEXT],
+      modality: AiModality.TEXT,
+      guestAllowed: true,
+      isDefault: true,
+      inputPricePer1k: 1,
+      outputPricePer1k: 2,
+      maxReserveAmount: 800,
+    },
+    preserveOperationalConfig,
+  );
+  if (preserveOperationalConfig) {
+    // 运行时只读取当前环境变量中的模型；切换模型时必须清掉同 Provider 的旧默认标记。
+    await client.aiModel.updateMany({
+      where: {
+        providerId: provider.id,
+        id: { not: model.id },
+        isDefault: true,
+        toolTypes: { hasSome: [AiToolCode.CHAT, AiToolCode.TEXT] },
+      },
+      data: { isDefault: false },
+    });
+    if (!model.isDefault) {
+      return client.aiModel.update({ where: { id: model.id }, data: { isDefault: true } });
+    }
+  }
+  return model;
 }
 
 async function upsertModel(
@@ -516,11 +714,15 @@ async function upsertModel(
     enabled?: boolean;
     userVisible?: boolean;
   },
+  preserveOperationalConfig = false,
 ) {
   const existing = await client.aiModel.findUnique({
     where: { providerId_modelKey: { providerId, modelKey: input.modelKey } },
   });
   if (existing) {
+    if (preserveOperationalConfig) {
+      return existing;
+    }
     return client.aiModel.update({
       where: { id: existing.id },
       data: {
@@ -560,18 +762,21 @@ async function upsertTool(
     defaultModelId: string;
     status: AiToolStatus;
   },
+  preserveOperationalConfig = false,
 ) {
   return client.aiTool.upsert({
     where: { code: input.code },
     create: input,
-    update: {
-      name: input.name,
-      description: input.description,
-      status: input.status,
-      defaultModelId: input.defaultModelId,
-      requiresLogin: input.requiresLogin,
-      guestTrialEnabled: input.guestTrialEnabled,
-      sortOrder: input.sortOrder,
-    },
+    update: preserveOperationalConfig
+      ? { defaultModelId: input.defaultModelId }
+      : {
+          name: input.name,
+          description: input.description,
+          status: input.status,
+          defaultModelId: input.defaultModelId,
+          requiresLogin: input.requiresLogin,
+          guestTrialEnabled: input.guestTrialEnabled,
+          sortOrder: input.sortOrder,
+        },
   });
 }

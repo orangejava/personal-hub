@@ -1,6 +1,7 @@
 import { PrismaClient, RoleCode, UserStatus } from '@prisma/client';
 import { normalizeEmail } from '../modules/auth/email';
 import { assertPasswordPolicy, hashPassword } from '../modules/auth/password';
+import { grantVerificationQuotaIfMissing } from '../../prisma/ai-quota';
 
 const prisma = new PrismaClient();
 const BOOTSTRAP_LOCK_KEY = 20_260_809_001n;
@@ -97,6 +98,8 @@ export async function bootstrapSuperAdmin(
         expiresAt,
       },
     });
+
+    await grantVerificationQuotaIfMissing(tx, user, 'SUPER_ADMIN_BOOTSTRAP');
 
     return { userId: user.id, created: existingUser === null };
   });

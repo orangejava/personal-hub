@@ -57,13 +57,25 @@ docker compose --env-file .env.prod -f compose.prod.yml config --quiet  # 只校
 
 ### 1.2 构建、启动和检查
 
-没有 Prisma migration 的普通发布可以直接启动全部服务：
+没有 Prisma migration 的普通发布可以直接更新全部运行服务：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml up --build -d  # --build 重建镜像；-d 后台运行
 docker compose --env-file .env.prod -f compose.prod.yml ps
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=100 server  # 先看最近启动日志，不要一上来 -f 卡住终端
 ```
+
+日常代码发布通常只需更新应用服务，不需要主动重建 PostgreSQL、Redis：
+
+```bash
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d server server-worker nginx
+# 同时更新 API、异步任务和容器内 Nginx（其中 Nginx 镜像包含用户端、管理端静态文件）
+```
+
+这条命令会为三个指定服务构建镜像，并替换镜像或配置已变化的目标容器；已有的 PostgreSQL、Redis
+容器和它们的 named volume 不会被删除或重建。适用于一次提交同时改到后端、Worker 或 Web 前端的
+场景。服务即使本次没有变更也可以包含在命令中，Compose 会保留无需替换的现有容器；若只改一个服务，
+见第 2.2 节的“按变更范围更新”。
 
 如果本次包含 Prisma migration，必须先只启动依赖和 HTTP `server`，执行迁移后再启动
 `server-worker` 与 Nginx。`server` 的 `ready` 会查询已迁移的数据库，因此迁移前不能把
@@ -76,7 +88,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 docker compose --env-file .env.prod -f compose.prod.yml up --build -d
 ```
 
-只有修改前端构建、Dockerfile 或依赖时才需要 `--build`。普通重启使用：
+只有修改前端构建、Dockerfile、依赖或任一服务的应用代码时才需要 `--build`。普通重启使用：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml up -d  # 不重建镜像，只按当前配置启动或更新容器
@@ -104,7 +116,21 @@ df -h
 free -h
 ```
 
-### 2.2 重启单个服务
+### 2.2 按变更范围更新或重启单个服务
+
+`restart` 只重启现有容器，不会构建镜像、不会读取刚 `git pull` 的应用代码，也不会让 Nginx
+获得新前端静态文件。因此它用于临时故障恢复，而不是代码发布。代码或镜像内容变更时使用
+`up --build -d <服务>`；仅运行中的进程异常且镜像、环境变量均未变化时才使用 `restart <服务>`。
+
+| 变更内容                                                                 | 执行命令                                                                                              | 说明                                                                                       |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 同时改后端、Worker、前端或 Nginx                                         | `docker compose --env-file .env.prod -f compose.prod.yml up --build -d server server-worker nginx`    | 常用完整应用发布；不重建 PostgreSQL/Redis。                                                |
+| 只改 Nest API                                                            | `docker compose --env-file .env.prod -f compose.prod.yml up --build -d server`                        | 仅替换 API；Worker 仍运行旧代码。                                                          |
+| 只改异步任务代码                                                         | `docker compose --env-file .env.prod -f compose.prod.yml up --build -d server-worker`                 | 仅替换 Worker。                                                                            |
+| 只改用户端、管理端构建或 Nginx 配置                                      | `docker compose --env-file .env.prod -f compose.prod.yml up --build -d nginx`                         | Nginx 镜像包含 Web 静态文件，因此会发布前端。                                              |
+| 只改 `.env.prod` 中 server/worker 使用的变量（不含 `PUBLIC_APP_ORIGIN`） | `docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate server server-worker` | 必须重建容器读取新环境变量；不是 `restart`。                                               |
+| 改 `PUBLIC_APP_ORIGIN`                                                   | `docker compose --env-file .env.prod -f compose.prod.yml up --build -d server server-worker nginx`    | 它既是 server/worker 运行时变量，也是用户端/管理端构建期跳转 Origin；必须重建 Nginx 镜像。 |
+| 服务进程临时卡住，代码和配置未变                                         | `docker compose --env-file .env.prod -f compose.prod.yml restart <服务>`                              | 仅恢复指定旧容器进程。                                                                     |
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml restart server          # 只重启 API，不碰数据库 volume
@@ -309,7 +335,17 @@ docker compose --env-file .env.prod -f compose.prod.yml exec \
 ```
 
 使用公网 IP 登录后，立即修改一次性密码。该命令重复执行通常会因为已有 active
-super admin 而失败。
+super admin 而失败。新版本会在同一事务中为该账号补齐角色的首次 AI 额度。
+
+如果超级管理员是在旧版本部署时已经创建，并且页面显示 `0 Token`，不要重置密码或重跑完整
+seed。更新镜像后，仅执行以下幂等修复一次；它只会为指定 active super_admin 补缺失的首发
+额度，重复执行不会再次赠送：
+
+```bash
+docker compose --env-file .env.prod -f compose.prod.yml exec \
+  -e SUPER_ADMIN_EMAIL='<生产超级管理员邮箱>' \
+  server npx tsx src/cli/repair-super-admin-ai-quota.ts
+```
 
 ### 3.6 第二阶段：启动 worker 与 Nginx
 
@@ -618,6 +654,17 @@ AI_OPENAI_TIMEOUT_MS=60000
 docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate server server-worker  # 环境变量变更后必须重建容器才会生效
 ```
 
+然后同步 AI 目录。不要改数据库或重跑会写样例内容的完整 `prisma/seed.ts`：
+
+```bash
+docker compose --env-file .env.prod -f compose.prod.yml exec server \
+  npx tsx src/cli/sync-ai-catalog.ts
+```
+
+该命令会将 Chat/Text 的默认模型切换为 `.env.prod` 中的 `AI_OPENAI_MODEL`，更新角色权益中旧
+文本演示模型的 ID，并保留后台已配置的工具开关、访客试用、排序、模型可见性、价格、模板状态、
+额度和限流。图片、视频目前仍是内置占位实现，不会因为填写文本 AI 配置而变成真实生成服务。
+
 确认 `server` 容器收到配置，但不要打印 API Key：
 
 ```bash
@@ -636,12 +683,14 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 7. 检查服务日志不出现 API Key；
 8. 连续发送两次请求，确认不会重复扣除或产生异常账本记录。
 
-如果 AI 页面仍显示 Fake，优先检查：
+如果 AI 页面仍显示内置演示模型或没有出现当前模型名，优先检查：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
   env | awk -F= '/^AI_TEXT_PROVIDER=|^AI_OPENAI_MODEL=|^AI_OPENAI_BASE_URL=/ {print $1 "=" $2}'  # 仍是 fake 时先看这三项是否进了容器
+docker compose --env-file .env.prod -f compose.prod.yml exec server \
+  npx tsx src/cli/sync-ai-catalog.ts  # 环境已正确时重新同步目录；不输出 API Key
 ```
 
 如果厂商不是 OpenAI-compatible，不能只填地址，需要后续增加独立 Provider 适配器。

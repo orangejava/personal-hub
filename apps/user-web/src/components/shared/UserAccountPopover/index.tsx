@@ -1,9 +1,4 @@
-import {
-  CrownOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-  UserOutlined,
-} from '@ant-design/icons';
+import { CrownOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
 import { Link, useModel } from '@umijs/max';
 import { Avatar, Button, Popover } from 'antd';
 import React from 'react';
@@ -43,13 +38,12 @@ function AccountActions({
   admin: boolean;
   onLogout: () => void;
 }) {
-  const actionClass =
-    variant === 'ai' ? 'ph-ai-user-card-actions' : 'ph-user-account-card-actions';
+  const actionClass = variant === 'ai' ? 'ph-ai-user-card-actions' : 'ph-user-account-card-actions';
   return (
     <div className={actionClass}>
       <Link to={variant === 'ai' ? '/ai/profile' : '/workspace/profile'}>
         <UserOutlined />
-        个人中心
+        {variant === 'ai' ? 'AI 个人中心' : '个人设置'}
       </Link>
       <Link to="/workspace">
         <SettingOutlined />
@@ -182,10 +176,7 @@ const UserAccountPopover: React.FC<UserAccountPopoverProps> = ({
       trigger={['hover', 'click']}
     >
       {children ?? (
-        <Button
-          className={triggerClassName ?? 'ph-user-account-trigger'}
-          type="text"
-        >
+        <Button className={triggerClassName ?? 'ph-user-account-trigger'} type="text">
           <Avatar size={28} src={user.avatar} icon={<UserOutlined />} />
           <span>{displayName}</span>
         </Button>

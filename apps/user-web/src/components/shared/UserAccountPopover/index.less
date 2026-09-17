@@ -77,3 +77,29 @@
 .ph-user-account-card-actions button:hover {
   background: rgba(15, 23, 42, 0.06);
 }
+
+// Popover 通过 portal 挂到 body，必须从 html 级别的主题 class 覆盖，不能依赖公开布局祖先。
+.ph-theme-dark .ph-user-account-popover .ant-popover-inner {
+  background: #1f1f1f;
+  color: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.ph-theme-dark .ph-user-account-card-header,
+.ph-theme-dark .ph-user-account-card-quota {
+  background: #141414;
+}
+
+.ph-theme-dark .ph-user-account-card-header span,
+.ph-theme-dark .ph-user-account-card-quota span {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.ph-theme-dark .ph-user-account-card-split {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.ph-theme-dark .ph-user-account-card-actions a:hover,
+.ph-theme-dark .ph-user-account-card-actions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}

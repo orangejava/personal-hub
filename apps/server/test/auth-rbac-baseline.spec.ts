@@ -1,12 +1,22 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import argon2 from 'argon2';
-import { DataScope, PrismaClient, RoleCode, UserStatus } from '@prisma/client';
+import {
+  AiTemplateStatus,
+  AiToolCode,
+  AiToolStatus,
+  DataScope,
+  PrismaClient,
+  RoleCode,
+  UserStatus,
+} from '@prisma/client';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { bootstrapSuperAdmin } from '../src/cli/bootstrap-super-admin';
+import { repairSuperAdminAiQuota } from '../src/cli/repair-super-admin-ai-quota';
 import { LOCAL_DEV_PASSWORD, seedLocalDevUsers } from '../src/cli/seed-local-dev-users';
 import { PERMISSION_CATALOG, SYSTEM_ROLE_PERMISSIONS } from '../src/modules/auth/rbac-catalog';
+import { seedAiCatalog } from '../prisma/seed-ai';
 import { runBaselineSeed, SYSTEM_MENUS } from '../prisma/seed';
 
 const serverDirectory = resolve(__dirname, '..');
@@ -103,6 +113,13 @@ describe('Auth/RBAC M1 数据基线', () => {
     expect(owner.mustChangePassword).toBe(true);
     await expect(argon2.verify(owner.passwordHash, 'OneTimePassword!1')).resolves.toBe(true);
     expect(owner.auditLogs).toHaveLength(1);
+    await expect(
+      prisma.aiQuotaAccount.findUniqueOrThrow({ where: { userId: owner.id } }),
+    ).resolves.toMatchObject({ availableAmount: 10000n, reservedAmount: 0n });
+    await expect(repairSuperAdminAiQuota(prisma, owner.email)).resolves.toEqual({
+      granted: false,
+      amount: 0n,
+    });
 
     await expect(
       bootstrapSuperAdmin(prisma, {
@@ -118,6 +135,93 @@ describe('Auth/RBAC M1 数据基线', () => {
         },
       }),
     ).resolves.toBe(1);
+  });
+
+  it('生产 AI 目录同步保留后台运营配置，仅切换受控文本模型', async () => {
+    await runBaselineSeed(prisma);
+    const originalEnv = {
+      AI_TEXT_PROVIDER: process.env.AI_TEXT_PROVIDER,
+      AI_OPENAI_BASE_URL: process.env.AI_OPENAI_BASE_URL,
+      AI_OPENAI_API_KEY: process.env.AI_OPENAI_API_KEY,
+      AI_OPENAI_MODEL: process.env.AI_OPENAI_MODEL,
+    };
+    process.env.AI_TEXT_PROVIDER = 'openai_compatible';
+    process.env.AI_OPENAI_BASE_URL = 'https://api.example.com/v1';
+    process.env.AI_OPENAI_API_KEY = 'test-key';
+    process.env.AI_OPENAI_MODEL = 'test-real-model';
+
+    try {
+      await prisma.aiTool.update({
+        where: { code: AiToolCode.CHAT },
+        data: {
+          status: AiToolStatus.DISABLED,
+          requiresLogin: true,
+          guestTrialEnabled: false,
+          sortOrder: 999,
+        },
+      });
+      await prisma.aiTemplate.update({
+        where: { id: '00000000-0000-4000-8000-000000000000' },
+        data: { status: AiTemplateStatus.DISABLED, prompt: '运营停用的模板' },
+      });
+
+      await seedAiCatalog(prisma, {
+        resetEntitlements: false,
+        grantMissingQuota: false,
+        preserveOperationalConfig: true,
+      });
+
+      const realModel = await prisma.aiModel.findFirstOrThrow({
+        where: { provider: { code: 'openai-compatible' }, modelKey: 'test-real-model' },
+      });
+      const fakeChat = await prisma.aiModel.findFirstOrThrow({
+        where: { provider: { code: 'fake' }, modelKey: 'fake-chat' },
+      });
+      const chatTool = await prisma.aiTool.findUniqueOrThrow({ where: { code: AiToolCode.CHAT } });
+      const template = await prisma.aiTemplate.findUniqueOrThrow({
+        where: { id: '00000000-0000-4000-8000-000000000000' },
+      });
+      expect(fakeChat).toMatchObject({ enabled: false, userVisible: false, isDefault: false });
+      expect(chatTool).toMatchObject({
+        status: AiToolStatus.DISABLED,
+        requiresLogin: true,
+        guestTrialEnabled: false,
+        sortOrder: 999,
+        defaultModelId: realModel.id,
+      });
+      expect(template).toMatchObject({
+        status: AiTemplateStatus.DISABLED,
+        prompt: '运营停用的模板',
+        modelId: realModel.id,
+      });
+
+      await prisma.aiModel.update({
+        where: { id: realModel.id },
+        data: { enabled: false, userVisible: false, guestAllowed: false, inputPricePer1k: 99 },
+      });
+      await seedAiCatalog(prisma, {
+        resetEntitlements: false,
+        grantMissingQuota: false,
+        preserveOperationalConfig: true,
+      });
+      await expect(
+        prisma.aiModel.findUniqueOrThrow({ where: { id: realModel.id } }),
+      ).resolves.toMatchObject({
+        enabled: false,
+        userVisible: false,
+        guestAllowed: false,
+        inputPricePer1k: 99,
+        isDefault: true,
+      });
+    } finally {
+      for (const [key, value] of Object.entries(originalEnv)) {
+        if (value === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
+      }
+    }
   });
 
   it('禁止在生产环境写入本地开发账号', async () => {

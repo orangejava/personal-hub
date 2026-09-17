@@ -3,6 +3,11 @@
 FROM node:22-bookworm-slim AS web-build
 
 WORKDIR /app
+# Umi 会在构建时内联这两个公开 Origin；不得在这里传入 API Key 等密钥。
+ARG UMI_APP_USER_WEB_ORIGIN
+ARG UMI_APP_ADMIN_WEB_ORIGIN
+ENV UMI_APP_USER_WEB_ORIGIN=$UMI_APP_USER_WEB_ORIGIN
+ENV UMI_APP_ADMIN_WEB_ORIGIN=$UMI_APP_ADMIN_WEB_ORIGIN
 # 原 Debian 官方源安装命令保留作对照；腾讯云 CVM 实测下载过慢，当前不执行。
 # RUN apt-get update \
 #   && apt-get install -y --no-install-recommends python3 make g++ git ca-certificates \
