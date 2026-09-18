@@ -167,7 +167,9 @@ describe('AI HTTP', () => {
     expect(home.data?.models.length).toBeGreaterThan(0);
     expect(home.data?.templates.length).toBeGreaterThan(0);
 
-    const models = await json<Array<{ id: string; toolTypes: string[] }>>('/api/v1/public/ai/models');
+    const models = await json<Array<{ id: string; toolTypes: string[] }>>(
+      '/api/v1/public/ai/models',
+    );
     expect(models.data?.some((item) => item.toolTypes.includes('chat'))).toBe(true);
   });
 
@@ -198,15 +200,18 @@ describe('AI HTTP', () => {
     expect(stream.headers.get('content-type')).toContain('text/event-stream');
     const text = await stream.text();
     expect(text).toContain('STARTED');
+    expect(text).toContain('userMessageId');
+    expect(text).toContain('assistantMessageId');
+    expect(text).toContain('requestId');
     expect(text).toContain('DONE');
 
     const messages = await json<{ list: Array<{ role: string; status: string }> }>(
       `/api/v1/app/ai/sessions/${session.data?.id}/messages`,
       { token: memberToken },
     );
-    expect(messages.data?.list.some((item) => item.role === 'assistant' && item.status === 'done')).toBe(
-      true,
-    );
+    expect(
+      messages.data?.list.some((item) => item.role === 'assistant' && item.status === 'done'),
+    ).toBe(true);
   });
 
   it('额度不足时拒绝生成', async () => {
@@ -270,7 +275,13 @@ describe('AI HTTP', () => {
   it('后台可持久化品牌并配置导航显隐', async () => {
     const before = await json<{
       branding: { brandName: string; logoText: string };
-      navigation: Array<{ id: string; code: string; visible: boolean; status: string; version: number }>;
+      navigation: Array<{
+        id: string;
+        code: string;
+        visible: boolean;
+        status: string;
+        version: number;
+      }>;
     }>('/api/v1/admin/ai/config', { token: adminToken });
     await json('/api/v1/admin/ai/branding', {
       method: 'PATCH',
@@ -303,7 +314,8 @@ describe('AI HTTP', () => {
       '/api/v1/app/ai/models',
       { token: memberToken },
     );
-    const target = models.data?.find((item) => item.toolTypes?.includes('image')) ?? models.data?.[0];
+    const target =
+      models.data?.find((item) => item.toolTypes?.includes('image')) ?? models.data?.[0];
     expect(target).toBeTruthy();
     const config = await json<{ models: Array<{ id: string }> }>('/api/v1/admin/ai/config', {
       token: adminToken,
@@ -316,7 +328,9 @@ describe('AI HTTP', () => {
       headers: { 'Idempotency-Key': 'disable-model' },
       body: { enabled: false },
     });
-    const after = await json<Array<{ id: string }>>('/api/v1/app/ai/models', { token: memberToken });
+    const after = await json<Array<{ id: string }>>('/api/v1/app/ai/models', {
+      token: memberToken,
+    });
     expect(after.data?.some((item) => item.id === target?.id)).toBe(false);
   });
 
@@ -354,13 +368,15 @@ describe('AI HTTP', () => {
     const sessions = await json<{ list: Array<{ title: string }> }>('/api/v1/app/ai/sessions', {
       token: claimedToken,
     });
-    expect(sessions.data?.list.some((item) => item.title.includes('访客') || item.title.includes('聊'))).toBe(
-      true,
-    );
+    expect(
+      sessions.data?.list.some((item) => item.title.includes('访客') || item.title.includes('聊')),
+    ).toBe(true);
   });
 
   it('公开导航仍返回禁用和即将上线项', async () => {
-    const publicNav = await json<Array<{ code: string; status: string }>>('/api/v1/public/ai/navigation');
+    const publicNav = await json<Array<{ code: string; status: string }>>(
+      '/api/v1/public/ai/navigation',
+    );
     expect(publicNav.data?.find((item) => item.code === 'team')?.status).toBe('disabled');
     expect(publicNav.data?.find((item) => item.code === 'video')?.status).toBe('comingSoon');
     expect(publicNav.data?.find((item) => item.code === 'webui')).toBeUndefined();

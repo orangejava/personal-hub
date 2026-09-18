@@ -417,19 +417,20 @@ Chat/Text SSE 事件：
 
 ```text
 event: message
-data: {"type":"STARTED","assistantMessageId":"uuid","sessionId":"uuid"}
+data: {"type":"STARTED","requestId":"uuid","sessionId":"uuid","userMessageId":"uuid","assistantMessageId":"uuid"}
 
 event: message
 data: {"type":"DELTA","content":"增量文本"}
 
 event: message
-data: {"type":"DONE","usage":{"inputTokens":12,"outputTokens":20,"platformCost":32}}
+data: {"type":"DONE","requestId":"uuid","sessionId":"uuid","userMessageId":"uuid","assistantMessageId":"uuid","usage":{"inputTokens":12,"outputTokens":20,"platformCost":32}}
 
 event: message
-data: {"type":"ERROR","code":"AI_PROVIDER_FAILED"}
+data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uuid","assistantMessageId":"uuid","code":"AI_PROVIDER_FAILED","message":"AI 服务调用失败，请稍后重试"}
 ```
 
 - SSE 使用 `@SkipResponseEnvelope`，成功不是 `{ data }` 信封。
+- `sessionId`、`userMessageId`、`assistantMessageId` 和 `requestId` 均由服务端生成；前端仅可使用尚未收到 `STARTED` 前的临时 UI 键。
 - 停止只认显式 `POST .../stop` 或 `.../cancel`；关页不自动 stop，未结算预占靠 5 分钟 TTL 释放。
 - 额度不足 `409 AI_QUOTA_INSUFFICIENT`；并发/RPM `429 AI_CONCURRENCY_LIMITED`；会话互斥 `409 AI_GENERATION_IN_PROGRESS`。
 - 重新生成保留旧回复，使用 `variantGroupId` 关联候选，默认展示最新候选。

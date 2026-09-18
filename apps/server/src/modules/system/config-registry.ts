@@ -133,7 +133,12 @@ export const aiBrandingSchema = z.object({
 
 const filePurposePolicySchema = z.object({
   mimeTypes: z.array(z.string().max(127)).max(20).optional(),
-  maxBytes: z.number().int().positive().max(500 * 1024 * 1024).optional(),
+  maxBytes: z
+    .number()
+    .int()
+    .positive()
+    .max(500 * 1024 * 1024)
+    .optional(),
 });
 
 export const filePoliciesSchema = z.object({
@@ -241,7 +246,14 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
   } satisfies SiteHomepage,
   'site.about': {
     title: '关于我',
-    markdown: '',
+    markdown: `# 关于我
+
+一个正在搭建个人知识中台的开发者，把阅读、写作与 AI 工具沉淀到一个站点。
+
+## 联系
+
+- Email：oralemon@163.com
+- GitHub：[orangejava/personal-hub](https://github.com/orangejava/personal-hub)`,
   } satisfies SiteAbout,
   'site.navigation': {
     publicPosition: 'top',

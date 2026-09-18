@@ -165,6 +165,24 @@ export function useAiChatSessions({
     [currentSessionId],
   );
 
+  const updateMessagesForSession = useCallback(
+    (
+      sessionId: string,
+      messages: AiMessage[] | ((current: AiMessage[]) => AiMessage[]),
+    ) => {
+      setMessagesBySession((current) => {
+        const currentMessages = current[sessionId] ?? [];
+        const nextMessages =
+          typeof messages === 'function' ? messages(currentMessages) : messages;
+        if (nextMessages === currentMessages) {
+          return current;
+        }
+        return { ...current, [sessionId]: nextMessages };
+      });
+    },
+    [],
+  );
+
   const setSessionMessages = useCallback((sessionId: string, messages: AiMessage[]) => {
     setMessagesBySession((current) => ({ ...current, [sessionId]: messages }));
   }, []);
@@ -200,6 +218,35 @@ export function useAiChatSessions({
     [currentSessionId],
   );
 
+  const syncSessionAfterMessagesChangeFor = useCallback(
+    (sessionId: string, messages: AiMessage[]) => {
+      const lastMessage = messages.at(-1);
+      const totalTokens = messages.reduce(
+        (sum, message) =>
+          sum + (message.tokenCount ?? Math.max(20, Math.ceil(message.content.length / 2))),
+        0,
+      );
+      const firstUserMessage = messages.find((message) => message.role === 'user');
+      setSessions((current) =>
+        current.map((session) =>
+          session.id === sessionId
+            ? {
+                ...session,
+                title:
+                  session.messageCount === 0 && firstUserMessage
+                    ? firstUserMessage.content.slice(0, 20)
+                    : session.title,
+                messageCount: messages.length,
+                totalTokens,
+                lastMessageAt: lastMessage?.createdAt ?? session.lastMessageAt,
+              }
+            : session,
+        ),
+      );
+    },
+    [],
+  );
+
   return {
     sessions,
     currentSessionId,
@@ -210,7 +257,9 @@ export function useAiChatSessions({
     updateSessionSettings,
     deleteSession,
     updateCurrentMessages,
+    updateMessagesForSession,
     setSessionMessages,
     syncSessionAfterMessagesChange,
+    syncSessionAfterMessagesChangeFor,
   };
 }

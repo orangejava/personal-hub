@@ -27,8 +27,8 @@ const ABOUT_MD_FALLBACK = `# 关于我
 
 ## 联系
 
-- Email：hello@example.com
-- GitHub：personal-hub
+- Email：oralemon@163.com
+- GitHub：[orangejava/personal-hub](https://github.com/orangejava/personal-hub)
 `;
 
 /** 关于我：优先读公开 site-config 的 site.about，空正文回落内置草稿。 */

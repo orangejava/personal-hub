@@ -37,6 +37,7 @@ import type {
 } from '@personal-hub/shared-types';
 import {
   mapPublicSiteConfig,
+  newIdempotencyKey,
   readNestData,
   type NestEnvelope,
   type NestPublicSiteConfig,
@@ -79,10 +80,6 @@ interface SiteHomepageValue {
   featuredContent: HomepageConfig['featuredContent'];
   aiTools: HomepageConfig['aiTools'];
   techStack: HomepageConfig['techStack'];
-}
-
-function newIdempotencyKey(): string {
-  return crypto.randomUUID();
 }
 
 /** GET 跳过全局 toast：列表页用 ErrorState；启动拉取也不该弹窗。 */
@@ -147,10 +144,7 @@ function toHomepageConfig(value: SiteHomepageValue): HomepageConfig {
   };
 }
 
-function fromHomepageConfig(
-  current: SiteHomepageValue,
-  next: HomepageConfig,
-): SiteHomepageValue {
+function fromHomepageConfig(current: SiteHomepageValue, next: HomepageConfig): SiteHomepageValue {
   return {
     ...current,
     hero: {
@@ -174,7 +168,8 @@ function mapAdminMenuNode(node: AdminMenuNode): import('@personal-hub/shared-typ
     name: node.name,
     localeKey: node.localeKey ?? undefined,
     icon: node.icon ?? registry?.icon,
-    permissions: node.permissionCodes as import('@personal-hub/shared-types').MenuItem['permissions'],
+    permissions:
+      node.permissionCodes as import('@personal-hub/shared-types').MenuItem['permissions'],
     children: node.children?.map(mapAdminMenuNode),
   };
 }
@@ -238,10 +233,7 @@ export async function updateAdminAiBrandingConfig(data: AdminAiBrandingMutationI
   });
 }
 
-export async function updateAdminAiProviderConfig(
-  id: string,
-  data: AdminAiProviderMutationInput,
-) {
+export async function updateAdminAiProviderConfig(id: string, data: AdminAiProviderMutationInput) {
   return request<AdminAiProviderConfig>(`/api/v1/admin/ai/providers/${id}`, {
     method: 'PATCH',
     data: { name: data.name, baseUrl: data.baseUrl, enabled: data.enabled, apiKey: data.apiKey },
@@ -265,11 +257,15 @@ export async function updateAdminAiModelConfig(id: string, data: AdminAiModelMut
   });
 }
 
-export async function createAdminAiModelConfig(_data: AdminAiModelCreateInput): Promise<AdminAiModelConfig> {
+export async function createAdminAiModelConfig(
+  _data: AdminAiModelCreateInput,
+): Promise<AdminAiModelConfig> {
   throw new Error('本阶段不开放新增模型，请启停现有 Fake 模型');
 }
 
-export async function deleteAdminAiModelConfig(_id: AdminAiModelConfig['id']): Promise<AdminAiModelConfig> {
+export async function deleteAdminAiModelConfig(
+  _id: AdminAiModelConfig['id'],
+): Promise<AdminAiModelConfig> {
   throw new Error('本阶段不开放删除模型');
 }
 
@@ -379,7 +375,11 @@ export async function fetchAdminPermissions() {
   return request<AdminPermissionItem[]>('/api/v1/admin/permissions');
 }
 
-export async function updateAdminRolePermissions(code: string, permissions: string[], version: number) {
+export async function updateAdminRolePermissions(
+  code: string,
+  permissions: string[],
+  version: number,
+) {
   return request<AdminRoleRecord>(`/api/v1/admin/roles/${code}/permissions`, {
     method: 'PUT',
     data: { permissions, version },
@@ -632,7 +632,10 @@ export async function updateAdminSystemConfig(data: Partial<SystemPublicConfig>)
 export async function updateAdminSystemTheme(data: Partial<ThemeConfig>) {
   const groups = await loadAdminConfigGroups('site.theme');
   const row = groups[0];
-  const mode = data.mode === 'auto' || data.mode === 'light' || data.mode === 'dark' ? data.mode : row.value.mode;
+  const mode =
+    data.mode === 'auto' || data.mode === 'light' || data.mode === 'dark'
+      ? data.mode
+      : row.value.mode;
   await putAdminConfigGroup('site.theme', row.version, {
     ...row.value,
     colorPrimary: data.colorPrimary ?? row.value.colorPrimary,
@@ -669,7 +672,8 @@ export async function fetchAdminLayoutConfig(): Promise<SiteLayoutConfig> {
   const row = groups[0];
   return {
     homeHeroStyle: (row.value.homeHeroStyle as SiteLayoutConfig['homeHeroStyle']) ?? 'split',
-    contentCardStyle: (row.value.contentCardStyle as SiteLayoutConfig['contentCardStyle']) ?? 'cover',
+    contentCardStyle:
+      (row.value.contentCardStyle as SiteLayoutConfig['contentCardStyle']) ?? 'cover',
     contentReaderWidth:
       (row.value.contentReaderWidth as SiteLayoutConfig['contentReaderWidth']) ?? 'comfortable',
     showBreadcrumb: Boolean(row.value.showBreadcrumb ?? true),

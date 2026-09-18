@@ -10,7 +10,7 @@ interface UseAiChatOptions {
   settings?: AiConversationSettings;
   /** 还没有会话时先建一条，避免登录用户回落到匿名接口。 */
   ensureSession?: () => Promise<string>;
-  onMessagesChange?: (messages: AiMessage[]) => void;
+  onMessagesChange?: (messages: AiMessage[], sessionId: string) => void;
   onComplete?: (messages: AiMessage[], tokenCount: number) => void;
 }
 
@@ -24,6 +24,7 @@ function createMessage(
   content: string,
   status: AiMessage['status'] = 'done',
 ): AiMessage {
+  // 这是服务端响应前的 UI 临时键，不代表数据库中的会话或消息 ID。
   return {
     id: `msg-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     sessionId,
@@ -55,10 +56,14 @@ export function useAiChat({
   onComplete,
 }: UseAiChatOptions) {
   const [messages, setMessages] = useState<AiMessage[]>(initialMessages);
+  // SSE 回调可能连续到达，用 ref 保留最新快照，避免把副作用放进 state updater。
+  const messagesRef = useRef(initialMessages);
   const [boundSessionId, setBoundSessionId] = useState(sessionId);
   const [streamingMessageId, setStreamingMessageId] = useState<string>();
   const abortRef = useRef<AbortController | undefined>(undefined);
   const serverMessageIdRef = useRef<string | undefined>(undefined);
+  const streamSessionIdRef = useRef(sessionId);
+  const streamRunRef = useRef(0);
   const lastInitialMessagesSignatureRef = useRef(
     messageListSignature(initialMessages),
   );
@@ -67,20 +72,28 @@ export function useAiChat({
 
   // 切会话必须在渲染期清空气泡，等 effect 会闪一帧旧消息。
   if (sessionId !== boundSessionId) {
+    streamRunRef.current += 1;
     setBoundSessionId(sessionId);
+    messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setStreamingMessageId(undefined);
     serverMessageIdRef.current = undefined;
+    streamSessionIdRef.current = sessionId;
     lastInitialMessagesSignatureRef.current = initialMessagesSignature;
   }
 
   const commitMessages = useCallback(
-    (updater: AiMessage[] | ((current: AiMessage[]) => AiMessage[])) => {
-      setMessages((current) => {
-        const nextMessages = typeof updater === 'function' ? updater(current) : updater;
-        onMessagesChange?.(nextMessages);
-        return nextMessages;
-      });
+    (
+      targetSessionId: string,
+      updater: AiMessage[] | ((current: AiMessage[]) => AiMessage[]),
+    ) => {
+      const currentMessages = messagesRef.current;
+      const nextMessages =
+        typeof updater === 'function' ? updater(currentMessages) : updater;
+      messagesRef.current = nextMessages;
+      setMessages(nextMessages);
+      onMessagesChange?.(nextMessages, targetSessionId);
+      return nextMessages;
     },
     [onMessagesChange],
   );
@@ -102,10 +115,16 @@ export function useAiChat({
           return;
         }
         resolvedSessionId = await ensureSession();
+        messagesRef.current = [];
+        setMessages([]);
       }
+      streamSessionIdRef.current = resolvedSessionId;
       const userMessage = createMessage(resolvedSessionId, 'user', normalized);
       const assistant = createMessage(resolvedSessionId, 'assistant', '', 'generating');
-      commitMessages((current) => [...current, userMessage, assistant]);
+      const streamRun = streamRunRef.current + 1;
+      streamRunRef.current = streamRun;
+      commitMessages(resolvedSessionId, (current) => [...current, userMessage, assistant]);
+      serverMessageIdRef.current = undefined;
       setStreamingMessageId(assistant.id);
       const controller = new AbortController();
       abortRef.current = controller;
@@ -115,20 +134,27 @@ export function useAiChat({
         modelId,
         signal: controller.signal,
         onEvent: (event) => {
-          if (event.type === 'STARTED' && event.assistantMessageId) {
+          if (streamRunRef.current !== streamRun) return;
+          if (event.type === 'STARTED') {
             const assistantMessageId = event.assistantMessageId;
-            serverMessageIdRef.current = assistantMessageId;
-            setStreamingMessageId(assistantMessageId);
-            commitMessages((current) =>
-              current.map((item) =>
-                item.id === assistant.id
-                  ? { ...item, id: assistantMessageId }
-                  : item,
-              ),
+            if (assistantMessageId) {
+              serverMessageIdRef.current = assistantMessageId;
+              setStreamingMessageId(assistantMessageId);
+            }
+            commitMessages(resolvedSessionId, (current) =>
+              current.map((item) => {
+                if (item.id === userMessage.id && event.userMessageId) {
+                  return { ...item, id: event.userMessageId };
+                }
+                if (item.id === assistant.id && assistantMessageId) {
+                  return { ...item, id: assistantMessageId };
+                }
+                return item;
+              }),
             );
           }
           if (event.type === 'DELTA' && event.content) {
-            commitMessages((current) =>
+            commitMessages(resolvedSessionId, (current) =>
               current.map((item) =>
                 item.id === (serverMessageIdRef.current ?? assistant.id)
                   ? { ...item, content: `${item.content}${event.content}` }
@@ -139,24 +165,29 @@ export function useAiChat({
           if (event.type === 'DONE' || event.type === 'ERROR') {
             const tokenCount =
               (event.usage?.inputTokens ?? 0) + (event.usage?.outputTokens ?? 0);
-            commitMessages((current) => {
-              const next = current.map((item) =>
+            const next = commitMessages(resolvedSessionId, (current) =>
+              current.map((item) =>
                 item.id === (serverMessageIdRef.current ?? assistant.id)
                   ? {
                       ...item,
                       status: event.type === 'ERROR' ? ('failed' as const) : ('done' as const),
                       tokenCount,
+                      content:
+                        event.type === 'ERROR' && !item.content
+                          ? event.message ?? event.code ?? '生成失败'
+                          : item.content,
                     }
                   : item,
-              );
-              onComplete?.(next, tokenCount);
-              return next;
-            });
+              ),
+            );
+            onComplete?.(next, tokenCount);
             setStreamingMessageId(undefined);
+            streamRunRef.current += 1;
           }
         },
       }).catch((error: unknown) => {
-        commitMessages((current) =>
+        if (streamRunRef.current !== streamRun) return;
+        commitMessages(resolvedSessionId, (current) =>
           current.map((item) =>
             item.id === (serverMessageIdRef.current ?? assistant.id)
               ? {
@@ -168,18 +199,20 @@ export function useAiChat({
           ),
         );
         setStreamingMessageId(undefined);
+        streamRunRef.current += 1;
       });
     },
     [commitMessages, ensureSession, modelId, onComplete, sessionId, streamingMessageId],
   );
 
   const stopGenerating = useCallback(() => {
+    streamRunRef.current += 1;
     const messageId = serverMessageIdRef.current ?? streamingMessageId;
     abortLocal();
     if (messageId && !messageId.startsWith('msg-')) {
       void stopAiMessage(messageId);
     }
-    commitMessages((current) =>
+    commitMessages(streamSessionIdRef.current ?? sessionId, (current) =>
       current.map((message) =>
         message.id === messageId || message.id === streamingMessageId
           ? { ...message, status: 'stopped' }
@@ -187,7 +220,7 @@ export function useAiChat({
       ),
     );
     setStreamingMessageId(undefined);
-  }, [abortLocal, commitMessages, streamingMessageId]);
+  }, [abortLocal, commitMessages, sessionId, streamingMessageId]);
 
   const regenerate = useCallback((messageId?: string) => {
     if (streamingMessageId) {
@@ -199,23 +232,39 @@ export function useAiChat({
     if (!lastAssistant || lastAssistant.id.startsWith('msg-')) {
       return;
     }
-    commitMessages((current) =>
+    const regenerateSessionId = lastAssistant.sessionId || streamSessionIdRef.current || sessionId;
+    streamSessionIdRef.current = regenerateSessionId;
+    const streamRun = streamRunRef.current + 1;
+    streamRunRef.current = streamRun;
+    commitMessages(regenerateSessionId, (current) =>
       current.map((item) =>
         item.id === lastAssistant.id ? { ...item, content: '', status: 'generating' } : item,
       ),
     );
+    serverMessageIdRef.current = undefined;
     setStreamingMessageId(lastAssistant.id);
     const controller = new AbortController();
     abortRef.current = controller;
     void regenerateAiMessage(
       lastAssistant.id,
       (event) => {
-        if (event.type === 'STARTED' && event.assistantMessageId) {
-          serverMessageIdRef.current = event.assistantMessageId;
-          setStreamingMessageId(event.assistantMessageId);
+        if (streamRunRef.current !== streamRun) return;
+        if (event.type === 'STARTED') {
+          const assistantMessageId = event.assistantMessageId;
+          if (assistantMessageId) {
+            serverMessageIdRef.current = assistantMessageId;
+            setStreamingMessageId(assistantMessageId);
+          }
+          if (assistantMessageId && assistantMessageId !== lastAssistant.id) {
+            commitMessages(regenerateSessionId, (current) =>
+              current.map((item) =>
+                item.id === lastAssistant.id ? { ...item, id: assistantMessageId } : item,
+              ),
+            );
+          }
         }
         if (event.type === 'DELTA' && event.content) {
-          commitMessages((current) =>
+          commitMessages(regenerateSessionId, (current) =>
             current.map((item) =>
               item.id === (serverMessageIdRef.current ?? lastAssistant.id)
                 ? { ...item, content: `${item.content}${event.content}` }
@@ -224,21 +273,49 @@ export function useAiChat({
           );
         }
         if (event.type === 'DONE' || event.type === 'ERROR') {
-          commitMessages((current) =>
+          commitMessages(regenerateSessionId, (current) =>
             current.map((item) =>
               item.id === (serverMessageIdRef.current ?? lastAssistant.id)
-                ? { ...item, status: event.type === 'ERROR' ? 'failed' : 'done' }
+                ? {
+                    ...item,
+                    status: event.type === 'ERROR' ? 'failed' : 'done',
+                    content:
+                      event.type === 'ERROR' && !item.content
+                        ? event.message ?? event.code ?? '生成失败'
+                        : item.content,
+                  }
                 : item,
             ),
           );
           setStreamingMessageId(undefined);
+          streamRunRef.current += 1;
         }
       },
       controller.signal,
-    );
-  }, [commitMessages, messages, streamingMessageId]);
+    ).catch((error: unknown) => {
+      if (streamRunRef.current !== streamRun) return;
+      commitMessages(regenerateSessionId, (current) =>
+        current.map((item) =>
+          item.id === (serverMessageIdRef.current ?? lastAssistant.id)
+            ? {
+                ...item,
+                status: 'failed',
+                content: item.content || (error instanceof Error ? error.message : '生成失败'),
+              }
+            : item,
+        ),
+      );
+      setStreamingMessageId(undefined);
+      streamRunRef.current += 1;
+    });
+  }, [commitMessages, messages, sessionId, streamingMessageId]);
 
-  useEffect(() => () => abortLocal(), [abortLocal, sessionId]);
+  useEffect(() => {
+    return () => {
+      streamRunRef.current += 1;
+      abortLocal();
+    };
+  }, [abortLocal, sessionId]);
 
   useEffect(() => {
     if (streamingMessageId) {
@@ -251,6 +328,7 @@ export function useAiChat({
       return;
     }
     lastInitialMessagesSignatureRef.current = initialMessagesSignature;
+    messagesRef.current = initialMessages;
     setMessages(initialMessages);
   }, [
     boundSessionId,

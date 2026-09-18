@@ -1,11 +1,6 @@
 import { Link, useModel, useSearchParams } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
-import {
-  CopyOutlined,
-  DislikeFilled,
-  DislikeOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { CopyOutlined, DislikeFilled, DislikeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { App, Button, Input, Modal, Skeleton, Space, Tag } from 'antd';
 import { ContentTypeLabel, type AiMessage } from '@personal-hub/shared-types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -57,15 +52,14 @@ const AiChatPage: React.FC = () => {
   >({});
   const [attachments, setAttachments] = useState<AiAttachmentItem[]>([]);
   const [references, setReferences] = useState<AiReferenceItem[]>([]);
-  const { data: sessionsData, loading: sessionsLoading } =
-    useRequest(fetchAiSessions);
-  const {
-    data: quotedContent,
-    loading: quotedContentLoading,
-  } = useRequest(() => fetchContentDetail(quotedContentId), {
-    ready: isQuoteMode,
-    refreshDeps: [quotedContentId, isQuoteMode],
-  });
+  const { data: sessionsData, loading: sessionsLoading } = useRequest(fetchAiSessions);
+  const { data: quotedContent, loading: quotedContentLoading } = useRequest(
+    () => fetchContentDetail(quotedContentId),
+    {
+      ready: isQuoteMode,
+      refreshDeps: [quotedContentId, isQuoteMode],
+    },
+  );
   const initialSessions = useMemo(() => sessionsData ?? [], [sessionsData]);
   const {
     sessions,
@@ -77,7 +71,9 @@ const AiChatPage: React.FC = () => {
     updateSessionSettings,
     deleteSession,
     updateCurrentMessages,
+    updateMessagesForSession,
     syncSessionAfterMessagesChange,
+    syncSessionAfterMessagesChangeFor,
     setSessionMessages,
   } = useAiChatSessions({
     initialSessions,
@@ -91,8 +87,7 @@ const AiChatPage: React.FC = () => {
   );
   const currentSettings = useMemo<AiChatAdvancedSettingsValue>(
     () => ({
-      modelId:
-        settingsBySession[currentSessionId ?? '']?.modelId ?? currentSession?.modelId,
+      modelId: settingsBySession[currentSessionId ?? '']?.modelId ?? currentSession?.modelId,
       systemPrompt:
         settingsBySession[currentSessionId ?? '']?.systemPrompt ??
         currentSession?.systemPrompt ??
@@ -112,10 +107,10 @@ const AiChatPage: React.FC = () => {
     toolType: 'chat',
     value: currentSettings.modelId,
     onDefaultModel: (modelId) => {
-      if (!currentSessionId) return;
+      const settingsKey = currentSessionId ?? '';
       setSettingsBySession((current) => ({
         ...current,
-        [currentSessionId]: {
+        [settingsKey]: {
           ...currentSettings,
           modelId,
         },
@@ -134,11 +129,11 @@ const AiChatPage: React.FC = () => {
     [currentSessionId, updateSessionSettings],
   );
   const handleMessagesChange = useCallback(
-    (nextMessages: AiMessage[]) => {
-      updateCurrentMessages(nextMessages);
-      syncSessionAfterMessagesChange(nextMessages);
+    (nextMessages: AiMessage[], targetSessionId: string) => {
+      updateMessagesForSession(targetSessionId, nextMessages);
+      syncSessionAfterMessagesChangeFor(targetSessionId, nextMessages);
     },
-    [syncSessionAfterMessagesChange, updateCurrentMessages],
+    [syncSessionAfterMessagesChangeFor, updateMessagesForSession],
   );
   const handleCreateSession = useCallback(async () => {
     return createNewSession({
@@ -155,13 +150,7 @@ const AiChatPage: React.FC = () => {
     },
     [consumeQuota],
   );
-  const {
-    messages,
-    isGenerating,
-    sendMessage,
-    stopGenerating,
-    regenerate,
-  } = useAiChat({
+  const { messages, isGenerating, sendMessage, stopGenerating, regenerate } = useAiChat({
     initialMessages: currentMessages,
     sessionId: currentSessionId,
     modelId: currentSettings.modelId,
@@ -176,9 +165,7 @@ const AiChatPage: React.FC = () => {
   const requiresLogin = Boolean(chatTool?.requiresLogin);
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const quotaInsufficient =
-    !isGuest &&
-    runtimeConfig.quota !== undefined &&
-    runtimeConfig.quota.remainingTokens <= 0;
+    !isGuest && runtimeConfig.quota !== undefined && runtimeConfig.quota.remainingTokens <= 0;
   const submitDisabled =
     !modelState.hasModels ||
     quotaInsufficient ||
@@ -211,9 +198,7 @@ const AiChatPage: React.FC = () => {
       updateCurrentMessages((current) =>
         current.map((item) => (item.id === updatedMessage.id ? updatedMessage : item)),
       );
-      messageApi[nextFeedback ? 'success' : 'info'](
-        nextFeedback ? '已记录反馈' : '已取消反馈',
-      );
+      messageApi[nextFeedback ? 'success' : 'info'](nextFeedback ? '已记录反馈' : '已取消反馈');
     },
     [messageApi, updateCurrentMessages],
   );
@@ -260,9 +245,7 @@ const AiChatPage: React.FC = () => {
       if (!normalized) return;
       const referencePrefix =
         references.length > 0
-          ? `引用内容：${references
-              .map((reference) => `《${reference.title}》`)
-              .join('、')}\n\n`
+          ? `引用内容：${references.map((reference) => `《${reference.title}》`).join('、')}\n\n`
           : '';
       const attachmentPrefix =
         attachments.length > 0
@@ -298,9 +281,7 @@ const AiChatPage: React.FC = () => {
 
   useEffect(() => {
     if (!quotedContent || value) return;
-    setValue(
-      `请基于《${quotedContent.title}》这篇内容，帮我总结核心观点并给出可执行建议。`,
-    );
+    setValue(`请基于《${quotedContent.title}》这篇内容，帮我总结核心观点并给出可执行建议。`);
   }, [quotedContent, value]);
 
   useEffect(() => {
@@ -362,7 +343,7 @@ const AiChatPage: React.FC = () => {
         autoScrollKey={messageAutoScrollKey}
         resetPinOnKeyChange={false}
         className="ph-ai-chat-shell ph-ai-workspace-frame-with-side"
-        sidePanel={(
+        sidePanel={
           <AiConversationHistoryPanel
             activeKey={currentSessionId}
             loading={sessionsLoading}
@@ -384,90 +365,90 @@ const AiChatPage: React.FC = () => {
               setRenameTitle(title);
             }}
           />
-        )}
+        }
         showWelcome={!messagesLoading && messages.length === 0}
         welcome={{
           title: '今天想聊点什么？',
           description: '可以直接提问、引用知识内容，或切换模型开始一段新的 AI 对话。',
         }}
-        messageArea={(
+        messageArea={
           <section className="ph-ai-panel ph-ai-message-panel">
-          {isQuoteMode && (
-            <div className="ph-ai-reference-chip">
-              {quotedContentLoading ? (
-                <Skeleton active paragraph={false} title={{ width: 260 }} />
-              ) : quotedContent ? (
-                <Space wrap>
-                  <Tag color="blue">引用内容</Tag>
-                  <Link to={`/content/${quotedContent.id}`}>{quotedContent.title}</Link>
-                  <Tag>{ContentTypeLabel[quotedContent.type]}</Tag>
-                  {(quotedContent.categoryName || quotedContent.categorySlug) && (
-                    <Tag>{quotedContent.categoryName || quotedContent.categorySlug}</Tag>
-                  )}
-                </Space>
-              ) : (
-                <Space wrap>
-                  <Tag color="warning">引用内容不可用</Tag>
-                  <span>未找到 contentId={quotedContentId} 的内容</span>
-                </Space>
-              )}
-            </div>
-          )}
-          <div className="ph-ai-message-list">
-            {messagesLoading && <Skeleton active paragraph={{ rows: 5 }} />}
-            {!messagesLoading && !currentSessionId && (
-              <ResultState
-                actionText="新建对话"
-                actionTo="/ai/chat"
-                description="还没有对话，可以直接提问或新建一个。"
-                status="empty"
-              />
+            {isQuoteMode && (
+              <div className="ph-ai-reference-chip">
+                {quotedContentLoading ? (
+                  <Skeleton active paragraph={false} title={{ width: 260 }} />
+                ) : quotedContent ? (
+                  <Space wrap>
+                    <Tag color="blue">引用内容</Tag>
+                    <Link to={`/content/${quotedContent.id}`}>{quotedContent.title}</Link>
+                    <Tag>{ContentTypeLabel[quotedContent.type]}</Tag>
+                    {(quotedContent.categoryName || quotedContent.categorySlug) && (
+                      <Tag>{quotedContent.categoryName || quotedContent.categorySlug}</Tag>
+                    )}
+                  </Space>
+                ) : (
+                  <Space wrap>
+                    <Tag color="warning">引用内容不可用</Tag>
+                    <span>未找到 contentId={quotedContentId} 的内容</span>
+                  </Space>
+                )}
+              </div>
             )}
-            {messages.map((message) => {
-              const isAssistant = message.role === 'assistant';
-              const feedback = message.feedback;
-              return (
-                <div className="ph-ai-chat-message" key={message.id}>
-                  <AiXBubble
-                    content={message.content}
-                    message={message}
-                    placement={message.role === 'user' ? 'end' : 'start'}
-                    streaming={message.status === 'generating'}
-                    style={{ marginBottom: isAssistant ? 6 : 16 }}
-                  />
-                  {isAssistant && (
-                    <Space className="ph-ai-chat-message-actions" size={2}>
-                      <Button
-                        aria-label="复制 AI 回复"
-                        icon={<CopyOutlined />}
-                        size="small"
-                        type="text"
-                        onClick={() => copyAssistantMessage(message)}
-                      />
-                      <Button
-                        aria-label="重新生成 AI 回复"
-                        disabled={isGenerating}
-                        icon={<ReloadOutlined />}
-                        size="small"
-                        type="text"
-                        onClick={() => regenerate(message.id)}
-                      />
-                      <Button
-                        aria-label={feedback ? '取消点踩反馈' : '点踩反馈'}
-                        icon={feedback ? <DislikeFilled /> : <DislikeOutlined />}
-                        size="small"
-                        type="text"
-                        onClick={() => toggleAssistantFeedback(message)}
-                      />
-                    </Space>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+            <div className="ph-ai-message-list">
+              {messagesLoading && <Skeleton active paragraph={{ rows: 5 }} />}
+              {!messagesLoading && !currentSessionId && (
+                <ResultState
+                  actionText="新建对话"
+                  actionTo="/ai/chat"
+                  description="还没有对话，可以直接提问或新建一个。"
+                  status="empty"
+                />
+              )}
+              {messages.map((message) => {
+                const isAssistant = message.role === 'assistant';
+                const feedback = message.feedback;
+                return (
+                  <div className="ph-ai-chat-message" key={message.id}>
+                    <AiXBubble
+                      content={message.content}
+                      message={message}
+                      placement={message.role === 'user' ? 'end' : 'start'}
+                      streaming={message.status === 'generating'}
+                      style={{ marginBottom: isAssistant ? 6 : 16 }}
+                    />
+                    {isAssistant && (
+                      <Space className="ph-ai-chat-message-actions" size={2}>
+                        <Button
+                          aria-label="复制 AI 回复"
+                          icon={<CopyOutlined />}
+                          size="small"
+                          type="text"
+                          onClick={() => copyAssistantMessage(message)}
+                        />
+                        <Button
+                          aria-label="重新生成 AI 回复"
+                          disabled={isGenerating}
+                          icon={<ReloadOutlined />}
+                          size="small"
+                          type="text"
+                          onClick={() => regenerate(message.id)}
+                        />
+                        <Button
+                          aria-label={feedback ? '取消点踩反馈' : '点踩反馈'}
+                          icon={feedback ? <DislikeFilled /> : <DislikeOutlined />}
+                          size="small"
+                          type="text"
+                          onClick={() => toggleAssistantFeedback(message)}
+                        />
+                      </Space>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
-        )}
-        composer={(
+        }
+        composer={
           <div className="ph-ai-sender-bar">
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
               <AiChatAdvancedSettings
@@ -489,8 +470,7 @@ const AiChatPage: React.FC = () => {
                   loading: modelState.loading,
                   disabled: !modelState.hasModels,
                   placeholder: '选择对话模型',
-                  onChange: (modelId) =>
-                    updateCurrentSettings({ ...currentSettings, modelId }),
+                  onChange: (modelId) => updateCurrentSettings({ ...currentSettings, modelId }),
                 }}
                 placeholder="输入问题，Shift + Enter 换行"
                 value={value}
@@ -526,7 +506,7 @@ const AiChatPage: React.FC = () => {
                     </div>
                   ) : undefined
                 }
-                leadingActions={(
+                leadingActions={
                   <>
                     <AiReferencePicker
                       disabled={!currentSettings.enableKnowledgeReference}
@@ -538,12 +518,12 @@ const AiChatPage: React.FC = () => {
                       onSelect={addAttachment}
                     />
                   </>
-                )}
-                extraActions={(
+                }
+                extraActions={
                   <Button disabled={isGenerating} size="small" onClick={() => regenerate()}>
                     重新生成
                   </Button>
-                )}
+                }
                 onChange={setValue}
                 onClear={clearComposer}
                 onOptimize={optimizePrompt}
@@ -566,7 +546,7 @@ const AiChatPage: React.FC = () => {
               />
             </Space>
           </div>
-        )}
+        }
       />
 
       <Modal

@@ -26,13 +26,23 @@ import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
 import { STORAGE_PROVIDER, type StorageProvider } from '../../infrastructure/storage/storage.types';
 import { OutboxService } from '../../infrastructure/queue/outbox.service';
-import { AI_IMAGE_GENERATION_EVENT, AI_VIDEO_GENERATION_EVENT } from '../../infrastructure/queue/queue.constants';
+import {
+  AI_IMAGE_GENERATION_EVENT,
+  AI_VIDEO_GENERATION_EVENT,
+} from '../../infrastructure/queue/queue.constants';
 import { parseGroupValue, type AiBranding } from '../system/config-registry';
 import { SystemService } from '../system/system.service';
 import { estimateTextTokens, platformCost, AiQuotaService } from './ai-quota.service';
 import { AiRuntimeService } from './ai-runtime.service';
 import type { SendMessageDto, TextGenerateDto } from './dto/ai.dto';
-import { AI_CHAT_PROVIDER, AI_IMAGE_PROVIDER, AI_VIDEO_PROVIDER, type AiChatProvider, type AiImageProvider, type AiVideoProvider } from './providers/ai-provider.types';
+import {
+  AI_CHAT_PROVIDER,
+  AI_IMAGE_PROVIDER,
+  AI_VIDEO_PROVIDER,
+  type AiChatProvider,
+  type AiImageProvider,
+  type AiVideoProvider,
+} from './providers/ai-provider.types';
 
 const GUEST_MAX_CHARS = 2000;
 
@@ -53,41 +63,42 @@ export class AiService {
   ) {}
 
   async home(owner: { type: AiOwnerType; id: string; userId?: string }) {
-    const [tools, models, templates, entitlement, recent, branding, jobs, guestTrial] = await Promise.all([
-      this.prisma.aiTool.findMany({ orderBy: { sortOrder: 'asc' } }),
-      this.listVisibleModels(owner),
-      this.prisma.aiTemplate.findMany({
-        where: {
-          deletedAt: null,
-          status: 'ENABLED',
-          // 访客没有 userId；不能写假 UUID（Prisma UUID 列会 500）。
-          ...(owner.userId
-            ? { OR: [{ isSystem: true }, { ownerId: owner.userId }] }
-            : { isSystem: true }),
-        },
-        orderBy: { sortOrder: 'asc' },
-        take: 20,
-      }),
-      owner.userId ? this.entitlement(owner.userId) : null,
-      this.prisma.aiConversation.findMany({
-        where: { ownerType: owner.type, ownerId: owner.id, deletedAt: null },
-        orderBy: { lastMessageAt: 'desc' },
-        take: 8,
-      }),
-      this.readBranding(),
-      owner.userId
-        ? this.prisma.aiGenerationJob.findMany({
-            where: { userId: owner.userId },
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-            include: {
-              model: { select: { displayName: true } },
-              assets: { where: { deletedAt: null }, include: { file: true } },
-            },
-          })
-        : Promise.resolve([]),
-      owner.type === AiOwnerType.ANONYMOUS ? this.guestTrial(owner.id) : Promise.resolve(null),
-    ]);
+    const [tools, models, templates, entitlement, recent, branding, jobs, guestTrial] =
+      await Promise.all([
+        this.prisma.aiTool.findMany({ orderBy: { sortOrder: 'asc' } }),
+        this.listVisibleModels(owner),
+        this.prisma.aiTemplate.findMany({
+          where: {
+            deletedAt: null,
+            status: 'ENABLED',
+            // 访客没有 userId；不能写假 UUID（Prisma UUID 列会 500）。
+            ...(owner.userId
+              ? { OR: [{ isSystem: true }, { ownerId: owner.userId }] }
+              : { isSystem: true }),
+          },
+          orderBy: { sortOrder: 'asc' },
+          take: 20,
+        }),
+        owner.userId ? this.entitlement(owner.userId) : null,
+        this.prisma.aiConversation.findMany({
+          where: { ownerType: owner.type, ownerId: owner.id, deletedAt: null },
+          orderBy: { lastMessageAt: 'desc' },
+          take: 8,
+        }),
+        this.readBranding(),
+        owner.userId
+          ? this.prisma.aiGenerationJob.findMany({
+              where: { userId: owner.userId },
+              orderBy: { createdAt: 'desc' },
+              take: 8,
+              include: {
+                model: { select: { displayName: true } },
+                assets: { where: { deletedAt: null }, include: { file: true } },
+              },
+            })
+          : Promise.resolve([]),
+        owner.type === AiOwnerType.ANONYMOUS ? this.guestTrial(owner.id) : Promise.resolve(null),
+      ]);
     const recentTasks = jobs.map((job) => mapJob(job, job.assets));
     const chatActivities = recent.map((row) => ({
       id: row.id,
@@ -159,7 +170,8 @@ export class AiService {
     const allowed = Array.isArray(entitlement?.allowedModelIds)
       ? (entitlement.allowedModelIds as string[])
       : [];
-    const filtered = allowed.length === 0 ? models : models.filter((model) => allowed.includes(model.id));
+    const filtered =
+      allowed.length === 0 ? models : models.filter((model) => allowed.includes(model.id));
     return filtered.map(mapModel);
   }
 
@@ -209,12 +221,20 @@ export class AiService {
 
   async usage(
     userId: string,
-    query: { page?: number; pageSize?: number; from?: string; to?: string; toolType?: AiToolCode } = {},
+    query: {
+      page?: number;
+      pageSize?: number;
+      from?: string;
+      to?: string;
+      toolType?: AiToolCode;
+    } = {},
   ) {
     const entitlement = await this.entitlement(userId);
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 50;
-    const from = query.from ? new Date(query.from) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const from = query.from
+      ? new Date(query.from)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const to = query.to ? new Date(query.to) : new Date();
     const where = {
       userId,
@@ -286,7 +306,11 @@ export class AiService {
     owner: { type: AiOwnerType; id: string },
     input: { title?: string; modelId?: string; systemPrompt?: string },
   ) {
-    const model = await this.resolveModel(input.modelId, owner.type === AiOwnerType.ANONYMOUS, AiToolCode.CHAT);
+    const model = await this.resolveModel(
+      input.modelId,
+      owner.type === AiOwnerType.ANONYMOUS,
+      AiToolCode.CHAT,
+    );
     return mapSession(
       await this.prisma.aiConversation.create({
         data: {
@@ -312,7 +336,11 @@ export class AiService {
       data.titleSource = AiTitleSource.USER;
     }
     if (input.modelId) {
-      const model = await this.resolveModel(input.modelId, owner.type === AiOwnerType.ANONYMOUS, AiToolCode.CHAT);
+      const model = await this.resolveModel(
+        input.modelId,
+        owner.type === AiOwnerType.ANONYMOUS,
+        AiToolCode.CHAT,
+      );
       data.model = { connect: { id: model.id } };
     }
     if (input.systemPrompt !== undefined) {
@@ -363,14 +391,30 @@ export class AiService {
       );
     }
     if (input.owner.type === AiOwnerType.ANONYMOUS && input.body.content.length > GUEST_MAX_CHARS) {
-      throw new DomainHttpException(HttpStatus.BAD_REQUEST, 'AI_INPUT_TOO_LONG', '访客输入最多 2000 字');
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_INPUT_TOO_LONG',
+        '访客输入最多 2000 字',
+      );
     }
     await this.runtime.acquireConversation(session.id);
     let assistantId = '';
+    let userSlotAcquired = false;
+    let streamStarted = false;
+    let reservationFinalized = false;
+    let reservationId: string | undefined;
+    let failureContext:
+      | {
+          userMessageId: string;
+          assistantMessageId: string;
+          reservationId?: string;
+        }
+      | undefined;
     try {
       if (input.owner.userId) {
         const ent = await this.entitlement(input.owner.userId);
         await this.runtime.acquireUserSlot(input.owner.userId, ent.maxConcurrent);
+        userSlotAcquired = true;
         await this.runtime.hitRateLimit(`ai:rpm:${input.owner.userId}`, ent.rpm, 60);
       } else {
         await this.runtime.hitRateLimit(`ai:guest:rpm:${input.ipHash ?? input.owner.id}`, 5, 60);
@@ -382,7 +426,6 @@ export class AiService {
       );
       const inputTokens = estimateTextTokens(input.body.content);
       const reserveAmount = BigInt(model.maxReserveAmount);
-      let reservationId: string | undefined;
       if (input.owner.userId) {
         const reservation = await this.quota.reserve({
           userId: input.owner.userId,
@@ -394,38 +437,46 @@ export class AiService {
       const excerpt = input.body.contentId
         ? await this.snapshotContent(input.body.contentId, input.owner.userId)
         : null;
-      const userMessage = await this.prisma.aiMessage.create({
-        data: {
-          conversationId: session.id,
-          role: AiMessageRole.USER,
-          status: AiMessageStatus.DONE,
-          content: input.body.content,
-          inputTokens,
-          requestId: input.requestId,
-          references: excerpt
-            ? {
-                create: {
-                  contentId: input.body.contentId,
-                  titleSnapshot: excerpt.title,
-                  excerptSnapshot: excerpt.excerpt,
-                },
-              }
-            : undefined,
-        },
-      });
-      const assistant = await this.prisma.aiMessage.create({
-        data: {
-          conversationId: session.id,
-          role: AiMessageRole.ASSISTANT,
-          status: AiMessageStatus.STREAMING,
-          modelId: model.id,
-          modelKeySnapshot: model.modelKey,
-          reservationId,
-          requestId: input.requestId,
-          variantGroupId: undefined,
-        },
+      const { userMessage, assistant } = await this.prisma.$transaction(async (tx) => {
+        const userMessage = await tx.aiMessage.create({
+          data: {
+            conversationId: session.id,
+            role: AiMessageRole.USER,
+            status: AiMessageStatus.DONE,
+            content: input.body.content,
+            inputTokens,
+            requestId: input.requestId,
+            references: excerpt
+              ? {
+                  create: {
+                    contentId: input.body.contentId,
+                    titleSnapshot: excerpt.title,
+                    excerptSnapshot: excerpt.excerpt,
+                  },
+                }
+              : undefined,
+          },
+        });
+        const assistant = await tx.aiMessage.create({
+          data: {
+            conversationId: session.id,
+            role: AiMessageRole.ASSISTANT,
+            status: AiMessageStatus.STREAMING,
+            modelId: model.id,
+            modelKeySnapshot: model.modelKey,
+            reservationId,
+            requestId: input.requestId,
+            variantGroupId: undefined,
+          },
+        });
+        return { userMessage, assistant };
       });
       assistantId = assistant.id;
+      failureContext = {
+        userMessageId: userMessage.id,
+        assistantMessageId: assistant.id,
+        reservationId,
+      };
       await this.prisma.aiConversation.update({
         where: { id: session.id },
         data: {
@@ -440,7 +491,14 @@ export class AiService {
         },
       });
       beginSse(input.response);
-      writeSse(input.response, { type: 'STARTED', assistantMessageId: assistant.id, sessionId: session.id });
+      streamStarted = true;
+      writeSse(input.response, {
+        type: 'STARTED',
+        requestId: input.requestId,
+        sessionId: session.id,
+        userMessageId: userMessage.id,
+        assistantMessageId: assistant.id,
+      });
       const signal = this.runtime.begin(assistant.id);
       const history = await this.prisma.aiMessage.findMany({
         where: { conversationId: session.id, isCurrentVariant: true },
@@ -457,31 +515,17 @@ export class AiService {
               : row.content,
         }));
       let output = '';
-      try {
-        for await (const delta of this.chatProvider.stream({
-          modelKey: model.modelKey,
-          systemPrompt: session.systemPrompt,
-          messages: promptMessages,
-          signal,
-        })) {
-          if (await this.runtime.isStopped(assistant.id)) {
-            break;
-          }
-          output += delta.content;
-          writeSse(input.response, { type: 'DELTA', content: delta.content });
+      for await (const delta of this.chatProvider.stream({
+        modelKey: model.modelKey,
+        systemPrompt: session.systemPrompt,
+        messages: promptMessages,
+        signal,
+      })) {
+        if (await this.runtime.isStopped(assistant.id)) {
+          break;
         }
-      } catch (error) {
-        this.logger.warn(`Chat 流失败 ${assistant.id}: ${error instanceof Error ? error.message : error}`);
-        await this.failRun({
-          assistantId: assistant.id,
-          sessionId: session.id,
-          reservationId,
-          userId: input.owner.userId,
-          requestId: input.requestId,
-        });
-        writeSse(input.response, { type: 'ERROR', code: 'AI_PROVIDER_FAILED' });
-        input.response.end();
-        return;
+        output += delta.content;
+        writeSse(input.response, { type: 'DELTA', content: delta.content });
       }
       const stopped = await this.runtime.isStopped(assistant.id);
       const outputTokens = estimateTextTokens(output);
@@ -516,6 +560,7 @@ export class AiService {
         } else {
           await this.quota.settle(reservationId, BigInt(cost), input.requestId);
         }
+        reservationFinalized = true;
       }
       await this.prisma.aiUsageRecord.create({
         data: {
@@ -532,24 +577,91 @@ export class AiService {
       });
       writeSse(input.response, {
         type: 'DONE',
+        requestId: input.requestId,
+        sessionId: session.id,
+        userMessageId: userMessage.id,
+        assistantMessageId: assistant.id,
         usage: { inputTokens, outputTokens, platformCost: cost },
       });
       input.response.end();
+    } catch (error) {
+      if (!failureContext) {
+        if (reservationId && !reservationFinalized) {
+          try {
+            await this.releaseReservationWithRetry(reservationId, input.requestId);
+          } catch (releaseError) {
+            this.logger.error(
+              `Chat 预占额度释放失败 ${reservationId}: ${
+                releaseError instanceof Error ? releaseError.message : releaseError
+              }`,
+            );
+          }
+        }
+        throw error;
+      }
+      this.logger.warn(
+        `Chat 流失败 ${assistantId}: ${error instanceof Error ? error.message : error}`,
+      );
+      try {
+        await this.failRun({
+          assistantId: failureContext.assistantMessageId,
+          sessionId: session.id,
+          reservationId: reservationFinalized ? undefined : failureContext.reservationId,
+          requestId: input.requestId,
+        });
+      } catch (cleanupError) {
+        this.logger.error(
+          `Chat 失败状态清理失败 ${assistantId}: ${
+            cleanupError instanceof Error ? cleanupError.message : cleanupError
+          }`,
+        );
+      }
+      if (streamStarted && !input.response.writableEnded) {
+        writeSse(input.response, {
+          type: 'ERROR',
+          requestId: input.requestId,
+          sessionId: session.id,
+          userMessageId: failureContext.userMessageId,
+          assistantMessageId: failureContext.assistantMessageId,
+          code: 'AI_PROVIDER_FAILED',
+          message: 'AI 服务调用失败，请稍后重试',
+        });
+        input.response.end();
+        return;
+      }
+      throw error;
     } finally {
       this.runtime.finish(assistantId);
-      await this.runtime.releaseConversation(session.id);
-      if (input.owner.userId) {
-        await this.runtime.releaseUserSlot(input.owner.userId);
+      const cleanup = [this.runtime.releaseConversation(session.id)];
+      if (input.owner.userId && userSlotAcquired) {
+        cleanup.push(this.runtime.releaseUserSlot(input.owner.userId));
+      }
+      const results = await Promise.allSettled(cleanup);
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          this.logger.error(
+            `Chat 运行时资源清理失败 ${assistantId || session.id}: ${
+              result.reason instanceof Error ? result.reason.message : result.reason
+            }`,
+          );
+        }
       }
     }
   }
 
   async stopMessage(owner: { type: AiOwnerType; id: string }, messageId: string) {
     const message = await this.prisma.aiMessage.findFirst({
-      where: { id: messageId, conversation: { ownerType: owner.type, ownerId: owner.id, deletedAt: null } },
+      where: {
+        id: messageId,
+        conversation: { ownerType: owner.type, ownerId: owner.id, deletedAt: null },
+      },
     });
     if (!message) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '生成记录不存在');
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_GENERATION_NOT_FOUND',
+        '生成记录不存在',
+      );
     }
     if (message.status !== AiMessageStatus.STREAMING) {
       return mapMessage(message);
@@ -573,8 +685,16 @@ export class AiService {
       where: { id: messageId, role: AiMessageRole.ASSISTANT },
       include: { conversation: true },
     });
-    if (!message || message.conversation.ownerType !== owner.type || message.conversation.ownerId !== owner.id) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '生成记录不存在');
+    if (
+      !message ||
+      message.conversation.ownerType !== owner.type ||
+      message.conversation.ownerId !== owner.id
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_GENERATION_NOT_FOUND',
+        '生成记录不存在',
+      );
     }
     const parentUser = await this.prisma.aiMessage.findFirst({
       where: {
@@ -598,7 +718,11 @@ export class AiService {
     });
   }
 
-  async feedback(owner: { type: AiOwnerType; id: string }, messageId: string, feedback?: AiFeedback | null) {
+  async feedback(
+    owner: { type: AiOwnerType; id: string },
+    messageId: string,
+    feedback?: AiFeedback | null,
+  ) {
     const message = await this.prisma.aiMessage.findFirst({
       where: { id: messageId, conversation: { ownerType: owner.type, ownerId: owner.id } },
     });
@@ -625,10 +749,18 @@ export class AiService {
       throw new DomainHttpException(HttpStatus.BAD_REQUEST, 'AI_INPUT_REQUIRED', '输入不能为空');
     }
     if (input.body.input.length > maxChars) {
-      throw new DomainHttpException(HttpStatus.BAD_REQUEST, 'AI_INPUT_TOO_LONG', `输入最多 ${maxChars} 字`);
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_INPUT_TOO_LONG',
+        `输入最多 ${maxChars} 字`,
+      );
     }
     if (input.body.scenario === 'translate' && !input.body.targetLanguage) {
-      throw new DomainHttpException(HttpStatus.BAD_REQUEST, 'AI_INPUT_REQUIRED', '翻译必须选择目标语言');
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_INPUT_REQUIRED',
+        '翻译必须选择目标语言',
+      );
     }
     const session = await this.createSession(input.owner, {
       title: `文本生成 · ${input.body.scenario}`,
@@ -648,16 +780,21 @@ export class AiService {
     });
   }
 
-  async createImageJob(userId: string, body: {
-    prompt: string;
-    negativePrompt?: string;
-    modelId?: string;
-    count?: number;
-    size?: string;
-    style?: string;
-    quality?: string;
-    resolution?: string;
-  }, requestId: string, idempotencyKey: string) {
+  async createImageJob(
+    userId: string,
+    body: {
+      prompt: string;
+      negativePrompt?: string;
+      modelId?: string;
+      count?: number;
+      size?: string;
+      style?: string;
+      quality?: string;
+      resolution?: string;
+    },
+    requestId: string,
+    idempotencyKey: string,
+  ) {
     await this.assertToolAvailable(AiToolCode.IMAGE);
     const model = await this.resolveModel(body.modelId, false, AiToolCode.IMAGE);
     const cost = model.fixedPlatformCost ?? 500;
@@ -697,13 +834,18 @@ export class AiService {
     return mapJob(job);
   }
 
-  async createVideoJob(userId: string, body: {
-    prompt: string;
-    modelId?: string;
-    size?: string;
-    style?: string;
-    durationSeconds?: number;
-  }, requestId: string, idempotencyKey: string) {
+  async createVideoJob(
+    userId: string,
+    body: {
+      prompt: string;
+      modelId?: string;
+      size?: string;
+      style?: string;
+      durationSeconds?: number;
+    },
+    requestId: string,
+    idempotencyKey: string,
+  ) {
     await this.assertToolAvailable(AiToolCode.VIDEO);
     const model = await this.resolveModel(body.modelId, false, AiToolCode.VIDEO);
     const cost = model.fixedPlatformCost ?? 800;
@@ -813,7 +955,10 @@ export class AiService {
     }
     await this.prisma.aiGenerationJob.update({
       where: { id: jobId },
-      data: { cancelRequestedAt: new Date(), status: job.status === 'QUEUED' ? 'CANCELED' : job.status },
+      data: {
+        cancelRequestedAt: new Date(),
+        status: job.status === 'QUEUED' ? 'CANCELED' : job.status,
+      },
     });
     await this.runtime.requestStop(jobId);
     if (job.status === 'QUEUED' && job.reservationId) {
@@ -928,7 +1073,12 @@ export class AiService {
     const row = await this.prisma.aiAsset.create({
       data: {
         ownerId: userId,
-        type: input.type === 'IMAGE' ? AiAssetType.IMAGE : input.type === 'VIDEO' ? AiAssetType.VIDEO : AiAssetType.TEXT,
+        type:
+          input.type === 'IMAGE'
+            ? AiAssetType.IMAGE
+            : input.type === 'VIDEO'
+              ? AiAssetType.VIDEO
+              : AiAssetType.TEXT,
         source: 'GENERATED',
         status: AiAssetStatus.SAVED,
         title: input.title.slice(0, 160),
@@ -965,8 +1115,14 @@ export class AiService {
     return { list: mapped, total, page, pageSize };
   }
 
-  async patchAsset(userId: string, assetId: string, input: { folderId?: string | null; status?: string; favorite?: boolean }) {
-    const asset = await this.prisma.aiAsset.findFirst({ where: { id: assetId, ownerId: userId, deletedAt: null } });
+  async patchAsset(
+    userId: string,
+    assetId: string,
+    input: { folderId?: string | null; status?: string; favorite?: boolean },
+  ) {
+    const asset = await this.prisma.aiAsset.findFirst({
+      where: { id: assetId, ownerId: userId, deletedAt: null },
+    });
     if (!asset) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '资产不存在');
     }
@@ -1017,8 +1173,16 @@ export class AiService {
   }
 
   async createFolder(userId: string, name: string) {
-    const row = await this.prisma.aiAssetFolder.create({ data: { ownerId: userId, name: name.trim() } });
-    return { id: row.id, name: row.name, assetCount: 0, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString() };
+    const row = await this.prisma.aiAssetFolder.create({
+      data: { ownerId: userId, name: name.trim() },
+    });
+    return {
+      id: row.id,
+      name: row.name,
+      assetCount: 0,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
   }
 
   async patchFolder(userId: string, folderId: string, name: string) {
@@ -1027,7 +1191,11 @@ export class AiService {
       data: { name: name.trim() },
     });
     if (row.count === 0) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '文件夹不存在');
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_GENERATION_NOT_FOUND',
+        '文件夹不存在',
+      );
     }
     const folders = await this.listFolders(userId);
     return folders.find((item) => item.id === folderId);
@@ -1048,15 +1216,22 @@ export class AiService {
   }
 
   async adminConfig() {
-    const [providers, models, tools, templates, entitlements, branding, navigation] = await Promise.all([
-      this.prisma.aiProvider.findMany({ orderBy: { code: 'asc' } }),
-      this.prisma.aiModel.findMany({ include: { provider: true }, orderBy: { displayName: 'asc' } }),
-      this.prisma.aiTool.findMany({ orderBy: { sortOrder: 'asc' } }),
-      this.prisma.aiTemplate.findMany({ where: { isSystem: true, deletedAt: null }, orderBy: { sortOrder: 'asc' } }),
-      this.prisma.aiEntitlement.findMany({ include: { role: true } }),
-      this.readBranding(),
-      this.listNavigation({ includeHidden: true, remapByTool: false }),
-    ]);
+    const [providers, models, tools, templates, entitlements, branding, navigation] =
+      await Promise.all([
+        this.prisma.aiProvider.findMany({ orderBy: { code: 'asc' } }),
+        this.prisma.aiModel.findMany({
+          include: { provider: true },
+          orderBy: { displayName: 'asc' },
+        }),
+        this.prisma.aiTool.findMany({ orderBy: { sortOrder: 'asc' } }),
+        this.prisma.aiTemplate.findMany({
+          where: { isSystem: true, deletedAt: null },
+          orderBy: { sortOrder: 'asc' },
+        }),
+        this.prisma.aiEntitlement.findMany({ include: { role: true } }),
+        this.readBranding(),
+        this.listNavigation({ includeHidden: true, remapByTool: false }),
+      ]);
     return {
       branding,
       providers: providers.map((row) => ({
@@ -1123,7 +1298,10 @@ export class AiService {
     };
   }
 
-  async patchProvider(id: string, input: { label?: string; name?: string; enabled?: boolean; baseUrl?: string; apiKey?: string }) {
+  async patchProvider(
+    id: string,
+    input: { label?: string; name?: string; enabled?: boolean; baseUrl?: string; apiKey?: string },
+  ) {
     const current = await this.prisma.aiProvider.findUnique({ where: { id } });
     if (!current) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '厂商不存在');
@@ -1142,22 +1320,36 @@ export class AiService {
     });
   }
 
-  async patchModel(id: string, input: {
-    displayName?: string;
-    enabled?: boolean;
-    userVisible?: boolean;
-    visibleToUser?: boolean;
-    isDefault?: boolean;
-    contextTokens?: number;
-    inputPricePer1k?: number;
-    outputPricePer1k?: number;
-  }) {
+  async patchModel(
+    id: string,
+    input: {
+      displayName?: string;
+      enabled?: boolean;
+      userVisible?: boolean;
+      visibleToUser?: boolean;
+      isDefault?: boolean;
+      contextTokens?: number;
+      inputPricePer1k?: number;
+      outputPricePer1k?: number;
+    },
+  ) {
     const current = await this.prisma.aiModel.findUnique({ where: { id } });
     if (!current) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '模型不存在');
     }
-    if (input.enabled === true && current.inputPricePer1k === 0 && current.outputPricePer1k === 0 && current.fixedPlatformCost == null && input.inputPricePer1k == null && input.outputPricePer1k == null) {
-      throw new DomainHttpException(HttpStatus.BAD_REQUEST, 'AI_MODEL_NOT_AVAILABLE', '缺少定价的模型不能启用');
+    if (
+      input.enabled === true &&
+      current.inputPricePer1k === 0 &&
+      current.outputPricePer1k === 0 &&
+      current.fixedPlatformCost == null &&
+      input.inputPricePer1k == null &&
+      input.outputPricePer1k == null
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_MODEL_NOT_AVAILABLE',
+        '缺少定价的模型不能启用',
+      );
     }
     return this.prisma.aiModel.update({
       where: { id },
@@ -1173,14 +1365,17 @@ export class AiService {
     });
   }
 
-  async patchTool(id: string, input: {
-    name?: string;
-    status?: AiToolStatus;
-    sortOrder?: number;
-    defaultModelId?: string;
-    tokenCostLabel?: string;
-    guestTrialEnabled?: boolean;
-  }) {
+  async patchTool(
+    id: string,
+    input: {
+      name?: string;
+      status?: AiToolStatus;
+      sortOrder?: number;
+      defaultModelId?: string;
+      tokenCostLabel?: string;
+      guestTrialEnabled?: boolean;
+    },
+  ) {
     return this.prisma.aiTool.update({
       where: { id },
       data: {
@@ -1194,7 +1389,10 @@ export class AiService {
     });
   }
 
-  async putEntitlement(roleId: string, input: { maxConcurrent?: number; allowedModelIds?: string[] }) {
+  async putEntitlement(
+    roleId: string,
+    input: { maxConcurrent?: number; allowedModelIds?: string[] },
+  ) {
     return this.prisma.aiEntitlement.update({
       where: { roleId },
       data: {
@@ -1204,21 +1402,30 @@ export class AiService {
     });
   }
 
-  async createUserTemplate(userId: string, input: { toolType: AiToolCode; title: string; prompt: string; description?: string }) {
+  async createUserTemplate(
+    userId: string,
+    input: { toolType: AiToolCode; title: string; prompt: string; description?: string },
+  ) {
     const row = await this.prisma.aiTemplate.create({
       data: { ownerId: userId, isSystem: false, ...input },
     });
     return mapTemplate(row);
   }
 
-  async patchUserTemplate(userId: string, templateId: string, input: { title?: string; prompt?: string }) {
+  async patchUserTemplate(
+    userId: string,
+    templateId: string,
+    input: { title?: string; prompt?: string },
+  ) {
     const row = await this.prisma.aiTemplate.findFirst({
       where: { id: templateId, ownerId: userId, isSystem: false, deletedAt: null },
     });
     if (!row) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '模板不存在');
     }
-    return mapTemplate(await this.prisma.aiTemplate.update({ where: { id: templateId }, data: input }));
+    return mapTemplate(
+      await this.prisma.aiTemplate.update({ where: { id: templateId }, data: input }),
+    );
   }
 
   async deleteUserTemplate(userId: string, templateId: string) {
@@ -1231,7 +1438,9 @@ export class AiService {
 
   async listNavigation(input: { includeHidden?: boolean; remapByTool?: boolean } = {}) {
     const [items, tools] = await Promise.all([
-      this.prisma.aiNavigationItem.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] }),
+      this.prisma.aiNavigationItem.findMany({
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      }),
       this.prisma.aiTool.findMany(),
     ]);
     const toolByCode = new Map(tools.map((tool) => [tool.code, tool]));
@@ -1283,10 +1492,18 @@ export class AiService {
   ) {
     const current = await this.prisma.aiNavigationItem.findUnique({ where: { id } });
     if (!current) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_GENERATION_NOT_FOUND', '导航项不存在');
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_GENERATION_NOT_FOUND',
+        '导航项不存在',
+      );
     }
     if (current.version !== input.version) {
-      throw new DomainHttpException(HttpStatus.CONFLICT, 'SYSTEM_CONFIG_VERSION_CONFLICT', '导航已被他人更新，请刷新后重试');
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'SYSTEM_CONFIG_VERSION_CONFLICT',
+        '导航已被他人更新，请刷新后重试',
+      );
     }
     const updated = await this.prisma.aiNavigationItem.update({
       where: { id },
@@ -1312,7 +1529,9 @@ export class AiService {
         data: { status: AiToolStatus.COMING_SOON },
       });
     }
-    return (await this.listNavigation({ includeHidden: true, remapByTool: false })).find((item) => item.id === updated.id);
+    return (await this.listNavigation({ includeHidden: true, remapByTool: false })).find(
+      (item) => item.id === updated.id,
+    );
   }
 
   async sortNavigation(items: Array<{ id: string; sortOrder: number }>) {
@@ -1386,7 +1605,9 @@ export class AiService {
       this.entitlement(userId),
       this.prisma.aiGenerationJob.count({ where: { userId } }),
       this.prisma.aiAsset.count({ where: { ownerId: userId, deletedAt: null } }),
-      this.prisma.aiConversation.count({ where: { ownerType: AiOwnerType.USER, ownerId: userId, deletedAt: null } }),
+      this.prisma.aiConversation.count({
+        where: { ownerType: AiOwnerType.USER, ownerId: userId, deletedAt: null },
+      }),
     ]);
     return {
       nickname: entitlement.nickname,
@@ -1408,7 +1629,9 @@ export class AiService {
     const [jobs, assets, drafts, recentJobs] = await Promise.all([
       this.prisma.aiGenerationJob.count({ where: { userId } }),
       this.prisma.aiAsset.count({ where: { ownerId: userId, deletedAt: null } }),
-      this.prisma.content.count({ where: { authorId: userId, status: ContentStatus.DRAFT, deletedAt: null } }),
+      this.prisma.content.count({
+        where: { authorId: userId, status: ContentStatus.DRAFT, deletedAt: null },
+      }),
       this.prisma.aiGenerationJob.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -1535,7 +1758,10 @@ export class AiService {
 
   private async resolveModel(modelId: string | undefined, guest: boolean, tool: AiToolCode) {
     const model = modelId
-      ? await this.prisma.aiModel.findUnique({ where: { id: modelId }, include: { provider: true } })
+      ? await this.prisma.aiModel.findUnique({
+          where: { id: modelId },
+          include: { provider: true },
+        })
       : await this.prisma.aiModel.findFirst({
           where: {
             enabled: true,
@@ -1546,11 +1772,28 @@ export class AiService {
           },
           include: { provider: true },
         });
-    if (!model || !model.enabled || (guest && !model.guestAllowed) || !model.toolTypes.includes(tool)) {
-      throw new DomainHttpException(HttpStatus.CONFLICT, 'AI_MODEL_NOT_AVAILABLE', '模型不可用或不在权益范围内');
+    if (
+      !model ||
+      !model.enabled ||
+      (guest && !model.guestAllowed) ||
+      !model.toolTypes.includes(tool)
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_MODEL_NOT_AVAILABLE',
+        '模型不可用或不在权益范围内',
+      );
     }
-    if (model.inputPricePer1k === 0 && model.outputPricePer1k === 0 && model.fixedPlatformCost == null) {
-      throw new DomainHttpException(HttpStatus.CONFLICT, 'AI_MODEL_NOT_AVAILABLE', '模型缺少定价规则');
+    if (
+      model.inputPricePer1k === 0 &&
+      model.outputPricePer1k === 0 &&
+      model.fixedPlatformCost == null
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_MODEL_NOT_AVAILABLE',
+        '模型缺少定价规则',
+      );
     }
     return model;
   }
@@ -1584,20 +1827,57 @@ export class AiService {
     assistantId: string;
     sessionId: string;
     reservationId?: string;
-    userId?: string;
     requestId: string;
   }) {
-    await this.prisma.aiMessage.update({
-      where: { id: input.assistantId },
-      data: { status: AiMessageStatus.FAILED, finishReason: AiFinishReason.ERROR, errorCode: 'AI_PROVIDER_FAILED' },
-    });
-    await this.prisma.aiConversation.update({
-      where: { id: input.sessionId },
-      data: { activeMessageId: null },
-    });
-    if (input.reservationId) {
-      await this.quota.release(input.reservationId, input.requestId);
+    let transactionError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await this.prisma.$transaction([
+          this.prisma.aiMessage.update({
+            where: { id: input.assistantId },
+            data: {
+              status: AiMessageStatus.FAILED,
+              finishReason: AiFinishReason.ERROR,
+              errorCode: 'AI_PROVIDER_FAILED',
+            },
+          }),
+          this.prisma.aiConversation.update({
+            where: { id: input.sessionId },
+            data: { activeMessageId: null },
+          }),
+        ]);
+        transactionError = undefined;
+        break;
+      } catch (error) {
+        transactionError = error;
+      }
     }
+
+    let releaseError: unknown;
+    if (input.reservationId) {
+      try {
+        await this.releaseReservationWithRetry(input.reservationId, input.requestId);
+      } catch (error) {
+        releaseError = error;
+      }
+    }
+    if (transactionError || releaseError) {
+      throw transactionError ?? releaseError;
+    }
+  }
+
+  /** 失败路径释放预占允许一次重试，避免瞬时数据库连接抖动留下额度锁定。 */
+  private async releaseReservationWithRetry(reservationId: string, requestId: string) {
+    let lastError: unknown;
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await this.quota.release(reservationId, requestId);
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
   }
 }
 
@@ -1776,7 +2056,13 @@ function mapJob(
   }> = [],
 ) {
   const status =
-    row.status === 'SUCCEEDED' ? 'done' : row.status === 'FAILED' ? 'failed' : row.status === 'CANCELED' ? 'stopped' : 'generating';
+    row.status === 'SUCCEEDED'
+      ? 'done'
+      : row.status === 'FAILED'
+        ? 'failed'
+        : row.status === 'CANCELED'
+          ? 'stopped'
+          : 'generating';
   const mappedAssets = assets.map(mapAsset);
   return {
     id: row.id,
@@ -1818,7 +2104,12 @@ function mapAsset(row: {
     assetId: row.id,
     title: row.title,
     type: row.type.toLowerCase(),
-    source: row.source === 'GENERATED' ? 'generated' : row.source === 'UPLOADED' ? 'uploaded' : 'content-reference',
+    source:
+      row.source === 'GENERATED'
+        ? 'generated'
+        : row.source === 'UPLOADED'
+          ? 'uploaded'
+          : 'content-reference',
     status: row.status === 'TRASHED' ? 'trashed' : 'saved',
     prompt: row.prompt,
     modelId: row.modelId,

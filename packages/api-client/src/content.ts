@@ -9,15 +9,10 @@ import {
   type PaginationResult,
 } from '@personal-hub/shared-types';
 import { readNestData, type NestEnvelope } from './http';
+export { newIdempotencyKey } from './uuid';
 
 export type NestContentType =
-  | 'MARKDOWN'
-  | 'RICH_TEXT'
-  | 'BOOKLET'
-  | 'PDF'
-  | 'WORD'
-  | 'LINK'
-  | 'PROJECT';
+  'MARKDOWN' | 'RICH_TEXT' | 'BOOKLET' | 'PDF' | 'WORD' | 'LINK' | 'PROJECT';
 export type NestContentStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
 export type NestContentVisibility = 'PUBLIC' | 'LOGIN' | 'PRIVATE';
 
@@ -297,8 +292,4 @@ export function mapNestChapterIndex(
       empty: true,
     })),
   };
-}
-
-export function newIdempotencyKey(): string {
-  return crypto.randomUUID();
 }

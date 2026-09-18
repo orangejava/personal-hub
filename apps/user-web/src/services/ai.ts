@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import { getAccessToken } from '@personal-hub/api-client';
+import { getAccessToken, newIdempotencyKey } from '@personal-hub/api-client';
 import {
   buildMediaJobBody,
   readCreatedJobId,
@@ -35,12 +35,10 @@ import type {
   AiTutorialItem,
 } from '@personal-hub/shared-types';
 
-function newIdempotencyKey(): string {
-  return crypto.randomUUID();
-}
-
 function isUuid(value?: string): boolean {
-  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value));
+  return Boolean(
+    value && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value),
+  );
 }
 
 export function isLoggedIn(): boolean {
@@ -57,8 +55,12 @@ interface Page<T> {
 interface SsePayload {
   type: string;
   content?: string;
+  requestId?: string;
+  sessionId?: string;
+  userMessageId?: string;
   assistantMessageId?: string;
   code?: string;
+  message?: string;
   usage?: { inputTokens?: number; outputTokens?: number; platformCost?: number };
 }
 
@@ -102,7 +104,7 @@ export async function consumeAiSse(
   }
   const reader = response.body?.getReader();
   if (!reader) {
-    return;
+    throw new Error('AI 服务未返回可读取的响应流');
   }
   const decoder = new TextDecoder();
   let buffer = '';
@@ -124,9 +126,44 @@ export async function consumeAiSse(
   }
 }
 
+const AI_HOME_CACHE_TTL_MS = 5_000;
+const aiHomeCache = new Map<string, { data: AiHomeData; expiresAt: number }>();
+const aiHomeRequests = new Map<string, Promise<AiHomeData>>();
+
+function pruneAiHomeCache(now: number) {
+  for (const [key, entry] of aiHomeCache) {
+    if (entry.expiresAt <= now) {
+      aiHomeCache.delete(key);
+    }
+  }
+}
+
+/** 页面和 AI Layout 会并行读取同一份首页配置，短时缓存避免重复打接口。 */
 export async function fetchAiHome() {
-  const path = isLoggedIn() ? '/api/v1/app/ai/home' : '/api/v1/public/ai/home';
-  return request<AiHomeData>(path);
+  const accessToken = getAccessToken();
+  const path = accessToken ? '/api/v1/app/ai/home' : '/api/v1/public/ai/home';
+  // 登录用户的额度和最近活动属于账号数据，缓存键必须绑定当前 access token。
+  const cacheKey = `${path}:${accessToken ?? 'anonymous'}`;
+  const now = Date.now();
+  pruneAiHomeCache(now);
+  const cached = aiHomeCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.data;
+  }
+  const pending = aiHomeRequests.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+  const promise = request<AiHomeData>(path)
+    .then((data) => {
+      aiHomeCache.set(cacheKey, { data, expiresAt: Date.now() + AI_HOME_CACHE_TTL_MS });
+      return data;
+    })
+    .finally(() => {
+      aiHomeRequests.delete(cacheKey);
+    });
+  aiHomeRequests.set(cacheKey, promise);
+  return promise;
 }
 
 export async function fetchAiTools() {
@@ -264,7 +301,9 @@ export function releaseAiAssetObjectUrl(assetId: string) {
  * 媒体接口需要 Bearer，不能直接当 img src。
  * 用 blob URL 缓存，避免同一资产反复下载。
  */
-export async function resolveAiAssetObjectUrl(asset: Pick<AiAsset, 'id' | 'fileUrl' | 'thumbnailUrl'>) {
+export async function resolveAiAssetObjectUrl(
+  asset: Pick<AiAsset, 'id' | 'fileUrl' | 'thumbnailUrl'>,
+) {
   const cached = objectUrlCache.get(asset.id);
   if (cached) {
     cached.refs += 1;
@@ -347,16 +386,21 @@ export async function generateAiText(
       onEvent?.(event);
     },
   );
-  return { output, estimatedTokens: tokens, assistantMessageId, task: {
-    id: crypto.randomUUID(),
-    toolType: 'text',
-    title: data.scenario,
-    prompt: data.input,
-    modelId: data.modelId,
-    status: 'done',
-    assetIds: [],
-    createdAt: new Date().toISOString(),
-  } };
+  return {
+    output,
+    estimatedTokens: tokens,
+    assistantMessageId,
+    task: {
+      id: newIdempotencyKey(),
+      toolType: 'text',
+      title: data.scenario,
+      prompt: data.input,
+      modelId: data.modelId,
+      status: 'done',
+      assetIds: [],
+      createdAt: new Date().toISOString(),
+    },
+  };
 }
 
 async function pollJob(kind: 'image' | 'video', jobId: string) {
@@ -398,9 +442,10 @@ async function createMediaJob(
     id: createdId,
     title: data.title || created.title,
     params: data.params,
-    status: created.status === 'done' || created.status === 'failed' || created.status === 'stopped'
-      ? created.status
-      : 'generating',
+    status:
+      created.status === 'done' || created.status === 'failed' || created.status === 'stopped'
+        ? created.status
+        : 'generating',
   });
   const job = await pollJob(kind, createdId);
   const assets = job.assets ?? [];
@@ -457,9 +502,7 @@ export async function createAiSession(data: AiConversationCreateInput = {}) {
       method: 'POST',
       data: {
         title: data.title,
-        modelId: isUuid(data.settings?.modelId)
-          ? data.settings?.modelId
-          : undefined,
+        modelId: isUuid(data.settings?.modelId) ? data.settings?.modelId : undefined,
         systemPrompt: data.settings?.systemPrompt,
       },
       headers: { 'Idempotency-Key': newIdempotencyKey() },
@@ -490,7 +533,9 @@ export async function fetchAiMessages(sessionId: string) {
   if (!isLoggedIn()) {
     return [];
   }
-  const page = await request<{ list: AiMessage[] }>(`/api/v1/app/ai/sessions/${sessionId}/messages`);
+  const page = await request<{ list: AiMessage[] }>(
+    `/api/v1/app/ai/sessions/${sessionId}/messages`,
+  );
   return page.list;
 }
 
@@ -559,13 +604,12 @@ export async function regenerateAiMessage(
   );
 }
 
-export async function updateAiMessageFeedback(
-  messageId: string,
-  data: AiMessageFeedbackInput,
-) {
+export async function updateAiMessageFeedback(messageId: string, data: AiMessageFeedbackInput) {
   return request<AiMessage>(`/api/v1/app/ai/messages/${messageId}/feedback`, {
     method: 'PATCH',
-    data: { feedback: data.feedback === 'dislike' ? 'DISLIKE' : data.feedback === 'like' ? 'LIKE' : null },
+    data: {
+      feedback: data.feedback === 'dislike' ? 'DISLIKE' : data.feedback === 'like' ? 'LIKE' : null,
+    },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }

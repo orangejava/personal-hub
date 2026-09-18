@@ -2,6 +2,7 @@
  * 工作区服务。文档/收藏/统计走 Nest；AI 与本地小册仍打旧路径。
  */
 import { request } from '@umijs/max';
+import { newIdempotencyKey } from '@personal-hub/api-client';
 import type {
   AiConversation,
   PaginationResult,
@@ -19,10 +20,6 @@ import {
   type NestContentDetail,
   type NestContentPage,
 } from './mapNestContent';
-
-function newIdempotencyKey(): string {
-  return crypto.randomUUID();
-}
 
 export async function fetchWorkspaceStats() {
   return request<WorkspaceStats>('/api/v1/app/dashboard');
@@ -161,9 +158,10 @@ export async function deleteContent(id: string) {
 }
 
 export async function fetchLocalBooklets() {
-  return request<{ booklets: import('@personal-hub/shared-types').Booklet[]; syncedAt: string | null }>(
-    '/api/workspace/booklets/local',
-  );
+  return request<{
+    booklets: import('@personal-hub/shared-types').Booklet[];
+    syncedAt: string | null;
+  }>('/api/workspace/booklets/local');
 }
 
 export async function fetchFavorites(params: { page?: number; pageSize?: number }) {
@@ -197,10 +195,12 @@ export async function fetchWorkspaceAiHistory(params: {
   pageSize?: number;
   keyword?: string;
 }) {
-  const page = await request<{ list: AiConversation[]; total: number; page: number; pageSize: number }>(
-    '/api/v1/app/ai/sessions',
-    { params: { page: params.page, pageSize: params.pageSize } },
-  );
+  const page = await request<{
+    list: AiConversation[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }>('/api/v1/app/ai/sessions', { params: { page: params.page, pageSize: params.pageSize } });
   const keyword = params.keyword?.trim().toLowerCase();
   const list = keyword
     ? page.list.filter((item) => item.title.toLowerCase().includes(keyword))
@@ -218,7 +218,7 @@ export async function renameWorkspaceAiHistory(id: string, title: string) {
   return request<AiConversation>(`/api/v1/app/ai/sessions/${id}`, {
     method: 'PATCH',
     data: { title },
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 
@@ -226,7 +226,7 @@ export async function renameWorkspaceAiHistory(id: string, title: string) {
 export async function deleteWorkspaceAiHistory(id: string) {
   return request<{ id: string }>(`/api/v1/app/ai/sessions/${id}`, {
     method: 'DELETE',
-    headers: { 'Idempotency-Key': crypto.randomUUID() },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
 

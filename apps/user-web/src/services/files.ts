@@ -1,4 +1,5 @@
 import { request } from '@umijs/max';
+import { newIdempotencyKey } from '@personal-hub/api-client';
 import type {
   AppFileListItem,
   BookletImportJobItem,
@@ -6,10 +7,6 @@ import type {
   UploadTaskListResult,
 } from '@personal-hub/shared-types';
 import { nestError } from '@/services/auth';
-
-function newIdempotencyKey(): string {
-  return crypto.randomUUID();
-}
 
 export interface AppUploadSession {
   uploadId: string;
@@ -129,10 +126,7 @@ async function requestIdempotent<T>(
       });
     } catch (error) {
       lastError = error;
-      if (
-        nestError(error).code !== 'IDEMPOTENCY_REQUEST_IN_PROGRESS' ||
-        attempt === retries - 1
-      ) {
+      if (nestError(error).code !== 'IDEMPOTENCY_REQUEST_IN_PROGRESS' || attempt === retries - 1) {
         throw error;
       }
       await delay(400 * (attempt + 1));

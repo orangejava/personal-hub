@@ -51,6 +51,7 @@
 ## 前端
 
 - Umi `request` 仍解包 T；SSE 用 `fetch` + `Idempotency-Key`，不要走信封解包。
+- Chat/Text 的 `STARTED` 事件是服务端 ID 握手，返回 `sessionId`、`userMessageId`、`assistantMessageId` 和 `requestId`；前端收到后将临时 UI 键替换为服务端消息 ID。
 - 页面枚举小写，Nest `UPPER_SNAKE`，映射在 service。
 - `consumeAiQuota` 只刷新 entitlement，不再客户端扣费。
 
