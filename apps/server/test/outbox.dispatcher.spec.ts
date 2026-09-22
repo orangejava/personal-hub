@@ -11,6 +11,8 @@ import {
 } from '../src/infrastructure/queue/queue.constants';
 import type { OutboxService } from '../src/infrastructure/queue/outbox.service';
 import type { BookletImportService } from '../src/modules/booklet/booklet-import.service';
+import type { AiQuotaService } from '../src/modules/ai/ai-quota.service';
+import type { AiService } from '../src/modules/ai/ai.service';
 
 describe('OutboxDispatcher', () => {
   it('把 booklet-import outbox 投进 BullMQ 后标记已投递', async () => {
@@ -95,6 +97,8 @@ function dispatcherFor(input: {
       ? vi.fn().mockRejectedValue(input.addError)
       : vi.fn().mockResolvedValue({ id: 'bull-1' }),
   } as unknown as Queue;
-  const dispatcher = new OutboxDispatcher(outbox, queue, queue, queue);
+  const ai = { recoverStaleGenerationJobs: vi.fn().mockResolvedValue(0) } as unknown as AiService;
+  const quota = { expireStale: vi.fn().mockResolvedValue(0) } as unknown as AiQuotaService;
+  const dispatcher = new OutboxDispatcher(outbox, queue, queue, queue, ai, quota);
   return { dispatcher, outbox, queue };
 }

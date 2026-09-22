@@ -253,8 +253,8 @@ export class AuthService {
 
     const next = this.tokenService.createRefreshToken();
     const ipHash = this.tokenService.hashIdentifier(input.ip);
-    await this.prisma.$transaction(async (tx) => {
-      await this.authRepository.rotateRefreshToken(
+    const rotated = await this.prisma.$transaction(async (tx) => {
+      const created = await this.authRepository.rotateRefreshToken(
         {
           oldTokenId: existing.id,
           sessionId: existing.sessionId,
@@ -263,6 +263,9 @@ export class AuthService {
         },
         tx,
       );
+      if (created === null) {
+        return null;
+      }
       await this.authRepository.touchSession(existing.sessionId, tx);
       await this.authRepository.createAuditLog(
         {
@@ -275,7 +278,11 @@ export class AuthService {
         },
         tx,
       );
+      return created;
     });
+    if (rotated === null) {
+      throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
+    }
 
     await this.cacheSession({
       userId: user.id,

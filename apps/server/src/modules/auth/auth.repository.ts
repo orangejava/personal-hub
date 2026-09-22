@@ -363,8 +363,8 @@ export class AuthRepository {
   }
 
   /**
-   * Refresh 轮换：先写入新哈希再标记旧行 revoked+replacedBy。
-   * 顺序反过来会在崩溃时留下「旧 token 仍有效、新 token 未入库」。
+   * Refresh 轮换：只有仍处于可轮换状态的旧 token 能赢得这次状态迁移。
+   * 条件更新是跨实例并发安全的关键；失败时不创建后继 token，事务由调用方回滚。
    */
   async rotateRefreshToken(
     input: {
@@ -374,8 +374,23 @@ export class AuthRepository {
       expiresAt: Date;
     },
     db: DbClient = this.prisma,
-  ): Promise<RefreshToken> {
+  ): Promise<RefreshToken | null> {
     const now = new Date();
+    const claimed = await db.refreshToken.updateMany({
+      where: {
+        id: input.oldTokenId,
+        sessionId: input.sessionId,
+        rotatedAt: null,
+        revokedAt: null,
+      },
+      data: {
+        rotatedAt: now,
+        revokedAt: now,
+      },
+    });
+    if (claimed.count !== 1) {
+      return null;
+    }
     const created = await db.refreshToken.create({
       data: {
         sessionId: input.sessionId,
@@ -385,11 +400,7 @@ export class AuthRepository {
     });
     await db.refreshToken.update({
       where: { id: input.oldTokenId },
-      data: {
-        rotatedAt: now,
-        revokedAt: now,
-        replacedByTokenId: created.id,
-      },
+      data: { replacedByTokenId: created.id },
     });
     return created;
   }

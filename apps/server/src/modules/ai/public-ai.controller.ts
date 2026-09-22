@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AiOwnerType } from '@prisma/client';
@@ -60,7 +61,7 @@ export class PublicAiController {
   @Public()
   @Post('chat')
   @UseGuards(AiAnonymousGuard)
-  @RequireIdempotency({ highRisk: true })
+  @RequireIdempotency({ highRisk: true, stream: true })
   @SkipResponseEnvelope()
   async chat(
     @Body() body: PublicChatDto,
@@ -75,14 +76,14 @@ export class PublicAiController {
       body: { content: body.content },
       requestId: request.requestId,
       response,
-      ipHash: request.aiAnonymousId,
+      ipHash: hashIp(request.ip),
     });
   }
 
   @Public()
   @Post('text-generations')
   @UseGuards(AiAnonymousGuard)
-  @RequireIdempotency({ highRisk: true })
+  @RequireIdempotency({ highRisk: true, stream: true })
   @SkipResponseEnvelope()
   async text(
     @Body() body: TextGenerateDto,
@@ -94,7 +95,7 @@ export class PublicAiController {
       body,
       requestId: request.requestId,
       response,
-      ipHash: request.aiAnonymousId,
+      ipHash: hashIp(request.ip),
     });
   }
 
@@ -113,4 +114,8 @@ export class PublicAiController {
     }
     return { type: AiOwnerType.ANONYMOUS, id };
   }
+}
+
+function hashIp(ip: string | undefined): string {
+  return createHash('sha256').update(ip ?? 'unknown').digest('hex');
 }

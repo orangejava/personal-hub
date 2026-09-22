@@ -49,6 +49,16 @@ export class ContentRepository {
     return this.prisma.content.count({ where });
   }
 
+  /** 使用内容表已有的 GIN tsvector 索引查询标题、摘要和受限正文派生字段。 */
+  async searchIds(keyword: string): Promise<string[]> {
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM contents
+      WHERE search_document @@ websearch_to_tsquery('simple', ${keyword})
+    `;
+    return rows.map((row) => row.id);
+  }
+
   findCategoryBySlug(slug: string, db: DbClient = this.prisma) {
     return db.category.findUnique({ where: { slug } });
   }

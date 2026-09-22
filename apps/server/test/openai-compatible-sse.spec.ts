@@ -32,4 +32,21 @@ describe('OpenAI 兼容 SSE 解析', () => {
       usage: { inputTokens: 3, outputTokens: 5 },
     });
   });
+
+  it('兼容 CRLF 和多行 data', () => {
+    const parsed = parseOpenAiSseBlock(
+      'event: message\r\ndata: {"choices":[{"delta":{"content":"你好"}}]}\r\n',
+    );
+    expect(parsed).toEqual({ content: '你好', usage: undefined });
+  });
+
+  it('上游返回损坏 JSON 时显式失败，不静默丢帧', () => {
+    expect(() => parseOpenAiSseBlock('data: {broken')).toThrow('AI_UPSTREAM_INVALID_SSE');
+  });
+
+  it('上游错误帧映射为稳定错误', () => {
+    expect(() => parseOpenAiSseBlock('data: {"error":{"message":"rate limited"}}')).toThrow(
+      'AI_UPSTREAM_ERROR',
+    );
+  });
 });

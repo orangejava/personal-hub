@@ -6,14 +6,7 @@
  */
 
 export type AiToolType =
-  | 'chat'
-  | 'text'
-  | 'image'
-  | 'video'
-  | 'webui'
-  | 'comfyui'
-  | 'lora'
-  | 'apps';
+  'chat' | 'text' | 'image' | 'video' | 'webui' | 'comfyui' | 'lora' | 'apps';
 
 export type AiToolStatus = 'enabled' | 'disabled' | 'comingSoon';
 
@@ -21,12 +14,7 @@ export type AiAssetType = 'image' | 'video' | 'text' | 'conversation' | 'attachm
 
 export type AiAssetSource = 'generated' | 'uploaded' | 'content-reference';
 
-export type AiAssetStatus =
-  | 'draft'
-  | 'saved'
-  | 'published'
-  | 'failed'
-  | 'trashed';
+export type AiAssetStatus = 'draft' | 'saved' | 'published' | 'failed' | 'trashed';
 
 export type AiGenerationStatus = 'idle' | 'generating' | 'done' | 'failed' | 'stopped';
 
@@ -173,17 +161,14 @@ export interface AiMessage {
   status: AiGenerationStatus;
   createdAt: string;
   tokenCount?: number;
+  /** 失败消息的稳定诊断码，便于刷新历史后继续展示可诊断状态。 */
+  errorCode?: string;
   feedback?: 'dislike';
   feedbackAt?: string;
   parts?: AiMessagePart[];
 }
 
-export type AiMessagePartType =
-  | 'reasoning'
-  | 'thought_chain'
-  | 'content'
-  | 'source'
-  | 'done';
+export type AiMessagePartType = 'reasoning' | 'thought_chain' | 'content' | 'source' | 'done';
 
 export interface AiMessagePart {
   id: string;
@@ -220,14 +205,7 @@ export interface AiConversationUpdateInput {
 export interface AiChatMessagesPersistInput {
   messages: Pick<
     AiMessage,
-    | 'role'
-    | 'content'
-    | 'status'
-    | 'createdAt'
-    | 'tokenCount'
-    | 'feedback'
-    | 'feedbackAt'
-    | 'parts'
+    'role' | 'content' | 'status' | 'createdAt' | 'tokenCount' | 'feedback' | 'feedbackAt' | 'parts'
   >[];
   settings?: AiConversationSettings;
   title?: string;
@@ -293,13 +271,7 @@ export interface AiGenerationTask {
   createdAt: string;
 }
 
-export type AiTextScenario =
-  | 'write'
-  | 'rewrite'
-  | 'summary'
-  | 'expand'
-  | 'translate'
-  | 'custom';
+export type AiTextScenario = 'write' | 'rewrite' | 'summary' | 'expand' | 'translate' | 'custom';
 
 export interface AiTextGenerateInput {
   scenario: AiTextScenario;

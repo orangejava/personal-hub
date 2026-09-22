@@ -6,13 +6,18 @@ export interface ContentViewer {
   contentReadAll: boolean;
 }
 
-/** 公开列表：已发布的 PUBLIC + LOGIN；LOGIN 对访客是锁定卡片。 */
-export function publicListWhere(): Prisma.ContentWhereInput {
+/** 公开列表按 viewer 收敛可见性，匿名主体不能通过列表获知 LOGIN 内容。 */
+export function publicListWhere(viewer: ContentViewer): Prisma.ContentWhereInput {
   return {
     deletedAt: null,
     status: ContentStatus.PUBLISHED,
     importRestriction: ImportRestriction.NONE,
-    visibility: { in: [ContentVisibility.PUBLIC, ContentVisibility.LOGIN] },
+    visibility: {
+      in:
+        viewer.userId === undefined
+          ? [ContentVisibility.PUBLIC]
+          : [ContentVisibility.PUBLIC, ContentVisibility.LOGIN],
+    },
   };
 }
 

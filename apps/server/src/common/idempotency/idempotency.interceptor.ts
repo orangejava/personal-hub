@@ -70,6 +70,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
         '写操作必须提供 Idempotency-Key',
       );
     }
+    if (options?.stream) {
+      return next.handle();
+    }
 
     const subjectId = request.auth?.userId ?? request.aiAnonymousId;
     if (!subjectId) {

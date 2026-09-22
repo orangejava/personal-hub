@@ -4,6 +4,7 @@ import { Job, Queue } from 'bullmq';
 import { AiService } from '../../modules/ai/ai.service';
 import { BookletImportService } from '../../modules/booklet/booklet-import.service';
 import { OutboxService } from './outbox.service';
+import { AiQuotaService } from '../../modules/ai/ai-quota.service';
 import {
   AI_IMAGE_GENERATION_EVENT,
   AI_IMAGE_GENERATION_JOB,
@@ -20,23 +21,46 @@ import {
 export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxDispatcher.name);
   private timer?: NodeJS.Timeout;
+  private quotaTimer?: NodeJS.Timeout;
 
   constructor(
     private readonly outbox: OutboxService,
     @InjectQueue(BOOKLET_IMPORT_QUEUE) private readonly bookletQueue: Queue,
     @InjectQueue(AI_IMAGE_GENERATION_QUEUE) private readonly imageQueue: Queue,
     @InjectQueue(AI_VIDEO_GENERATION_QUEUE) private readonly videoQueue: Queue,
+    private readonly ai: AiService,
+    private readonly quota: AiQuotaService,
   ) {}
 
   onModuleInit(): void {
     this.timer = setInterval(() => {
       void this.tick();
     }, 2000);
+    this.quotaTimer = setInterval(() => {
+      void this.expireStaleReservations();
+    }, 30_000);
   }
 
   onModuleDestroy(): void {
     if (this.timer) {
       clearInterval(this.timer);
+    }
+    if (this.quotaTimer) {
+      clearInterval(this.quotaTimer);
+    }
+  }
+
+  private async expireStaleReservations(): Promise<void> {
+    try {
+      const [quotaCount, jobCount] = await Promise.all([
+        this.quota.expireStale(),
+        this.ai.recoverStaleGenerationJobs(),
+      ]);
+      if (quotaCount > 0 || jobCount > 0) {
+        this.logger.warn(`清理过期 AI 额度预占 ${quotaCount} 条，恢复生成任务 ${jobCount} 条`);
+      }
+    } catch (error) {
+      this.logger.warn(`清理过期 AI 额度预占失败: ${error instanceof Error ? error.message : error}`);
     }
   }
 

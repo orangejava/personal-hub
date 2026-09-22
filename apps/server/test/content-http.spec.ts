@@ -165,7 +165,7 @@ describe('Content HTTP', () => {
     await stopPostgres?.();
   });
 
-  it('公开列表含 PUBLIC，LOGIN 对访客锁定；详情 LOGIN 返回 401', async () => {
+  it('公开列表只含 PUBLIC；详情 LOGIN 对访客返回 401', async () => {
     const created = await json<{ id: string }>('/api/v1/app/contents', {
       method: 'POST',
       token: editorToken,
@@ -209,9 +209,7 @@ describe('Content HTTP', () => {
     expect(
       list.data?.list.some((item) => item.title === '公开 Nest 文章' && item.locked === false),
     ).toBe(true);
-    expect(
-      list.data?.list.some((item) => item.title === '登录可见文' && item.locked === true),
-    ).toBe(true);
+    expect(list.data?.list.some((item) => item.title === '登录可见文')).toBe(false);
 
     const anonDetail = await raw(`/api/v1/public/contents/${created.data?.id}`);
     expect(anonDetail.status).toBe(401);

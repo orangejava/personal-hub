@@ -2,6 +2,7 @@ import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   AiQuotaTransactionType,
   AiReservationStatus,
+  Prisma,
 } from '@prisma/client';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
@@ -80,73 +81,103 @@ export class AiQuotaService {
   }
 
   async settle(reservationId: string, actual: bigint, requestId: string) {
-    const reservation = await this.prisma.aiQuotaReservation.findUnique({
-      where: { id: reservationId },
-    });
-    if (!reservation || reservation.status !== AiReservationStatus.PENDING) {
-      return;
-    }
-    const actualAmount = actual < 0n ? 0n : actual;
-    const release = reservation.reservedAmount > actualAmount ? reservation.reservedAmount - actualAmount : 0n;
-    const extra = actualAmount > reservation.reservedAmount ? actualAmount - reservation.reservedAmount : 0n;
-    await this.prisma.$transaction(async (tx) => {
-      const account = await tx.aiQuotaAccount.findUniqueOrThrow({
-        where: { id: reservation.accountId },
-      });
-      if (extra > 0n && account.availableAmount < extra) {
-        // 超预占时最多扣到 0，避免余额变负。
-      }
-      const debitExtra = extra > 0n && account.availableAmount >= extra ? extra : 0n;
-      const nextAvailable = account.availableAmount + release - debitExtra;
-      const nextReserved = account.reservedAmount - reservation.reservedAmount;
-      await tx.aiQuotaAccount.update({
-        where: { id: account.id },
-        data: {
-          reservedAmount: nextReserved,
-          availableAmount: nextAvailable,
-          version: { increment: 1 },
-        },
-      });
-      const next = await tx.aiQuotaAccount.findUniqueOrThrow({ where: { id: account.id } });
-      await tx.aiQuotaTransaction.create({
-        data: {
-          accountId: account.id,
-          type: AiQuotaTransactionType.SETTLE,
-          amount: actualAmount,
-          availableBalanceAfter: next.availableAmount,
-          reservedBalanceAfter: next.reservedAmount,
-          source: 'ai.settle',
-          requestId,
-        },
-      });
-      if (release > 0n) {
-        await tx.aiQuotaTransaction.create({
-          data: {
-            accountId: account.id,
-            type: AiQuotaTransactionType.RELEASE,
-            amount: release,
-            availableBalanceAfter: next.availableAmount,
-            reservedBalanceAfter: next.reservedAmount,
-            source: 'ai.settle.release',
-            requestId,
-          },
-        });
-      }
-      await tx.aiQuotaReservation.update({
-        where: { id: reservationId },
-        data: { status: AiReservationStatus.SETTLED, settledAmount: actualAmount },
-      });
+    await this.prisma.$transaction((tx) =>
+      this.settleInTransaction(tx, reservationId, actual, requestId),
+    );
+  }
+
+  /** 长时间运行的流式/异步任务续租预占，终态记录不会被重新打开。 */
+  async renew(reservationId: string): Promise<void> {
+    await this.prisma.aiQuotaReservation.updateMany({
+      where: { id: reservationId, status: AiReservationStatus.PENDING },
+      data: { expiresAt: new Date(Date.now() + RESERVE_TTL_MS) },
     });
   }
 
-  async release(reservationId: string, requestId: string) {
-    const reservation = await this.prisma.aiQuotaReservation.findUnique({
-      where: { id: reservationId },
+  /** 在调用方事务内结算，保证额度状态和 usage 记录一起提交或回滚。 */
+  async settleInTransaction(
+    tx: Prisma.TransactionClient,
+    reservationId: string,
+    actual: bigint,
+    requestId: string,
+  ) {
+    const actualAmount = actual < 0n ? 0n : actual;
+    const reservation = await tx.aiQuotaReservation.findFirst({
+      where: { id: reservationId, status: AiReservationStatus.PENDING },
     });
-    if (!reservation || reservation.status !== AiReservationStatus.PENDING) {
+    if (!reservation) {
       return;
     }
+    const claimed = await tx.aiQuotaReservation.updateMany({
+      where: { id: reservationId, status: AiReservationStatus.PENDING },
+      data: { status: AiReservationStatus.SETTLED, settledAmount: actualAmount },
+    });
+    if (claimed.count !== 1) {
+      return;
+    }
+    const release =
+      reservation.reservedAmount > actualAmount ? reservation.reservedAmount - actualAmount : 0n;
+    const extra = actualAmount > reservation.reservedAmount ? actualAmount - reservation.reservedAmount : 0n;
+    // 结算可能和新的预占/释放并发发生，账户字段必须使用原子增减，不能把旧快照重新写回。
+    await tx.aiQuotaAccount.update({
+      where: { id: reservation.accountId },
+      data: {
+        reservedAmount: { decrement: reservation.reservedAmount },
+        availableAmount: { increment: release },
+        version: { increment: 1 },
+      },
+    });
+    if (extra > 0n) {
+      await tx.aiQuotaAccount.updateMany({
+        where: { id: reservation.accountId, availableAmount: { gte: extra } },
+        data: {
+          availableAmount: { decrement: extra },
+          version: { increment: 1 },
+        },
+      });
+    }
+    const next = await tx.aiQuotaAccount.findUniqueOrThrow({ where: { id: reservation.accountId } });
+    await tx.aiQuotaTransaction.create({
+      data: {
+        accountId: reservation.accountId,
+        type: AiQuotaTransactionType.SETTLE,
+        amount: actualAmount,
+        availableBalanceAfter: next.availableAmount,
+        reservedBalanceAfter: next.reservedAmount,
+        source: 'ai.settle',
+        requestId,
+      },
+    });
+    if (release > 0n) {
+      await tx.aiQuotaTransaction.create({
+        data: {
+          accountId: reservation.accountId,
+          type: AiQuotaTransactionType.RELEASE,
+          amount: release,
+          availableBalanceAfter: next.availableAmount,
+          reservedBalanceAfter: next.reservedAmount,
+          source: 'ai.settle.release',
+          requestId,
+        },
+      });
+    }
+  }
+
+  async release(reservationId: string, requestId: string) {
     await this.prisma.$transaction(async (tx) => {
+      const reservation = await tx.aiQuotaReservation.findFirst({
+        where: { id: reservationId, status: AiReservationStatus.PENDING },
+      });
+      if (!reservation) {
+        return;
+      }
+      const claimed = await tx.aiQuotaReservation.updateMany({
+        where: { id: reservationId, status: AiReservationStatus.PENDING },
+        data: { status: AiReservationStatus.RELEASED },
+      });
+      if (claimed.count !== 1) {
+        return;
+      }
       await tx.aiQuotaAccount.update({
         where: { id: reservation.accountId },
         data: {
@@ -168,10 +199,6 @@ export class AiQuotaService {
           source: 'ai.release',
           requestId,
         },
-      });
-      await tx.aiQuotaReservation.update({
-        where: { id: reservationId },
-        data: { status: AiReservationStatus.RELEASED },
       });
     });
   }

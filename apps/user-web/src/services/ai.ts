@@ -34,6 +34,9 @@ import type {
   AiTool,
   AiTutorialItem,
 } from '@personal-hub/shared-types';
+import { parseAiSseBlock, takeAiSseBlock } from './aiSse';
+import type { SsePayload } from './aiSse';
+export type { SsePayload } from './aiSse';
 
 function isUuid(value?: string): boolean {
   return Boolean(
@@ -52,17 +55,7 @@ interface Page<T> {
   pageSize?: number;
 }
 
-interface SsePayload {
-  type: string;
-  content?: string;
-  requestId?: string;
-  sessionId?: string;
-  userMessageId?: string;
-  assistantMessageId?: string;
-  code?: string;
-  message?: string;
-  usage?: { inputTokens?: number; outputTokens?: number; platformCost?: number };
-}
+export { parseAiSseBlock } from './aiSse';
 
 /**
  * SSE 不走 Umi 解包：流式响应不是 `{ data }` 信封。
@@ -108,21 +101,38 @@ export async function consumeAiSse(
   }
   const decoder = new TextDecoder();
   let buffer = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
-    }
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split('\n\n');
-    buffer = chunks.pop() ?? '';
-    for (const chunk of chunks) {
-      const dataLine = chunk.split('\n').find((line) => line.startsWith('data:'));
-      if (!dataLine) {
-        continue;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        // flush=true 会把跨 chunk 暂存的 UTF-8 字节补齐，EOF 也可能带一个未以空行
+        // 结尾的事件，所以两者都必须处理。
+        buffer += decoder.decode();
+        break;
       }
-      onEvent(JSON.parse(dataLine.slice(5).trim()) as SsePayload);
+      buffer += decoder.decode(value, { stream: true });
+      while (true) {
+        const next = takeAiSseBlock(buffer);
+        if (next.block === undefined) {
+          buffer = next.rest;
+          break;
+        }
+        buffer = next.rest;
+        const payload = parseAiSseBlock(next.block);
+        if (payload) {
+          onEvent(payload);
+        }
+      }
     }
+    const tail = parseAiSseBlock(buffer);
+    if (tail) {
+      onEvent(tail);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  } finally {
+    reader.releaseLock();
   }
 }
 

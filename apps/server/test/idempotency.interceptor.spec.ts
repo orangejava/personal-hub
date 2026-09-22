@@ -122,9 +122,19 @@ describe('IdempotencyInterceptor', () => {
     expect(vi.mocked(records.release)).toHaveBeenCalledOnce();
     expect(vi.mocked(records.complete)).not.toHaveBeenCalled();
   });
+
+  it('SSE 请求只校验幂等键，不把空 controller 返回值持久化为 JSON', async () => {
+    const { interceptor, records, handler } = interceptorFor({ stream: true });
+
+    await lastValueFrom(interceptor.intercept(contextFor({ version: 3 }), handler));
+
+    expect(handler.handle).toHaveBeenCalledOnce();
+    expect(vi.mocked(records.claim)).not.toHaveBeenCalled();
+    expect(vi.mocked(records.complete)).not.toHaveBeenCalled();
+  });
 });
 
-function interceptorFor(options: { highRisk?: boolean }) {
+function interceptorFor(options: { highRisk?: boolean; stream?: boolean }) {
   const records = {
     claim: vi.fn().mockResolvedValue({ kind: 'claimed' }),
     complete: vi.fn().mockResolvedValue(undefined),
@@ -137,7 +147,7 @@ function interceptorFor(options: { highRisk?: boolean }) {
   return { interceptor, records, handler };
 }
 
-function reflectorFor(options: { highRisk?: boolean }) {
+function reflectorFor(options: { highRisk?: boolean; stream?: boolean }) {
   return {
     getAllAndOverride: vi.fn().mockReturnValueOnce(true).mockReturnValueOnce(options),
   } as never;

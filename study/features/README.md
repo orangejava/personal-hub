@@ -57,3 +57,5 @@
 - [admin-system-config-hub.md](./admin-system-config-hub.md)：后台系统配置中心、配置组 merge 与公开页接线。
 - [nest-content-domain.md](./nest-content-domain.md)：内容域可见性、枚举映射与公开读。
 - [nest-file-booklet.md](./nest-file-booklet.md)：预签名上传、purpose 白名单与 Outbox Worker。
+- [nest-review-remediation-concurrency.md](./nest-review-remediation-concurrency.md)：正式 Review 中的 Refresh Token、额度、AI 任务租约、幂等与内容权限修复。
+- [ai-chat-sse-boundaries.md](./ai-chat-sse-boundaries.md)：AI 对话厂商 SSE 接收、服务端转发、前端事件解析与失败状态定位。

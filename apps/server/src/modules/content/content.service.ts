@@ -124,7 +124,7 @@ export class ContentService {
   ) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
-    const where = await this.buildPublicWhere(query);
+    const where = await this.buildPublicWhere(query, viewer);
     const orderBy: Prisma.ContentOrderByWithRelationInput =
       query.sort === PublicContentSort.POPULAR ? { viewCount: 'desc' } : { publishedAt: 'desc' };
     const [list, total] = await Promise.all([
@@ -159,7 +159,7 @@ export class ContentService {
   }
 
   async publicMeta(viewer: ContentViewer) {
-    const where = publicListWhere();
+    const where = publicListWhere(viewer);
     const [categories, tags] = await Promise.all([
       this.prisma.category.findMany({
         where: { enabled: true },
@@ -171,7 +171,6 @@ export class ContentService {
         include: { _count: { select: { contents: { where: { content: where } } } } },
       }),
     ]);
-    void viewer;
     return {
       categories: categories.map((item) => ({
         slug: item.slug,
@@ -891,7 +890,8 @@ export class ContentService {
   }
 
   async listFavorites(auth: { userId: string }, page = 1, pageSize = 10) {
-    const where = { userId: auth.userId, content: publicListWhere() };
+    const viewer: ContentViewer = { userId: auth.userId, contentReadAll: false };
+    const where = { userId: auth.userId, content: publicListWhere(viewer) };
     const [rows, total] = await Promise.all([
       this.prisma.favorite.findMany({
         where,
@@ -902,7 +902,6 @@ export class ContentService {
       }),
       this.prisma.favorite.count({ where }),
     ]);
-    const viewer: ContentViewer = { userId: auth.userId, contentReadAll: false };
     return {
       list: await Promise.all(rows.map((item) => this.toListItem(item.content, viewer, true))),
       total,
@@ -935,9 +934,23 @@ export class ContentService {
       where: { userId: auth.userId, content: { deletedAt: null } },
       orderBy: { lastReadAt: 'desc' },
       take: 5,
-      include: { content: { select: { id: true, title: true, type: true } } },
+      include: {
+        content: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            visibility: true,
+            importRestriction: true,
+            authorId: true,
+            deletedAt: true,
+          },
+        },
+      },
     });
-    return rows.map((item) => ({
+    const viewer: ContentViewer = { userId: auth.userId, contentReadAll: false };
+    return rows.filter((item) => publicDetailAccess(item.content, viewer) === 'ok').map((item) => ({
       contentId: item.contentId,
       title: item.content.title ?? '未命名',
       type: item.content.type,
@@ -1303,11 +1316,13 @@ export class ContentService {
     tagSlugs?: string;
     types?: string;
     keyword?: string;
-  }): Promise<Prisma.ContentWhereInput> {
+  }, viewer: ContentViewer): Promise<Prisma.ContentWhereInput> {
+    const keyword = query.keyword?.trim();
+    const searchIds = keyword ? await this.contents.searchIds(keyword) : undefined;
     const where: Prisma.ContentWhereInput = {
-      ...publicListWhere(),
+      ...publicListWhere(viewer),
       ...this.typesWhere(query.types),
-      ...this.keywordWhere(query.keyword),
+      ...(searchIds !== undefined ? { id: { in: searchIds } } : {}),
     };
     if (query.categorySlug) {
       where.category = { slug: query.categorySlug, enabled: true };

@@ -151,7 +151,7 @@ export class AppAiController {
   @RequirePermission('ai:use')
   @RequireIdempotency()
   createSession(@Body() body: CreateSessionDto, @CurrentAuth() auth: RequestAuthContext) {
-    return this.ai.createSession({ type: AiOwnerType.USER, id: auth.userId }, body);
+    return this.ai.createSession({ type: AiOwnerType.USER, id: auth.userId, userId: auth.userId }, body);
   }
 
   @Patch('sessions/:sessionId')
@@ -162,7 +162,11 @@ export class AppAiController {
     @Body() body: PatchSessionDto,
     @CurrentAuth() auth: RequestAuthContext,
   ) {
-    return this.ai.patchSession({ type: AiOwnerType.USER, id: auth.userId }, sessionId, body);
+    return this.ai.patchSession(
+      { type: AiOwnerType.USER, id: auth.userId, userId: auth.userId },
+      sessionId,
+      body,
+    );
   }
 
   @Delete('sessions/:sessionId')
@@ -186,7 +190,7 @@ export class AppAiController {
 
   @Post('sessions/:sessionId/messages')
   @RequirePermission('ai:use')
-  @RequireIdempotency({ highRisk: true })
+  @RequireIdempotency({ highRisk: true, stream: true })
   @SkipResponseEnvelope()
   send(
     @Param('sessionId', new ParseUUIDPipe()) sessionId: string,
@@ -196,7 +200,12 @@ export class AppAiController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.ai.streamChat({
-      owner: { type: AiOwnerType.USER, id: auth.userId, userId: auth.userId },
+      owner: {
+        type: AiOwnerType.USER,
+        id: auth.userId,
+        userId: auth.userId,
+        permissionVersion: auth.permissionVersion,
+      },
       sessionId,
       body,
       requestId: request.requestId,
@@ -216,7 +225,7 @@ export class AppAiController {
 
   @Post('messages/:messageId/regenerate')
   @RequirePermission('ai:use')
-  @RequireIdempotency({ highRisk: true })
+  @RequireIdempotency({ highRisk: true, stream: true })
   @SkipResponseEnvelope()
   regenerate(
     @Param('messageId', new ParseUUIDPipe()) messageId: string,
@@ -225,7 +234,12 @@ export class AppAiController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.ai.regenerate(
-      { type: AiOwnerType.USER, id: auth.userId, userId: auth.userId },
+      {
+        type: AiOwnerType.USER,
+        id: auth.userId,
+        userId: auth.userId,
+        permissionVersion: auth.permissionVersion,
+      },
       messageId,
       request.requestId,
       response,
@@ -244,7 +258,7 @@ export class AppAiController {
 
   @Post('text-generations')
   @RequirePermission('ai:use')
-  @RequireIdempotency({ highRisk: true })
+  @RequireIdempotency({ highRisk: true, stream: true })
   @SkipResponseEnvelope()
   text(
     @Body() body: TextGenerateDto,
@@ -253,7 +267,12 @@ export class AppAiController {
     @Res({ passthrough: true }) response: Response,
   ) {
     return this.ai.streamText({
-      owner: { type: AiOwnerType.USER, id: auth.userId, userId: auth.userId },
+      owner: {
+        type: AiOwnerType.USER,
+        id: auth.userId,
+        userId: auth.userId,
+        permissionVersion: auth.permissionVersion,
+      },
       body,
       requestId: request.requestId,
       response,
