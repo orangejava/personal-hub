@@ -1,7 +1,7 @@
 # PRD 文档索引
 
-> 最后更新：2026-08-22
-> 说明：本目录存放**可直接指导开发**的 PRD。文档已按 **React-first（当前）** 与 **长期全栈（未来 Next + React Admin + NestJS）** 分子目录存放。
+> 最后更新：2026-09-23
+> 说明：本目录存放**可直接指导开发**的 PRD。首版上线后的当前开发主线见 **post-launch**；历史 React-first 与长期全栈契约分别保留在既有目录。
 
 ---
 
@@ -11,6 +11,7 @@
 | ------------------------------------- | ------------------------------------- |
 | 当前用户端 `apps/user-web` | **[../../apps/user-web/docs/prd](../../apps/user-web/docs/prd/)** |
 | 当前管理端 `apps/admin-web` | **[../../apps/admin-web/docs/prd](../../apps/admin-web/docs/prd/)** |
+| 首版上线后的跨端优化任务 | **[post-launch/](./post-launch/)** |
 | 规划未来 Next、`apps/server`、数据库  | **[long-term/](./long-term/)**        |
 | 产品功能范围（不分阶段）              | [../product/](../product/) 大模块文档 |
 | 部署 / 上线                           | [../deploy/](../deploy/)              |
@@ -19,9 +20,20 @@
 
 ---
 
+## 上线后优化（当前主线）
+
+> 目录：[post-launch/](./post-launch/) · 适用于首版已上线后的跨端优化 worktree。
+
+| 文档 | Worktree | 状态 |
+| --- | --- | --- |
+| [post-launch/ai-admin-operations-prd.md](./post-launch/ai-admin-operations-prd.md) | AI 后台：Provider、模型、用户自备 Key、用量、额度、倍率、发放和签到 | 🟢 下一步 |
+| [post-launch/theme-ui-performance-prd.md](./post-launch/theme-ui-performance-prd.md) | 主题、性能与 UI：主题剩余 UI、加载速度、Loading、页面交互优化 | 🟢 下一步 |
+
+---
+
 ## React-first（当前主线）
 
-> 用户端 PRD：[apps/user-web/docs/prd](../../apps/user-web/docs/prd/) · 管理端：[apps/admin-web/docs/prd](../../apps/admin-web/docs/prd/) · 历史路线图：[../history/react-first-roadmap.md](../history/react-first-roadmap.md)
+> 用户端 PRD：[apps/user-web/docs/prd](../../apps/user-web/docs/prd/) · 管理端：[apps/admin-web/docs/prd](../../apps/admin-web/docs/prd/) · 历史路线图：[../history/react-first-roadmap.md](../history/react-first-roadmap.md) · 当前新增跨端优化见 [post-launch/](./post-launch/)
 
 | 文档 | 阶段 | 状态 |
 | --- | --- | --- |
@@ -51,12 +63,12 @@
 | [long-term/ai-tools-prd.md](./long-term/ai-tools-prd.md)                             | AI 工具平台、SSE、任务、额度与资产                                  | ✅ 已确认                      |
 | [long-term/nest-backend-requirements.md](./long-term/nest-backend-requirements.md)   | React 功能到 Canonical Nest 后端需求总览                            | ✅ 已确认                      |
 
-**后置待办**：`long-term/flutter-app-prd.md`（Web 主链路稳定后）；域名与站点名；主题/导航剩余项。真实 AI 厂商适配在接入时按 `ai-tools-prd.md` 与 Canonical 文档补充，不预建重复 PRD。
+**后置待办**：`long-term/flutter-app-prd.md`（当前两条 post-launch worktree 完成后）。真实 AI 厂商适配、AI 后台运营和主题性能优化按 [post-launch/](./post-launch/) 推进。
 
 ---
 
 ## 维护规则
 
-1. 用户端 PRD 放入 `apps/user-web/docs/prd/`；管理端放入 `apps/admin-web/docs/prd/`；长期 Nest/Next 放入 `long-term/`。本目录 `react-first/` 只留索引与跳过方案。
+1. 用户端 PRD 放入 `apps/user-web/docs/prd/`；管理端放入 `apps/admin-web/docs/prd/`；首版上线后的跨端优化放入 `post-launch/`；长期 Nest/Next 放入 `long-term/`。本目录 `react-first/` 只留索引与跳过方案。
 2. 实施完成后：用户端实现说明进 `apps/user-web/docs/implementation/`；管理端进 `apps/admin-web/docs/implementation/`；Nest 进 `apps/server/docs/`。全局 `docs/implementation/` 只留索引与旧路径 stub。
 3. 决策变更时同步更新 [../react-first/README.md](../react-first/README.md) 与 product 文档。

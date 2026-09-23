@@ -3,7 +3,7 @@
 > 记录 personal-hub 各阶段/模块的完成状态、验收结果与交付文档入口。
 > 与 `docs/implementation/`（实现说明）、`study/features/`（学习笔记）分工：本文件只做进度索引。
 >
-> **下一步不在本表**：当前主线是首版上线部署，见 [../deploy/go-live-mainline.md](../deploy/go-live-mainline.md)。M7 后台治理本轮不做。
+> **下一步不在本表**：首版已上线。当前是上线后优化（AI 配置中心、用量与额度、主题与 UI）。见 [../overview.md](../overview.md)。
 
 ## React-first 阶段
 

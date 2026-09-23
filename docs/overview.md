@@ -1,8 +1,8 @@
 # 项目总纲索引
 
 > 个人知识平台 + AI 工具中台
-> 状态：React-first 阶段 0–5 与 Nest M0–M6 已落地；**当前主线是首版上线部署（公网 IP + Compose）**；M7 后台治理本轮不做
-> 最后更新：2026-09-16
+> 状态：React-first 阶段 0–5、Nest M0–M6 与首版上线已完成；**当前是上线后优化**（两条 worktree：AI 后台、主题性能与 UI）。域名 / ICP 备案并行办理，不占开发分支
+> 最后更新：2026-09-23
 
 ---
 
@@ -129,8 +129,11 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 | 文档                                                                                                   | 内容                                                       | 状态                                   |
 | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- | -------------------------------------- |
-| [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（React-first / 长期全栈）                       | ✅ 已完成                              |
+| [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（post-launch / React-first / 长期全栈）           | ✅ 已完成                              |
 | [prd/module-prd-index.md](./prd/module-prd-index.md)                                                   | 大模块 PRD 细化索引                                        | ✅ 已完成                              |
+| [prd/post-launch/README.md](./prd/post-launch/README.md)                                               | 首版上线后优化 PRD 索引                                    | 🟢 当前主线                            |
+| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、倍率、发放和签到 | 🟢 下一步                             |
+| [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md)           | 主题、性能与 UI：主题剩余 UI、加载速度、Loading、页面交互优化 | 🟢 下一步                             |
 | [prd/react-first/README.md](./prd/react-first/README.md)                                               | React-first 阶段 PRD 子索引                                | ✅ 已完成                              |
 | [prd/long-term/nest-server-bootstrap-prd.md](./prd/long-term/nest-server-bootstrap-prd.md)             | stub → `apps/server/docs/prd` | ✅ 已完成 |
 | [../apps/server/docs/prd/nest-server-bootstrap-prd.md](../apps/server/docs/prd/nest-server-bootstrap-prd.md) | `apps/server` 脚手架 PRD | ✅ 已完成 |
@@ -161,7 +164,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | 文档                                                                     | 内容                                                           | 状态        |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------- | ----------- |
 | [deploy/README.md](./deploy/README.md)                                   | 部署文档总入口                                                 | ✅ 已完成   |
-| [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)               | **当前主线**：首版上线（公网 IP + Compose，不做 M7）           | 🟡 进行中   |
+| [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)               | 首版上线记录（公网 IP + Compose）；当前开发主线已转到上线后优化 | ✅ 首版已上线 |
 | [deploy/prod-env-worksheet.md](./deploy/prod-env-worksheet.md)           | 生产 `.env.prod` 填空表                                       | 🟡 进行中   |
 | [deploy/production-prerequisites.md](./deploy/production-prerequisites.md) | 服务器软件逐项检查、失败后安装、资源与安全组检查             | ✅ 已完成   |
 | [deploy/server-command-reference.md](./deploy/server-command-reference.md) | 服务器命令字典：Compose、Git、日志、备份与风险说明           | ✅ 已完成   |
@@ -202,13 +205,16 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-09-13）
+## 当前开发主线（2026-09-22）
 
-1. **已落地**：React-first 0–5；Nest **M0–M6**（Auth、系统配置/菜单、内容、文件/小册、AI Fake + OpenAI-compatible）。Web 已拆用户端 `:8000` / 管理端 `:8001`。本地前端默认 `MOCK=none`。存量小册用 `pnpm booklet:import-local`，不要用 `dev:user:mock` 当 Nest 数据源。
-2. **接下来（主线）**：首版上线部署。公网 IP + `compose.prod.yml`（Nginx 同站 `/`、`/admin`、`/api/v1`）。细节见 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md)。
-3. **本轮明确不做**：后台治理 M7（禁用用户 / 改角色 / 调额度 / 审计列表 / 自定义角色）。契约仍在 [prd/long-term/admin-governance-audit-prd.md](./prd/long-term/admin-governance-audit-prd.md)，上线后再排。
-4. **明确跳过**：阶段 5.5 Next API Bridge。
-5. **明确后置（不挡上线）**：账号安全（改邮箱、TOTP）、主题剩余 UI、AI 配置中心与 AI 加深（后台管理真 Key / 自定义 Provider / 支付 / 增删模型）、域名与 HTTPS、Flutter；二期编辑器见 [product/phase-2](./product/phase-2/README.md)。
+1. **已落地**：React-first 0–5；Nest **M0–M6**；首版已按 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md) 上线（公网 IP + Compose）。本地前端默认 `MOCK=none`。存量小册用 `pnpm booklet:import-local`。
+2. **下一步（两条 worktree，可同时开）**：
+   - AI 后台：见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。同一条 worktree 分阶段完成 Provider / 模型配置、用户自备 Key、用量、额度、倍率、公共发放和连续签到。
+   - 主题、性能与 UI：见 [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md)。同一条 worktree 分阶段完成主题剩余 UI、加载速度与 Loading 优化、页面交互优化。
+3. **并行的运维，不占 worktree**：域名、个人非经营性 ICP 备案、HTTPS。材料见 [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md)。这不替代网信办对「调用已备案模型、向公众提供生成服务」的应用登记。
+4. **再往后，可互相并行**：Flutter、后台治理 M7（禁用用户 / 改角色 / 审计；额度调整已在 AI 后台）、账号安全（改邮箱、TOTP）。
+5. **明确跳过**：阶段 5.5 Next API Bridge。
+6. **仍不进当前开发**：用户充值与支付、自研模型、LoRA/ComfyUI、二期编辑器见 [product/phase-2](./product/phase-2/README.md)。
 
 ---
 
@@ -235,12 +241,23 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [x] Nest M5 文件/小册 5.1–5.7（见 [apps/server/docs/implementation/file/README.md](../apps/server/docs/implementation/file/README.md)）。站内 PDF/Word 编辑器与文件策略后台页见二期。
 - [x] Nest M6 AI 域（见 [apps/server/docs/implementation/ai/README.md](../apps/server/docs/implementation/ai/README.md)）。品牌/导航写库；文本可切 OpenAI-compatible 适配层；真实厂商 Key、支付、团队、LoRA/ComfyUI 执行后置。新增/删除模型仍后置。
 
-### 后置待办（不阻塞首版上线）
+### 上线后优化（当前，两条 worktree）
 
-- [ ] 域名 / HTTPS / 备案后置，见 [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md) 与 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md) 最后一节。站点名后台可改，不挡上线。
-- [ ] 主题与导航剩余 UI：公开区左/右导航布局、后台主题表单补齐（Logo 文件 / SEO / 功能开关 / 预览）（见 `prd/react-first/theme-navigation-config-prd.md`）
+- [ ] [AI 后台 worktree](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、倍率、公共发放和连续签到。不做充值、支付、自研模型。
+- [ ] [主题、性能与 UI worktree](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、网站加载速度、Loading 页面、公开页 / 小册 / AI 工作台交互优化。
+
+### 并行运维（不占 worktree）
+
+- [ ] 域名、个人非经营性 ICP 备案、HTTPS。见 [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md)。
+- [ ] 向属地网信办确认：公开 AI 若只调用已备案模型，是否办理应用/功能登记。
+
+### 上述完成后可并行
+
+- [ ] Flutter App（见 `prd/long-term/flutter-app-prd.md`）
+- [ ] M7 后台治理：禁用用户 / 改角色 / 审计列表。额度调整不在此项。
 - [ ] 账号安全：改邮箱、TOTP
-- [ ] AI 配置中心与 AI 加深：后台加密管理真实厂商 Key、系统预置/用户自定义 Provider、支付、增删模型、LoRA/ComfyUI（M6 Fake / 适配层已够首版）
-- [ ] M7 后台治理：禁用用户 / 改角色 / 额度 / 审计列表（上线后另排）
-- [ ] Flutter App（Web 主链路稳定后再补 `prd/long-term/flutter-app-prd.md`）
+
+### 仍后置、本轮不开发
+
+- [ ] 用户充值、支付、自研模型、LoRA/ComfyUI。
 - [ ] 二期产品想法（编辑器、文件策略后台页、物理清理等）见 [product/phase-2/README.md](./product/phase-2/README.md)

@@ -1,6 +1,6 @@
-# 当前主线：首版上线部署
+# 首版上线部署记录
 
-> 状态：🟢 当前开发主线（2026-09-15）
+> 状态：✅ 首版已上线（2026-09-22 确认）。本文保留当时的上线步骤，不再作为当前开发主线。后续任务见 [overview.md](../overview.md) 的「当前开发主线」。
 > 目标：Nest M0–M6 + 双端静态，用腾讯云 CVM + **COS** 发布；浏览器先走公网 IP + HTTP :80
 > 填空：[prod-env-worksheet.md](./prod-env-worksheet.md) · 启动顺序：[prod-startup-order.md](./prod-startup-order.md) · 腾讯云：[tencent-cloud-prep.md](./tencent-cloud-prep.md)
 > 拓扑：[nest-compose-strategy.md](./nest-compose-strategy.md) · 骨架：`compose.prod.yml`、`.env.prod.example`
