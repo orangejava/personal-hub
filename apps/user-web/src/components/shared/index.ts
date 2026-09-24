@@ -27,5 +27,7 @@ export { default as PdfViewer } from './PdfViewer';
 export { default as WordViewer } from './WordViewer';
 export { default as RichTextViewer } from './RichTextViewer';
 export { default as ScrollBackTop } from './ScrollBackTop';
+export { default as ReaderActionBar } from './ReaderActionBar';
+export type { ReaderBarAction } from './ReaderActionBar';
 export { default as BookletChapterFooter } from './BookletChapterFooter';
 export type { BookletChapterFooterProps } from './BookletChapterFooter';

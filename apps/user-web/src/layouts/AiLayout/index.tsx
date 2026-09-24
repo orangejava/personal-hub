@@ -33,6 +33,7 @@ import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import UserAccountPopover from '@/components/shared/UserAccountPopover';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
+import { useViewportBand } from '@/hooks/useViewportBand';
 import { setThemePreference } from '@/utils/clientPreferences';
 import '@/styles/ai-layout.less';
 import '@/styles/ai-components.less';
@@ -467,6 +468,7 @@ const AiLayout: React.FC<AiLayoutProps> = ({
   const resolvedNavItems = useMemo(() => buildNavItems(navigation), [navigation]);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const { band } = useViewportBand();
 
   useEffect(() => {
     void loadNavigation();
@@ -571,7 +573,12 @@ const AiLayout: React.FC<AiLayoutProps> = ({
                 onClick={() => setMobileDrawerOpen(true)}
               />
               <span className="ph-ai-topbar-title">
-                {collapsed ? resolvedBrandName : (currentLeaf?.label ?? resolvedBrandName)}
+                {/* 手机顶栏和「首页」挤在一行，完整品牌名会叠上去，这里只留 AI。 */}
+                {band === 'phone'
+                  ? 'AI'
+                  : collapsed
+                    ? resolvedBrandName
+                    : (currentLeaf?.label ?? resolvedBrandName)}
               </span>
             </Space>
             <Space size={12}>

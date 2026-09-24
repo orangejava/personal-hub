@@ -1,6 +1,7 @@
 import { InboxOutlined } from '@ant-design/icons';
 import { Button, Drawer, Empty } from 'antd';
 import React, { useState } from 'react';
+import { useOpenAfterComposerMoreCloses } from '../AiComposer/moreActionContext';
 
 export interface AiAttachmentItem {
   id: string;
@@ -22,12 +23,13 @@ const AiAttachmentPicker: React.FC<AiAttachmentPickerProps> = ({
   onSelect,
 }) => {
   const [open, setOpen] = useState(false);
+  const openAfterMoreCloses = useOpenAfterComposerMoreCloses();
   void selectedIds;
   void onSelect;
 
   return (
     <>
-      <Button size="small" onClick={() => setOpen(true)}>
+      <Button size="small" onClick={() => openAfterMoreCloses(() => setOpen(true))}>
         上传附件
       </Button>
       <Drawer

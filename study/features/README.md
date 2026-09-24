@@ -59,3 +59,4 @@
 - [nest-file-booklet.md](./nest-file-booklet.md)：预签名上传、purpose 白名单与 Outbox Worker。
 - [nest-review-remediation-concurrency.md](./nest-review-remediation-concurrency.md)：正式 Review 中的 Refresh Token、额度、AI 任务租约、幂等与内容权限修复。
 - [ai-chat-sse-boundaries.md](./ai-chat-sse-boundaries.md)：AI 对话厂商 SSE 接收、服务端转发、前端事件解析与失败状态定位。
+- [user-web-mobile-responsive.md](./user-web-mobile-responsive.md)：用户端响应式布局、Drawer 交互、小册阅读器移动端适配与验收方法。

@@ -39,6 +39,23 @@
   padding: var(--ph-page-padding);
 }
 
+.ph-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ph-page-header-title {
+  min-width: 0;
+  margin: 0;
+}
+
+.ph-page-header-extra {
+  min-width: 0;
+}
+
 /**
  * 工作区把视口高度分给顶栏、主内容和 Footer。页面本身不再撑开 body，
  * 超出时只由中间内容区滚动，避免 Footer 被推到可视区域外。

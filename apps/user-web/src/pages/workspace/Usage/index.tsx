@@ -1,8 +1,12 @@
 import { useIntl } from '@umijs/max';
-import { useRequest } from '@/hooks/useRequest';
 import { Card, Col, Progress, Row, Statistic } from 'antd';
 import React from 'react';
-import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
+import {
+  ErrorState,
+  PageContainer,
+  SectionSkeleton,
+} from '@/components/shared';
+import { useRequest } from '@/hooks/useRequest';
 import { fetchUsage } from '@/services/workspace';
 
 /** 我的用量：Token 用量统计 */
@@ -27,8 +31,8 @@ const Usage: React.FC = () => {
       {loading ? (
         <SectionSkeleton variant="stats" count={3} columns={3} />
       ) : (
-        <Row gutter={16}>
-          <Col span={8}>
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} lg={8}>
             <Card>
               <Statistic
                 title={intl.formatMessage({ id: 'workspace.usage.used' })}
@@ -36,7 +40,7 @@ const Usage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} lg={8}>
             <Card>
               <Statistic
                 title={intl.formatMessage({ id: 'workspace.usage.remaining' })}
@@ -44,7 +48,7 @@ const Usage: React.FC = () => {
               />
             </Card>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={12} lg={8}>
             <Card>
               <Statistic
                 title={intl.formatMessage({ id: 'workspace.usage.total' })}

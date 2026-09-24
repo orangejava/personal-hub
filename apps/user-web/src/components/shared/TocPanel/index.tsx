@@ -25,6 +25,7 @@ interface TocTreeNode extends TocItem {
 
 interface TocPanelProps {
   items: TocItem[];
+  onNavigate?: () => void;
 }
 
 /** 解析目录锚点：兼容旧数据（anchor 含 **）与新 slug 规则 */
@@ -84,7 +85,7 @@ function collectExpandableKeys(nodes: TocTreeNode[]): string[] {
  * 右侧文章大纲：语雀风格顶栏 + 树折叠 + 眼睛钉住 / hover 临时展开。
  * 槽位宽度始终保留，隐藏时主栏不加宽。
  */
-const TocPanel: React.FC<TocPanelProps> = ({ items }) => {
+const TocPanel: React.FC<TocPanelProps> = ({ items, onNavigate }) => {
   const normalized = useMemo(
     () =>
       items.map((it) => ({
@@ -111,9 +112,7 @@ const TocPanel: React.FC<TocPanelProps> = ({ items }) => {
     setExpandedKeys(new Set(expandableKeys));
   }, [expandableKeys]);
 
-  const [activeAnchor, setActiveAnchor] = useState(
-    normalized[0]?.anchor ?? '',
-  );
+  const [activeAnchor, setActiveAnchor] = useState(normalized[0]?.anchor ?? '');
 
   useEffect(() => {
     if (!normalized.length) return;
@@ -157,6 +156,7 @@ const TocPanel: React.FC<TocPanelProps> = ({ items }) => {
       block: 'start',
     });
     setActiveAnchor(id);
+    onNavigate?.();
   };
 
   const toggleNode = (key: string) => {
@@ -237,9 +237,7 @@ const TocPanel: React.FC<TocPanelProps> = ({ items }) => {
               type="text"
               size="small"
               aria-label={allExpanded ? '全部折叠' : '全部展开'}
-              icon={
-                allExpanded ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />
-              }
+              icon={allExpanded ? <MenuFoldOutlined /> : <MenuUnfoldOutlined />}
               onClick={toggleExpandAll}
             />
           ) : null}

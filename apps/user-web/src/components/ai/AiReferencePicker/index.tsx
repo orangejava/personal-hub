@@ -8,6 +8,7 @@ import {
 } from '@personal-hub/shared-types';
 import React, { useMemo, useState } from 'react';
 import { fetchContentList } from '@/services/content';
+import { useOpenAfterComposerMoreCloses } from '../AiComposer/moreActionContext';
 
 export interface AiReferenceItem {
   id: string;
@@ -44,6 +45,7 @@ const AiReferencePicker: React.FC<AiReferencePickerProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
+  const openAfterMoreCloses = useOpenAfterComposerMoreCloses();
   const { data, loading } = useRequest(
     () =>
       fetchContentList({
@@ -64,7 +66,7 @@ const AiReferencePicker: React.FC<AiReferencePickerProps> = ({
       <Button
         disabled={disabled}
         size="small"
-        onClick={() => setOpen(true)}
+        onClick={() => openAfterMoreCloses(() => setOpen(true))}
       >
         引用内容
       </Button>

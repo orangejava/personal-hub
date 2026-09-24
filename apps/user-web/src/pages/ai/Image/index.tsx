@@ -1,5 +1,6 @@
 import { useModel, useSearchParams } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
+import { useViewportBand } from '@/hooks/useViewportBand';
 import type { AiAsset, AiGenerationTask } from '@personal-hub/shared-types';
 import {
   App,
@@ -10,6 +11,7 @@ import {
 } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AiAttachmentPicker,
   AiComposer,
   AiConfigPopover,
   type AiConfigGroup,
@@ -136,14 +138,19 @@ const AiImagePage: React.FC = () => {
     return Object.fromEntries([...fromHistory, ...fromAvailable]);
   }, [historyTasks, modelState.models]);
   const estimatedTokens = 500 * (generation.draft.params.count ?? 1);
-  const isGuest = !initialState?.currentUser;
+  const authRestoreFailed = Boolean(initialState?.sessionRestoreFailed);
+  const isAuthenticated = Boolean(initialState?.currentUser);
+  const isGuest = !isAuthenticated && !authRestoreFailed;
   const imageTool = homeData?.tools.find((tool) => tool.code === 'image');
   const requiresLogin = Boolean(imageTool?.requiresLogin);
   const quotaInsufficient =
-    !isGuest &&
+    isAuthenticated &&
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < estimatedTokens;
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
+  const guestBlocked = isGuest && (requiresLogin || guestLimitExceeded);
+  const [guestPrompt, setGuestPrompt] = useState(0);
+  const { band } = useViewportBand();
   const configGroups = useMemo<AiConfigGroup[]>(
     () => [
       {
@@ -221,6 +228,11 @@ const AiImagePage: React.FC = () => {
   }, [activeTemplate, generation.applyDraft, message]);
 
   const generateAndConsumeQuota = async (source?: AiGenerationTask) => {
+    if (authRestoreFailed) return;
+    if (guestBlocked) {
+      setGuestPrompt((current) => current + 1);
+      return;
+    }
     await generation.regenerate(source);
   };
   const handleViewDetail = useCallback(
@@ -298,6 +310,7 @@ const AiImagePage: React.FC = () => {
                   />
                 )}
                 <AiComposer
+                  layoutKey={configSummary}
                   loading={generation.isSavingAssets}
                   model={{
                     value: generation.draft.modelId,
@@ -308,12 +321,7 @@ const AiImagePage: React.FC = () => {
                     onChange: (modelId) => generation.updateDraft({ modelId }),
                   }}
                   placeholder="描述你想象中的画面"
-                  submitDisabled={
-                    !modelState.hasModels ||
-                    quotaInsufficient ||
-                    (isGuest && requiresLogin) ||
-                    (isGuest && guestLimitExceeded)
-                  }
+                  submitDisabled={authRestoreFailed || !modelState.hasModels || quotaInsufficient}
                   submitLabel="生成图片"
                   value={generation.draft.prompt}
                   attachments={
@@ -327,11 +335,17 @@ const AiImagePage: React.FC = () => {
                       </div>
                     ) : undefined
                   }
-                  leadingActions={
+                  pinnedLeading={
                     <AiConfigPopover
-                      buttonText={`生成配置 ${configSummary}`}
+                      buttonText={band === 'phone' ? '配置' : `生成配置 ${configSummary}`}
                       groups={configGroups}
                       title="图片生成配置"
+                    />
+                  }
+                  leadingActions={
+                    <AiAttachmentPicker
+                      selectedIds={generation.attachmentAssets.map((asset) => asset.id)}
+                      onSelect={() => undefined}
                     />
                   }
                   onChange={(prompt) => generation.updateDraft({ prompt })}
@@ -351,13 +365,14 @@ const AiImagePage: React.FC = () => {
                   estimatedTokens={estimatedTokens}
                   quota={runtimeConfig.quota}
                   toolName="图片生成"
-                  visible={!isGuest}
+                  visible={isAuthenticated}
                 />
                 <AiGuestLimitAlert
                   dailyLimit={homeData?.guestTrial?.dailyLimit}
                   exceeded={guestLimitExceeded}
                   isGuest={isGuest}
                   remainingUses={homeData?.guestTrial?.remaining}
+                  promptSignal={guestPrompt}
                   requiresLogin={requiresLogin}
                   toolName="图片生成"
                 />

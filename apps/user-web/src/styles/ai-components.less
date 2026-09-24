@@ -331,7 +331,9 @@
 }
 
 .ph-ai-workspace-messages-inner {
-  min-height: min-content;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .ph-ai-workspace-composer {
@@ -373,13 +375,16 @@
 }
 
 .ph-ai-workspace-welcome {
-  min-height: 220px;
+  width: fit-content;
+  max-width: 100%;
+  margin: auto;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--ph-ai-border);
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--ph-ai-panel-bg) 88%, transparent);
+  border: none;
+  border-radius: 0;
+  background: transparent;
   color: var(--ph-ai-text);
 
   .ant-welcome,
@@ -486,6 +491,59 @@
   padding: 24px 8px;
 }
 
+.ph-ai-chat-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--ph-ai-border);
+  background: var(--ph-ai-panel-bg);
+}
+
+.ph-ai-chat-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.ph-ai-chat-toolbar .ant-btn {
+  min-width: 44px;
+  min-height: 44px;
+  flex: 0 0 auto;
+}
+
+.ph-ai-chat-current-title {
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+  color: var(--ph-ai-text-secondary);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ph-ai-chat-history-drawer .ant-drawer-content-wrapper {
+  width: min(360px, calc(100vw - 24px)) !important;
+}
+
+.ph-ai-chat-history-drawer .ant-drawer-body {
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ph-ai-chat-history-drawer .ph-ai-conversation-panel {
+  border: 0;
+  border-radius: 0;
+}
+
 .ph-ai-template-applied-alert {
   margin-bottom: 12px;
 }
@@ -494,6 +552,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  flex: 1;
 }
 
 .ph-ai-reference-chip {
@@ -508,6 +567,12 @@
   flex: 1;
   padding: 20px;
   overflow: visible;
+}
+
+.ph-ai-message-list-empty {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .ph-ai-chat-message {
@@ -704,9 +769,11 @@
 }
 
 .ph-ai-config-popover {
-  width: min(720px, calc(100vw - 56px));
+  width: min(560px, calc(100vw - 96px));
+  max-height: min(68vh, 560px);
+  overflow: auto;
   display: grid;
-  gap: 18px;
+  gap: 14px;
   color: var(--ph-ai-text);
 }
 
@@ -1255,6 +1322,28 @@
   color: var(--ph-ai-text);
 }
 
+.ph-ai-chat-settings.ph-ai-chat-settings-compact {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ph-ai-chat-settings-compact > .ant-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.ph-ai-composer-left .ph-ai-chat-settings-compact > .ant-btn {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ph-ai-composer-left .ph-ai-chat-settings-compact > .ant-btn:hover {
+  border-color: transparent;
+}
+
 .ph-ai-chat-settings-summary {
   display: flex;
   align-items: center;
@@ -1287,7 +1376,12 @@
 .ph-ai-chat-settings .ant-input-textarea textarea,
 .ph-ai-chat-settings .ant-input-outlined,
 .ph-ai-chat-settings .ant-select-selector,
-.ph-ai-chat-settings .ant-select-outlined .ant-select-selector {
+.ph-ai-chat-settings .ant-select-outlined .ant-select-selector,
+.ph-ai-chat-settings-modal .ant-input,
+.ph-ai-chat-settings-modal .ant-input-textarea textarea,
+.ph-ai-chat-settings-modal .ant-input-outlined,
+.ph-ai-chat-settings-modal .ant-select-selector,
+.ph-ai-chat-settings-modal .ant-select-outlined .ant-select-selector {
   background: var(--ph-ai-control-track) !important;
   color: var(--ph-ai-text) !important;
   border-color: var(--ph-ai-border) !important;
@@ -1296,21 +1390,30 @@
 .ph-ai-chat-settings .ant-select-selection-item,
 .ph-ai-chat-settings .ant-select-arrow,
 .ph-ai-chat-settings textarea::placeholder,
-.ph-ai-chat-settings .ant-input::placeholder {
+.ph-ai-chat-settings .ant-input::placeholder,
+.ph-ai-chat-settings-modal .ant-select-selection-item,
+.ph-ai-chat-settings-modal .ant-select-arrow,
+.ph-ai-chat-settings-modal textarea::placeholder,
+.ph-ai-chat-settings-modal .ant-input::placeholder {
   color: var(--ph-ai-text-secondary);
 }
 
-.ph-ai-chat-settings .ant-input-textarea-show-count {
+.ph-ai-chat-settings .ant-input-textarea-show-count,
+.ph-ai-chat-settings-modal .ant-input-textarea-show-count {
   position: relative;
 }
 
 .ph-ai-chat-settings textarea.ant-input,
-.ph-ai-chat-settings .ant-input-textarea textarea {
+.ph-ai-chat-settings .ant-input-textarea textarea,
+.ph-ai-chat-settings-modal textarea.ant-input,
+.ph-ai-chat-settings-modal .ant-input-textarea textarea {
   padding-bottom: 28px;
 }
 
 .ph-ai-chat-settings .ant-input-textarea-show-count::after,
-.ph-ai-chat-settings .ant-input-data-count {
+.ph-ai-chat-settings .ant-input-data-count,
+.ph-ai-chat-settings-modal .ant-input-textarea-show-count::after,
+.ph-ai-chat-settings-modal .ant-input-data-count {
   position: absolute;
   right: 12px;
   bottom: 10px;
@@ -1330,6 +1433,26 @@
   align-items: flex-start;
 }
 
+/* antd 6 使用 container；保留 content 选择器兼容旧结构。 */
+.ph-ai-chat-settings-modal .ant-modal-container,
+.ph-ai-chat-settings-modal .ant-modal-content {
+  max-height: 88vh;
+  max-height: 88dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ph-ai-chat-settings-modal .ant-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.ph-ai-chat-settings-modal .ant-modal-footer {
+  margin-top: 16px;
+}
+
 .ph-ai-text-shell {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
@@ -1345,6 +1468,10 @@
 .ph-ai-text-hint {
   margin: -4px 0 14px;
   color: var(--ph-ai-text-secondary);
+}
+
+.ph-ai-text-scenario-compact {
+  display: none;
 }
 
 .ph-ai-text-control-grid {
@@ -1491,6 +1618,14 @@
   .ph-ai-workspace-frame {
     --ph-ai-workspace-main-max: 640px;
     --ph-ai-workspace-rail: 240px;
+  }
+}
+
+/* 数字对应 viewport-bands.json 的 aiDenseMax（1279）；覆盖 992–1210px 的窄桌面。 */
+@media (max-width: 1279px) {
+  .ph-ai-text-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 }
 
@@ -1745,6 +1880,220 @@ button.ph-ai-media-detail-main {
 
 .ph-ai-media-detail-side-bottom {
   min-height: 72px;
+}
+
+/**
+ * 紧凑底栏写在基础 184px 规则之后。
+ * 宽度数字来自 viewport-bands.json 的 modelPhoneMin（140）和 controlMinSize（44）。
+ * 按钮不够放时收进「更多」，不要再把模型拉成整行。
+ */
+.ph-ai-workspace-composer,
+.ph-ai-composer {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ph-ai-composer-compact {
+  width: 100%;
+
+  .ph-ai-composer-footer {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    margin-top: 8px;
+  }
+
+  .ph-ai-composer-left,
+  .ph-ai-composer-right {
+    width: auto;
+    max-width: none;
+    flex: 0 1 auto;
+  }
+
+  .ph-ai-composer-left {
+    min-width: 140px;
+    flex: 1 1 140px;
+    overflow: hidden;
+  }
+
+  .ph-ai-composer-left > .ant-space-item:has(.ph-ai-composer-model) {
+    width: auto;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+
+  .ph-ai-composer-model,
+  .ph-ai-composer-model .ant-select-selector {
+    width: 140px !important;
+    min-width: 140px !important;
+    max-width: 140px !important;
+    flex: 0 0 140px;
+  }
+
+  .ph-ai-composer-model .ant-select-selector,
+  .ph-ai-composer-footer .ant-btn {
+    min-height: 44px;
+  }
+
+  .ph-ai-composer-footer .ant-btn {
+    flex: 0 0 auto;
+    min-width: 44px;
+  }
+}
+
+.ph-ai-composer-more-grid .ant-btn {
+  width: 100% !important;
+  min-height: 48px;
+  justify-content: center;
+}
+
+.ph-ai-composer-more-grid > *,
+.ph-ai-composer-more-grid .ph-ai-chat-settings,
+.ph-ai-composer-more-grid .ph-ai-config-popover-root {
+  width: 100%;
+  min-width: 0;
+}
+
+.ph-ai-composer-more-grid .ph-ai-chat-settings-compact > .ant-btn {
+  width: 100% !important;
+  border-color: var(--ph-ai-border);
+  background: var(--ph-ai-panel-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.ph-ai-composer-more-grid .ph-ai-chat-settings-compact > .ant-btn:hover {
+  border-color: color-mix(in srgb, var(--ph-color-primary, #1677ff) 48%, var(--ph-ai-border));
+}
+
+.ph-ai-composer-more-grid .ph-ai-chat-settings-compact {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+}
+
+.ph-ai-composer-more-grid .ant-btn > span:not(.ant-btn-icon) {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 767px) {
+  .ph-ai-config-modal .ant-modal-body {
+    max-height: calc(75dvh - 110px);
+    overflow-y: auto;
+  }
+
+  .ph-ai-config-popover {
+    width: 100%;
+    max-height: none;
+    gap: 12px;
+  }
+
+  .ph-ai-config-group h3 {
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
+  /* 桌面是单行均分。窄屏放得下就保持这一行，放不下再把单项最小宽度降到 0，而不是改成两列撑满。 */
+  .ph-ai-config-options {
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding: 4px;
+  }
+
+  .ph-ai-config-options-grid {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .ph-ai-config-option {
+    min-width: 0;
+    min-height: 40px;
+    padding: 4px 6px;
+    font-size: 13px;
+    line-height: 1.25;
+    text-align: center;
+  }
+
+  .ph-ai-config-option > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .ph-ai-config-options-grid .ph-ai-config-option {
+    min-height: 56px;
+  }
+
+  .ph-ai-config-option-icon {
+    min-height: 18px;
+    font-size: 16px;
+  }
+
+  .ph-ai-ratio-icon {
+    transform: scale(0.82);
+  }
+
+  .ph-ai-text-scenario-compact {
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--ph-ai-border);
+  }
+
+  .ph-ai-text-scenario-compact > button {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    padding: 8px 2px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--ph-ai-text-secondary);
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  .ph-ai-text-scenario-compact-active {
+    color: var(--ph-color-primary, #1677ff) !important;
+    border-bottom-color: var(--ph-color-primary, #1677ff) !important;
+    font-weight: 600;
+  }
+
+  .ph-ai-text-scenario-more {
+    flex: 0 0 112px;
+    width: 112px;
+    min-width: 0;
+  }
+
+  .ph-ai-text-scenario-more .ant-select-selector {
+    min-height: 40px !important;
+    padding-inline: 6px !important;
+    border: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ph-ai-text-scenario-more-active .ant-select-selector {
+    border-bottom-color: var(--ph-color-primary, #1677ff) !important;
+  }
+
+  .ph-ai-text-scenario-more .ant-select-selection-placeholder,
+  .ph-ai-text-scenario-more .ant-select-selection-item {
+    line-height: 38px !important;
+    font-size: 13px;
+  }
+
+  .ph-ai-composer-input,
+  .ph-ai-composer-input.ant-input,
+  .ph-ai-composer-input textarea {
+    height: 64px !important;
+    min-height: 64px !important;
+  }
 }
 
 @media (max-width: 860px) {

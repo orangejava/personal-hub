@@ -10,9 +10,10 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'happy-dom',
+    // worktree 可能复用主仓库依赖，测试结果不能写入共享 node_modules。
+    cache: false,
+    environment: 'jsdom',
     globals: true,
-    setupFiles: ['./tests/setupTests.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     // Exclude Umi integration tests that depend on @umijs/max test infrastructure
     // These require Umi's Jest runner and cannot be used with Vitest directly

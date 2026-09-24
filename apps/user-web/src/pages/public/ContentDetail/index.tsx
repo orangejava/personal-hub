@@ -1,9 +1,12 @@
 import { useRequest } from '@/hooks/useRequest';
+import { useViewportBand } from '@/hooks/useViewportBand';
 import {
+  BookOutlined,
   CopyOutlined,
   HeartFilled,
   HeartOutlined,
   RobotOutlined,
+  VerticalAlignTopOutlined,
 } from '@ant-design/icons';
 import { useParams, history, Link, useModel } from '@umijs/max';
 import {
@@ -11,18 +14,20 @@ import {
   Breadcrumb,
   Button,
   Card,
+  Drawer,
   message,
   Progress,
   Space,
   Tag,
   Typography,
 } from 'antd';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import { ContentType, ContentTypeLabel } from '@personal-hub/shared-types';
 import {
   ErrorState,
   MarkdownViewer,
+  ReaderActionBar,
   PdfViewer,
   RichTextViewer,
   ScrollBackTop,
@@ -69,7 +74,9 @@ const ContentDetail: React.FC = () => {
   const id = params.id!;
   const { initialState } = useModel('@@initialState');
   const [favorited, setFavorited] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   const [readingPercent, setReadingPercent] = useState(0);
+  const { band, readerSheets } = useViewportBand();
   const restoredRef = useRef<string | null>(null);
   // 同步失败后停止本次阅读会话的后续上报，避免滚动时反复产生失败请求。
   const readingSyncDisabledRef = useRef(false);
@@ -87,6 +94,10 @@ const ContentDetail: React.FC = () => {
   useEffect(() => {
     setFavorited(Boolean(detail?.isFavorited));
   }, [detail?.isFavorited]);
+
+  useEffect(() => {
+    if (!readerSheets) setOutlineOpen(false);
+  }, [readerSheets]);
 
   // 小册入口：优先跳上次章节，否则第一章（带 chapterId 的 URL 不经此页）
   const {
@@ -189,6 +200,56 @@ const ContentDetail: React.FC = () => {
     history.push(`/ai/chat?contentId=${encodeURIComponent(detail.id)}&mode=quote`);
   };
 
+  const tocItems =
+    detail?.type === ContentType.Markdown && detail.body
+      ? extractMarkdownToc(detail.body)
+      : [];
+  const readerPrimary = useMemo(
+    () => [
+      {
+        key: 'outline',
+        label: '大纲',
+        icon: <BookOutlined />,
+        disabled: tocItems.length === 0,
+        onClick: () => setOutlineOpen(true),
+      },
+      {
+        key: 'favorite',
+        label: favorited ? '已收藏' : '收藏',
+        icon: favorited ? (
+          <HeartFilled style={{ color: '#ff4d4f' }} />
+        ) : (
+          <HeartOutlined />
+        ),
+        onClick: () => void toggleFavorite(),
+      },
+    ],
+    [favorited, tocItems.length, toggleFavorite],
+  );
+  const readerMore = useMemo(
+    () => [
+      {
+        key: 'copy',
+        label: '复制链接',
+        icon: <CopyOutlined />,
+        onClick: copyLink,
+      },
+      {
+        key: 'quote',
+        label: '引用到 AI',
+        icon: <RobotOutlined />,
+        onClick: quoteToAi,
+      },
+      {
+        key: 'top',
+        label: '回到顶部',
+        icon: <VerticalAlignTopOutlined />,
+        onClick: () => scrollPageToTop(),
+      },
+    ],
+    [detail?.id],
+  );
+
   return (
     <PublicLayout>
       {needsLogin && (
@@ -232,34 +293,40 @@ const ContentDetail: React.FC = () => {
             <div className="ph-detail-meta">
               {detail.author} · {detail.publishedAt}
             </div>
-            <Card size="small" style={{ marginBottom: 16 }}>
-              <Space wrap>
-                <Button icon={<CopyOutlined />} onClick={copyLink}>
-                  复制链接
-                </Button>
-                <Button
-                  icon={
-                    favorited ? (
-                      <HeartFilled style={{ color: '#ff4d4f' }} />
-                    ) : (
-                      <HeartOutlined />
-                    )
-                  }
-                  onClick={toggleFavorite}
-                >
-                  {favorited ? '取消收藏' : '收藏'}
-                </Button>
-                <Button icon={<RobotOutlined />} onClick={quoteToAi}>
-                  引用到 AI
-                </Button>
-                {detail.type === ContentType.Markdown && (
-                  <span style={{ minWidth: 220, display: 'inline-block' }}>
-                    阅读进度
-                    <Progress percent={readingPercent} size="small" />
-                  </span>
-                )}
-              </Space>
-            </Card>
+            {!readerSheets && (
+              <Card
+                className="ph-content-detail-actions"
+                size="small"
+                style={{ marginBottom: 16 }}
+              >
+                <Space wrap>
+                  <Button icon={<CopyOutlined />} onClick={copyLink}>
+                    复制链接
+                  </Button>
+                  <Button
+                    icon={
+                      favorited ? (
+                        <HeartFilled style={{ color: '#ff4d4f' }} />
+                      ) : (
+                        <HeartOutlined />
+                      )
+                    }
+                    onClick={toggleFavorite}
+                  >
+                    {favorited ? '取消收藏' : '收藏'}
+                  </Button>
+                  <Button icon={<RobotOutlined />} onClick={quoteToAi}>
+                    引用到 AI
+                  </Button>
+                  {detail.type === ContentType.Markdown && (
+                    <span className="ph-reading-progress">
+                      阅读进度
+                      <Progress percent={readingPercent} size="small" />
+                    </span>
+                  )}
+                </Space>
+              </Card>
+            )}
 
             {detail.type === ContentType.Markdown && (
               <MarkdownViewer source={detail.body ?? ''} />
@@ -308,10 +375,29 @@ const ContentDetail: React.FC = () => {
           </div>
           {detail.type === ContentType.Markdown && detail.body && (
             <div className="ph-content-detail-toc">
-              <TocPanel items={extractMarkdownToc(detail.body)} />
+              <TocPanel items={tocItems} />
             </div>
           )}
         </div>
+      )}
+      {detail && detail.type !== ContentType.Booklet && readerSheets && (
+        <>
+          <ReaderActionBar
+            more={readerMore}
+            primary={readerPrimary}
+            progressive={band === 'phone'}
+          />
+          <Drawer
+            className="ph-booklet-mobile-panel"
+            open={outlineOpen}
+            placement="left"
+            size={360}
+            title="大纲"
+            onClose={() => setOutlineOpen(false)}
+          >
+            <TocPanel items={tocItems} onNavigate={() => setOutlineOpen(false)} />
+          </Drawer>
+        </>
       )}
       <ScrollBackTop visibilityHeight={300} />
     </PublicLayout>

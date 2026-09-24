@@ -16,16 +16,9 @@ const PageContainer: React.FC<PageContainerProps> = ({
 }) => (
   <div className={['ph-page', className].filter(Boolean).join(' ')}>
     {(title || extra) && (
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: 16,
-        }}
-      >
-        {title && <h2 style={{ margin: 0 }}>{title}</h2>}
-        {extra}
+      <div className="ph-page-header">
+        {title && <h2 className="ph-page-header-title">{title}</h2>}
+        {extra && <div className="ph-page-header-extra">{extra}</div>}
       </div>
     )}
     {children}

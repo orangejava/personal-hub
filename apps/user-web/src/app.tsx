@@ -183,7 +183,7 @@ export async function getInitialState(): Promise<InitialState> {
   const { user: currentUser, restoreFailed } = await fetchUserInfo();
   if (restoreFailed) {
     state.sessionRestoreFailed = true;
-    message.error('无法恢复登录态，当前登录可能仍有效，请稍后刷新');
+    message.error('登录状态暂时无法确认，请稍后刷新页面');
   }
   if (currentUser) {
     state.currentUser = currentUser;

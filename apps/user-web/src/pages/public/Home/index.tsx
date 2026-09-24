@@ -37,11 +37,11 @@ const Home: React.FC = () => {
       </Card>
 
       {/* 分类入口 */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {categories.map((c) => (
-          <Col span={6} key={c.slug}>
+          <Col xs={24} sm={12} md={6} key={c.slug}>
             <Link to={`/content?category=${c.slug}`}>
-              <Card hoverable>
+              <Card hoverable className="ph-home-category-card">
                 <div style={{ fontWeight: 600 }}>{c.name}</div>
                 <div className="ph-category-count">{c.count} 篇</div>
               </Card>
@@ -56,9 +56,9 @@ const Home: React.FC = () => {
       {loading ? (
         <SectionSkeleton variant="card" count={3} columns={3} />
       ) : (
-        <Row gutter={16}>
+        <Row gutter={[16, 16]}>
           {featured.map((item) => (
-            <Col span={8} key={item.id}>
+            <Col xs={24} sm={12} md={8} key={item.id}>
               <ContentCard item={item} />
             </Col>
           ))}

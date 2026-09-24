@@ -1,7 +1,18 @@
-import { MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
+import {
+  BookOutlined,
+  CopyOutlined,
+  HeartFilled,
+  HeartOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  RobotOutlined,
+  UnorderedListOutlined,
+  VerticalAlignTopOutlined,
+} from '@ant-design/icons';
 import { useRequest } from '@/hooks/useRequest';
-import { useParams, history } from '@umijs/max';
-import { Button, Menu, Progress } from 'antd';
+import { useViewportBand } from '@/hooks/useViewportBand';
+import { useParams, history, useModel } from '@umijs/max';
+import { Button, Drawer, Menu, Progress, message } from 'antd';
 import clsx from 'clsx';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
@@ -9,6 +20,7 @@ import PublicLayout from '@/layouts/PublicLayout';
 import {
   BookletChapterFooter,
   EllipsisTooltip,
+  ReaderActionBar,
   ErrorState,
   MarkdownViewer,
   ScrollBackTop,
@@ -16,7 +28,13 @@ import {
   TocPanel,
 } from '@/components/shared';
 import { fetchBookletChapters, fetchChapter } from '@/services/booklet';
-import { fetchContentList } from '@/services/content';
+import {
+  favoriteContent,
+  fetchContentDetail,
+  fetchContentList,
+  unfavoriteContent,
+} from '@/services/content';
+import { copyToClipboard } from '@/utils/copyToClipboard';
 import {
   calcScrollPercent,
   getReadingProgress,
@@ -85,15 +103,7 @@ type BookletListSidebarProps = {
 
 /** 最左侧小册列表：切章时不随 chapterId 重渲染 */
 const BookletListSidebar = React.memo<BookletListSidebarProps>(
-  ({
-    bookletId,
-    collapsed,
-    bookletList,
-    menuTheme,
-    menuRef,
-    onToggle,
-    onBookletClick,
-  }) => (
+  ({ bookletId, collapsed, bookletList, menuTheme, menuRef, onToggle, onBookletClick }) => (
     <CollapsibleSidebar
       title="小册列表"
       width={240}
@@ -127,6 +137,190 @@ type ChapterListSidebarProps = {
   menuRef: React.RefObject<HTMLDivElement | null>;
   onToggle: () => void;
   onChapterClick: (chapterId: string) => void;
+};
+
+type MobileReaderPanel = 'chapters' | 'outline' | 'booklets' | null;
+
+interface MobileReaderControlsProps {
+  bookletId: string;
+  bookletTitle: string;
+  chapterId: string;
+  chapters: BookletChapterType[];
+  bookletList: Array<{ id: string; title: string }>;
+  favorited?: boolean;
+  menuTheme: 'light' | 'dark';
+  hasToc: boolean;
+  tocItems?: React.ComponentProps<typeof TocPanel>['items'];
+  onChapterClick: (chapterId: string) => void;
+  onBookletClick: (bookletId: string) => void;
+  onScrollTop: () => void;
+}
+
+/** 移动端阅读操作：高频入口固定在底部，低频操作收进 Action Sheet。 */
+const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
+  bookletId,
+  bookletTitle,
+  chapterId,
+  chapters,
+  bookletList,
+  favorited = false,
+  menuTheme,
+  hasToc,
+  tocItems,
+  onChapterClick,
+  onBookletClick,
+  onScrollTop,
+}) => {
+  const { initialState } = useModel('@@initialState');
+  const { band, readerSheets } = useViewportBand();
+  const [liked, setLiked] = useState(favorited);
+  const [activePanel, setActivePanel] = useState<MobileReaderPanel>(null);
+
+  useEffect(() => {
+    setLiked(favorited);
+  }, [favorited]);
+
+  // 回到多栏时卸掉底栏浮层，避免抽屉留在桌面正文上。
+  useEffect(() => {
+    if (!readerSheets) setActivePanel(null);
+  }, [readerSheets]);
+
+  const openPanel = (panel: Exclude<MobileReaderPanel, null>) => {
+    setActivePanel(panel);
+  };
+
+  const toggleFavorite = async () => {
+    if (!initialState?.currentUser) {
+      message.info('登录后可以收藏内容');
+      history.push(`/user/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    const next = !liked;
+    await (next ? favoriteContent(bookletId) : unfavoriteContent(bookletId));
+    setLiked(next);
+    message.success(next ? '已收藏' : '已取消收藏');
+  };
+
+  const handleChapterClick = (nextChapterId: string) => {
+    setActivePanel(null);
+    onChapterClick(nextChapterId);
+  };
+
+  const handleBookletClick = (nextBookletId: string) => {
+    setActivePanel(null);
+    onBookletClick(nextBookletId);
+  };
+
+  if (!readerSheets) return null;
+
+  return (
+    <>
+      <ReaderActionBar
+        progressive={band === 'phone'}
+        primary={[
+          {
+            key: 'chapters',
+            label: '章节',
+            icon: <UnorderedListOutlined />,
+            onClick: () => openPanel('chapters'),
+          },
+          {
+            key: 'outline',
+            label: '大纲',
+            icon: <BookOutlined />,
+            disabled: !hasToc,
+            onClick: () => openPanel('outline'),
+          },
+          {
+            key: 'favorite',
+            label: liked ? '已收藏' : '收藏',
+            icon: liked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />,
+            onClick: () => void toggleFavorite(),
+          },
+        ]}
+        more={[
+          {
+            key: 'booklets',
+            label: '小册列表',
+            icon: <BookOutlined />,
+            onClick: () => openPanel('booklets'),
+          },
+          {
+            key: 'copy',
+            label: '复制当前章节链接',
+            icon: <CopyOutlined />,
+            onClick: () => void copyToClipboard(window.location.href, '链接已复制'),
+          },
+          {
+            key: 'quote',
+            label: '引用到 AI',
+            icon: <RobotOutlined />,
+            onClick: () =>
+              history.push(`/ai/chat?contentId=${encodeURIComponent(bookletId)}&mode=quote`),
+          },
+          {
+            key: 'top',
+            label: '回到顶部',
+            icon: <VerticalAlignTopOutlined />,
+            onClick: onScrollTop,
+          },
+        ]}
+      />
+
+      <Drawer
+        className="ph-booklet-mobile-panel"
+        placement="left"
+        size={360}
+        title={`${bookletTitle} · 章节`}
+        open={activePanel === 'chapters'}
+        onClose={() => setActivePanel(null)}
+      >
+        <Menu
+          theme={menuTheme}
+          mode="inline"
+          selectedKeys={[chapterId]}
+          items={chapters.map((chapter) => ({
+            key: chapter.id,
+            label: `${chapter.order}. ${chapter.title}`,
+          }))}
+          onClick={(event) => handleChapterClick(event.key)}
+        />
+      </Drawer>
+
+      <Drawer
+        className="ph-booklet-mobile-panel"
+        placement="left"
+        size={360}
+        title="文章大纲"
+        open={activePanel === 'outline'}
+        onClose={() => setActivePanel(null)}
+      >
+        {hasToc && tocItems ? (
+          <TocPanel items={tocItems} onNavigate={() => setActivePanel(null)} />
+        ) : null}
+      </Drawer>
+
+      <Drawer
+        className="ph-booklet-mobile-panel"
+        placement="left"
+        size={360}
+        title="小册列表"
+        open={activePanel === 'booklets'}
+        onClose={() => setActivePanel(null)}
+      >
+        <Menu
+          theme={menuTheme}
+          mode="inline"
+          selectedKeys={[bookletId]}
+          items={bookletList.map((booklet) => ({
+            key: booklet.id,
+            label: booklet.title,
+          }))}
+          onClick={(event) => handleBookletClick(event.key)}
+        />
+      </Drawer>
+    </>
+  );
 };
 
 /** 章节目录侧栏：仅章节选中态与进度变化时更新 */
@@ -182,10 +376,7 @@ function persistChapterProgress(bookletId: string, chapterId: string) {
   });
 }
 
-function scrollSidebarItemByIndex(
-  body: HTMLElement | null,
-  itemIndex: number,
-) {
+function scrollSidebarItemByIndex(body: HTMLElement | null, itemIndex: number) {
   if (!body || itemIndex < 0) return;
   const items = body.querySelectorAll<HTMLElement>('.ant-menu-item');
   const selected = items[itemIndex];
@@ -221,10 +412,26 @@ const BookletChapter: React.FC = () => {
     error: bookError,
     run: reloadBook,
   } = useRequest(
-    () => fetchBookletChapters(bookletId),
+    async () => {
+      const [chapterIndex, detail] = await Promise.all([
+        fetchBookletChapters(bookletId),
+        fetchContentDetail(bookletId),
+      ]);
+      return { ...chapterIndex, detail };
+    },
     { refreshDeps: [bookletId] },
   );
-  const booklet = bookData?.booklet;
+  const booklet = bookData
+    ? {
+        ...bookData.booklet,
+        title: bookData.detail.title,
+        author: bookData.detail.author,
+        summary: bookData.detail.summary,
+        cover: bookData.detail.cover,
+        categorySlug: bookData.detail.categorySlug,
+        tags: bookData.detail.tags,
+      }
+    : undefined;
   const chapters = bookData?.chapters ?? [];
 
   const { data: chapter, loading: chapterLoading } = useRequest(
@@ -256,10 +463,7 @@ const BookletChapter: React.FC = () => {
 
   const bookletListIndex = bookletList.findIndex((b) => b.id === bookletId);
 
-  const goTo = (
-    nextChapterId: string,
-    options?: { restoreScroll?: boolean },
-  ) => {
+  const goTo = (nextChapterId: string, options?: { restoreScroll?: boolean }) => {
     persistChapterProgress(bookletId, chapterId);
     if (nextChapterId !== chapterId) {
       if (options?.restoreScroll) {
@@ -390,9 +594,7 @@ const BookletChapter: React.FC = () => {
           <div className="ph-booklet-body">
             <div className="ph-booklet-columns ph-booklet-content">
               <main className="ph-booklet-main">
-                {initialChapterLoad && (
-                  <SectionSkeleton variant="article" rows={10} />
-                )}
+                {initialChapterLoad && <SectionSkeleton variant="article" rows={10} />}
                 {displayChapter && (
                   <>
                     <h2>{displayChapter.title}</h2>
@@ -403,9 +605,7 @@ const BookletChapter: React.FC = () => {
 
               <aside className="ph-booklet-toc">
                 <div className="ph-booklet-toc-sticky">
-                  {hasToc && displayChapter?.toc ? (
-                    <TocPanel items={displayChapter.toc} />
-                  ) : null}
+                  {hasToc && displayChapter?.toc ? <TocPanel items={displayChapter.toc} /> : null}
                 </div>
               </aside>
             </div>
@@ -419,6 +619,20 @@ const BookletChapter: React.FC = () => {
               />
             )}
           </div>
+          <MobileReaderControls
+            bookletId={bookletId}
+            bookletTitle={booklet.title}
+            favorited={Boolean(bookData?.detail.isFavorited)}
+            chapterId={chapterId}
+            chapters={chapters}
+            bookletList={bookletList}
+            menuTheme={menuTheme}
+            hasToc={hasToc}
+            tocItems={displayChapter?.toc}
+            onChapterClick={goTo}
+            onBookletClick={onBookletClick}
+            onScrollTop={scrollPageToTop}
+          />
         </div>
       )}
       <ScrollBackTop visibilityHeight={200} />

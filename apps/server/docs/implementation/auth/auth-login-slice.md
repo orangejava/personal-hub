@@ -42,6 +42,8 @@ React 登录页
   → 403 / 5xx / 断网：不清会话，不跳登录页，提示稍后刷新
 ```
 
+前端把最后一种情况标记为“认证状态未知”，不能继续按匿名访客展示登录提示或发起 AI 生成；用户刷新恢复成功后再进入已登录或匿名流程。403 仍用于 Origin / Referer 防护，不得与 401 合并。
+
 ## 登出与 Redis 会话
 
 `POST /api/v1/auth/logout` 与 refresh 一样自己认会话：优先 Refresh Cookie，没有再用 Access Token。Access 过期时不必先换票。前端仍须等接口成功再清内存 Token 并跳登录页。

@@ -92,9 +92,12 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
           const element = event.currentTarget;
           if (
             hasMore &&
-            element.scrollTop + element.clientHeight >= element.scrollHeight - 24
+            element.scrollTop + element.clientHeight >=
+              element.scrollHeight - 24
           ) {
-            setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredSessions.length));
+            setVisibleCount((count) =>
+              Math.min(count + PAGE_SIZE, filteredSessions.length),
+            );
           }
         }}
       >
@@ -106,7 +109,7 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
             description={
               normalizedKeyword
                 ? '未找到会话，换个关键词试试，或新建一个对话。'
-                : '还没有对话。直接在右侧提问，或点上方新建对话。'
+                : '还没有对话。可以直接在输入框提问，或点上方新建对话。'
             }
             clearText={normalizedKeyword ? '清除搜索' : undefined}
             onClear={
@@ -126,12 +129,16 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
                 key: session.id,
                 label: (
                   <Tooltip mouseEnterDelay={0.3} title={session.title}>
-                    <span className="ph-ai-conversation-title">{session.title}</span>
+                    <span className="ph-ai-conversation-title">
+                      {session.title}
+                    </span>
                   </Tooltip>
                 ),
               }))}
               menu={(conversation) => {
-                const session = visibleSessions.find((item) => item.id === conversation.key);
+                const session = visibleSessions.find(
+                  (item) => item.id === conversation.key,
+                );
                 const title = session?.title || '未命名对话';
                 return {
                   trigger: (
@@ -166,7 +173,9 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
                 className="ph-ai-conversation-load-more"
                 type="button"
                 onClick={() =>
-                  setVisibleCount((count) => Math.min(count + PAGE_SIZE, filteredSessions.length))
+                  setVisibleCount((count) =>
+                    Math.min(count + PAGE_SIZE, filteredSessions.length),
+                  )
                 }
               >
                 加载更多会话

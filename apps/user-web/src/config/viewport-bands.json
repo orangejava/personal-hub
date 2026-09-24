@@ -1,0 +1,13 @@
+{
+  "phoneMax": 767,
+  "tabletMin": 768,
+  "tabletMax": 991,
+  "desktopMin": 992,
+  "aiDenseMax": 1279,
+  "chatSidePanelMin": 1200,
+  "readerColumnsMin": 1200,
+  "shortHeightMax": 499,
+  "controlMinSize": 44,
+  "modelPhoneMin": 140,
+  "modelDesktop": 184
+}

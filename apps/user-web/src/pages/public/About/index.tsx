@@ -41,8 +41,8 @@ const About: React.FC = () => {
 
   return (
     <PublicLayout>
-      <Row gutter={24}>
-        <Col span={16}>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} md={16}>
           <MotionSurface>
             <Card>
               {markdown ? (
@@ -53,7 +53,7 @@ const About: React.FC = () => {
             </Card>
           </MotionSurface>
         </Col>
-        <Col span={8}>
+        <Col xs={24} md={8}>
           <MotionSurface variant="soft">
             <Card title="站点信息">
               <div className="ph-about-side">

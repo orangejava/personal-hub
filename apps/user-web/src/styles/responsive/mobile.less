@@ -1,0 +1,593 @@
+/**
+ * 手机端响应式覆盖。
+ * 桌面样式保留在各模块基础文件中，移动端只负责尺寸、排列和移动交互入口。
+ */
+
+.ph-public-mobile-menu-button {
+  display: none;
+}
+
+.ph-public-mobile-menu-button-visible {
+  display: inline-flex;
+}
+
+.ph-public-nav-compact {
+  display: none;
+}
+
+/* PublicLayout 在平板和矮屏桌面也会渲染 Drawer，导航样式不能只绑在手机宽度。 */
+.ph-public-mobile-drawer .ant-drawer-body {
+  padding: 12px 20px;
+  overflow-y: auto;
+}
+
+.ph-public-mobile-nav {
+  display: grid;
+  gap: 6px;
+
+  a {
+    display: block;
+    min-height: 44px;
+    padding: 10px 12px;
+    border-radius: var(--ph-radius);
+    color: var(--ph-text-primary);
+    line-height: 24px;
+
+    &.active {
+      color: var(--ph-color-primary);
+      background: color-mix(in srgb, var(--ph-color-primary) 12%, transparent);
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --ph-page-padding: 16px;
+    --ph-booklet-main-min-width: 0;
+  }
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  .ph-container {
+    width: 100%;
+    box-sizing: border-box;
+    padding-inline: var(--ph-page-padding);
+  }
+
+  .ph-public-header {
+    gap: 8px;
+    padding-inline: var(--ph-page-padding);
+  }
+
+  .ph-public-logo {
+    order: 1;
+    max-width: min(48vw, 220px);
+    font-size: 16px;
+  }
+
+  .ph-public-nav {
+    display: none;
+  }
+
+  .ph-public-mobile-menu-button {
+    display: inline-flex;
+    order: 0;
+    flex: 0 0 auto;
+  }
+
+  .ph-public-header-actions {
+    gap: 2px;
+    margin-left: auto;
+    order: 3;
+  }
+
+  .ph-user-account-name {
+    display: none;
+  }
+
+  .ph-public-mobile-drawer {
+    .ant-drawer-body {
+      padding: 12px 16px;
+    }
+  }
+
+  .ph-home-hero {
+    margin-bottom: 16px;
+
+    .ant-card-body {
+      padding: 20px 16px;
+    }
+
+    .ant-typography h2,
+    h2 {
+      font-size: 26px;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .ph-home-category-card .ant-card-body {
+    padding: 14px 16px;
+  }
+
+  .ph-content-page-header {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    h2 {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .ph-content-filters {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px !important;
+
+    .ant-input-search,
+    .ant-select {
+      width: 100% !important;
+      min-width: 0;
+    }
+  }
+
+  .ph-content-detail-main {
+    width: 100%;
+  }
+
+  .ph-content-detail-main > .ant-typography h2,
+  .ph-content-detail-main > h2 {
+    font-size: 26px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .ph-detail-meta {
+    overflow-wrap: anywhere;
+  }
+
+  .ph-content-detail-main .ant-space {
+    max-width: 100%;
+  }
+
+  .ph-content-detail-main .ant-card-body {
+    padding: 12px;
+  }
+
+  .ph-content-detail-main .ant-card .ant-space {
+    width: 100%;
+  }
+
+  .ph-content-detail-main .ant-card .ant-space > span {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .ph-reading-progress {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ph-content-detail-main .ant-pagination {
+    flex-wrap: wrap;
+  }
+
+  .ph-content-card .ant-card-body {
+    padding: 14px;
+  }
+
+  .ph-content-card-cover {
+    max-height: 240px;
+  }
+
+  .ph-content-card .ant-card-meta-title,
+  .ph-content-card .ant-card-meta-title a {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+  }
+
+  .ph-content-card-meta {
+    align-items: flex-start;
+    flex-wrap: wrap;
+
+    > span {
+      flex: 1 1 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  .ph-content-card-meta .ant-btn {
+    min-height: 40px;
+  }
+
+  .ph-about-side {
+    min-height: 0;
+  }
+
+  .ph-auth-page {
+    min-height: 100dvh;
+    height: auto;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .ph-auth-page .ant-pro-form-login-container {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0 !important;
+    padding-inline: 16px;
+  }
+
+  .ph-auth-page .ant-pro-form-login-main,
+  .ph-auth-page .ant-pro-form-login-content {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 420px;
+  }
+
+  .ph-auth-page .ph-auth-captcha-row {
+    gap: 8px;
+
+    .ph-auth-captcha-image {
+      max-width: 42%;
+
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+    }
+  }
+
+  .ph-auth-page .ph-auth-login-extra {
+    align-items: stretch;
+    flex-direction: column;
+
+    .ph-auth-login-extra-links {
+      width: 100%;
+      justify-content: space-between;
+    }
+  }
+
+  .ph-prose {
+    font-size: 15px;
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      overflow-wrap: anywhere;
+    }
+
+    h2 {
+      font-size: 1.35em;
+    }
+
+    h3 {
+      font-size: 1.15em;
+    }
+
+    table {
+      display: block;
+      max-width: 100%;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .ph-code-block-pre,
+    pre:not(.ph-code-block-pre) {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+  }
+
+  .ph-reading {
+    max-width: 100%;
+  }
+
+  .ph-workspace-pro-layout,
+  .ph-workspace-pro-layout .ant-pro-layout-container {
+    height: 100dvh !important;
+  }
+
+  .ph-workspace-page-shell {
+    padding-inline: 0;
+  }
+
+  .ph-workspace-pro-layout .ant-pro-page-container {
+    padding-inline: 12px;
+  }
+
+  .ph-workspace-pro-layout .ant-pro-page-container-warp {
+    padding-inline: 0;
+  }
+
+  .ph-workspace-editor-page .ph-page-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .ph-page-header-title {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ph-workspace-editor-page .ph-page-header-extra {
+    width: 100%;
+    max-width: 100%;
+
+    .ant-space {
+      display: flex;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .ant-btn {
+      flex: 1 1 auto;
+      min-height: 40px;
+    }
+  }
+
+  .ph-inline-list-item {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .ph-inline-list-item a {
+    min-height: 40px;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 32px);
+    margin-inline: auto;
+  }
+
+  .ant-drawer-content-wrapper {
+    max-width: 100vw;
+  }
+
+  .ant-table-wrapper {
+    max-width: 100%;
+    overflow-x: auto !important;
+  }
+
+  .ant-table-wrapper .ant-table-container,
+  .ant-table-wrapper .ant-table-content,
+  .ant-pro-table .ant-table-wrapper .ant-table-container,
+  .ant-pro-table .ant-table-wrapper .ant-table-content {
+    overflow-x: auto !important;
+  }
+
+  .ant-table-wrapper .ant-table,
+  .ant-pro-table .ant-table-wrapper .ant-table {
+    min-width: 680px;
+  }
+
+  .ph-ai-layout-focused {
+    height: 100dvh;
+  }
+
+  .ph-ai-layout-focused .ph-ai-content {
+    height: calc(100dvh - var(--ph-ai-topbar-height));
+    max-height: calc(100dvh - var(--ph-ai-topbar-height));
+    padding: 8px 12px 0;
+  }
+
+  .ph-ai-topbar {
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .ph-ai-topbar-title {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ph-ai-topbar > .ant-space:last-child {
+    gap: 4px !important;
+  }
+
+  .ph-ai-topbar > .ant-space:last-child .ant-tag {
+    display: none;
+  }
+
+  .ph-ai-user-card {
+    width: min(390px, calc(100vw - 32px));
+  }
+
+  .ph-ai-workspace-frame,
+  .ph-ai-workspace-main {
+    min-height: 0;
+  }
+
+  .ph-ai-workspace-composer {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+
+  /* 输入条换行写在 ai-components.less。该文件由 AiLayout 后加载，写在这里会被 184px 规则盖掉。 */
+
+  .ph-ai-config-popover {
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+  }
+
+  .ph-ai-assets-toolbar-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+
+    > .ant-input,
+    > .ant-input-affix-wrapper,
+    > .ant-select {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .ph-ai-media-toolbar {
+    right: 0;
+    max-width: calc(100vw - 24px);
+  }
+
+  .ph-ai-media-search-open {
+    width: min(220px, calc(100vw - 110px));
+    flex-basis: min(220px, calc(100vw - 110px));
+  }
+}
+
+/**
+ * 阅读多栏只在宽度 ≥1200 且高度 >499 时保留。
+ * 数字对应 viewport-bands.json：readerColumnsMin 1200 → max-width 1199，shortHeightMax 499。
+ * 较窄档跟随这套底栏，不再在 992 以下单独排四栏。
+ */
+.ph-reader-sheets() {
+  :root {
+    --ph-booklet-main-min-width: 0;
+  }
+
+  .ph-booklet-reader {
+    display: block;
+    min-height: calc(100dvh - var(--ph-header-height));
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .ph-booklet-sidebar {
+    display: none;
+  }
+
+  .ph-booklet-body {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ph-booklet-columns {
+    display: block;
+  }
+
+  .ph-booklet-main {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 20px var(--ph-page-padding) 28px;
+  }
+
+  .ph-booklet-main > h2 {
+    margin-top: 0;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  .ph-booklet-toc,
+  .ph-booklet-footer-toc {
+    display: none;
+  }
+
+  .ph-booklet-footer-main {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 20px var(--ph-page-padding) 28px;
+  }
+
+  .ph-booklet-footer-nav {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .ph-booklet-footer-nav .ant-btn {
+    flex: 1 1 0;
+    min-height: 44px;
+  }
+
+  .ph-content-detail-toc,
+  .ph-content-detail-actions {
+    display: none;
+  }
+
+  .ph-content-detail-layout {
+    display: block;
+  }
+
+  .ph-content-detail-main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+
+  .ph-scroll-back-top {
+    inset-inline-end: 16px !important;
+    inset-block-end: calc(72px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .ph-booklet-mobile-controls,
+  .ph-reader-mobile-controls {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    min-height: 56px;
+    padding: 4px 8px env(safe-area-inset-bottom);
+    border-top: 1px solid var(--ph-border-color);
+    background: color-mix(in srgb, var(--ph-bg-container) 94%, transparent);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+    backdrop-filter: blur(12px);
+  }
+
+  .ph-booklet-mobile-controls .ant-btn,
+  .ph-reader-mobile-controls .ant-btn {
+    flex: 0 0 auto;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .ph-booklet-mobile-action-sheet,
+  .ph-booklet-mobile-panel {
+    display: block;
+  }
+
+  .ph-booklet-mobile-action-sheet .ant-drawer-body,
+  .ph-booklet-mobile-panel .ant-drawer-body {
+    overflow-y: auto;
+  }
+
+  .ph-booklet-mobile-action-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ph-booklet-mobile-action-grid .ant-btn {
+    min-height: 48px;
+  }
+
+  .ph-booklet-mobile-panel .ph-outline {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 1199px) {
+  .ph-reader-sheets();
+}
+
+@media (max-height: 499px) {
+  .ph-reader-sheets();
+}

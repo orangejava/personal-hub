@@ -1,6 +1,6 @@
-import { Link, useLocation } from '@umijs/max';
-import { Alert, Button, Space, Typography } from 'antd';
-import React from 'react';
+import { history, useLocation } from '@umijs/max';
+import { Modal, Typography } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { buildLoginPath } from '@/utils/loginPath';
 
 export interface AiGuestLimitAlertProps {
@@ -10,10 +10,13 @@ export interface AiGuestLimitAlertProps {
   dailyLimit?: number;
   remainingUses?: number;
   requiresLogin?: boolean;
+  /** 页面在拦截发送时递增，用来在用户关掉弹窗后再次打开。 */
+  promptSignal?: number;
 }
 
 /**
- * 次数来自公开首页 guestTrial，不再用查询参数模拟。
+ * 访客额度提示。
+ * 还有剩余次数时不占输入区；必须登录或次数用完才打开对话框，遮罩可关。
  */
 const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
   isGuest,
@@ -22,44 +25,45 @@ const AiGuestLimitAlert: React.FC<AiGuestLimitAlertProps> = ({
   dailyLimit = 3,
   remainingUses = 1,
   requiresLogin,
+  promptSignal = 0,
 }) => {
   const location = useLocation();
-  if (!isGuest) return null;
+  const blocked = Boolean(requiresLogin || exceeded);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (isGuest && blocked) setOpen(true);
+  }, [blocked, isGuest]);
+
+  useEffect(() => {
+    if (!isGuest || !blocked || promptSignal <= 0) return;
+    setOpen(true);
+  }, [blocked, isGuest, promptSignal]);
+
+  if (!isGuest || !blocked) return null;
+
+  const loginPath = buildLoginPath(
+    `${location.pathname}${location.search}${location.hash}`,
+  );
 
   return (
-    <Alert
-      showIcon
-      className="ph-ai-guest-limit-alert"
-      type={requiresLogin || exceeded ? 'warning' : 'info'}
-      title={
-        requiresLogin ? '需要登录' : exceeded ? '访客试用已用完' : '访客试用模式'
-      }
-      description={
-        <Space orientation="vertical" size={4}>
-          <Typography.Text>
-            {requiresLogin
-              ? `${toolName}需要登录后使用，访客无法直接生成。`
-              : exceeded
-                ? `${toolName}今日访客试用次数已达 ${dailyLimit} 次上限。`
-                : `${toolName}今日访客可试用 ${dailyLimit} 次，剩余 ${remainingUses} 次。`}
-          </Typography.Text>
-          <Typography.Text type="secondary">
-            登录后可保存历史、使用会员额度，并解除访客试用次数限制。
-          </Typography.Text>
-        </Space>
-      }
-      action={
-        <Link
-          to={buildLoginPath(
-            `${location.pathname}${location.search}${location.hash}`,
-          )}
-        >
-          <Button size="small" type={exceeded || requiresLogin ? 'primary' : 'default'}>
-            去登录
-          </Button>
-        </Link>
-      }
-    />
+    <Modal
+      open={open}
+      title={requiresLogin ? '需要登录' : '访客试用已用完'}
+      okText="去登录"
+      cancelText="关闭"
+      onOk={() => history.push(loginPath)}
+      onCancel={() => setOpen(false)}
+    >
+      <Typography.Paragraph>
+        {requiresLogin
+          ? `${toolName}需要登录后使用，访客无法直接生成。`
+          : `${toolName}今日访客试用次数已达 ${dailyLimit} 次上限，剩余 ${remainingUses} 次。`}
+      </Typography.Paragraph>
+      <Typography.Paragraph type="secondary">
+        登录后可保存历史、使用会员额度，并解除访客试用次数限制。
+      </Typography.Paragraph>
+    </Modal>
   );
 };
 

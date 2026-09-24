@@ -16,6 +16,7 @@ export async function fetchChapter(bookletId: string, chapterId: string): Promis
     title: string;
     chapterOrder: number;
     markdownSource: string;
+    toc?: BookletChapter['toc'];
     wordCount: number;
   }>(`/api/v1/public/contents/${bookletId}/chapters/${chapterId}`, {
     skipErrorHandler: true,
@@ -26,6 +27,7 @@ export async function fetchChapter(bookletId: string, chapterId: string): Promis
     order: res.chapterOrder,
     title: res.title,
     body: res.markdownSource ?? '',
+    toc: res.toc ?? [],
     empty: !res.markdownSource,
   };
 }

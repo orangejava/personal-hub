@@ -63,7 +63,7 @@ const Content: React.FC = () => {
 
   return (
     <PublicLayout>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="ph-content-page-header">
         <h2 style={{ margin: 0 }}>内容中心</h2>
         {canManage && (
           <Link to="/workspace/content">
@@ -72,8 +72,9 @@ const Content: React.FC = () => {
         )}
       </div>
 
-      <Space wrap style={{ marginBottom: 16 }}>
+      <Space wrap className="ph-content-filters" style={{ marginBottom: 16 }}>
         <Input.Search
+          className="ph-content-filter-search"
           placeholder="搜索标题或摘要"
           allowClear
           defaultValue={keyword}

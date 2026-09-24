@@ -86,7 +86,8 @@ html.ph-theme-dark,
     padding: 4px 12px;
     border-radius: 999px;
     white-space: nowrap;
-    transition: color var(--ph-motion-fast) ease,
+    transition:
+      color var(--ph-motion-fast) ease,
       background var(--ph-motion-fast) ease;
 
     &:hover {
@@ -116,6 +117,7 @@ html.ph-theme-dark,
 
 /* 登录/注册/验证：跟公开区同一套语义色。LoginForm 标题写了未编译的 @heading-color，必须用变量覆盖。 */
 .ph-auth-page {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100vh;
@@ -183,11 +185,29 @@ html.ph-theme-dark,
       gap: 12px;
     }
   }
+
+  .ph-auth-back {
+    position: absolute;
+    z-index: 2;
+    top: 16px;
+    inset-inline-start: 16px;
+  }
 }
 
 .ph-category-count {
   color: var(--ph-text-tertiary);
   margin-top: 4px;
+}
+
+.ph-content-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ph-reading-progress {
+  display: inline-block;
+  min-width: 220px;
 }
 
 .ph-content-card-summary {

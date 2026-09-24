@@ -1,0 +1,25 @@
+/** 平板：公开顶栏仍放得下时保留链接。阅读多栏改由 1200px / 矮屏规则决定，不在这里排侧栏。 */
+
+@media (min-width: 768px) and (max-width: 991px) {
+  :root {
+    --ph-page-padding: 20px;
+  }
+
+  .ph-public-header {
+    gap: 10px;
+  }
+
+  .ph-public-nav a {
+    padding-inline: 8px;
+  }
+
+  .ph-content-detail-layout {
+    gap: 16px;
+  }
+
+  .ph-content-detail-toc {
+    width: 188px;
+    flex-basis: 188px;
+  }
+
+}

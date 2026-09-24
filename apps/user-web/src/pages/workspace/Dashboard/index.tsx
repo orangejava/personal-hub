@@ -1,5 +1,4 @@
 import { Link, useIntl } from '@umijs/max';
-import { useRequest } from '@/hooks/useRequest';
 import { Card, Col, Row, Statistic } from 'antd';
 import React from 'react';
 import {
@@ -9,6 +8,7 @@ import {
   ResultState,
   SectionSkeleton,
 } from '@/components/shared';
+import { useRequest } from '@/hooks/useRequest';
 import {
   fetchContinueReading,
   fetchWorkspaceStats,
@@ -31,21 +31,43 @@ const Dashboard: React.FC = () => {
     );
 
   const statCards = [
-    { titleId: 'workspace.dashboard.myDocs', value: stats?.contentCount, key: 'c' },
-    { titleId: 'workspace.dashboard.drafts', value: stats?.draftCount, key: 'd' },
-    { titleId: 'workspace.dashboard.published', value: stats?.publishedCount, key: 'p' },
-    { titleId: 'workspace.dashboard.favorites', value: stats?.favoriteCount, key: 'f' },
-    { titleId: 'workspace.dashboard.booklets', value: stats?.bookletCount, key: 'b' },
+    {
+      titleId: 'workspace.dashboard.myDocs',
+      value: stats?.contentCount,
+      key: 'c',
+    },
+    {
+      titleId: 'workspace.dashboard.drafts',
+      value: stats?.draftCount,
+      key: 'd',
+    },
+    {
+      titleId: 'workspace.dashboard.published',
+      value: stats?.publishedCount,
+      key: 'p',
+    },
+    {
+      titleId: 'workspace.dashboard.favorites',
+      value: stats?.favoriteCount,
+      key: 'f',
+    },
+    {
+      titleId: 'workspace.dashboard.booklets',
+      value: stats?.bookletCount,
+      key: 'b',
+    },
   ];
 
   return (
-    <PageContainer title={intl.formatMessage({ id: 'workspace.dashboard.title' })}>
+    <PageContainer
+      title={intl.formatMessage({ id: 'workspace.dashboard.title' })}
+    >
       {loading ? (
         <SectionSkeleton variant="card" count={5} columns={5} rows={2} />
       ) : (
-        <Row gutter={16}>
+        <Row gutter={[16, 16]}>
           {statCards.map((s) => (
-            <Col span={4} key={s.key}>
+            <Col xs={24} sm={12} lg={4} key={s.key}>
               <Card>
                 <Statistic
                   title={intl.formatMessage({ id: s.titleId })}
@@ -58,7 +80,9 @@ const Dashboard: React.FC = () => {
       )}
 
       <Card
-        title={intl.formatMessage({ id: 'workspace.dashboard.continueReading' })}
+        title={intl.formatMessage({
+          id: 'workspace.dashboard.continueReading',
+        })}
         style={{ marginTop: 24 }}
         loading={cLoading}
       >

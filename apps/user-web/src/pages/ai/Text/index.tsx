@@ -1,5 +1,6 @@
 import { useModel, useSearchParams } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
+import { useViewportBand } from '@/hooks/useViewportBand';
 import {
   CopyOutlined,
   FileTextOutlined,
@@ -30,6 +31,11 @@ const scenarioItems = [
   { key: 'custom', label: '自定义 Prompt' },
 ];
 
+/** 手机一行放不下全部类型，前 3 个留在外面，其余进「其他」。 */
+const phoneVisibleScenarioCount = 3;
+const phoneVisibleScenarios = scenarioItems.slice(0, phoneVisibleScenarioCount);
+const phoneOverflowScenarios = scenarioItems.slice(phoneVisibleScenarioCount);
+
 const toneOptions = [
   { label: '专业', value: 'professional' },
   { label: '正式', value: 'formal' },
@@ -40,6 +46,21 @@ const lengthOptions = [
   { label: '短', value: 'short' },
   { label: '中', value: 'medium' },
   { label: '长', value: 'long' },
+];
+
+/** 文本产出语言使用固定选项，避免手机端在窄输入框中编辑自由文本。 */
+const targetLanguageOptions = [
+  { label: '中文（简体）', value: '中文' },
+  { label: 'English（英语）', value: '英文' },
+  { label: '日本語（日语）', value: '日语' },
+  { label: '한국어（韩语）', value: '韩语' },
+  { label: 'Français（法语）', value: '法语' },
+  { label: 'Deutsch（德语）', value: '德语' },
+  { label: 'Español（西班牙语）', value: '西班牙语' },
+  { label: 'Português（葡萄牙语）', value: '葡萄牙语' },
+  { label: 'Русский（俄语）', value: '俄语' },
+  { label: 'العربية（阿拉伯语）', value: '阿拉伯语' },
+  { label: 'हिन्दी（印地语）', value: '印地语' },
 ];
 
 /**
@@ -81,20 +102,30 @@ const AiTextPage: React.FC = () => {
     value: generation.draft.modelId,
     onDefaultModel: (modelId) => generation.updateDraft({ modelId }),
   });
-  const isGuest = !initialState?.currentUser;
+  const authRestoreFailed = Boolean(initialState?.sessionRestoreFailed);
+  const isAuthenticated = Boolean(initialState?.currentUser);
+  const isGuest = !isAuthenticated && !authRestoreFailed;
   const textTool = homeData?.tools.find((tool) => tool.code === 'text');
   const requiresLogin = Boolean(textTool?.requiresLogin);
   const quotaInsufficient =
-    !isGuest &&
+    isAuthenticated &&
     runtimeConfig.quota !== undefined &&
     runtimeConfig.quota.remainingTokens < generation.tokenEstimate;
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
+  const guestBlocked = isGuest && (requiresLogin || guestLimitExceeded);
+  const [guestPrompt, setGuestPrompt] = useState(0);
+  const { band } = useViewportBand();
   const canSubmit =
-    generation.canGenerate &&
-    modelState.hasModels &&
-    !quotaInsufficient &&
-    !(isGuest && requiresLogin) &&
-    !(isGuest && guestLimitExceeded);
+    !authRestoreFailed && generation.canGenerate && modelState.hasModels && !quotaInsufficient;
+  const overflowScenarioActive = phoneOverflowScenarios.some(
+    (item) => item.key === generation.draft.scenario,
+  );
+
+  const handleScenarioChange = (scenario: string) => {
+    generation.updateDraft({
+      scenario: scenario as typeof generation.draft.scenario,
+    });
+  };
 
   useEffect(() => {
     if (!activeTemplate || appliedTemplateIdRef.current === activeTemplate.id) return;
@@ -151,15 +182,49 @@ const AiTextPage: React.FC = () => {
 
       <div className="ph-ai-text-shell">
         <Card className="ph-ai-text-input-card">
-          <Tabs
-            activeKey={generation.draft.scenario}
-            items={scenarioItems}
-            onChange={(scenario) =>
-              generation.updateDraft({
-                scenario: scenario as typeof generation.draft.scenario,
-              })
-            }
-          />
+          {band === 'phone' ? (
+            <div className="ph-ai-text-scenario-compact" role="tablist" aria-label="生成类型">
+              {phoneVisibleScenarios.map((item) => (
+                <button
+                  key={item.key}
+                  aria-selected={generation.draft.scenario === item.key}
+                  className={
+                    generation.draft.scenario === item.key
+                      ? 'ph-ai-text-scenario-compact-active'
+                      : undefined
+                  }
+                  role="tab"
+                  type="button"
+                  onClick={() => handleScenarioChange(item.key)}
+                >
+                  {item.label}
+                </button>
+              ))}
+              <Select
+                aria-label="其他生成类型"
+                className={
+                  overflowScenarioActive
+                    ? 'ph-ai-text-scenario-more ph-ai-text-scenario-more-active'
+                    : 'ph-ai-text-scenario-more'
+                }
+                options={phoneOverflowScenarios.map((item) => ({
+                  label: item.label,
+                  value: item.key,
+                }))}
+                placeholder="其他"
+                popupMatchSelectWidth={false}
+                value={overflowScenarioActive ? generation.draft.scenario : undefined}
+                onChange={handleScenarioChange}
+              />
+            </div>
+          ) : (
+            <Tabs
+              className="ph-ai-text-scenario-tabs"
+              activeKey={generation.draft.scenario}
+              items={scenarioItems}
+              onChange={handleScenarioChange}
+            />
+          )}
           <div className="ph-ai-text-hint">{generation.scenarioHint}</div>
 
           <Input.TextArea
@@ -194,12 +259,14 @@ const AiTextPage: React.FC = () => {
                 })
               }
             />
-            <Input
+            <Select
+              aria-label="选择目标语言"
+              showSearch
               value={generation.draft.targetLanguage}
-              placeholder="目标语言"
-              onChange={(event) =>
-                generation.updateDraft({ targetLanguage: event.target.value })
-              }
+              options={targetLanguageOptions}
+              optionFilterProp="label"
+              placeholder="选择目标语言"
+              onChange={(targetLanguage) => generation.updateDraft({ targetLanguage })}
             />
           </div>
 
@@ -217,15 +284,27 @@ const AiTextPage: React.FC = () => {
                   icon={<FileTextOutlined />}
                   type="primary"
                   disabled={!canSubmit}
-                  onClick={generation.generate}
+                  onClick={() => {
+                    if (guestBlocked) {
+                      setGuestPrompt((current) => current + 1);
+                      return;
+                    }
+                    generation.generate();
+                  }}
                 >
                   生成文本
                 </Button>
               )}
               <Button
                 icon={<ReloadOutlined />}
-                disabled={generation.isGenerating || !generation.hasOutput}
-                onClick={generation.regenerate}
+                disabled={authRestoreFailed || generation.isGenerating || !generation.hasOutput}
+                onClick={() => {
+                  if (guestBlocked) {
+                    setGuestPrompt((current) => current + 1);
+                    return;
+                  }
+                  generation.regenerate();
+                }}
               >
                 重新生成
               </Button>
@@ -240,13 +319,14 @@ const AiTextPage: React.FC = () => {
             estimatedTokens={generation.tokenEstimate}
             quota={runtimeConfig.quota}
             toolName="文本生成"
-            visible={!isGuest}
+            visible={isAuthenticated}
           />
           <AiGuestLimitAlert
             dailyLimit={homeData?.guestTrial?.dailyLimit}
             exceeded={guestLimitExceeded}
             isGuest={isGuest}
             remainingUses={homeData?.guestTrial?.remaining}
+            promptSignal={guestPrompt}
             requiresLogin={requiresLogin}
             toolName="文本生成"
           />

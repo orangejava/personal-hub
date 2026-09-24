@@ -6,11 +6,13 @@
 
 1. **本文件** `AGENTS.md`
 2. **`.agents/rules/`** 下全部规则（当前含文档放置、开发工作流、前后端影响面、TSX 方法放置）
+   - 涉及前端页面、布局或交互改动 → 同时遵守 [`.agents/rules/mobile-responsive.md`](.agents/rules/mobile-responsive.md)
 3. 与当前任务匹配的 **`.agents/skills/*/SKILL.md`**
    - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
    - 涉及 Nest / Canonical API / Prisma / `api-client` / Umi services / mock 回落 → **必须**加载 [`.agents/skills/fullstack-impact/SKILL.md`](.agents/skills/fullstack-impact/SKILL.md)
    - 涉及新增或修改 `apps/*/src/**/*.tsx` 页面 / 布局 / 组件 → **必须**加载 [`.agents/skills/tsx-structure/SKILL.md`](.agents/skills/tsx-structure/SKILL.md)
    - 涉及审查 diff / PR / 安全 / 性能 / 废弃 API / 测试覆盖 → 加载 [`.agents/skills/fullstack-code-review/SKILL.md`](.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/fullstack-code-review/`；本仓库以仓库副本为准）
+   - 用户要求给计划打分、review 计划，或写明超过 90 分再执行 → 加载 [`.agents/skills/plan-review/SKILL.md`](.agents/skills/plan-review/SKILL.md)（用户级镜像 `~/.agents/skills/plan-review/`）。这是动手前的计划分，不是完成后的 `task-quality-review`
 
 说明见 [`.agents/README.md`](.agents/README.md)。
 

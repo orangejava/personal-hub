@@ -1,6 +1,25 @@
+import { ArrowLeftOutlined } from '@ant-design/icons';
+import { history } from '@umijs/max';
+import { Button } from 'antd';
 import React from 'react';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
+
+/**
+ * 登录页不一定有站内来源。有 redirect 就回到那个地址，否则退回上一页，再不行回首页。
+ */
+function goAuthBack() {
+  const redirect = new URLSearchParams(window.location.search).get('redirect');
+  if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    history.push(redirect);
+    return;
+  }
+  if (window.history.length > 1) {
+    history.back();
+    return;
+  }
+  history.push('/');
+}
 
 /**
  * 登录 / 注册 / 验证页没有 PublicLayout，但仍走公开区主题。
@@ -21,6 +40,9 @@ export const AuthPageShell: React.FC<{ children: React.ReactNode }> = ({
       style={{ ['--ph-color-primary' as string]: settings.colorPrimary }}
     >
       <ThemeRuntimeSync />
+      <Button className="ph-auth-back" icon={<ArrowLeftOutlined />} type="text" onClick={goAuthBack}>
+        返回
+      </Button>
       {children}
     </div>
   );

@@ -1,6 +1,11 @@
 import { SettingOutlined } from '@ant-design/icons';
-import { Button, Popover, Space } from 'antd';
-import React from 'react';
+import { Button, Modal, Popover, Space } from 'antd';
+import React, { useState } from 'react';
+import { useViewportBand } from '@/hooks/useViewportBand';
+import {
+  useIsComposerMoreSurface,
+  useOpenAfterComposerMoreCloses,
+} from '../AiComposer/moreActionContext';
 
 type AiConfigValue = string | number;
 
@@ -45,6 +50,10 @@ const AiConfigPopover: React.FC<AiConfigPopoverProps> = ({
   buttonText = '配置',
   groups,
 }) => {
+  const { band } = useViewportBand();
+  const [open, setOpen] = useState(false);
+  const openAfterMoreCloses = useOpenAfterComposerMoreCloses();
+  const inMoreSurface = useIsComposerMoreSurface();
   const content = (
     <div className="ph-ai-config-popover">
       {groups.map((group) => (
@@ -95,6 +104,32 @@ const AiConfigPopover: React.FC<AiConfigPopoverProps> = ({
       ))}
     </div>
   );
+
+  // 手机或已收进「更多」时使用 Modal，避免 Popover 锚在退出中的底部 Drawer 上。
+  if (band === 'phone' || inMoreSurface) {
+    return (
+      <>
+        <Button
+          icon={<SettingOutlined />}
+          size="small"
+          onClick={() => openAfterMoreCloses(() => setOpen(true))}
+        >
+          {buttonText}
+        </Button>
+        <Modal
+          centered
+          footer={null}
+          open={open}
+          rootClassName="ph-ai-config-modal"
+          title={title}
+          width="min(560px, calc(100vw - 32px))"
+          onCancel={() => setOpen(false)}
+        >
+          {content}
+        </Modal>
+      </>
+    );
+  }
 
   return (
     <Popover

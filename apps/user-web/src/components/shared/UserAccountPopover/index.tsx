@@ -1,10 +1,15 @@
-import { CrownOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons';
+import {
+  CrownOutlined,
+  LogoutOutlined,
+  SettingOutlined,
+  UserOutlined,
+} from '@ant-design/icons';
+import { buildAdminWebUrl } from '@personal-hub/app-origins';
 import { Link, useModel } from '@umijs/max';
 import { Avatar, Button, Popover } from 'antd';
 import React from 'react';
-import { buildAdminWebUrl } from '@personal-hub/app-origins';
-import { buildLoginPath } from '@/utils/loginPath';
 import { loginOut } from '@/utils/loginOut';
+import { buildLoginPath } from '@/utils/loginPath';
 import './index.less';
 
 export type UserAccountPopoverVariant = 'base' | 'ai';
@@ -26,7 +31,10 @@ type AccountUser = {
 };
 
 function isAdminUser(user?: { role?: string; permissions?: string[] }) {
-  return user?.role === 'admin' || Boolean(user?.permissions?.includes('admin:access'));
+  return (
+    user?.role === 'admin' ||
+    Boolean(user?.permissions?.includes('admin:access'))
+  );
 }
 
 function AccountActions({
@@ -38,7 +46,10 @@ function AccountActions({
   admin: boolean;
   onLogout: () => void;
 }) {
-  const actionClass = variant === 'ai' ? 'ph-ai-user-card-actions' : 'ph-user-account-card-actions';
+  const actionClass =
+    variant === 'ai'
+      ? 'ph-ai-user-card-actions'
+      : 'ph-user-account-card-actions';
   return (
     <div className={actionClass}>
       <Link to={variant === 'ai' ? '/ai/profile' : '/workspace/profile'}>
@@ -170,15 +181,19 @@ const UserAccountPopover: React.FC<UserAccountPopoverProps> = ({
       arrow={false}
       content={card}
       classNames={{
-        root: variant === 'ai' ? 'ph-ai-user-popover' : 'ph-user-account-popover',
+        root:
+          variant === 'ai' ? 'ph-ai-user-popover' : 'ph-user-account-popover',
       }}
       placement="bottomRight"
       trigger={['hover', 'click']}
     >
       {children ?? (
-        <Button className={triggerClassName ?? 'ph-user-account-trigger'} type="text">
+        <Button
+          className={triggerClassName ?? 'ph-user-account-trigger'}
+          type="text"
+        >
           <Avatar size={28} src={user.avatar} icon={<UserOutlined />} />
-          <span>{displayName}</span>
+          <span className="ph-user-account-name">{displayName}</span>
         </Button>
       )}
     </Popover>
