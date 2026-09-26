@@ -119,6 +119,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [implementation/README.md](./implementation/README.md)                                                         | 功能开发文档固定归档规则                 | ✅ 已完成 |
 | [implementation/admin-web-split.md](./implementation/admin-web-split.md)                                       | 用户端 / 管理端拆分与跨 Origin 会话      | ✅ 已完成 |
 | [implementation/review-remediation.md](./implementation/review-remediation.md)                                 | 审查修复：幂等/审核/上传任务分页         | ✅ 已完成 |
+| [implementation/content/private-access-and-ai-session.md](./implementation/content/private-access-and-ai-session.md) | 私密内容指定读者与 AI 首次会话修复 | ✅ 已完成 |
 | [../apps/server/docs/README.md](../apps/server/docs/README.md)                                                 | Nest 实现：阶段 0 / Auth / M3 / M4 / M5 文件小册 / M6 AI | ✅ 已完成 |
 | [../apps/user-web/docs/README.md](../apps/user-web/docs/README.md)                                           | 用户端实现说明                           | ✅ 已完成 |
 | [../apps/admin-web/docs/README.md](../apps/admin-web/docs/README.md)                                           | 管理端实现说明                           | ✅ 已完成 |

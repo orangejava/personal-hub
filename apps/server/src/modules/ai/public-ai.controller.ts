@@ -73,7 +73,7 @@ export class PublicAiController {
     await this.ai.streamChat({
       owner,
       sessionId,
-      body: { content: body.content },
+      body: { content: body.content, modelId: body.modelId },
       requestId: request.requestId,
       response,
       ipHash: hashIp(request.ip),

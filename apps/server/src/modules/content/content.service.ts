@@ -68,6 +68,7 @@ const contentReviewInclude = {
 } satisfies Prisma.ContentReviewInclude;
 
 type ContentReviewRow = Prisma.ContentReviewGetPayload<{ include: typeof contentReviewInclude }>;
+type ContentDbClient = Prisma.TransactionClient | PrismaService;
 
 interface ContentActionScope {
   userId: string;
@@ -251,7 +252,11 @@ export class ContentService {
   ) {
     const grant = await this.assertPermission(auth, 'content:publish');
     if (!grant.all) {
-      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '解除导入限制需要全站发布权限');
+      throw new DomainHttpException(
+        HttpStatus.FORBIDDEN,
+        'AUTH_FORBIDDEN',
+        '解除导入限制需要全站发布权限',
+      );
     }
     const trimmed = note.trim();
     if (!trimmed) {
@@ -266,7 +271,11 @@ export class ContentService {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
     }
     if (row.importRestriction !== ImportRestriction.PRIVATE_UNTIL_LICENSED) {
-      return this.toDetail(row, { userId: auth.userId, contentReadAll: true }, { publicView: false, favorited: false });
+      return this.toDetail(
+        row,
+        { userId: auth.userId, contentReadAll: true },
+        { publicView: false, favorited: false },
+      );
     }
     await this.contents.asTransaction(async (tx) => {
       const licensed = await this.applyImportLicenseInTx(tx, row, auth.userId, trimmed, requestId);
@@ -278,7 +287,11 @@ export class ContentService {
     if (next === null) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
     }
-    return this.toDetail(next, { userId: auth.userId, contentReadAll: true }, { publicView: false, favorited: false });
+    return this.toDetail(
+      next,
+      { userId: auth.userId, contentReadAll: true },
+      { publicView: false, favorited: false },
+    );
   }
 
   async listApp(
@@ -325,6 +338,89 @@ export class ContentService {
     return this.toDetail(row, viewer, { publicView: false, favorited: false });
   }
 
+  /** 仅内容作者或具备 update ALL 的管理者可以读取和维护私密授权名单。 */
+  async listAccessGrants(auth: { userId: string; permissionVersion: number }, id: string) {
+    const grant = await this.assertPermission(auth, 'content:update');
+    await this.requireOwned(id, { userId: auth.userId, all: grant.all });
+    return this.readAccessGrants(id);
+  }
+
+  /**
+   * 用邮箱完整替换 PRIVATE 内容的授权名单。
+   * 导入版权闸未解除时禁止分享，避免通过私密授权绕过版权审核。
+   */
+  async replaceAccessGrants(
+    auth: { userId: string; permissionVersion: number },
+    id: string,
+    emails: string[],
+    requestId: string | null,
+  ) {
+    const grant = await this.assertPermission(auth, 'content:update');
+    const scope = { userId: auth.userId, all: grant.all };
+    await this.requireOwned(id, scope);
+    const normalized = [...new Set(emails.map((email) => email.trim().toLowerCase()))];
+    const users = await this.prisma.user.findMany({
+      where: { email: { in: normalized }, status: 'ACTIVE' },
+      select: { id: true, email: true, nickname: true },
+    });
+
+    return this.contents.asTransaction(async (tx) => {
+      await this.contents.lockById(id, tx);
+      const row = this.assertOwnedRow(await this.contents.findById(id, tx), scope);
+      if (row.visibility !== ContentVisibility.PRIVATE) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'CONTENT_ACCESS_GRANTS_REQUIRE_PRIVATE',
+          '只有私密内容可以设置指定读者',
+        );
+      }
+      if (
+        row.importRestriction === ImportRestriction.PRIVATE_UNTIL_LICENSED &&
+        normalized.length > 0
+      ) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'CONTENT_IMPORT_RESTRICTION_ACTIVE',
+          '导入内容完成版权审核前只能自己查看',
+        );
+      }
+      const foundEmails = new Set(users.map((user) => user.email));
+      const missing = normalized.filter((email) => !foundEmails.has(email));
+      if (missing.length > 0) {
+        throw new DomainHttpException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          'CONTENT_ACCESS_GRANTEE_NOT_FOUND',
+          `账号不存在或不可用：${missing.join('、')}`,
+        );
+      }
+      const ignoredEmails = users
+        .filter((user) => user.id === row.authorId)
+        .map((user) => user.email);
+      const recipients = users.filter((user) => user.id !== row.authorId);
+      await tx.contentAccessGrant.deleteMany({ where: { contentId: id } });
+      if (recipients.length > 0) {
+        await tx.contentAccessGrant.createMany({
+          data: recipients.map((user) => ({
+            contentId: id,
+            userId: user.id,
+            grantedBy: auth.userId,
+          })),
+        });
+      }
+      await this.contents.createAudit(
+        {
+          action: 'content.access-grants.replace',
+          actorId: auth.userId,
+          targetId: id,
+          requestId,
+          detail: { recipientCount: recipients.length, ignoredEmails },
+        },
+        tx,
+      );
+      return this.readAccessGrants(id, tx, ignoredEmails);
+    });
+  }
+
   async create(auth: { userId: string; permissionVersion: number }, dto: CreateContentDto) {
     await this.assertPermission(auth, 'content:create');
     if (dto.type === ContentType.BOOKLET) {
@@ -340,12 +436,15 @@ export class ContentService {
       ? (await this.files.requireReadyOwnedFile(auth.userId, dto.coverFileId, FilePurpose.COVER)).id
       : undefined;
     const primaryFileId = dto.primaryFileId
-      ? (await this.files.requireReadyOwnedFile(auth.userId, dto.primaryFileId, FilePurpose.CONTENT_FILE)).id
+      ? (
+          await this.files.requireReadyOwnedFile(
+            auth.userId,
+            dto.primaryFileId,
+            FilePurpose.CONTENT_FILE,
+          )
+        ).id
       : undefined;
-    if (
-      (dto.type === ContentType.PDF || dto.type === ContentType.WORD) &&
-      !primaryFileId
-    ) {
+    if ((dto.type === ContentType.PDF || dto.type === ContentType.WORD) && !primaryFileId) {
       throw new DomainHttpException(
         HttpStatus.UNPROCESSABLE_ENTITY,
         'FILE_NOT_READY',
@@ -431,7 +530,13 @@ export class ContentService {
         ? undefined
         : dto.coverFileId === null
           ? null
-          : (await this.files.requireReadyOwnedFile(auth.userId, dto.coverFileId, FilePurpose.COVER)).id;
+          : (
+              await this.files.requireReadyOwnedFile(
+                auth.userId,
+                dto.coverFileId,
+                FilePurpose.COVER,
+              )
+            ).id;
     const primaryFileId =
       dto.primaryFileId === undefined
         ? undefined
@@ -503,6 +608,9 @@ export class ContentService {
           },
         },
       });
+      if (dto.visibility !== undefined && dto.visibility !== ContentVisibility.PRIVATE) {
+        await tx.contentAccessGrant.deleteMany({ where: { contentId: id } });
+      }
       if (dto.tagNames) {
         await this.replaceTags(tx, id, dto.tagNames, auth.userId);
       }
@@ -534,7 +642,11 @@ export class ContentService {
   ) {
     const grant = await this.assertPermission(auth, 'content:publish');
     if (options.requireAll && !grant.all) {
-      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '代发布需要全站发布权限');
+      throw new DomainHttpException(
+        HttpStatus.FORBIDDEN,
+        'AUTH_FORBIDDEN',
+        '代发布需要全站发布权限',
+      );
     }
     const viewer: ContentViewer = { userId: auth.userId, contentReadAll: grant.all };
     const row = await this.requireOwned(
@@ -619,7 +731,11 @@ export class ContentService {
         include: contentReviewInclude,
       });
       if (review === null) {
-        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+        throw new DomainHttpException(
+          HttpStatus.NOT_FOUND,
+          'CONTENT_REVIEW_NOT_FOUND',
+          '审核记录不存在',
+        );
       }
       const row = await this.contents.findById(review.contentId, tx);
       if (row === null || row.deletedAt) {
@@ -654,7 +770,11 @@ export class ContentService {
       include: contentReviewInclude,
     });
     if (next === null) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'CONTENT_REVIEW_NOT_FOUND',
+        '审核记录不存在',
+      );
     }
     return this.toReviewItem(next);
   }
@@ -688,7 +808,11 @@ export class ContentService {
         include: contentReviewInclude,
       });
       if (review === null) {
-        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+        throw new DomainHttpException(
+          HttpStatus.NOT_FOUND,
+          'CONTENT_REVIEW_NOT_FOUND',
+          '审核记录不存在',
+        );
       }
       await this.contents.createAudit(
         {
@@ -706,7 +830,11 @@ export class ContentService {
       include: contentReviewInclude,
     });
     if (next === null) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_REVIEW_NOT_FOUND', '审核记录不存在');
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'CONTENT_REVIEW_NOT_FOUND',
+        '审核记录不存在',
+      );
     }
     return this.toReviewItem(next);
   }
@@ -945,18 +1073,21 @@ export class ContentService {
             importRestriction: true,
             authorId: true,
             deletedAt: true,
+            accessGrants: { select: { userId: true } },
           },
         },
       },
     });
     const viewer: ContentViewer = { userId: auth.userId, contentReadAll: false };
-    return rows.filter((item) => publicDetailAccess(item.content, viewer) === 'ok').map((item) => ({
-      contentId: item.contentId,
-      title: item.content.title ?? '未命名',
-      type: item.content.type,
-      percent: item.contentProgressPercent,
-      updatedAt: item.lastReadAt.toISOString(),
-    }));
+    return rows
+      .filter((item) => publicDetailAccess(item.content, viewer) === 'ok')
+      .map((item) => ({
+        contentId: item.contentId,
+        title: item.content.title ?? '未命名',
+        type: item.content.type,
+        percent: item.contentProgressPercent,
+        updatedAt: item.lastReadAt.toISOString(),
+      }));
   }
 
   async upsertReading(
@@ -1311,12 +1442,15 @@ export class ContentService {
     }
   }
 
-  private async buildPublicWhere(query: {
-    categorySlug?: string;
-    tagSlugs?: string;
-    types?: string;
-    keyword?: string;
-  }, viewer: ContentViewer): Promise<Prisma.ContentWhereInput> {
+  private async buildPublicWhere(
+    query: {
+      categorySlug?: string;
+      tagSlugs?: string;
+      types?: string;
+      keyword?: string;
+    },
+    viewer: ContentViewer,
+  ): Promise<Prisma.ContentWhereInput> {
     const keyword = query.keyword?.trim();
     const searchIds = keyword ? await this.contents.searchIds(keyword) : undefined;
     const where: Prisma.ContentWhereInput = {
@@ -1425,7 +1559,14 @@ export class ContentService {
     scope: ContentActionScope,
     options: { allowDeleted?: boolean } = {},
   ): Promise<ContentDetailRow> {
-    const row = await this.contents.findById(id);
+    return this.assertOwnedRow(await this.contents.findById(id), scope, options);
+  }
+
+  private assertOwnedRow(
+    row: ContentDetailRow | null,
+    scope: ContentActionScope,
+    options: { allowDeleted?: boolean } = {},
+  ): ContentDetailRow {
     if (row === null) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
     }
@@ -1439,6 +1580,30 @@ export class ContentService {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
     }
     return row;
+  }
+
+  private async readAccessGrants(
+    contentId: string,
+    db: ContentDbClient = this.prisma,
+    ignoredEmails: string[] = [],
+  ) {
+    const list = await db.contentAccessGrant.findMany({
+      where: { contentId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        createdAt: true,
+        user: { select: { id: true, email: true, nickname: true } },
+      },
+    });
+    return {
+      ignoredEmails,
+      list: list.map((item) => ({
+        userId: item.user.id,
+        email: item.user.email,
+        nickname: displayName(item.user.nickname, item.user.email),
+        createdAt: item.createdAt.toISOString(),
+      })),
+    };
   }
 
   /**
@@ -1517,6 +1682,9 @@ export class ContentService {
         version: { increment: 1 },
       },
     });
+    if (visibility !== undefined && visibility !== ContentVisibility.PRIVATE) {
+      await tx.contentAccessGrant.deleteMany({ where: { contentId: row.id } });
+    }
     await this.contents.createAudit(
       { action: 'content.publish', actorId, targetId: row.id, requestId },
       tx,
@@ -1624,7 +1792,11 @@ export class ContentService {
   private async assertPublishAll(auth: { userId: string; permissionVersion: number }) {
     const grant = await this.assertPermission(auth, 'content:publish');
     if (!grant.all) {
-      throw new DomainHttpException(HttpStatus.FORBIDDEN, 'AUTH_FORBIDDEN', '内容审核需要全站发布权限');
+      throw new DomainHttpException(
+        HttpStatus.FORBIDDEN,
+        'AUTH_FORBIDDEN',
+        '内容审核需要全站发布权限',
+      );
     }
   }
 

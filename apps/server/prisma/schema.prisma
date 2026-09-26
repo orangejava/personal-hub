@@ -342,6 +342,8 @@ model User {
   bookletImportJobs       BookletImportJob[]
   contentReviewsRequested ContentReview[]      @relation("ContentReviewRequester")
   contentReviewsReviewed  ContentReview[]      @relation("ContentReviewReviewer")
+  contentAccessGrantsReceived ContentAccessGrant[] @relation("ContentAccessRecipient")
+  contentAccessGrantsGiven    ContentAccessGrant[] @relation("ContentAccessGrantor")
   migrationRuns           MigrationRun[]
 
   @@index([roleId, status])
@@ -728,11 +730,27 @@ model Content {
   primaryFile        FileAsset?         @relation("ContentPrimary", fields: [primaryFileId], references: [id], onDelete: SetNull)
   bookletImportJobs  BookletImportJob[]
   reviews            ContentReview[]
+  accessGrants       ContentAccessGrant[]
 
   @@index([status, visibility, deletedAt, publishedAt])
   @@index([authorId, deletedAt, updatedAt])
   @@index([categoryId, status, visibility])
   @@map("contents")
+}
+
+/// PRIVATE 内容的指定用户授权。没有记录时仅作者可见；可见性改为非 PRIVATE 时清空。
+model ContentAccessGrant {
+  contentId  String   @map("content_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  grantedBy  String   @map("granted_by") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  content    Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user       User     @relation("ContentAccessRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  grantor    User     @relation("ContentAccessGrantor", fields: [grantedBy], references: [id], onDelete: Restrict)
+
+  @@id([contentId, userId])
+  @@index([userId, createdAt])
+  @@map("content_access_grants")
 }
 
 /// 编辑者发布申请。同一内容同时只允许一条 PENDING（由部分唯一索引保证）。

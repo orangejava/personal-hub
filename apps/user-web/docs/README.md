@@ -12,3 +12,4 @@
 | [implementation/mobile-responsive.md](./implementation/mobile-responsive.md) | 用户端桌面/手机响应式布局与验收 |
 | [../../apps/server/docs/implementation/ai/README.md](../../apps/server/docs/implementation/ai/README.md) | Nest M6 AI Canonical 接线 |
 | [content-review-and-uploads.md](../../../docs/implementation/content/content-review-and-uploads.md) | 工作区上传任务与内容审核（跨端） |
+| [private-access-and-ai-session.md](../../../docs/implementation/content/private-access-and-ai-session.md) | 私密内容指定读者与 AI 首次会话修复（跨端） |

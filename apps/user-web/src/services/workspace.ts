@@ -5,6 +5,7 @@ import { request } from '@umijs/max';
 import { newIdempotencyKey } from '@personal-hub/api-client';
 import type {
   AiConversation,
+  ContentAccessGrantList,
   PaginationResult,
   ContentItem,
   WorkspaceStats,
@@ -50,9 +51,36 @@ export async function fetchMyContents(params: {
   return mapNestContentPage(res);
 }
 
-export async function fetchAppContent(id: string) {
-  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}`);
+interface WorkspaceReadOptions {
+  skipErrorHandler?: boolean;
+}
+
+export async function fetchAppContent(
+  id: string,
+  options?: WorkspaceReadOptions,
+) {
+  const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}`, {
+    skipErrorHandler: options?.skipErrorHandler,
+  });
   return mapNestContentDetail(res);
+}
+
+export async function fetchContentAccessGrants(
+  id: string,
+  options?: WorkspaceReadOptions,
+) {
+  return request<ContentAccessGrantList>(
+    `/api/v1/app/contents/${id}/access-grants`,
+    { skipErrorHandler: options?.skipErrorHandler },
+  );
+}
+
+export async function replaceContentAccessGrants(id: string, emails: string[]) {
+  return request<ContentAccessGrantList>(`/api/v1/app/contents/${id}/access-grants`, {
+    method: 'PUT',
+    data: { emails },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 function nestWritePayload(data: Record<string, unknown>, options?: { includeType?: boolean }) {

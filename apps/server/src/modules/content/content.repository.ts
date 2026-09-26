@@ -8,6 +8,8 @@ export const contentDetailInclude = {
   tags: { include: { tag: true } },
   body: true,
   _count: { select: { favorites: true } },
+  // 只带授权主体 ID，供公开详情、章节、收藏和阅读记录复用同一访问判断。
+  accessGrants: { select: { userId: true } },
   // 列表/详情只带最近一条审核，避免把历史驳回全量拉出来。
   reviews: { orderBy: { createdAt: 'desc' as const }, take: 1, select: { status: true } },
 } satisfies Prisma.ContentInclude;
@@ -28,6 +30,18 @@ export class ContentRepository {
 
   findById(id: string, db: DbClient = this.prisma) {
     return db.content.findUnique({ where: { id }, include: contentDetailInclude });
+  }
+
+  /**
+   * 锁定内容主行，保证可见性变更和 PRIVATE 授权替换按数据库提交顺序串行执行。
+   */
+  async lockById(id: string, tx: Prisma.TransactionClient): Promise<void> {
+    await tx.$queryRaw<Array<{ id: string }>>`
+      SELECT "id"
+      FROM "contents"
+      WHERE "id" = ${id}::uuid
+      FOR UPDATE
+    `;
   }
 
   list(

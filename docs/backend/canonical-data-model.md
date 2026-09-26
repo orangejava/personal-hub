@@ -122,6 +122,19 @@ MARKDOWN | RICH_TEXT | BOOKLET | PDF | WORD | LINK | PROJECT
 - `search_document` 是由标题、摘要和允许检索的派生正文生成的 PostgreSQL `tsvector`；写入时更新，公开查询使用 GIN 索引且始终先施加可见性过滤。
 - 内容软删除保留 30 天；仅 super_admin 可提前 purge，必须传原因。
 
+`content_access_grants` 保存 PRIVATE 内容的指定读者：
+
+| 字段 | 说明 |
+| --- | --- |
+| `content_id` + `user_id` | 复合主键，同一内容不能重复授权同一账号 |
+| `granted_by` | 执行授权的作者或具备 `content:update ALL` 的管理员 |
+| `created_at` | 授权时间 |
+
+- 无授权记录表示仅作者可见；不新增 `SHARED` 可见性枚举。
+- 内容删除时级联删除授权；可见性改为非 PRIVATE 时在同一业务事务清空授权。
+- 被授权者只获得公开阅读路径的访问权，不继承工作区编辑、发布、下载源 ZIP 等动作权限。
+- `PRIVATE_UNTIL_LICENSED` 存在时拒绝非空授权名单。
+
 建议索引：
 
 ```text
@@ -133,6 +146,8 @@ contents(search_document) USING GIN
 content_chapters(content_id, chapter_order) UNIQUE
 content_tags(content_id, tag_id) UNIQUE
 content_reviews(content_id) UNIQUE WHERE status = PENDING
+content_access_grants(content_id, user_id) PRIMARY KEY
+content_access_grants(user_id, created_at)
 ```
 
 ### 3.3 收藏、进度和阅读量

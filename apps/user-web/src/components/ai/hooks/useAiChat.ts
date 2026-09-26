@@ -72,14 +72,21 @@ export function useAiChat({
 
   // 切会话必须在渲染期清空气泡，等 effect 会闪一帧旧消息。
   if (sessionId !== boundSessionId) {
-    streamRunRef.current += 1;
-    renderSchedulerRef.current?.cancel();
-    renderSchedulerRef.current = undefined;
+    // 首次创建会话会把占位 ID 替换成当前流的真实 ID，此时既不能取消流，也不能清空已生成的气泡。
+    const isInitialSessionBinding =
+      isPlaceholderSessionId(boundSessionId) && streamSessionIdRef.current === sessionId;
+    if (!isInitialSessionBinding) {
+      streamRunRef.current += 1;
+      renderSchedulerRef.current?.cancel();
+      renderSchedulerRef.current = undefined;
+      abortRef.current?.abort();
+      abortRef.current = undefined;
+      messagesRef.current = initialMessages;
+      setMessages(initialMessages);
+      setStreamingMessageId(undefined);
+      serverMessageIdRef.current = undefined;
+    }
     setBoundSessionId(sessionId);
-    messagesRef.current = initialMessages;
-    setMessages(initialMessages);
-    setStreamingMessageId(undefined);
-    serverMessageIdRef.current = undefined;
     streamSessionIdRef.current = sessionId;
     lastInitialMessagesSignatureRef.current = initialMessagesSignature;
   }
@@ -326,6 +333,7 @@ export function useAiChat({
     [commitMessages, messages, sessionId, streamingMessageId],
   );
 
+  // 这里只处理组件卸载；会话切换由上面的 sessionId 分支精确判断，避免首次绑定误杀新流。
   useEffect(() => {
     return () => {
       streamRunRef.current += 1;
@@ -333,7 +341,7 @@ export function useAiChat({
       renderSchedulerRef.current = undefined;
       abortLocal();
     };
-  }, [abortLocal, sessionId]);
+  }, [abortLocal]);
 
   useEffect(() => {
     if (streamingMessageId) {

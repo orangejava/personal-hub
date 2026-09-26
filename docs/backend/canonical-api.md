@@ -268,9 +268,10 @@ Web 登录、MFA 登录完成或刷新成功：
 可见性：
 
 - `PUBLISHED + PUBLIC`：匿名可读。
-- `PUBLISHED + LOGIN`：匿名列表返回锁定卡片和摘要，正文详情返回 `401 AUTH_REQUIRED`；登录后可读。
-- `PRIVATE`、`DRAFT`、`ARCHIVED`：非所有者/非管理员通过 public 路径返回 `404 CONTENT_NOT_FOUND`。
-- 导入 BOOKLET 在解除版权限制前即使已发布也只允许作者/管理员读取。
+- `PUBLISHED + LOGIN`：匿名列表不返回该内容；直接请求详情返回 `401 AUTH_REQUIRED`，登录后列表和详情可读。
+- `PUBLISHED + PRIVATE`：作者与 `content_access_grants` 中的指定账号可在内容中心列表和详情读取；其他主体返回 `404 CONTENT_NOT_FOUND`，匿名列表不泄露元数据。
+- `DRAFT`、`ARCHIVED`：非所有者/非管理员通过 public 路径返回 `404 CONTENT_NOT_FOUND`。
+- 导入 BOOKLET 在解除版权限制前即使已发布也只允许作者/管理员读取，不能添加指定读者。
 
 ## 4. App：`/app`
 
@@ -294,6 +295,8 @@ Web 登录、MFA 登录完成或刷新成功：
 | GET    | `/app/contents`                    | `content:read`                        | 我的内容/回收站列表；`lifecycle=DRAFT | PUBLISHED | ARCHIVED`、`includeDeleted=true` 仅查询本人 OWN 或授权 ALL 范围内的内容 |
 | POST   | `/app/contents`                    | `content:create`，必填幂等键          | 创建草稿                              |
 | GET    | `/app/contents/:contentId`         | `content:read` OWN/ALL                | 工作区详情，含编辑源数据              |
+| GET    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL       | PRIVATE 内容指定读者列表              |
+| PUT    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL，必填幂等键 | 用 `{ emails: string[] }` 完整替换指定读者，最多 50 个启用账号 |
 | PATCH  | `/app/contents/:contentId`         | `content:update` OWN/ALL              | 更新元信息/正文                       |
 | POST   | `/app/contents/:contentId/publish` | `content:publish` OWN/ALL，必填幂等键 | OWN：提交审核（内容保持 `DRAFT`，列表 `reviewStatus=PENDING`）；ALL：校验、快照、即时发布。可选 `{ requestedVisibility, copyrightNote }` |
 | POST   | `/app/contents/:contentId/archive` | `content:publish` OWN/ALL             | 归档                                  |
@@ -301,6 +304,8 @@ Web 登录、MFA 登录完成或刷新成功：
 | POST   | `/app/contents/:contentId/restore` | `content:restore` OWN/ALL             | 30 天内恢复                           |
 
 内容 payload 按类型互斥：
+
+指定读者 GET/PUT 均返回 `{ list, ignoredEmails }`。`list` 是实际写入的账号；作者默认拥有阅读权，不写授权表。PUT 请求若包含作者邮箱，接口仍保存其他有效读者，并在 `ignoredEmails` 中返回作者邮箱，供前端当次提示和回填。
 
 | 类型               | 编辑源/引用                                |
 | ------------------ | ------------------------------------------ |
@@ -449,7 +454,7 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | GET  | `/public/ai/models`               | 访客可选模型        |
 | GET  | `/public/ai/tutorials`            | 公开教程列表        |
 | POST | `/public/ai/sessions`             | 创建访客会话        |
-| POST | `/public/ai/chat`                 | SSE 访客 Chat       |
+| POST | `/public/ai/chat`                 | SSE 访客 Chat；body 支持 `content`、可选 `sessionId` 与 `modelId` |
 | POST | `/public/ai/text-generations`     | SSE 访客文本生成    |
 | POST | `/public/ai/messages/:messageId/stop` | 停止访客生成    |
 

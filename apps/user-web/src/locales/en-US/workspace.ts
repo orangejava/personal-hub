@@ -93,6 +93,19 @@ export default {
   'workspace.contentMeta.visibility': 'Visibility',
   'workspace.contentMeta.visibilityRestricted':
     'Visibility must remain private until the restriction is cleared.',
+  'workspace.contentMeta.privateAccessMode': 'Private access',
+  'workspace.contentMeta.onlyMe': 'Only me',
+  'workspace.contentMeta.specificUsers': 'Specific users',
+  'workspace.contentMeta.grantEmails': 'User emails',
+  'workspace.contentMeta.grantEmailsHelp':
+    'Enter a complete email and press Enter. Up to 50 accounts.',
+  'workspace.contentMeta.grantEmailsRequired': 'Add at least one user email',
+  'workspace.contentMeta.grantEmailsInvalid':
+    'One or more email addresses are invalid',
+  'workspace.contentMeta.grantEmailsPlaceholder':
+    'Enter an email and press Enter',
+  'workspace.contentMeta.authorEmailsIgnored':
+    'Saved. Authors already have access, so these addresses were ignored: {emails}',
   'workspace.contentMeta.summary': 'Summary',
   'workspace.contentMeta.summaryPlaceholder':
     'Describe the content in one sentence',

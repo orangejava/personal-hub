@@ -255,6 +255,10 @@ export class PublicChatDto {
   @IsOptional()
   @IsUUID()
   sessionId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  modelId?: string;
 }
 
 export class JobListQueryDto extends PageQueryDto {

@@ -16,6 +16,7 @@
 | 4.4 | 收藏、阅读进度、去重阅读计数、工作台内容统计 | ✅ |
 | 4.5 | 后台跨作者列表、精选、分类/标签 CRUD、软删与 purge | ✅ |
 | 内容审核 | `ContentReview` + 审核 API 已落地；管理端 UI 见 [content-review-and-uploads.md](../../../../docs/implementation/content/content-review-and-uploads.md) | ✅ |
+| 私密授权 | `ContentAccessGrant` + 作者/指定读者公开阅读；实现说明见 [private-access-and-ai-session.md](../../../../docs/implementation/content/private-access-and-ai-session.md) | ✅ |
 
 ## 调用链
 
@@ -50,6 +51,7 @@
 - 写入资源的 OWN/ALL 范围以各自动作权限为准；永久删除额外要求 `content:purge` ALL 和 `SUPER_ADMIN`。内容、分类和标签的受保护写接口均要求幂等键。
 - 编辑者公开发布进入审核；`approve`/`reject` 在事务内用 `PENDING` 条件更新抢占，任意并发只有一个终态。导入公开须非空白版权说明。
 - 工作区 PATCH 忽略 `isFeatured`。
+- PRIVATE 授权名单由 `PUT /app/contents/:id/access-grants` 完整替换；非 PRIVATE 自动清空，版权闸未解除时禁止添加读者。
 
 ## 明确不做（已迁到文件域或二期）
 

@@ -88,8 +88,8 @@
     "@umijs/max": "^4.6.67",
     "@umijs/max-plugin-openapi": "^2.0.3",
     "@umijs/request-record": "^1.1.4",
-    "@vitest/coverage-v8": "0.34.6",
-    "@vitest/ui": "0.34.6",
+    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/ui": "4.1.9",
     "cross-env": "^10.1.0",
     "express": "^5.2.1",
     "fast-glob": "^3.3.2",
@@ -106,7 +106,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^6.0.3",
-    "vitest": "0.34.6"
+    "vitest": "4.1.9"
   },
   "overrides": {
     "@umijs/plugins": {

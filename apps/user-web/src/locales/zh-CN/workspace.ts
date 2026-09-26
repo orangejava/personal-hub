@@ -90,6 +90,17 @@ export default {
   'workspace.contentMeta.visibility': '可见性',
   'workspace.contentMeta.visibilityRestricted':
     '限制解除前只能保持私有；公开和登录可见已禁用。',
+  'workspace.contentMeta.privateAccessMode': '私密访问范围',
+  'workspace.contentMeta.onlyMe': '仅自己',
+  'workspace.contentMeta.specificUsers': '指定用户',
+  'workspace.contentMeta.grantEmails': '指定用户邮箱',
+  'workspace.contentMeta.grantEmailsHelp':
+    '输入完整邮箱后按回车，最多 50 个账号。',
+  'workspace.contentMeta.grantEmailsRequired': '请至少添加一个用户邮箱',
+  'workspace.contentMeta.grantEmailsInvalid': '存在格式不正确的邮箱',
+  'workspace.contentMeta.grantEmailsPlaceholder': '输入邮箱并按回车',
+  'workspace.contentMeta.authorEmailsIgnored':
+    '已保存。作者默认可以查看，无需重复指定，已忽略：{emails}',
   'workspace.contentMeta.summary': '摘要',
   'workspace.contentMeta.summaryPlaceholder': '一句话描述内容',
 };

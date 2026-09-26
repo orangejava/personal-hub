@@ -2086,12 +2086,14 @@ export class AiService {
   private async snapshotContent(contentId: string, userId?: string, permissionVersion?: number) {
     const content = await this.prisma.content.findFirst({
       where: { id: contentId, deletedAt: null },
-      include: { body: true },
+      include: { body: true, accessGrants: { select: { userId: true } } },
     });
     if (!content) {
       return null;
     }
     if (content.authorId !== userId) {
+      const hasPrivateGrant =
+        userId !== undefined && content.accessGrants.some((grant) => grant.userId === userId);
       const canReadAll =
         userId !== undefined && permissionVersion !== undefined
           ? (await this.auth.getPermissionSnapshot(userId, permissionVersion)).permissions.some(
@@ -2102,7 +2104,7 @@ export class AiService {
         canReadAll === false &&
         (content.status !== ContentStatus.PUBLISHED ||
           content.importRestriction !== 'NONE' ||
-          content.visibility === 'PRIVATE' ||
+          (content.visibility === 'PRIVATE' && !hasPrivateGrant) ||
           (content.visibility === 'LOGIN' && userId === undefined))
       ) {
         return null;

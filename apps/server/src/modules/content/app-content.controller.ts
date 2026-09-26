@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
 } from '@nestjs/common';
@@ -18,7 +19,12 @@ import { RequireIdempotency } from '../../common/idempotency/require-idempotency
 import type { RequestAuthContext } from '../../common/types/request-id';
 import { ContentService } from './content.service';
 import { ListAppContentQueryDto } from './dto/list-app-content.query.dto';
-import { CreateContentDto, PatchContentDto, PublishContentDto } from './dto/mutate-content.dto';
+import {
+  CreateContentDto,
+  PatchContentDto,
+  PublishContentDto,
+  ReplaceContentAccessGrantsDto,
+} from './dto/mutate-content.dto';
 
 @ApiTags('App Content')
 @ApiBearerAuth()
@@ -46,6 +52,27 @@ export class AppContentController {
     @CurrentAuth() auth: RequestAuthContext,
   ) {
     return this.contentService.getApp(auth, contentId);
+  }
+
+  @Get(':contentId/access-grants')
+  @RequirePermission('content:update')
+  accessGrants(
+    @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
+    return this.contentService.listAccessGrants(auth, contentId);
+  }
+
+  @Put(':contentId/access-grants')
+  @RequirePermission('content:update')
+  @RequireIdempotency()
+  replaceAccessGrants(
+    @Param('contentId', new ParseUUIDPipe()) contentId: string,
+    @Body() body: ReplaceContentAccessGrantsDto,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Req() request: Request,
+  ) {
+    return this.contentService.replaceAccessGrants(auth, contentId, body.emails, request.requestId);
   }
 
   @Patch(':contentId')

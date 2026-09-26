@@ -1,5 +1,5 @@
 import { HeartFilled, HeartOutlined } from '@ant-design/icons';
-import type { ContentItem } from '@personal-hub/shared-types';
+import { ContentVisibility, type ContentItem } from '@personal-hub/shared-types';
 import { history, Link, useModel } from '@umijs/max';
 import { Button, Card, message, Tag } from 'antd';
 import React, { useEffect, useState } from 'react';
@@ -100,6 +100,7 @@ const ContentCard: React.FC<ContentCardProps> = ({ item }) => {
                 <ContentTypeTag type={item.type} />
                 {categoryLabel && <Tag>{categoryLabel}</Tag>}
                 {item.locked && <Tag color="warning">登录可见</Tag>}
+                {item.visibility === ContentVisibility.Private && <Tag color="default">私密</Tag>}
               </div>
               <EllipsisTooltip
                 className="ph-content-card-summary"

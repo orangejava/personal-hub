@@ -113,6 +113,20 @@ export interface ContentDetail extends ContentItem {
   updatedAt: string;
 }
 
+/** PRIVATE 内容的指定读者。授权名单为空时表示仅作者自己可见。 */
+export interface ContentAccessGrant {
+  userId: string;
+  email: string;
+  nickname: string;
+  createdAt: string;
+}
+
+export interface ContentAccessGrantList {
+  list: ContentAccessGrant[];
+  /** 请求名单中属于内容作者的邮箱；作者默认可见，因此不会写入授权表。 */
+  ignoredEmails: string[];
+}
+
 /** 内容审核状态（与 Nest / Prisma UPPER_SNAKE 对齐） */
 export type ContentReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELED';
 

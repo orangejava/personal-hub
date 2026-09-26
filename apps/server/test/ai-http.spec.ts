@@ -4,7 +4,17 @@ import argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { AiNavStatus, AiToolCode, AiToolStatus, RoleCode, UserStatus } from '@prisma/client';
+import {
+  AiNavStatus,
+  AiToolCode,
+  AiToolStatus,
+  ContentStatus,
+  ContentType,
+  ContentVisibility,
+  ImportRestriction,
+  RoleCode,
+  UserStatus,
+} from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { GenericContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -214,6 +224,85 @@ describe('AI HTTP', () => {
     ).toBe(true);
   });
 
+  it('私密内容仅在已发布、版权闸解除且当前用户获授权时进入 AI 引用', async () => {
+    const [admin, member] = await Promise.all([
+      prisma.user.findUniqueOrThrow({ where: { email: 'admin@example.com' } }),
+      prisma.user.findUniqueOrThrow({ where: { email: 'member@example.com' } }),
+    ]);
+    const createPrivateReference = (
+      title: string,
+      marker: string,
+      options: {
+        granted: boolean;
+        status?: ContentStatus;
+        restriction?: ImportRestriction;
+      },
+    ) =>
+      prisma.content.create({
+        data: {
+          type: ContentType.MARKDOWN,
+          title,
+          authorId: admin.id,
+          status: options.status ?? ContentStatus.PUBLISHED,
+          visibility: ContentVisibility.PRIVATE,
+          importRestriction: options.restriction ?? ImportRestriction.NONE,
+          publishedAt: options.status === ContentStatus.DRAFT ? null : new Date(),
+          body: { create: { markdownSource: marker } },
+          accessGrants: options.granted
+            ? { create: { userId: member.id, grantedBy: admin.id } }
+            : undefined,
+        },
+      });
+    const [authorized, unauthorized, draft, restricted] = await Promise.all([
+      createPrivateReference('授权私密内容', 'AUTHORIZED_PRIVATE_MARKER', { granted: true }),
+      createPrivateReference('未授权私密内容', 'UNAUTHORIZED_PRIVATE_MARKER', {
+        granted: false,
+      }),
+      createPrivateReference('草稿私密内容', 'DRAFT_PRIVATE_MARKER', {
+        granted: true,
+        status: ContentStatus.DRAFT,
+      }),
+      createPrivateReference('版权受限私密内容', 'RESTRICTED_PRIVATE_MARKER', {
+        granted: true,
+        restriction: ImportRestriction.PRIVATE_UNTIL_LICENSED,
+      }),
+    ]);
+    const session = await json<{ id: string }>('/api/v1/app/ai/sessions', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'ai-private-reference-session' },
+      body: { title: '私密引用边界' },
+    });
+
+    const outputs: string[] = [];
+    for (const [index, content] of [authorized, unauthorized, draft, restricted].entries()) {
+      const stream = await fetch(`${baseUrl}/api/v1/app/ai/sessions/${session.data?.id}/messages`, {
+        method: 'POST',
+        headers: {
+          origin: ORIGIN,
+          authorization: `Bearer ${memberToken}`,
+          'content-type': 'application/json',
+          'Idempotency-Key': `ai-private-reference-${index}`,
+        },
+        body: JSON.stringify({ content: '总结引用内容', contentId: content.id }),
+      });
+      expect(stream.headers.get('content-type')).toContain('text/event-stream');
+      outputs.push(await stream.text());
+    }
+
+    const references = await prisma.aiMessageReference.findMany({
+      where: { contentId: { in: [authorized.id, unauthorized.id, draft.id, restricted.id] } },
+      select: { contentId: true, excerptSnapshot: true },
+    });
+    expect(references).toEqual([
+      { contentId: authorized.id, excerptSnapshot: 'AUTHORIZED_PRIVATE_MARKER' },
+    ]);
+    expect(outputs[0]).toContain('AUTHORIZED_PRIVATE_MARKER');
+    expect(outputs.slice(1).join('\n')).not.toMatch(
+      /UNAUTHORIZED_PRIVATE_MARKER|DRAFT_PRIVATE_MARKER|RESTRICTED_PRIVATE_MARKER/,
+    );
+  });
+
   it('额度不足时拒绝生成', async () => {
     const user = await prisma.user.findUniqueOrThrow({ where: { email: 'member@example.com' } });
     await prisma.aiQuotaAccount.update({
@@ -335,6 +424,11 @@ describe('AI HTTP', () => {
   });
 
   it('匿名 Chat 登录后可认领历史', async () => {
+    const models = await json<Array<{ id: string; toolTypes: string[] }>>(
+      '/api/v1/public/ai/models',
+    );
+    const chatModel = models.data?.find((item) => item.toolTypes.includes('chat'));
+    expect(chatModel).toBeTruthy();
     const stream = await fetch(`${baseUrl}/api/v1/public/ai/chat`, {
       method: 'POST',
       headers: {
@@ -342,7 +436,7 @@ describe('AI HTTP', () => {
         'content-type': 'application/json',
         'Idempotency-Key': 'guest-chat-1',
       },
-      body: JSON.stringify({ content: '访客先聊一句' }),
+      body: JSON.stringify({ content: '访客先聊一句', modelId: chatModel?.id }),
     });
     expect(stream.headers.get('content-type')).toContain('text/event-stream');
     const text = await stream.text();

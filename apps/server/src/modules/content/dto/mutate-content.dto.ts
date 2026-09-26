@@ -1,9 +1,12 @@
 import { ContentReviewStatus, ContentType, ContentVisibility } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsEmail,
   IsInt,
   IsNumber,
   IsObject,
@@ -133,6 +136,20 @@ export class PatchContentDto {
   @ValidateIf((_, value) => value !== null)
   @IsUUID()
   primaryFileId?: string | null;
+}
+
+/** PRIVATE 内容的完整授权名单；PUT 会以本列表替换旧授权。 */
+export class ReplaceContentAccessGrantsDto {
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((email) => (typeof email === 'string' ? email.trim().toLowerCase() : email))
+      : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ArrayUnique()
+  @IsEmail({}, { each: true })
+  emails!: string[];
 }
 
 export class ImportLicenseDto {

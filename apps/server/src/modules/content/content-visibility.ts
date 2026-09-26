@@ -6,11 +6,12 @@ export interface ContentViewer {
   contentReadAll: boolean;
 }
 
-/** 公开列表按 viewer 收敛可见性，匿名主体不能通过列表获知 LOGIN 内容。 */
+/**
+ * 内容中心列表按 viewer 收敛可见性。
+ * PRIVATE 只进入作者本人和授权用户的已发布列表；ALL 管理范围不会污染公开前台。
+ */
 export function publicListWhere(viewer: ContentViewer): Prisma.ContentWhereInput {
-  return {
-    deletedAt: null,
-    status: ContentStatus.PUBLISHED,
+  const generallyVisible: Prisma.ContentWhereInput = {
     importRestriction: ImportRestriction.NONE,
     visibility: {
       in:
@@ -18,6 +19,23 @@ export function publicListWhere(viewer: ContentViewer): Prisma.ContentWhereInput
           ? [ContentVisibility.PUBLIC]
           : [ContentVisibility.PUBLIC, ContentVisibility.LOGIN],
     },
+  };
+  return {
+    deletedAt: null,
+    status: ContentStatus.PUBLISHED,
+    OR:
+      viewer.userId === undefined
+        ? [generallyVisible]
+        : [
+            generallyVisible,
+            // 作者可以在内容中心看到自己已经发布的私密内容，包括尚未清版权闸的小册。
+            { visibility: ContentVisibility.PRIVATE, authorId: viewer.userId },
+            {
+              visibility: ContentVisibility.PRIVATE,
+              importRestriction: ImportRestriction.NONE,
+              accessGrants: { some: { userId: viewer.userId } },
+            },
+          ],
   };
 }
 
@@ -50,6 +68,7 @@ export function publicDetailAccess(
     deletedAt: Date | null;
     importRestriction: ImportRestriction;
     authorId: string;
+    accessGrants?: Array<{ userId: string }>;
   },
   viewer: ContentViewer,
 ): 'ok' | 'login' | 'not_found' {
@@ -67,7 +86,10 @@ export function publicDetailAccess(
     return 'not_found';
   }
   if (row.visibility === ContentVisibility.PRIVATE) {
-    return 'not_found';
+    return viewer.userId !== undefined &&
+      row.accessGrants?.some((item) => item.userId === viewer.userId)
+      ? 'ok'
+      : 'not_found';
   }
   if (row.visibility === ContentVisibility.LOGIN && viewer.userId === undefined) {
     return 'login';

@@ -32,6 +32,7 @@ describe('Content HTTP', () => {
   let adminToken = '';
   let editorToken = '';
   let memberToken = '';
+  let otherMemberToken = '';
 
   beforeAll(async () => {
     const postgres = await new GenericContainer('postgres:16-alpine')
@@ -150,6 +151,15 @@ describe('Content HTTP', () => {
           mustChangePassword: false,
           nickname: 'Member',
         },
+        {
+          email: 'other-member@example.com',
+          passwordHash,
+          status: UserStatus.ACTIVE,
+          roleId: member.id,
+          emailVerifiedAt: new Date(),
+          mustChangePassword: false,
+          nickname: 'Other member',
+        },
       ],
     });
 
@@ -157,6 +167,7 @@ describe('Content HTTP', () => {
     adminToken = await login('admin@example.com');
     editorToken = await login('editor@example.com');
     memberToken = await login('member@example.com');
+    otherMemberToken = await login('other-member@example.com');
   }, 120_000);
 
   afterAll(async () => {
@@ -261,6 +272,226 @@ describe('Content HTTP', () => {
       `/api/v1/public/contents?keyword=${encodeURIComponent('知识')}`,
     );
     expect((keyword.data?.total ?? 0) >= 1).toBe(true);
+  });
+
+  it('已发布私密内容仅作者和指定用户可见，撤销授权后立即失效', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-private-shared-content' },
+      body: {
+        type: 'MARKDOWN',
+        title: '指定用户阅读的私密内容',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 私密正文',
+      },
+    });
+    const contentId = created.data?.id as string;
+    await json(`/api/v1/app/contents/${contentId}/publish`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'publish-private-shared-content' },
+      body: { requestedVisibility: 'PRIVATE' },
+    });
+
+    const authorList = await json<{ list: Array<{ id: string }> }>('/api/v1/public/contents', {
+      token: editorToken,
+    });
+    const beforeGrant = await raw(`/api/v1/public/contents/${contentId}`, {
+      token: memberToken,
+    });
+    expect(authorList.data?.list.some((item) => item.id === contentId)).toBe(true);
+    expect(beforeGrant.status).toBe(404);
+
+    const granted = await json<{ list: Array<{ email: string }> }>(
+      `/api/v1/app/contents/${contentId}/access-grants`,
+      {
+        method: 'PUT',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'grant-private-content-reader' },
+        body: { emails: ['member@example.com'] },
+      },
+    );
+    expect(granted.data?.list.map((item) => item.email)).toEqual(['member@example.com']);
+
+    const memberList = await json<{ list: Array<{ id: string }> }>('/api/v1/public/contents', {
+      token: memberToken,
+    });
+    const memberDetail = await json<{ markdownSource: string }>(
+      `/api/v1/public/contents/${contentId}`,
+      { token: memberToken },
+    );
+    const otherDetail = await raw(`/api/v1/public/contents/${contentId}`, {
+      token: otherMemberToken,
+    });
+    expect(memberList.data?.list.some((item) => item.id === contentId)).toBe(true);
+    expect(memberDetail.data?.markdownSource).toContain('私密正文');
+    expect(otherDetail.status).toBe(404);
+
+    await json(`/api/v1/app/favorites/${contentId}`, {
+      method: 'PUT',
+      token: memberToken,
+    });
+    await json(`/api/v1/app/contents/${contentId}/access-grants`, {
+      method: 'PUT',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'revoke-private-content-reader' },
+      body: { emails: [] },
+    });
+    const afterRevoke = await raw(`/api/v1/public/contents/${contentId}`, {
+      token: memberToken,
+    });
+    const favorites = await json<{ list: Array<{ id: string }> }>('/api/v1/app/favorites', {
+      token: memberToken,
+    });
+    expect(afterRevoke.status).toBe(404);
+    expect(favorites.data?.list.some((item) => item.id === contentId)).toBe(false);
+  });
+
+  it('作者邮箱不写入授权表，并在响应中明确返回被忽略项', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-private-author-grant' },
+      body: {
+        type: 'MARKDOWN',
+        title: '作者默认可见的私密内容',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 私密正文',
+      },
+    });
+    const contentId = created.data?.id as string;
+
+    const onlyAuthor = await json<{
+      list: Array<{ email: string }>;
+      ignoredEmails: string[];
+    }>(`/api/v1/app/contents/${contentId}/access-grants`, {
+      method: 'PUT',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'grant-private-content-author-only' },
+      body: { emails: ['editor@example.com'] },
+    });
+    expect(onlyAuthor.data).toMatchObject({ list: [], ignoredEmails: ['editor@example.com'] });
+
+    const authorAndMember = await json<{
+      list: Array<{ email: string }>;
+      ignoredEmails: string[];
+    }>(`/api/v1/app/contents/${contentId}/access-grants`, {
+      method: 'PUT',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'grant-private-content-author-and-member' },
+      body: { emails: ['editor@example.com', 'member@example.com'] },
+    });
+    expect(authorAndMember.data?.list.map((item) => item.email)).toEqual(['member@example.com']);
+    expect(authorAndMember.data?.ignoredEmails).toEqual(['editor@example.com']);
+  });
+
+  it('授权替换与公开变更串行执行，公开内容不会残留授权', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-private-concurrency' },
+      body: {
+        type: 'MARKDOWN',
+        title: '并发切换可见性的私密内容',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 私密正文',
+      },
+    });
+    const contentId = created.data?.id as string;
+    await json(`/api/v1/app/contents/${contentId}/publish`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'publish-private-concurrency' },
+      body: { requestedVisibility: 'PRIVATE' },
+    });
+
+    let markLockAcquired!: () => void;
+    let releaseLock!: () => void;
+    const lockAcquired = new Promise<void>((resolve) => {
+      markLockAcquired = resolve;
+    });
+    const lockRelease = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    const blocker = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "contents"
+          WHERE "id" = ${contentId}::uuid
+          FOR UPDATE
+        `;
+        markLockAcquired();
+        await lockRelease;
+      },
+      { timeout: 10_000 },
+    );
+    await lockAcquired;
+
+    const replacePromise = raw(`/api/v1/app/contents/${contentId}/access-grants`, {
+      method: 'PUT',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'replace-grants-during-public-patch' },
+      body: { emails: ['member@example.com'] },
+    });
+    await waitForBlockedRowLock();
+    const publishPromise = raw(`/api/v1/app/contents/${contentId}`, {
+      method: 'PATCH',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'make-public-during-grant-replace' },
+      body: { visibility: 'PUBLIC' },
+    });
+
+    releaseLock();
+    const [replaceResponse, publishResponse] = await Promise.all([
+      replacePromise,
+      publishPromise,
+      blocker,
+    ]);
+    expect(replaceResponse.status).toBe(200);
+    expect(publishResponse.status).toBe(200);
+
+    const publicRow = await prisma.content.findUniqueOrThrow({
+      where: { id: contentId },
+      select: { visibility: true, accessGrants: { select: { userId: true } } },
+    });
+    expect(publicRow).toEqual({ visibility: 'PUBLIC', accessGrants: [] });
+
+    await json(`/api/v1/app/contents/${contentId}`, {
+      method: 'PATCH',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'make-private-without-grant-rewrite' },
+      body: { visibility: 'PRIVATE' },
+    });
+    const memberDetail = await raw(`/api/v1/public/contents/${contentId}`, {
+      token: memberToken,
+    });
+    expect(memberDetail.status).toBe(404);
+  });
+
+  it('版权闸未解除的导入内容不能授权给其他用户', async () => {
+    const editor = await prisma.user.findUniqueOrThrow({ where: { email: 'editor@example.com' } });
+    const restricted = await prisma.content.create({
+      data: {
+        type: ContentType.BOOKLET,
+        title: '版权受限私密小册',
+        authorId: editor.id,
+        visibility: 'PRIVATE',
+        importRestriction: ImportRestriction.PRIVATE_UNTIL_LICENSED,
+      },
+    });
+    const response = await raw(`/api/v1/app/contents/${restricted.id}/access-grants`, {
+      method: 'PUT',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'grant-restricted-booklet-reader' },
+      body: { emails: ['member@example.com'] },
+    });
+    expect(response.status).toBe(409);
+    expect(response.body.error?.code).toBe('CONTENT_IMPORT_RESTRICTION_ACTIVE');
   });
 
   it('member 不能创建内容，但能收藏已公开内容', async () => {
@@ -523,9 +754,9 @@ describe('Content HTTP', () => {
       },
     });
     expect(reused.data?.title).toBe('TTL 过期后');
-    expect(await prisma.content.count({ where: { title: { in: ['TTL 过期前', 'TTL 过期后'] } } })).toBe(
-      2,
-    );
+    expect(
+      await prisma.content.count({ where: { title: { in: ['TTL 过期前', 'TTL 过期后'] } } }),
+    ).toBe(2);
   });
 
   it('同一幂等键搭配不同请求体返回指纹冲突', async () => {
@@ -616,12 +847,12 @@ describe('Content HTTP', () => {
     ]);
 
     expect(results.map((result) => result.status).sort()).toEqual([201, 409]);
-    expect((await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status).toBe(
-      'APPROVED',
-    );
-    expect((await prisma.content.findUniqueOrThrow({ where: { id: created.data?.id } })).status).toBe(
-      'PUBLISHED',
-    );
+    expect(
+      (await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status,
+    ).toBe('APPROVED');
+    expect(
+      (await prisma.content.findUniqueOrThrow({ where: { id: created.data?.id } })).status,
+    ).toBe('PUBLISHED');
   });
 
   it('并发通过与驳回只有一个终态', async () => {
@@ -696,9 +927,9 @@ describe('Content HTTP', () => {
     });
     expect(blank.status).toBe(422);
     expect(blank.body.error?.code).toBe('CONTENT_REVIEW_REASON_REQUIRED');
-    expect((await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status).toBe(
-      'PENDING',
-    );
+    expect(
+      (await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status,
+    ).toBe('PENDING');
   });
 
   it('编辑者发布进入审核队列，管理员通过后才公开；驳回保持草稿', async () => {
@@ -798,17 +1029,19 @@ describe('Content HTTP', () => {
     }>('/api/v1/admin/content-reviews?status=PENDING', { token: ownerToken });
     const nextReview = pendingAgain.data?.list.find((item) => item.content.id === created.data?.id);
 
-    const approved = await json<{ status: string; content: { status: string; visibility: string } }>(
-      `/api/v1/admin/content-reviews/${nextReview?.id}/approve`,
-      {
-        method: 'POST',
-        token: ownerToken,
-        headers: { 'Idempotency-Key': 'approve-review-md' },
-      },
-    );
+    const approved = await json<{
+      status: string;
+      content: { status: string; visibility: string };
+    }>(`/api/v1/admin/content-reviews/${nextReview?.id}/approve`, {
+      method: 'POST',
+      token: ownerToken,
+      headers: { 'Idempotency-Key': 'approve-review-md' },
+    });
     expect(approved.data?.status).toBe('APPROVED');
     expect(approved.data?.content.status).toBe('PUBLISHED');
-    const publicDetail = await json<{ title: string }>(`/api/v1/public/contents/${created.data?.id}`);
+    const publicDetail = await json<{ title: string }>(
+      `/api/v1/public/contents/${created.data?.id}`,
+    );
     expect(publicDetail.data?.title).toBe('待审核文章');
   });
 
@@ -835,7 +1068,9 @@ describe('Content HTTP', () => {
     );
     expect(published.data?.status).toBe('PUBLISHED');
     expect(published.data?.reviewStatus).toBeNull();
-    const publicDetail = await json<{ title: string }>(`/api/v1/public/contents/${created.data?.id}`);
+    const publicDetail = await json<{ title: string }>(
+      `/api/v1/public/contents/${created.data?.id}`,
+    );
     expect(publicDetail.data?.title).toBe('所有者直接发布');
   });
 
@@ -847,6 +1082,24 @@ describe('Content HTTP', () => {
     const token = res.data?.accessToken ?? '';
     expect(token.length).toBeGreaterThan(10);
     return token;
+  }
+
+  async function waitForBlockedRowLock(): Promise<void> {
+    const deadline = Date.now() + 3_000;
+    while (Date.now() < deadline) {
+      const [row] = await prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS "count"
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND wait_event_type = 'Lock'
+          AND query LIKE '%FOR UPDATE%'
+      `;
+      if ((row?.count ?? 0) > 0) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    throw new Error('等待授权替换进入内容行锁队列超时');
   }
 
   async function json<T>(
