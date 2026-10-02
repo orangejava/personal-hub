@@ -1,8 +1,8 @@
 # 主题、性能与 UI 优化 PRD
 
 > 状态：下一步开发计划
-> 最后更新：2026-09-23
-> Worktree：主题、性能与 UI
+> 最后更新：2026-09-29
+> Worktree：拆为 `theme-config`（阶段 A）、`perf-dashboard`（阶段 B 基线与面板）、`home-showcase`（阶段 C 首页）。见 [README.md](./README.md)
 > 计划评分：8.5 / 10
 > 关系：承接 `apps/user-web/docs/prd/theme-navigation-config-prd.md` 的后置项，并新增加载速度、Loading 和页面交互优化范围。
 
@@ -31,6 +31,8 @@
 ## 3. 阶段 A：主题剩余 UI
 
 ### 3.1 后台主题表单
+
+> 由 `theme-config` worktree 落地。Logo、favicon 的上传使用 `main` 骨架提供的 `ImageFileField`；首页「首屏透明、滚动后毛玻璃」的顶栏效果也归本阶段，对应已有配置 `site.navigation.publicBlur`。见 [README.md](./README.md)。
 
 后台主题表单补齐：
 
@@ -70,6 +72,8 @@
 加载速度优先级高于普通视觉微调。目标是让面试官打开网站时首屏更快、更稳定。
 
 ### 4.1 性能检查
+
+> 由 `perf-dashboard` worktree 落地，见 [performance-dashboard-prd.md](./performance-dashboard-prd.md)。2026-09-29 实测：入口 `umi.js` gzip 后 1.16 MB，里面含 PDF 预览和图表库代码，这是首屏慢的主要原因。
 
 先建立当前基线：
 
@@ -132,6 +136,8 @@
 - 后台首页
 
 ### 5.2 首页
+
+> 由 `home-showcase` worktree 落地，并包含项目页改版，见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
 
 优化方向：
 

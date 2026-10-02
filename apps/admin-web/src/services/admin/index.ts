@@ -1,5 +1,8 @@
 /** 后台运营 service */
 import { request } from '@umijs/max';
+import {
+  PROJECT_SHOWCASE_KEYS,
+} from '@personal-hub/shared-types';
 import type {
   AdminAiConfigData,
   AdminAiBrandingConfig,
@@ -15,6 +18,7 @@ import type {
   AdminAiToolConfig,
   AdminAiToolMutationInput,
   AdminAiToolStatusMutationInput,
+  AdminSiteLayoutConfig,
   AdminDashboardStats,
   AdminFilePage,
   AdminFileQuery,
@@ -667,7 +671,7 @@ export async function updateAdminAboutConfig(data: SiteAboutConfig) {
 }
 
 /** 读取内容中心 / 项目页布局配置组。 */
-export async function fetchAdminLayoutConfig(): Promise<SiteLayoutConfig> {
+export async function fetchAdminLayoutConfig(): Promise<AdminSiteLayoutConfig> {
   const groups = await loadAdminConfigGroups('site.layout');
   const row = groups[0];
   return {
@@ -679,10 +683,25 @@ export async function fetchAdminLayoutConfig(): Promise<SiteLayoutConfig> {
     showBreadcrumb: Boolean(row.value.showBreadcrumb ?? true),
     projectsTitle: String(row.value.projectsTitle ?? '项目'),
     projectsIntro: String(row.value.projectsIntro ?? ''),
+    projectVisualAssets: PROJECT_SHOWCASE_KEYS.map((key) => {
+      const asset = Array.isArray(row.value.projectVisualAssets)
+        ? row.value.projectVisualAssets.find(
+            (item): item is Record<string, unknown> =>
+              !!item && typeof item === 'object' && (item as { key?: unknown }).key === key,
+          )
+        : undefined;
+      return {
+        key,
+        coverFileId: typeof asset?.coverFileId === 'string' ? asset.coverFileId : null,
+        screenshotFileIds: Array.isArray(asset?.screenshotFileIds)
+          ? asset.screenshotFileIds.filter((fileId): fileId is string => typeof fileId === 'string')
+          : [],
+      };
+    }),
   };
 }
 
-export async function updateAdminLayoutConfig(data: Partial<SiteLayoutConfig>) {
+export async function updateAdminLayoutConfig(data: Partial<AdminSiteLayoutConfig>) {
   const groups = await loadAdminConfigGroups('site.layout');
   const row = groups[0];
   const next = {

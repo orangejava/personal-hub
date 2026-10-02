@@ -35,6 +35,44 @@ const shortText = z.string().max(200);
 const longText = z.string().max(20000);
 const urlOrEmpty = z.union([z.string().url().max(2048), z.literal('')]);
 
+export const PROJECT_SHOWCASE_KEYS = [
+  'user-web',
+  'admin-web',
+  'server',
+  'flutter',
+  'desktop',
+] as const;
+
+export type ProjectShowcaseKey = (typeof PROJECT_SHOWCASE_KEYS)[number];
+
+const projectVisualAssetSchema = z.object({
+  key: z.enum(PROJECT_SHOWCASE_KEYS),
+  coverFileId: nullableUuid,
+  screenshotFileIds: z.array(z.string().uuid()).max(6),
+});
+
+const projectVisualAssetsSchema = z
+  .array(projectVisualAssetSchema)
+  .length(PROJECT_SHOWCASE_KEYS.length)
+  .superRefine((assets, context) => {
+    const keys = new Set(assets.map((asset) => asset.key));
+    if (keys.size !== PROJECT_SHOWCASE_KEYS.length) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '项目视觉资产必须各包含一次固定端 key',
+      });
+      return;
+    }
+    for (const key of PROJECT_SHOWCASE_KEYS) {
+      if (!keys.has(key)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `项目视觉资产缺少 ${key}`,
+        });
+      }
+    }
+  });
+
 const actionSchema = z.object({
   label: shortText,
   target: z.string().max(500),
@@ -123,6 +161,11 @@ export const siteLayoutSchema = z.object({
   /** 公开项目页标题；放 layout 组避免再开一组配置。 */
   projectsTitle: z.string().max(80),
   projectsIntro: longText,
+  /**
+   * 后台仅保存文件 ID；公开配置在 SystemService 转成短期签名 URL，
+   * 避免把对象存储内部标识交给匿名访问者。
+   */
+  projectVisualAssets: projectVisualAssetsSchema,
 });
 
 export const aiBrandingSchema = z.object({
@@ -167,8 +210,15 @@ export type SiteHomepage = z.infer<typeof siteHomepageSchema>;
 export type SiteAbout = z.infer<typeof siteAboutSchema>;
 export type SiteNavigation = z.infer<typeof siteNavigationSchema>;
 export type SiteLayout = z.infer<typeof siteLayoutSchema>;
+export type ProjectVisualAssetConfig = z.infer<typeof projectVisualAssetSchema>;
 export type AiBranding = z.infer<typeof aiBrandingSchema>;
 export type FilePolicies = z.infer<typeof filePoliciesSchema>;
+
+export interface PublicProjectVisualAsset {
+  key: ProjectShowcaseKey;
+  coverUrl: string | null;
+  screenshotUrls: string[];
+}
 
 export interface PublicSiteConfig {
   siteName: string;
@@ -185,8 +235,13 @@ export interface PublicSiteConfig {
   homepage: SiteHomepage;
   about: SiteAbout;
   navigation: SiteNavigation;
-  layout: SiteLayout;
+  layout: Omit<SiteLayout, 'projectVisualAssets'>;
+  projectVisualAssets: PublicProjectVisualAsset[];
   aiEnabled: boolean;
+}
+
+export interface AssembledPublicSiteConfig extends Omit<PublicSiteConfig, 'projectVisualAssets'> {
+  projectVisualAssetFiles: ProjectVisualAssetConfig[];
 }
 
 export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
@@ -271,6 +326,11 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     showBreadcrumb: true,
     projectsTitle: '项目',
     projectsIntro: '',
+    projectVisualAssets: PROJECT_SHOWCASE_KEYS.map((key) => ({
+      key,
+      coverFileId: null,
+      screenshotFileIds: [],
+    })),
   } satisfies SiteLayout,
   'ai.branding': {
     aiEnabled: true,
@@ -301,7 +361,7 @@ export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
  */
 export function assemblePublicSiteConfig(
   rows: ReadonlyMap<SystemConfigGroup, unknown>,
-): PublicSiteConfig {
+): AssembledPublicSiteConfig {
   const general = parseGroupValue('site.general', rows.get('site.general')) as SiteGeneral;
   const theme = parseGroupValue('site.theme', rows.get('site.theme')) as SiteTheme;
   const homepage = parseGroupValue('site.homepage', rows.get('site.homepage')) as SiteHomepage;
@@ -313,6 +373,7 @@ export function assemblePublicSiteConfig(
   const layout = parseGroupValue('site.layout', rows.get('site.layout')) as SiteLayout;
   const branding = parseGroupValue('ai.branding', rows.get('ai.branding')) as AiBranding;
 
+  const { projectVisualAssets, ...publicLayout } = layout;
   return {
     siteName: general.siteName,
     siteDescription: general.siteDescription,
@@ -328,7 +389,8 @@ export function assemblePublicSiteConfig(
     homepage,
     about,
     navigation,
-    layout,
+    layout: publicLayout,
+    projectVisualAssetFiles: projectVisualAssets,
     aiEnabled: branding.aiEnabled,
   };
 }

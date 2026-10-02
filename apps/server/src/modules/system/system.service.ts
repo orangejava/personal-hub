@@ -1,5 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { MenuScope, MenuType, Prisma } from '@prisma/client';
+import { FilePurpose, MenuScope, MenuType, Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { FileService } from '../file/file.service';
@@ -17,6 +17,8 @@ import {
   parseGroupValue,
   SYSTEM_CONFIG_GROUPS,
   type PublicSiteConfig,
+  type ProjectVisualAssetConfig,
+  type SiteLayout,
   type SystemConfigGroup,
 } from './config-registry';
 import {
@@ -29,7 +31,8 @@ import {
 import { MENU_ROUTE_OPTIONS } from './route-registry';
 import { SystemRepository } from './system.repository';
 
-const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config';
+// 公开配置新增 projectVisualAssets，升级时不能读取旧 shape 的 5 分钟缓存。
+const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config:v2';
 const PUBLIC_NAV_CACHE_KEY = 'cache:navigation:public';
 const MENU_EPOCH_KEY = 'system:menu-epoch';
 const CACHE_TTL_SECONDS = 300;
@@ -157,6 +160,19 @@ export class SystemService {
         'SYSTEM_CONFIG_INVALID',
         '配置值未通过校验',
         details,
+      );
+    }
+
+    const currentConfig = await this.repository.findConfigByGroup(group);
+    if (group === 'site.layout') {
+      const currentLayout = parseGroupValue(
+        'site.layout',
+        currentConfig?.value ?? DEFAULT_SYSTEM_CONFIGS['site.layout'],
+      ) as SiteLayout;
+      await this.assertProjectVisualAssetFiles(
+        input.actorId,
+        (parsed as SiteLayout).projectVisualAssets,
+        currentLayout.projectVisualAssets,
       );
     }
 
@@ -454,10 +470,54 @@ export class SystemService {
       }
     }
     const assembled = assemblePublicSiteConfig(map);
+    const projectVisualAssets = await Promise.all(
+      assembled.projectVisualAssetFiles.map(async (asset) => {
+        const screenshotUrls = (
+          await Promise.all(asset.screenshotFileIds.map((fileId) => this.files.signFileId(fileId)))
+        ).filter((url): url is string => url !== null);
+        return {
+          key: asset.key,
+          coverUrl: await this.files.signFileId(asset.coverFileId),
+          screenshotUrls,
+        };
+      }),
+    );
+    const { projectVisualAssetFiles, ...publicConfig } = assembled;
     return {
-      ...assembled,
+      ...publicConfig,
       logoUrl: await this.files.signFileId(assembled.logoFileId),
+      projectVisualAssets,
     };
+  }
+
+  /**
+   * 项目视觉资产由管理员刚上传后绑定，必须是本人已完成的 COVER 文件。
+   * 保存前校验可避免把他人文件、上传中对象或非图片用途写进公开配置。
+   */
+  private async assertProjectVisualAssetFiles(
+    actorId: string,
+    assets: ProjectVisualAssetConfig[],
+    currentAssets: ProjectVisualAssetConfig[],
+  ) {
+    const currentFileIds = new Set(
+      currentAssets.flatMap((asset) => [
+        ...(asset.coverFileId ? [asset.coverFileId] : []),
+        ...asset.screenshotFileIds,
+      ]),
+    );
+    await Promise.all(
+      assets.flatMap((asset) => {
+        const fileIds = [
+          ...(asset.coverFileId ? [asset.coverFileId] : []),
+          ...asset.screenshotFileIds,
+        ];
+        return fileIds
+          .filter((fileId) => !currentFileIds.has(fileId))
+          .map((fileId) =>
+            this.files.requireReadyOwnedFile(actorId, fileId, FilePurpose.COVER),
+          );
+      }),
+    );
   }
 
   private async loadPublicNavigation(): Promise<MenuTreeNode[]> {

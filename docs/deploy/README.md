@@ -13,6 +13,7 @@
 | [production-verification.md](./production-verification.md) | 上线后的真实环境验收：服务、登录、邮件、COS、AI、Worker、备份 | 部署完成后 |
 | [prod-startup-order.md](./prod-startup-order.md) | 首次上线检查清单 | 第一次上线时 |
 | [tencent-cloud-prep.md](./tencent-cloud-prep.md) | 腾讯云：COS、SMTP、域名、HTTPS | 控制台准备时 |
+| [domain-https.md](./domain-https.md) | **下一步（main）**：域名与备案已完成后，切 HTTPS，开启 Nginx gzip 与静态资源缓存 | 切域名时 |
 | [nest-compose-strategy.md](./nest-compose-strategy.md) | Compose 拓扑、COS、Worker、备份与发布原则 | 了解架构时 |
 | [old/README.md](./old/README.md) | 阶段 A 和旧部署方案索引 | 追溯历史时 |
 
@@ -37,7 +38,8 @@ Nest 本地启动不使用旧 PM2 文档：按 [`apps/server/README.md`](../../a
 
 ## 当前阶段结论
 
-- **当前主线（2026-09-15）**：把 Nest M0–M6 用 `compose.prod.yml` 发布到个人服务器，浏览器走 `http://<公网IPv4>/`（不要先买域名）。见 [go-live-mainline.md](./go-live-mainline.md)。
+- **2026-09-30 更新**：域名与 ICP 备案已完成。下一步在 `main` 上切 HTTPS，并开启 Nginx gzip 与静态资源缓存，见 [domain-https.md](./domain-https.md)。
+- **首版主线（2026-09-15）**：把 Nest M0–M6 用 `compose.prod.yml` 发布到个人服务器，浏览器走 `http://<公网IPv4>/`（不要先买域名）。见 [go-live-mainline.md](./go-live-mainline.md)。
 - **阶段 A（个人远程阅读）**：必须跑 `user-web` 的 Umi dev 才能保留 mock，使用 `pm2 start ecosystem.config.js --only personal-hub-dev`。这一套**不包含**管理端，也不适用于 Nest 生产；Nest 发布成功前可以继续用，不要和 Compose 抢同一端口。
 - **Nest / 生产**：Compose 编排 Nginx + 用户端静态 + 管理端静态 + `server` + `server-worker`；不要用 PM2 起第二套前端。策略见 [nest-compose-strategy.md](./nest-compose-strategy.md)，骨架见 `compose.prod.yml`。`server-worker` **不是 stub**：独立进程运行 Outbox dispatcher 与 BullMQ。
 - 阶段 A 公网形态是 `http://<公网 IPv4>:8000`；Nest 首版公网形态是 `http://<公网 IPv4>/`（Nginx :80）。

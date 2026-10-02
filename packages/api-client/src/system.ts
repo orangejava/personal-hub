@@ -1,4 +1,6 @@
 import type {
+  PublicNavigationConfig,
+  PublicProjectVisualAsset,
   SiteAboutConfig,
   SiteLayoutConfig,
   SystemPublicConfig,
@@ -18,6 +20,8 @@ export interface NestPublicSiteConfig {
     colorSuccess?: string;
     colorWarning?: string;
     colorError?: string;
+    colorSecondary?: string;
+    colorAccent?: string;
     borderRadius?: number;
     fontFamily?: string;
     mode: 'light' | 'dark' | 'auto';
@@ -33,9 +37,14 @@ export interface NestPublicSiteConfig {
   };
   navigation: {
     publicPosition: 'top' | 'left' | 'right';
+    publicSticky?: boolean;
+    publicBlur?: boolean;
+    publicShowLogo?: boolean;
+    publicShowAuthEntry?: boolean;
   };
   about?: SiteAboutConfig;
   layout?: SiteLayoutConfig;
+  projectVisualAssets?: PublicProjectVisualAsset[];
   aiEnabled?: boolean;
 }
 
@@ -53,9 +62,12 @@ export function mapPublicSiteConfig(
     colorSuccess: themeIn?.colorSuccess,
     colorWarning: themeIn?.colorWarning,
     colorError: themeIn?.colorError,
+    colorSecondary: themeIn?.colorSecondary,
+    colorAccent: themeIn?.colorAccent,
     borderRadius: themeIn?.borderRadius,
     fontFamily: themeIn?.fontFamily,
     mode,
+    allowUserSwitch: themeIn?.allowUserSwitch,
   };
   const layoutIn = payload.layout;
   const layout: SiteLayoutConfig | undefined = layoutIn
@@ -75,6 +87,15 @@ export function mapPublicSiteConfig(
         markdown: aboutIn.markdown ?? '',
       }
     : undefined;
+  const navigationConfig: PublicNavigationConfig | undefined = payload.navigation
+    ? {
+        publicPosition: payload.navigation.publicPosition ?? 'top',
+        publicSticky: payload.navigation.publicSticky ?? true,
+        publicBlur: payload.navigation.publicBlur ?? true,
+        publicShowLogo: payload.navigation.publicShowLogo ?? true,
+        publicShowAuthEntry: payload.navigation.publicShowAuthEntry ?? true,
+      }
+    : undefined;
   return {
     siteName: payload.siteName,
     siteDescription: payload.siteDescription,
@@ -82,9 +103,11 @@ export function mapPublicSiteConfig(
     heroTitle: payload.homepage?.hero?.title,
     heroSubtitle: payload.homepage?.hero?.subtitle,
     navigation: payload.navigation?.publicPosition ?? 'top',
+    navigationConfig,
     theme,
     aiEnabled: payload.aiEnabled,
     about,
     layout,
+    projectVisualAssets: payload.projectVisualAssets ?? [],
   };
 }

@@ -46,6 +46,8 @@ React-first 0–5 与 Nest **M0–M6** 已在本地闭环。后台治理（M7）
 
 ## 5. 域名、站点名、HTTPS（后置，不挡 IP 上线）
 
+> 2026-09-30：域名与备案已完成，切 HTTPS 的执行步骤见 [domain-https.md](./domain-https.md)。
+
 站点显示名后台已能改，和域名无关，上线后再改即可。
 
 **有域名 ≠ 自动 HTTPS。** 也不必买付费证书。大陆 CVM 用域名对外通常要备案。细节与 SMTP/COS 申请步骤见 [tencent-cloud-prep.md](./tencent-cloud-prep.md)。

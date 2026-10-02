@@ -1,10 +1,11 @@
-import { MenuOutlined, SettingOutlined } from '@ant-design/icons';
+import { MenuOutlined } from '@ant-design/icons';
 import type { MenuItem } from '@personal-hub/shared-types';
 import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Button, Drawer } from 'antd';
 import React, { useEffect, useState } from 'react';
 import PublicThemeDrawer from '@/components/PublicThemeDrawer';
-import { PageTransition, UserAccountPopover } from '@/components/shared';
+import { PageTransition } from '@/components/shared';
+import PublicHeaderActions from '@/layouts/PublicHeaderActions';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
@@ -87,17 +88,11 @@ const PublicLayout: React.FC<{
             </Link>
           ))}
         </nav>
-        <div className="ph-public-header-actions">
-          <Button
-            type="text"
-            aria-label="主题设置"
-            icon={<SettingOutlined />}
-            onClick={() =>
-              setInitialState((s) => ({ ...s, publicSettingDrawerOpen: true }))
-            }
-          />
-          <UserAccountPopover variant="base" />
-        </div>
+        <PublicHeaderActions
+          onOpenThemeSettings={() =>
+            setInitialState((s) => ({ ...s, publicSettingDrawerOpen: true }))
+          }
+        />
       </header>
       <main
         className={fullWidth ? 'ph-public-main-full' : 'ph-container'}

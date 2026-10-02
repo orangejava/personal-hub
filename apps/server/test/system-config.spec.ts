@@ -16,6 +16,15 @@ describe('系统配置注册表', () => {
     expect(publicConfig.aiEnabled).toBe(true);
     expect(publicConfig.theme.mode).toBe('dark');
     expect(publicConfig.theme.colorPrimary).toBe('#722ed1');
+    expect(publicConfig.theme.colorSecondary).toBe('#14B8A6');
+    expect(publicConfig.navigation.publicBlur).toBe(true);
+    expect(publicConfig.projectVisualAssetFiles).toEqual([
+      { key: 'user-web', coverFileId: null, screenshotFileIds: [] },
+      { key: 'admin-web', coverFileId: null, screenshotFileIds: [] },
+      { key: 'server', coverFileId: null, screenshotFileIds: [] },
+      { key: 'flutter', coverFileId: null, screenshotFileIds: [] },
+      { key: 'desktop', coverFileId: null, screenshotFileIds: [] },
+    ]);
   });
 
   it('拒绝非法颜色', () => {
@@ -31,6 +40,37 @@ describe('系统配置注册表', () => {
     }) as { projectsTitle: string; homeHeroStyle: string };
     expect(layout.homeHeroStyle).toBe('center');
     expect(layout.projectsTitle).toBe('项目');
+  });
+
+  it('拒绝缺少固定端或重复端的项目视觉资产', () => {
+    expect(() =>
+      parseGroupValue('site.layout', {
+        projectVisualAssets: [
+          { key: 'user-web', coverFileId: null, screenshotFileIds: [] },
+          { key: 'user-web', coverFileId: null, screenshotFileIds: [] },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it('拒绝单端超过六张截图', () => {
+    expect(() =>
+      parseGroupValue('site.layout', {
+        projectVisualAssets: [
+          {
+            key: 'user-web',
+            coverFileId: null,
+            screenshotFileIds: Array.from({ length: 7 }, (_, index) =>
+              `00000000-0000-4000-8000-00000000000${index}`,
+            ),
+          },
+          { key: 'admin-web', coverFileId: null, screenshotFileIds: [] },
+          { key: 'server', coverFileId: null, screenshotFileIds: [] },
+          { key: 'flutter', coverFileId: null, screenshotFileIds: [] },
+          { key: 'desktop', coverFileId: null, screenshotFileIds: [] },
+        ],
+      }),
+    ).toThrow();
   });
 });
 
