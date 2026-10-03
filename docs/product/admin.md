@@ -173,7 +173,7 @@
 | 厂商标识 | 唯一英文标识（如 `aliyun_bailian`）                                  |
 | 展示名称 | 如"阿里云百炼"                                                       |
 | Base URL | API 基础地址（如 `https://dashscope.aliyuncs.com`）                  |
-| API Key  | 仅写入环境变量或密钥管理；后台只显示是否已配置，永不回显明文或脱敏值 |
+| API Key  | 加密写入 `ai_provider_credentials`，不写入厂商表；后台只显示是否已配置，永不回显明文或脱敏值。尚无凭据时仍可读 `authEnvKey` 对应的环境变量 |
 | 启用状态 | 禁用后该厂商所有模型不可用                                           |
 
 **模型管理（Models）**

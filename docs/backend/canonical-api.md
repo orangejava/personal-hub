@@ -410,6 +410,12 @@ Web 登录、MFA 登录完成或刷新成功：
 | PATCH/DELETE | `/app/ai/assets/:assetId`                | 移动、软删除、恢复、永久删除                  |
 | GET/POST     | `/app/ai/asset-folders`                  | 资产文件夹列表/创建                           |
 | PATCH/DELETE | `/app/ai/asset-folders/:folderId`        | 重命名/删除空文件夹                           |
+| GET          | `/app/ai/credentials`                    | 当前用户凭据列表：类型、地址、`hasKey`、是否启用；不返回密钥 |
+| PUT          | `/app/ai/credentials`                    | 写入或轮换自己的 Key，`apiKey` 只写，必填幂等键 |
+| DELETE       | `/app/ai/credentials/:id`                | 只删自己的 `USER` 凭据                       |
+| POST         | `/app/ai/credentials/test`               | 只测自己的凭据；不写用量、不预占额度           |
+| GET          | `/app/ai/checkins`                       | 登录用户读签到月历。`?month=yyyy-mm`，省略则为上海当月。返回今日日期、是否已签、连续天数、该月已签日期。只读，不发放 |
+| POST         | `/app/ai/checkins`                       | 登录用户签到，必填幂等键；当天重复请求回放       |
 | GET          | `/app/ai/entitlement`                    | 当前角色/套餐权益和用量                       |
 | GET          | `/app/ai/membership`                     | 套餐展示、额度摘要和用量概览                    |
 | GET          | `/app/ai/profile-summary`                | AI 个人中心摘要                               |
@@ -473,7 +479,6 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | PUT          | `/admin/users/:userId/role`                | `user:role:assign` ALL               |
 | GET          | `/admin/users/:userId/sessions`            | `user:session:read` ALL              |
 | POST         | `/admin/users/:userId/sessions/revoke-all` | `user:session:revoke` ALL            |
-| POST         | `/admin/users/:userId/quota-adjustments`   | `ai:quota:adjust` ALL，必填幂等键    |
 | GET/POST     | `/admin/roles`                             | `role:read` / `role:manage`          |
 | PATCH/DELETE | `/admin/roles/:roleId`                     | `role:manage`                        |
 | PUT          | `/admin/roles/:roleCode/permissions`      | `role:permission:manage`，必填幂等键；body `{ permissions, version }`，`version` 为列表返回的乐观锁；冲突 `409 ROLE_VERSION_CONFLICT` |
@@ -483,7 +488,8 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 - 用户首版只有一个角色；`super_admin` 受不可降级/不可禁用/至少保留一名 active 约束。
 - 禁用用户、改角色、改权限必须使现有 Token 下一次受保护请求失效。
-- 约束刀已落地：`GET /admin/users`、`GET /admin/users/:userId/sessions`、`POST /admin/users/:userId/sessions/revoke-all`。`admin` 不能踢 `admin` / `super_admin`，也不能踢自己。禁用用户 / 改用户角色 / 额度仍后置。
+- 约束刀已落地：`GET /admin/users`、`GET /admin/users/:userId/sessions`、`POST /admin/users/:userId/sessions/revoke-all`。`admin` 不能踢 `admin` / `super_admin`，也不能踢自己。禁用用户 / 改用户角色仍后置。
+- 不实现 `POST /admin/users/:userId/quota-adjustments`。种子里已有的 `ai:quota:adjust` 不挂到调额度接口上。人工调额度见 §5.3 `POST /admin/ai/quota-adjustments`，权限用已有的 `ai:entitlement:manage`。
 - 角色权限已落地：`GET /admin/roles` 返回 `version`；`PUT /admin/roles/:roleCode/permissions` 必填 `version` 与幂等键。不能改 `SUPER_ADMIN`；创建自定义角色、按权限配 `OWN`/`ALL` 仍后置。
 
 ### 5.2 内容、分类、标签与文件
@@ -529,7 +535,8 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | PATCH        | `/admin/ai/navigation/:id`        | 更新显隐/状态/文案，必填幂等键和 `version`；冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT` |
 | GET          | `/admin/ai/stats`                 | 只读 BFF 统计，支持时间范围 |
 | GET/POST     | `/admin/ai/providers`             | 资源管理；Key 只写不回显    |
-| PATCH/DELETE | `/admin/ai/providers/:providerId` | 更新/删除；`apiKey` 只写    |
+| PATCH/DELETE | `/admin/ai/providers/:providerId` | 更新/删除；`apiKey` 只写，密文进 `ai_provider_credentials`，不进 `ai_providers` |
+| POST         | `/admin/ai/providers/:providerId/test` | `ai:provider:manage`。连接测试，不写用量、不预占额度，日志不含密钥 |
 | GET/POST     | `/admin/ai/models`                | 模型资源管理                |
 | PATCH/DELETE | `/admin/ai/models/:modelId`       | 更新/删除                   |
 | GET/POST     | `/admin/ai/tools`                 | 工具展示与启用配置          |
@@ -537,6 +544,7 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | GET/POST     | `/admin/ai/templates`             | 系统模板管理                |
 | PATCH/DELETE | `/admin/ai/templates/:templateId` | 更新/删除系统模板           |
 | GET/PUT      | `/admin/ai/entitlements`          | 角色/套餐额度和模型权益     |
+| POST         | `/admin/ai/quota-adjustments`     | `ai:entitlement:manage` 且 `DataScope.ALL`，必填幂等键。body `{ userId, direction: GRANT\|DEDUCT, amount, reason }`，`amount` 为正整数。`DEDUCT` 会使 `availableAmount` < 0 时整笔拒绝，错误码 `AI_QUOTA_ADJUSTMENT_REJECTED`，不写账本 |
 
 ### 5.4 领域错误码目录
 
@@ -547,7 +555,7 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | Content                | `CONTENT_NOT_FOUND`、`CONTENT_INVALID_STATE`、`CONTENT_PUBLISH_VALIDATION_FAILED`、`CONTENT_VERSION_CONFLICT`、`CONTENT_IMPORT_RESTRICTION_ACTIVE` |
 | Category / Tag         | `CATEGORY_NOT_FOUND`、`CATEGORY_IN_USE`、`CATEGORY_CYCLE_DETECTED`、`TAG_IN_USE`                                                                   |
 | File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`            |
-| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`                       |
+| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_QUOTA_ADJUSTMENT_REJECTED`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND` |
 | Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
 | System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
 

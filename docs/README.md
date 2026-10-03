@@ -58,6 +58,7 @@
 - 前后端 API 影响面：[`.agents/skills/fullstack-impact/SKILL.md`](../.agents/skills/fullstack-impact/SKILL.md)
 - TSX 方法放置：[`.agents/skills/tsx-structure/SKILL.md`](../.agents/skills/tsx-structure/SKILL.md)
 - 全栈代码审查：[`.agents/skills/fullstack-code-review/SKILL.md`](../.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/`）
+- 文档多角色评审：[`.agents/skills/doc-review/SKILL.md`](../.agents/skills/doc-review/SKILL.md)（用户级镜像 `~/.agents/skills/`；评分仍用 plan-review）
 - docs 内 stub：[engineering/git-commit-convention.md](./engineering/git-commit-convention.md)
 
 ---

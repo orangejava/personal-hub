@@ -1,8 +1,9 @@
 # 性能与接口响应面板 PRD
 
 > 状态：文档已确认方向，待建 worktree
-> 最后更新：2026-09-30
+> 最后更新：2026-10-02
 > Worktree：`perf-dashboard`（开工前依赖 `main` 上的「启动前骨架」，见 [README.md](./README.md)）
+> 计划评分（plan-review，百分制，2026-10-02）：一期 93，可以开工。二期 Nest 汇总后置，不计入本期。
 > 关系：落实 [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §4.1「先建立基线」与 §4.4「性能优化前后有可对比记录」。首页与项目页改版见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
 
 ## 1. 目标
@@ -40,7 +41,7 @@
 - 入口里出现了 pdfjs（65 处）和图表库 g2 的代码，但首页不需要它们。
 - 高度怀疑的原因：`src/app.tsx` 和 `src/layouts/PublicLayout.tsx` 从 `@/components/shared` 汇总导出文件引入 `PageTransition`，而该文件同时导出 `PdfViewer`、`WordViewer`、`MarkdownViewer`。需要在本 worktree 用 `pnpm analyze` 确认。
 - 生产 Nginx（`deploy/nginx/default.conf`）没有开启 gzip，也没有给带哈希的静态资源设置长缓存；`nginx:alpine` 默认不压缩。访客很可能每次都要下载 3.86 MB 未压缩的入口文件。这一项和 HTTPS 一起在 `main` 上处理（见 [deploy/domain-https.md](../../deploy/domain-https.md)），不放进本 worktree。
-- 生产基线：在 `main` 改 Nginx 之前，先对线上首页、内容中心、小册阅读、AI 对话各跑一次 Lighthouse，结果记入本节，作为「优化前」数据。
+- 生产 Lighthouse 不挡住一期。改 Nginx 或对比「优化前」时，再对线上首页、内容中心、小册阅读、AI 对话各跑一次，把结果补进本节。一期面板和入口体积以本节已有的本地 `pnpm build` 数字为基线。
 
 ## 4. 不做
 
@@ -75,11 +76,15 @@
 | 次数 | 统计窗口内的请求数 |
 | p50 | 中位数耗时 |
 | p95 | 95% 的请求都比这个快 |
-| 错误率 | HTTP 非 2xx 或网络失败的比例 |
+| 错误率 | 最终失败的请求占比，口径见下文 |
 
 p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项目自定）。
 
 接口按「方法 + 路由模板」分组，例如 `GET /api/v1/content/:id`。前端用规则把 UUID、数字 ID 替换成 `:id`，并去掉查询参数。
+
+错误率只统计最终失败的请求：HTTP 非 2xx、网络失败，以及拦截器解包时抛出的 mock 业务错误（HTTP 200 且 `code !== 0`）。Nest 的业务失败本身就是 HTTP 4xx/5xx，会计入。成功解包后的业务对象 T 不计入。不另读响应体里的业务码。一期不采集 `apps/admin-web`。
+
+综合分里的「接口 p95」和抽屉里的「最慢 5 个接口」都用本次会话内存中的最近 500 条。页面 Web Vitals 用 localStorage 里保留 7 天的记录。两套窗口不要混成一个数。
 
 ### 5.3 综合评分
 
@@ -109,10 +114,10 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 ### 6.1 采集
 
 - **页面指标**：引入 Google 官方的 `web-vitals`（gzip 约 2 KB）采集 TTFB、FCP、LCP、CLS、INP。INP 自己用 `PerformanceObserver` 算容易出错，所以不自己写。
-- **路由切换**：从用户触发跳转开始，到新页面组件（含懒加载分包下载）挂载后的下一帧结束。具体打点位置在实现时验证，要求：跳到从没打开过的页面时，耗时里包含分包下载时间；公开区、AI、工作区三种布局都能记录。
+- **路由切换**：`app.tsx` 目前没有 `onRouteChange`。新增 `export function onRouteChange`，在路径变化时记下开始时间。结束点不要放在这里：Umi 此时往往还在显示懒加载 fallback。在 `PublicLayout`、AI 布局、工作区布局里，用一个包住 `{children}` 的 `PerfRouteMarker`；子页面 Suspense 完成并提交后，在 `useLayoutEffect` 里 `requestAnimationFrame` 结束计时。这样首次进入未打开过的页面会包含分包下载。`getInitialState` 的拉取、401 静默和主题注入保持不动。
 - **资源体积**：用 Resource Timing 读取 JS / CSS 的传输大小和耗时，列出最慢、最大的资源。
 - **接口耗时**：在 `requestErrorConfig.ts` 的请求拦截器里记开始时间，在响应拦截器和错误处理里记结束时间、状态码和分组名。只加打点，不改原有的解包、错误提示和跳转行为。
-- **本机存储**：内存里保留最近 500 条接口记录；页面加载记录写入 `localStorage`，最多 200 条，保留 7 天，超出就丢掉最旧的。
+- **本机存储**：内存里保留最近 500 条接口记录；页面加载记录写入 `localStorage`，最多 200 条，保留 7 天，超出就丢掉最旧的。`localStorage` 不可用或配额满时丢掉这条写入，页面照常使用。
 
 ### 6.2 体积约束
 
@@ -129,12 +134,12 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 - 当前页面的综合评分和各项指标，按三档着色
 - 本次会话最慢的 5 个接口
 - 「查看完整面板」跳转 `/status`
-- 桌面端从右侧打开，宽约 480px；手机端全宽
+- 桌面端从右侧打开，宽约 480px；手机端全宽。矮屏（`useViewportBand` 的 `short`，高度 ≤ 499）改为高度 `100dvh`、内容区内部滚动，不用 480px 把抽屉顶出视口。打开时锁定背景滚动。
 
 **完整页面 `/status`**：
 
 - 顶部：综合评分大数字、数据来源标签（一期固定为「本机」）、每 60 秒自动刷新开关、「立即刷新」按钮
-- 页面卡片网格：每张卡是一个页面，显示评分和 LCP、TTFB、路由切换三个小格子，按档位着色；样本太少时标「数据不足」
+- 页面卡片网格：每张卡是一个页面，显示评分和 LCP、TTFB、路由切换三个小格子，按档位着色。同一指标在当前窗口里少于 3 条样本时，该格显示「数据不足」，并且不进入综合分，其余指标按剩余权重重新归一
 - 多选标签筛选页面，含「全选 / 全不选」；筛选同时作用于下方图表
 - 图表：各页面 LCP 随时间变化的折线图、接口 p95 随时间变化的折线图、JS 分包体积柱状图；每张图可全屏
 - 接口列表：按 p95 从慢到快排序，显示次数、p50、p95、错误率
@@ -150,7 +155,7 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 
 **移动端**：
 
-- 手机档（≤ 767）：卡片单列，图表单列并可左右滑动查看，接口列表改为卡片式
+- 手机档（≤ 767）：卡片单列，图表单列。横滑只发生在图表卡片内部，`body` 不出现横向滚动条。接口列表改为卡片式
 - 平板档（768–991）：卡片两列
 - 筛选标签可换行，不横向滚动
 
@@ -165,7 +170,7 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 
 ### 6.5 一期验收
 
-- 抽屉和 `/status` 在桌面（1440px）、平板（820px）、手机（390px）下都能正常打开，无横向溢出
+- 抽屉和 `/status` 在桌面（1440px）、平板（820px）、手机（390px）、矮屏（1280×480）下都能打开。页面外壳无横向滚动条；390px 下若图表需要横滑，只在图表卡片内部滚动。入口增量用 `pnpm --filter user-web analyze` 看 gzip，采集代码 ≤ 5 KB，`@ant-design/plots` 不在 `umi.js` 里
 - 在首页、内容中心、小册阅读、AI 对话之间来回跳转后，面板能显示对应页面数据
 - 接口列表的分组名正确，没有出现具体 ID
 - 默认显示深色看板；点「浅色」后抽屉和 `/status` 都变浅色，刷新后保持；站点主题不受影响
@@ -220,11 +225,13 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 | `apps/user-web/src/pages/public/Status/index.tsx` | 新增：完整面板页 |
 | `apps/user-web/config/routes.ts` | 新增 `/status` |
 | `apps/user-web/src/app.tsx` | 初始化采集、`onRouteChange` 打点、改直接引入 |
-| `packages/shared-types/src/system.ts`、`packages/api-client/src/system.ts` | 补齐 `colorSecondary` / `colorAccent` 等已存在的主题字段映射，让看板能安全读取主题色 |
-| `apps/user-web/src/requestErrorConfig.ts` | 拦截器里加耗时打点 |
-| `apps/user-web/src/layouts/PublicHeaderActions.tsx` | 在顶栏操作区加面板图标和懒加载抽屉（该文件由 `main` 预先拆出，见 [README.md](./README.md)「启动前骨架」） |
-| `apps/user-web/src/layouts/PublicLayout.tsx` | 只改为直接引入 `PageTransition`，不改布局 |
-| `apps/user-web/src/config/pageRegistry.ts` | 填写要统计的页面清单（文件由 `main` 预先建好） |
+| `apps/user-web/src/requestErrorConfig.ts` | 拦截器里加耗时打点。不改解包、toast 和 401 跳转 |
+| `apps/user-web/src/layouts/PublicHeaderActions.tsx` | 在顶栏操作区加面板图标和懒加载抽屉（该文件已在骨架拆出） |
+| `apps/user-web/src/layouts/PublicLayout.tsx` | `PageTransition` 改为直接引入；`{children}` 外包 `PerfRouteMarker`。不改顶栏结构 |
+| `apps/user-web/src/layouts/AiLayout/index.tsx`、工作区所在的 `app.tsx` 布局出口 | 同样只包 `PerfRouteMarker`，不加顶栏图标 |
+| `apps/user-web/src/config/pageRegistry.ts` | 本 worktree 新建。内容就是 §5.4 的路由模板，不依赖 `main` 预先建文件 |
+
+主题色只读骨架已经映射好的 `colorSecondary`、`colorAccent` 和状态色，本 worktree 不再改 `packages/shared-types` 或 `packages/api-client`。
 
 顶部导航的菜单项来自后台配置。如果要把「性能」加进顶部导航，需要在后台菜单里新增，不改代码。
 

@@ -72,7 +72,7 @@ React-first 0–5 与 Nest **M0–M6** 已在本地闭环。后台治理（M7）
 
 - 系统预置 Provider；
 - 后台配置 Base URL、模型和启停状态；
-- API Key 加密存储，后台只写入、不回显；
+- API Key 加密写入独立凭据表 `ai_provider_credentials`（系统 Key 与用户 Key 共用），不写入 `ai_providers`；后台只写入、不回显；
 - API Key 轮换、删除和连接测试；
 - 用户自行添加 Provider 和自己的 API Key；
 - 用户选择可用模型并记录额度策略。

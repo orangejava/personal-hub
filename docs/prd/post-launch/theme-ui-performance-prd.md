@@ -1,9 +1,9 @@
 # 主题、性能与 UI 优化 PRD
 
 > 状态：下一步开发计划
-> 最后更新：2026-09-29
+> 最后更新：2026-10-02
 > Worktree：拆为 `theme-config`（阶段 A）、`perf-dashboard`（阶段 B 基线与面板）、`home-showcase`（阶段 C 首页）。见 [README.md](./README.md)
-> 计划评分：8.5 / 10
+> 计划评分（plan-review，百分制，2026-10-02）：阶段 A（`theme-config`）92，可以开工。阶段 B 的 Loading / Skeleton 与阶段 C 的其余页面后置，不计入本期。性能面板与首页改版的分数见各自 PRD。
 > 关系：承接 `apps/user-web/docs/prd/theme-navigation-config-prd.md` 的后置项，并新增加载速度、Loading 和页面交互优化范围。
 
 ## 1. 目标
@@ -30,42 +30,74 @@
 
 ## 3. 阶段 A：主题剩余 UI
 
-### 3.1 后台主题表单
+### 3.1 后台表单
 
-> 由 `theme-config` worktree 落地。Logo、favicon 的上传使用 `main` 骨架提供的 `ImageFileField`；首页「首屏透明、滚动后毛玻璃」的顶栏效果也归本阶段，对应已有配置 `site.navigation.publicBlur`。见 [README.md](./README.md)。
+> 由 `theme-config` worktree 落地。Logo、favicon 上传复用骨架里的 `ImageFileField`，用途固定为已有的 `COVER`。允许 `image/jpeg`、`image/png`、`image/webp`，单文件不超过 5 MB，与 `apps/server/src/modules/file/file-policy.ts` 的 COVER 默认一致。不接受 `.ico` 和 `image/svg+xml`（SVG 在 MIME 拒绝列表里）。favicon 用 png 或 webp，经签名 URL 放进 `rel=icon`。格式不对时走现有上传错误，不新增文件用途。不实现首屏透明顶栏，也不把 `publicBlur` 做成「滚动后毛玻璃」。该字段保持现有存储，首页顶栏维持不透明。见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
 
-后台主题表单补齐：
+配置组已经拆开，表单跟着组走，避免一个保存按钮写错组：
 
-- 站点 Logo 上传 / 选择
-- favicon 上传 / 选择
-- SEO 标题
-- SEO 描述
-- SEO 关键词
-- 公开区导航位置：顶部 / 左侧 / 右侧
-- 功能开关
-- 预览区
+| 页面 | 配置组 | 本阶段补什么 |
+| --- | --- | --- |
+| `apps/admin-web/src/pages/admin/SystemSite/index.tsx` | `site.general` | 已有站点名、描述。补关键词、Logo、favicon。站点名就是 SEO 标题，描述就是 SEO 描述，不再另造一套标题字段 |
+| `apps/admin-web/src/pages/admin/SystemTheme/index.tsx` | `site.theme` | 已有主色、圆角、模式。补 `colorSecondary`、`colorAccent`、`allowUserSwitch`（主题切换器）和一栏预览 |
+| 同上，第二张卡片单独保存 | `site.navigation` | 只改 `publicPosition`：`top` / `left` / `right`。不在这次改 `publicBlur` |
+| `apps/admin-web/src/pages/admin/AiConfig/index.tsx` 品牌设置 | `ai.branding` | 补已有字段 `aiEnabled`。这是 AI 入口开关，不在主题页再做一份 |
+
+项目入口不新增开关。公开菜单里「项目」的 `visible` 已经能关掉入口，主题页不再复制一份。
+
+不新建 `site.feature`。旧主题 PRD 里的三项分别落到上表已有字段。
 
 ### 3.2 前台应用配置
 
-公开前台需要按配置渲染：
+视口用现有 `useViewportBand`，不另起断点。
 
-- 顶部导航
-- 左侧导航
-- 右侧导航
-- 移动端导航 Drawer
-- Logo 和站点名称
-- favicon
-- SEO 信息
+| 条件 | 导航 |
+| --- | --- |
+| 桌面（≥ 992）且不是矮屏，`publicPosition=top` | 保持现在的顶栏 |
+| 桌面且不是矮屏，`left` / `right` | 侧栏宽 240px，内容区让出这段宽度。菜单超出视口时只在侧栏内部滚动。`PublicHeaderActions` 整块移到侧栏底部，内部不改 |
+| 手机（≤ 767）、平板（768–991）或矮屏（高度 ≤ 499） | 不论配置是顶还是侧，都用现在的 Drawer。侧栏不占内容宽度 |
+| Markdown / 小册阅读页 | 公共导航收成现有 Drawer，避免和章节目录并排 |
 
-主题 token 需要尽量从系统配置读取并刷新前台。
+Logo 继续用已经签名的 `logoUrl`。favicon 现在只在服务端存 `faviconFileId`，公开配置还没签名。本阶段按 Logo 的做法补 `faviconUrl`，并在 `packages/api-client` 的 `mapPublicSiteConfig` 里带上 `keywords` 和 `faviconUrl`。
+
+SEO 只走运行时 Helmet，不在构建期写死。`app.tsx` 的 `rootContainer` 放一份：`title` 用 `siteName`，`meta description` 用 `siteDescription`，`meta keywords` 用 `keywords`，`link rel=icon` 用 `faviconUrl`。登录等页面自己的 Helmet 仍可覆盖标题。空 Logo、空 favicon 时不渲染对应节点，沿用现有站点名文字。
+
+主题 token 继续从 `getInitialState` 里的公开配置注入。本阶段把辅助色和强调色一并写入，不另开主题接口。
+
+`PublicLayout` 在 `aiEnabled === false` 时去掉路径以 `/ai` 开头的菜单项。直接打开 `/ai` 仍然可以进入，避免收藏地址变成 404。`allowUserSwitch === false` 时，`PublicHeaderActions` 不渲染主题按钮，账号入口不动。项目入口只跟随菜单 `visible`，本 worktree 不改菜单管理页。favicon 签名加在 `apps/server/src/modules/system/system.service.ts`，和现有 `logoUrl` 同一处。
+
+路径含 `/content/booklets/` 或匹配内容详情 `/content/:id`（不是列表 `/content`）时，强制沿用现在的 Drawer。这些页已经有 `TocPanel` 或章节目录，桌面侧栏不再出现。
+
+`colorSecondary`、`colorAccent` 交给现有主题运行时注入 ConfigProvider，不另写一套主题状态。
+
+**预览**：主题页第一张卡片下方，用表单里尚未保存的主色、辅助色、强调色和圆角画一条假顶栏：站点名、文字「首页 / 内容 / 关于」、一个圆形按钮。第二张卡片若选了左或右，预览改成 240px 侧栏加内容条，不再只画顶栏。不请求公开站点，不嵌 iframe。管理端宽度小于 768px 时，预览落到表单下面。
+
+### 3.2.1 阶段 A 文件
+
+| 文件 | 改什么 |
+| --- | --- |
+| `apps/admin-web/src/pages/admin/SystemSite/index.tsx` | 补关键词、Logo、favicon。保存仍只写 `site.general` |
+| `apps/admin-web/src/pages/admin/SystemTheme/index.tsx` | 第一张卡片补辅助色、强调色、`allowUserSwitch` 和预览，只写 `site.theme`。第二张卡片只写 `publicPosition`，保留 `site.navigation` 的其他字段 |
+| `apps/admin-web/src/services/admin/index.ts` | `updateAdminSystemConfig` 带上关键词和两个文件 ID。新增导航保存，不把导航字段塞进主题保存 |
+| `apps/admin-web/src/pages/admin/AiConfig/index.tsx` | 品牌设置增加 `aiEnabled` 开关 |
+| `apps/server/src/modules/system/system.service.ts` | `faviconFileId` 签成 `faviconUrl` |
+| `packages/shared-types/src/system.ts`、`packages/api-client/src/system.ts` | 公开对象增加 `keywords`、`faviconUrl`。这是冲突表里的唯一例外，其它 worktree 不改这两处 |
+| `apps/user-web/src/app.tsx` | `rootContainer` 放 Helmet |
+| `apps/user-web/src/layouts/PublicLayout.tsx` | 顶 / 左 / 右，以及阅读页强制 Drawer |
+| `apps/user-web/src/layouts/PublicHeaderActions.tsx` | 按 `allowUserSwitch` 隐藏主题按钮 |
+
+页面拿到的是解包后的配置对象。写失败走全局 toast。加载失败用现有 `ErrorState`，不写入半份配置。
 
 ### 3.3 验收
 
-- 后台修改 Logo 后，公开前台可见。
-- 后台修改导航位置后，公开前台布局正确。
-- 移动端不出现导航挤压。
-- SEO 字段可以写入页面 head 或由运行时读取。
-- 配置失败时展示清晰错误。
+1. 打开管理端「站点配置」`/admin/system/site`，填写关键词，用 `ImageFileField` 上传 png Logo 和 png favicon，保存。再试一个 `.svg`，应看到现有上传错误，配置不被改写。
+2. 刷新用户端首页。浏览器标题是站点名；元素面板里有 description、keywords；favicon 的地址是签名 URL。空 favicon 时不输出 icon 节点。
+3. 打开 `/admin/system/theme`，第二张卡片把导航改成左侧。保存前，预览应变成 240px 侧栏而不是顶栏。保存后在桌面 1440×900 的首页：侧栏宽 240px，正文从侧栏右侧开始，账号入口在侧栏底部。再改成右侧，正文改到侧栏左侧。顶栏仍然不透明。
+4. 同一套左侧配置下，把窗口调到 390×844、820×1180、1280×480。只有菜单按钮和 Drawer，没有固定侧栏，页面不横向滚动。
+5. 打开 `/content/booklets/<id>/chapters/<chapterId>` 和一篇 `/content/<id>`。章节目录或 `TocPanel` 还在，公共导航是 Drawer。
+6. 关掉「允许用户切换」并保存第一张卡片，刷新首页：主题按钮消失，账号入口还在。主色改成一个明显颜色后，首页跟着变，导航位置不被这次保存冲掉。
+7. AI 配置里关掉 AI 入口，刷新首页后 `/ai` 菜单消失；地址栏直接进入 `/ai` 仍能打开。
+8. 配置接口失败时，主题页是 `ErrorState`，没有成功 toast。
 
 ## 4. 阶段 B：加载速度与 Loading 优化
 

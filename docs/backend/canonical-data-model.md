@@ -229,14 +229,15 @@ ai.branding
 
 | 表                | 核心字段                                                                                       |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
-| `ai_providers`    | `code`、`label`、`base_url`、`enabled`；不存明文 API Key                                       |
+| `ai_providers`             | `code`、`label`、`base_url`、`enabled`、`auth_env_key`（仅环境变量名）、`remark`、`source_filed`、`filing_note`；不存 API Key。备案三列只出现在管理端 |
+| `ai_provider_credentials`  | `owner_type`（`SYSTEM` / `USER`）、`user_id`、`provider_id`、`provider_type`、`base_url`、`ciphertext`、`nonce`、`key_version`、`enabled`。系统 Key 与用户 Key 共用此表。接口不返回密文、nonce |
 | `ai_models`       | `provider_id`、厂商 `model_key`、工具类型、可见/试用/默认、上下文限制、平台定价规则、`version` |
 | `ai_tools`        | `code`、展示信息、状态、排序、登录要求                                                         |
 | `ai_entitlements` | `role_id` 或套餐标识、可用模型/工具、额度规则、并发/频率阈值、`verification_grant_amount`      |
 | `ai_templates`    | `owner_id` 可空、`is_system`、工具类型、Prompt、状态、`deleted_at`                             |
 
-- 厂商 Key 仅来自环境变量/密钥管理；`ai_providers` 表保存可运营元数据，不保存或回显 Key。
-- 所有启用模型可由登录用户选择，但仍需经过 entitlement、额度、并发和频率校验。
+- 管理员和用户写入的 API Key 只加密存放在 `ai_provider_credentials`，不写入 `ai_providers` 或 `system_configs`。尚无系统凭据时，调用回退 `auth_env_key` 指向的环境变量。接口只表示已配置或未配置，不回显明文或脱敏片段。详见 [post-launch/ai-admin-operations-prd.md](../prd/post-launch/ai-admin-operations-prd.md)。
+- 登录用户默认不能改选模型（`userCanPickModel` 默认关闭）：即使用户自备 Key，仍用系统当前默认模型。开关打开后，只能在系统已启用且 `userVisible` 的模型里选择，不能填写任意模型名。请求仍需经过 entitlement、额度、并发和频率校验。
 - `verification_grant_amount` 是通过邮箱验证时一次性授予的默认平台额度；首版各默认角色均为 `10000`，但只由受控权益配置读取，不能由注册请求传入。
 
 ### 6.2 会话、生成和账本
@@ -259,8 +260,9 @@ ai.branding
 2. 在事务中原子预占；余额不足即拒绝。
 3. 成功后按厂商实际 input/output 用量与平台规则结算，多余预占释放。
 4. 失败释放未使用额度；中断有实际用量时按实际结算。
-5. 图片按后台定义的固定平台额度结算。
-6. 邮箱验证成功与 `ai_quota_accounts` 创建、初始 `GRANT` 交易、幂等标记及安全审计在同一事务完成；重复消费验证 Token 不得再次赠送。
+5. 图片和视频按模型上的 `fixedPlatformCost` 按次结算。文本按 `inputPricePer1k`、`outputPricePer1k`。不另建倍率列；改价只影响后续预占和结算。
+6. 人工扣减只减 `available_amount`。扣减后不得小于 0；不足时整笔拒绝，不写账本，余额保持原值。
+7. 邮箱验证成功与 `ai_quota_accounts` 创建、初始 `GRANT` 交易、幂等标记及安全审计在同一事务完成；重复消费验证 Token 不得再次赠送。
 
 匿名 AI：
 

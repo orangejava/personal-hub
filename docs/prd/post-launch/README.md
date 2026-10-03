@@ -1,7 +1,7 @@
 # 上线后优化 PRD
 
 > 状态：当前开发主线
-> 最后更新：2026-09-29
+> 最后更新：2026-10-03
 > 关系：首版已上线后，本目录承接可直接开工的跨端优化 PRD。历史 React-first 阶段 PRD 仍在 `apps/*/docs/prd/` 与 `docs/prd/react-first/`；长期后端契约仍在 `docs/prd/long-term/`。
 
 ## 放置边界
@@ -21,15 +21,15 @@
 
 | 文档 | Worktree | 内容 | 计划评分 |
 | --- | --- | --- | --- |
-| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、倍率、发放和签到 | 9 / 10 |
-| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) | 总纲，拆到下面三个 | 主题剩余 UI、加载速度、Loading、公开页与交互优化 | 8.5 / 10 |
-| [performance-dashboard-prd.md](./performance-dashboard-prd.md) | `perf-dashboard` | 总纲阶段 B：性能与接口响应面板、性能基线、首轮入口体积优化 | 待评分 |
-| [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase` | 总纲阶段 C 的首页部分：首页滚动改版、项目作品矩阵 | 待评分 |
-| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §3 | `theme-config` | 总纲阶段 A：后台主题表单、导航位置、Logo / favicon / SEO | 8.5 / 10 |
+| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A 91；阶段 A–E 91。充值等后置不计入本期 |
+| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) | 总纲，拆到下面三个 | 主题剩余 UI、加载速度、Loading、公开页与交互优化 | 阶段 A 见下行。Loading 与其余页面后置，不计入本期 |
+| [performance-dashboard-prd.md](./performance-dashboard-prd.md) | `perf-dashboard` | 总纲阶段 B：性能与接口响应面板、性能基线、首轮入口体积优化 | 一期 93。二期 Nest 汇总后置，不计入本期 |
+| [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase` | 总纲阶段 C 的首页部分：首页滚动改版、项目作品矩阵 | 不含首页性能区块 91。性能区块等面板合并后再做，不计入本期 |
+| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §3 | `theme-config` | 总纲阶段 A：后台主题表单、导航位置、Logo / favicon / SEO | 92 |
 
 总纲阶段 B 的 Loading / Skeleton（§4.3）和阶段 C 的其余页面（内容中心、小册阅读、AI 工作台、登录表单）等上面三个合并后再排。
 
-## 启动前骨架（在 main 上先做，状态：已优化，待实施）
+## 启动前骨架（在 main 上先做，状态：已落地，提交 `a70ab11`）
 
 几个 worktree 会同时改到同一批文件。为了避免各自改出差异、合并时大面积冲突，先在 `main` 上把**共用的文件拆分、共享配置和前后端契约**落地，再从 `main` 建 worktree。
 
@@ -76,15 +76,15 @@
 
 | 冲突点 | 约定 |
 | --- | --- |
-| `apps/user-web/src/layouts/PublicLayout.tsx` | 只有 `theme-config` 改布局结构（含透明顶栏 / 毛玻璃）；`perf-dashboard` 只把 `PageTransition` 改为直接引入；`home-showcase` 不改 |
+| `apps/user-web/src/layouts/PublicLayout.tsx` | `theme-config` 只改导航位置（顶 / 左 / 右），顶栏保持不透明，不实现首屏透明或滚动毛玻璃。`perf-dashboard` 只把 `PageTransition` 改为直接引入，并在 `{children}` 外加路由耗时标记。`home-showcase` 不改 |
 | `apps/user-web/src/layouts/PublicHeaderActions.tsx` | 只有 `perf-dashboard` 在里面加图标；`theme-config` 只移动它的位置，不改内部 |
 | `apps/user-web/config/routes.ts` | 只有 `perf-dashboard` 新增 `/status` |
-| `packages/shared-types`、`packages/api-client` 的系统配置 | 骨架里一次补全；各 worktree 只读，确需新增字段时先回 `main` 加 |
+| `packages/shared-types`、`packages/api-client` 的系统配置 | 骨架已有字段各 worktree 只读。例外只有 `keywords`、`faviconUrl`：由 `theme-config` 加到公开配置对象，其它 worktree 不改这两处。再有新字段仍先回 `main` 加 |
 | `apps/admin-web/src/pages/admin/SystemProjects/index.tsx` | 骨架独占项目图片字段；后续 `home-showcase` 只消费公开配置，不再改本页 |
 | `apps/admin-web/src/pages/admin/SystemContent/index.tsx` | `theme-config` 独占内容卡片、阅读宽度与 Hero 排版字段；`home-showcase` 不改本页 |
 | `apps/server/prisma/schema.prisma` 与迁移 | `perf-dashboard` 二期和 `ai-admin` 都会加表；后合并的一方先变基，再重新生成迁移，不手工合并迁移 SQL |
 | 全局样式 `motion.less`、`global.less` | `home-showcase` 不改，首页样式放在首页目录内 |
-| `apps/user-web/src/app.tsx` | `perf-dashboard` 加采集初始化和路由打点；其他 worktree 不改 |
+| `apps/user-web/src/app.tsx` | `theme-config` 只在 `rootContainer` 加 Helmet（标题、description、keywords、favicon）。`perf-dashboard` 只加采集初始化和 `onRouteChange`，并把汇总导出改为直接引入。两边不改对方那一段 |
 
 ## 共同验收原则
 

@@ -11,8 +11,9 @@
    - 涉及 `git commit` / `git push` / 写 commit message / 「提交」「推送」→ **必须**加载 [`.agents/skills/git-commit/SKILL.md`](.agents/skills/git-commit/SKILL.md)
    - 涉及 Nest / Canonical API / Prisma / `api-client` / Umi services / mock 回落 → **必须**加载 [`.agents/skills/fullstack-impact/SKILL.md`](.agents/skills/fullstack-impact/SKILL.md)
    - 涉及新增或修改 `apps/*/src/**/*.tsx` 页面 / 布局 / 组件 → **必须**加载 [`.agents/skills/tsx-structure/SKILL.md`](.agents/skills/tsx-structure/SKILL.md)
-   - 涉及审查 diff / PR / 安全 / 性能 / 废弃 API / 测试覆盖 → 加载 [`.agents/skills/fullstack-code-review/SKILL.md`](.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/fullstack-code-review/`；本仓库以仓库副本为准）
+   - 涉及审查 diff / PR / 安全 / 性能 / 废弃 API / 测试覆盖 → 加载 [`.agents/skills/fullstack-code-review/SKILL.md`](.agents/skills/fullstack-code-review/SKILL.md)（用户级镜像 `~/.agents/skills/fullstack-code-review/`；本仓库以仓库副本为准）。前端、后端细则在同目录 `references/`，按 diff 路径读取，不套用到 Flutter / Tauri
    - 用户要求给计划打分、review 计划，或写明超过 90 分再执行 → 加载 [`.agents/skills/plan-review/SKILL.md`](.agents/skills/plan-review/SKILL.md)（用户级镜像 `~/.agents/skills/plan-review/`）。这是动手前的计划分，不是完成后的 `task-quality-review`
+   - 用户要求文档评审、方案评审，或资深架构 / 前端 / 后端一起 review PRD → 加载 [`.agents/skills/doc-review/SKILL.md`](.agents/skills/doc-review/SKILL.md)（用户级镜像 `~/.agents/skills/doc-review/`）。评分仍用 `plan-review`，不另起分数。涉及 Flutter、Tauri 时由该 skill 追加对应视角
 
 说明见 [`.agents/README.md`](.agents/README.md)。
 

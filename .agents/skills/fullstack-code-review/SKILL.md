@@ -9,7 +9,7 @@ description: >-
 compatibility: Works with Cursor, Claude Code, Codex, and other Agent Skills clients.
 metadata:
   author: personal-hub
-  version: "1.1"
+  version: "1.3"
 ---
 
 # 全栈代码审查
@@ -36,7 +36,10 @@ metadata:
 1. 收集 `git status --short`、`git diff --check`、改动文件统计，以及适用的测试 / lint 命令。
 2. 沿每条被改请求路径走完：controller → service → 持久化 → 客户端 service → UI 调用方 → 测试。
 3. 检查状态迁移、重试、幂等、授权范围、事务、分页、空输入，以及并发相同请求。
-4. 前端改动：对照当前框架迁移指引、浏览器可见行为、i18n、无障碍、过期闭包、轮询、加载/错误态。
+4. 按 diff 路径加细则，只报这次改动碰到的项，不拿清单扫整个仓库：
+   - `apps/user-web`、`apps/admin-web`、`packages/api-client`、`packages/shared-types` 的页面和请求 → 读 [references/frontend.md](references/frontend.md)。其中性能一节摘自 Vercel 的客户端规则，并改成 Umi 写法；不要把 Next.js 服务端、SWR 或 `js-*` 微优化算进问题。
+   - `apps/server`、`prisma`、服务端测试 → 读 [references/backend.md](references/backend.md)
+   - 两端都改到时两份都读。Flutter、Tauri 的细则还没有，不要把 Web 清单套到 Dart 或 Rust 上。
 5. 用断言对照被改分支和失败路径，评估测试是否够用。测试通过 ≠ 覆盖充分。
 6. 跑安全、相关的校验。跑不了的命令要写明原因。
 

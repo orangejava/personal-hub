@@ -105,6 +105,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [../.agents/skills/git-commit/SKILL.md](../.agents/skills/git-commit/SKILL.md)     | Git 提交权威规范（跨工具 skill）                   | ✅ 已完成   |
 | [../.agents/skills/tsx-structure/SKILL.md](../.agents/skills/tsx-structure/SKILL.md) | TSX 方法放置（纯函数上提 / 长回调具名）            | ✅ 已完成   |
 | [../.agents/skills/fullstack-code-review/SKILL.md](../.agents/skills/fullstack-code-review/SKILL.md) | 全栈 diff/PR 审查（用户级镜像 `~/.agents/skills/`） | ✅ 已完成   |
+| [../.agents/skills/doc-review/SKILL.md](../.agents/skills/doc-review/SKILL.md) | 文档多角色评审（架构 / 前端 / 后端；评分用 plan-review） | ✅ 已完成   |
 | [engineering/dev-credentials.md](./engineering/dev-credentials.md)                 | 本地常用信息：账号、端口、Compose、Mailpit         | ✅ 已确定   |
 | [history/development-plan.md](./history/development-plan.md)                       | React-first 历史执行手册                           | 📚 历史资料 |
 | [history/mvp-roadmap.md](./history/mvp-roadmap.md)                                 | MVP 历史排期与阶段目标                             | 📚 历史资料 |
@@ -133,7 +134,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（post-launch / React-first / 长期全栈）           | ✅ 已完成                              |
 | [prd/module-prd-index.md](./prd/module-prd-index.md)                                                   | 大模块 PRD 细化索引                                        | ✅ 已完成                              |
 | [prd/post-launch/README.md](./prd/post-launch/README.md)                                               | 首版上线后优化 PRD 索引                                    | 🟢 当前主线                            |
-| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、倍率、发放和签到 | 🟢 下一步                             |
+| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 🟢 下一步                             |
 | [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md)           | 主题、性能与 UI 总纲：主题剩余 UI、加载速度、Loading、页面交互优化 | 🟢 下一步                             |
 | [prd/post-launch/performance-dashboard-prd.md](./prd/post-launch/performance-dashboard-prd.md)         | 性能与接口响应面板、性能基线、首轮入口体积优化             | 🟢 下一步                             |
 | [../apps/user-web/docs/prd/home-showcase-prd.md](../apps/user-web/docs/prd/home-showcase-prd.md)       | 首页滚动改版、项目作品矩阵、动效库选型                     | 🟢 下一步                             |
@@ -212,7 +213,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 1. **已落地**：React-first 0–5；Nest **M0–M6**；首版已按 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md) 上线（公网 IP + Compose）。本地前端默认 `MOCK=none`。存量小册用 `pnpm booklet:import-local`。
 2. **下一步（四个 worktree，可同时开；分工、合并顺序和冲突约定见 [prd/post-launch/README.md](./prd/post-launch/README.md)）**：
-   - `ai-admin`：见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。分阶段完成 Provider / 模型配置、用户自备 Key、用量、额度、倍率、公共发放和连续签到。
+   - `ai-admin`：见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。分阶段完成 Provider / 模型配置、用户自备 Key、用量、额度、公共发放和连续签到。
    - `perf-dashboard`：见 [prd/post-launch/performance-dashboard-prd.md](./prd/post-launch/performance-dashboard-prd.md)。一期前端性能面板（抽屉 + `/status`），首轮入口体积优化，二期接 Nest 汇总。**最先合并**，留下改版前基线。
    - `home-showcase`：见 [apps/user-web/docs/prd/home-showcase-prd.md](../apps/user-web/docs/prd/home-showcase-prd.md)。首页滚动改版、项目作品矩阵；动效用 Motion 为主，GSAP 按区块备选。
    - `theme-config`：见 [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md) §3。后台主题表单、导航位置、Logo / favicon / SEO。
@@ -248,7 +249,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ### 上线后优化（当前，四个 worktree）
 
-- [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、倍率、公共发放和连续签到。不做充值、支付、自研模型。
+- [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、公共发放和连续签到。不做充值、支付、自研模型。
 - [ ] [`perf-dashboard`](./prd/post-launch/performance-dashboard-prd.md)：性能与接口响应面板、性能基线、首轮入口体积优化、二期 Nest 汇总。
 - [ ] [`home-showcase`](../apps/user-web/docs/prd/home-showcase-prd.md)：首页滚动改版、项目作品矩阵（Flutter / 桌面端先作为规划中）。
 - [ ] [`theme-config`](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、导航位置、Logo / favicon / SEO。
@@ -257,7 +258,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 ### main 上先做（不占 worktree）
 
 - [x] 域名、个人非经营性 ICP 备案（2026-09 完成）
-- [ ] 启动前骨架：共用文件拆分、共享配置、前后端契约。见 [prd/post-launch/README.md](./prd/post-launch/README.md)
+- [x] 启动前骨架：共用文件拆分、共享配置、前后端契约。见 [prd/post-launch/README.md](./prd/post-launch/README.md)（`a70ab11` 已落地）
 - [ ] HTTPS、Nginx gzip 与静态资源缓存，改动前后各记一次 Lighthouse。见 [deploy/domain-https.md](./deploy/domain-https.md)
 - [ ] 向属地网信办确认：公开 AI 若只调用已备案模型，是否办理应用/功能登记。
 

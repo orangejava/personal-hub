@@ -22,9 +22,12 @@
     ├── tsx-structure/
     │   └── SKILL.md          # 页面/组件：纯函数上提、长 JSX 回调具名、禁止乱抽 utils
     ├── fullstack-code-review/
-    │   └── SKILL.md          # 全栈 diff/PR 审查；用户级镜像见 ~/.agents/skills/
+    │   ├── SKILL.md          # 全栈 diff/PR 审查；用户级镜像见 ~/.agents/skills/
+    │   └── references/       # frontend.md、backend.md：只在对应 diff 上使用
     ├── plan-review/
     │   └── SKILL.md          # 动手前的计划打分；用户级镜像见 ~/.agents/skills/
+    ├── doc-review/
+    │   └── SKILL.md          # 架构 / 前端 / 后端文档评审；评分仍用 plan-review
     └── task-quality-review/
         └── SKILL.md          # 手动触发的 AI 开发任务质量评分
 ```
@@ -44,7 +47,7 @@
 ## Agent 使用方式
 
 1. 打开任务时先读 `AGENTS.md` 与 `.agents/rules/*`
-2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`；要求“执行任务质量评审”时，加载 `skills/task-quality-review/SKILL.md`；要求给计划打分或“超过 90 分再执行”时，加载 `skills/plan-review/SKILL.md`
+2. 任务匹配某 skill 的 description 时，加载对应 `SKILL.md`；要求“执行任务质量评审”时，加载 `skills/task-quality-review/SKILL.md`；要求给计划打分或“超过 90 分再执行”时，加载 `skills/plan-review/SKILL.md`；要求文档 / 方案由架构、前端、后端一起评审时，加载 `skills/doc-review/SKILL.md`
 3. 涉及 commit / push 时，**必须**加载 `skills/git-commit/SKILL.md`
 4. 涉及 Nest / Canonical API / Prisma / api-client / Umi services / mock 回落时，**必须**加载 `skills/fullstack-impact/SKILL.md`
 5. 涉及新增或修改 `apps/*/src/**/*.tsx` 时，**必须**加载 `skills/tsx-structure/SKILL.md`

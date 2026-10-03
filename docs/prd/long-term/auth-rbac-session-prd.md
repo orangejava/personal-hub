@@ -261,7 +261,7 @@ Guard 只检查动作权限；Service/Repository 对 `OWN` / `ALL` 追加查询�
 | 分类、标签、文件 | `category:manage`、`tag:manage`、`file:read`、`file:delete`                                                                                                       |
 | 用户与会话       | `user:read`、`user:status:update`、`user:role:assign`、`user:session:read`、`user:session:revoke`                                                                 |
 | 角色与系统       | `role:read`、`role:manage`、`role:permission:manage`、`system:config:manage`、`menu:manage`、`audit:read`、`dashboard:read`                                       |
-| AI 管理          | `ai:quota:adjust`、`ai:provider:manage`、`ai:model:manage`、`ai:tool:manage`、`ai:template:manage`、`ai:entitlement:manage`                                       |
+| AI 管理          | `ai:provider:manage`、`ai:model:manage`、`ai:tool:manage`、`ai:template:manage`、`ai:entitlement:manage`。人工调额度用 `ai:entitlement:manage`。种子里已有的 `ai:quota:adjust` 保留，但不挂调额度接口 |
 
 - `member` 默认只有登录后的个人能力，不自动获得内容创作或后台权限。
 - `editor` 的内容类权限只授予 `OWN`，不得取得后台用户、角色、系统配置和审计权限。

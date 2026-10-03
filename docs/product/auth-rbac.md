@@ -52,7 +52,7 @@ Flutter 将使用独立 `/auth/mobile/*` 传输契约和系统安全存储，复
 
 ### Canonical 权限码
 
-真实权限为受控 seed，格式为“资源:动作”，例如 `content:create`、`content:update`、`booklet:import`、`user:status:update`、`role:permission:manage`、`ai:quota:adjust`、`system:config:manage`。不再使用 `content:write`、`admin:access`、`ai:use` 等 mock 粗粒度码作为后端授权。
+真实权限为受控 seed，格式为“资源:动作”，例如 `content:create`、`content:update`、`booklet:import`、`user:status:update`、`role:permission:manage`、`ai:entitlement:manage`、`system:config:manage`。不再使用 `content:write`、`admin:access`、`ai:use` 等 mock 粗粒度码作为后端授权。人工调额度用 `ai:entitlement:manage`，不另走 `ai:quota:adjust`。
 
 权限码不携带范围。`role_permissions.data_scope` 独立保存：
 

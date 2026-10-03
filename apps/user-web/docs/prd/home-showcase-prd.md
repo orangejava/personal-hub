@@ -1,8 +1,9 @@
 # 首页滚动改版与项目作品矩阵 PRD
 
 > 状态：文档已确认方向，待建 worktree
-> 最后更新：2026-09-30
+> 最后更新：2026-10-02
 > Worktree：`home-showcase`
+> 计划评分（plan-review，百分制，2026-10-02）：不含首页性能区块为 91，可以开工。首页性能区块等 `perf-dashboard` 合并并变基后再做，不计入本期。
 > 关系：落实 [theme-ui-performance-prd.md](../../../../docs/prd/post-launch/theme-ui-performance-prd.md) §5.2「首页」，并重做 `/projects`。性能数据来自 [performance-dashboard-prd.md](../../../../docs/prd/post-launch/performance-dashboard-prd.md)。开工前依赖 `main` 上的「启动前骨架」，见 [post-launch/README.md](../../../../docs/prd/post-launch/README.md)。
 
 ## 1. 目标
@@ -135,29 +136,33 @@
 | `flutter` | Flutter App | 规划中 | 范围见 `docs/product/flutter.md` |
 | `desktop` | 桌面端 | 规划中 | 技术对比见 `docs/product/phase-2/desktop-app.md` |
 
-每张卡片包含：封面图、名称、状态标签、一句话介绍、技术栈、3 条以内的亮点、链接。两个 Web 端的卡片带「查看性能」链接，跳到 `/status` 并预选对应页面。点击封面打开截图预览（多张时可以左右切换）。
+每张卡片包含：封面图、名称、状态标签、一句话介绍、技术栈、3 条以内的亮点、链接。只有 `user-web` 带「查看性能」，跳到 `/status`。性能面板只采集用户端，管理端和 Nest 没有对应页面样本，不放这条链接。`flutter`、`desktop` 是规划中：不显示外链，封面仍可点开预览。点击封面打开截图预览（多张时可以左右切换）。
 
 4. **进度时间线**：React-first 阶段 0–5、Nest M0–M6、首版上线、上线后优化
 5. **更多作品**：保留现有「项目」类型内容列表和分页；没有数据时整块隐藏，不显示空状态
 
 ### 5.2 数据来源
 
-- **文字内容**（名称、状态、介绍、技术栈、亮点、链接、时间线）放在前端静态配置 `src/config/projectShowcase.ts`。原因：内容模型里没有这些结构化字段，做成后台可编辑需要额外的表单，等端数量变多再做
+- **文字内容**（名称、状态、介绍、技术栈、亮点、链接、时间线）放在本 worktree 新建的 `src/config/projectShowcase.ts`。`main` 没有这个文件。原因：内容模型里没有这些结构化字段，做成后台可编辑需要额外的表单，等端数量变多再做。文案用下表，不要在实现时另写一套：
+
+| key | 名称 | 状态 | 一句话 | 技术栈 | 亮点 | 链接 |
+| --- | --- | --- | --- | --- | --- | --- |
+| `user-web` | 用户端 Web | 已上线 | 公开前台、工作区和 AI 工具 | React、Umi、Ant Design | 内容阅读；AI 对话；登录后工作区 | `/` |
+| `admin-web` | 管理端 Web | 已上线 | 菜单、角色、权限、内容和配置 | React、Umi、Ant Design Pro | 内容审核；系统配置；AI 目录 | 无 |
+| `server` | Nest 服务端 | 已上线 | Canonical API、鉴权、内容、文件和 AI | NestJS、Prisma、PostgreSQL、Redis | 会话与权限；内容与文件；额度账本 | 无 |
+| `flutter` | Flutter App | 规划中 | 移动端阅读和 AI 对话，不含后台 | Flutter、Riverpod、Dio | 与 Web 共用账号；章节与 Markdown；对话与文本 | 无 |
+| `desktop` | 桌面端 | 规划中 | 复用用户端界面，技术方向为 Tauri 2 | Tauri 2、React | 先做 Windows 和 macOS；托盘与更新后置；Linux 最后 | 无 |
+
+时间线四段：React-first 阶段 0–5；Nest M0–M6；首版公网上线；上线后优化（进行中）。
 - **图片**：
   - 每个端在 `public/images/showcase/<key>.svg` 放一张占位封面，随代码提交
   - 后台可以为每个端上传封面图和最多 6 张截图，上传后前台用真实图片替换占位图
   - 没有上传时显示占位图；图片加载失败时也回落到占位图
 - 新端上线时，把静态配置里的状态改为「已上线」并补链接，再到后台上传截图
 
-### 5.3 后台替换截图（前后端都要改）
+### 5.3 前台读取已有截图
 
-必须按 [`fullstack-impact`](../../../../.agents/skills/fullstack-impact/SKILL.md) 执行。契约部分由 `main` 的「启动前骨架」先落地，本 worktree 只做界面。
-
-- **配置字段**：在 `site.layout` 里使用 `projectVisualAssets`，每项为 `{ key, coverFileId, screenshotFileIds }`，`key` 只允许 §5.1 表里的值，截图最多 6 张
-- **公开接口**：公开配置里返回签名后的 `coverUrl`、`screenshotUrls`，做法与现有的 `logoUrl` 相同；不返回文件 ID 以外的内部信息
-- **上传**：复用现有文件上传链路，用途为 `COVER`
-- **后台界面**：在「系统内容 → 项目配置」里，每个端一行，用共享的图片选择组件（`ImageFileField`）上传、预览、删除
-- **前端读取**：页面拿到的是解包后的配置对象，不检查 `code`；失败时显示占位图，不弹错误
+契约和后台界面已在骨架落地（`SystemProjects`、`ImageFileField`、公开签名 URL）。本 worktree 不再改 `SystemProjects` 或 `SystemContent`。前台只读公开配置里的 `coverUrl`、`screenshotUrls`。页面拿到的是解包后的对象，不检查 `code`。没有 URL、图片加载失败，都显示 `public/images/showcase/<key>.svg`，不弹错误。
 
 ### 5.4 各视口档的行为
 
@@ -167,11 +172,10 @@
 
 ## 6. 分阶段
 
-1. **动效封装**：`src/components/motion/` 四个组件，加一个只在开发环境可见的演示页用于验收（不进路由表的正式菜单）
+1. **动效封装**：`src/components/motion/` 四个组件。开发环境注册 `/__motion` 用来验收，不进公开菜单；生产构建不注册这条路由
 2. **首页**：按 §4 完成除「性能数据」外的区块
-3. **项目页**：按 §5.1、§5.2 完成，图片先全部用占位图
-4. **后台替换截图**：在 `main` 骨架提供的配置字段和 `ImageFileField` 基础上接入后台界面和前台读取
-5. **性能数据区块**：`perf-dashboard` 合并后变基再做
+3. **项目页**：按 §5.1、§5.2 完成，图片先全部用占位图，并读已有公开资产 URL
+4. **性能数据区块**：`perf-dashboard` 合并后变基再做
 
 ## 7. 影响范围
 
@@ -183,9 +187,8 @@
 | `apps/user-web/src/pages/public/Home/sections/*` | 新增：各区块组件 |
 | `apps/user-web/src/pages/public/Home/index.less` | 新增：首页样式，不改全局 `motion.less` |
 | `apps/user-web/src/pages/public/Projects/index.tsx` | 重写为作品矩阵 |
-| `apps/user-web/src/config/projectShowcase.ts` | 填写端卡片和时间线数据（文件由 `main` 预先建好） |
+| `apps/user-web/src/config/projectShowcase.ts` | 本 worktree 新建，内容用 §5.2 的表和时间线 |
 | `apps/user-web/public/images/showcase/*.svg` | 新增：占位封面 |
-| `apps/admin-web/src/pages/admin/SystemContent/index.tsx` | 项目配置里加每个端的图片上传 |
 
 不改：`PublicLayout.tsx`、`PublicHeaderActions.tsx`、`config/routes.ts`、全局样式。
 
@@ -199,7 +202,7 @@
 - 开启系统「减少动态效果」后，没有位移动画，内容完整可读
 - 动效库不在入口 `umi.js` 里；首页分包增量在预算内
 - 性能面板记录改版前后首页的 LCP、CLS 和首屏 JS 传输量，改版后不差于改版前
-- 项目页五张端卡片显示正确；没有上传图片时显示占位图；后台上传截图后，刷新项目页显示真实截图
+- 项目页五张端卡片与 §5.2 文案一致。`flutter`、`desktop` 没有外链。只有用户端有「查看性能」。没有上传图片时显示占位图；在已有的项目配置页上传后，刷新项目页显示真实截图
 - 没有「项目」类型内容时，「更多作品」区块隐藏
 - 顶栏导航、主题切换、登录入口等原有交互正常；内容中心、关于页不受影响
 - 控制台无新增错误
