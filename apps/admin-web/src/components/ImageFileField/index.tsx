@@ -57,7 +57,7 @@ const ImageFileField: React.FC<ImageFileFieldProps> = ({
   };
 
   return (
-    <Space wrap size={12}>
+    <Space wrap size={16}>
       {value.map((fileId) => {
         const previewUrl = localPreviewUrls[fileId] ?? previewUrls[fileId];
         return (
@@ -92,7 +92,7 @@ const ImageFileField: React.FC<ImageFileFieldProps> = ({
               disabled={disabled}
               icon={<DeleteOutlined />}
               size="small"
-              style={{ marginTop: 4 }}
+              style={{ marginTop: 8 }}
               onClick={() => handleRemove(fileId)}
             >
               移除引用

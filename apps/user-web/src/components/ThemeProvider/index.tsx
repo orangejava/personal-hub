@@ -31,7 +31,12 @@ function resolveTheme(pathname: string) {
     ? publicSettings.colorPrimary
     : (workspaceSettings.colorPrimary ?? publicSettings.colorPrimary);
 
-  return { isDark, colorPrimary };
+  return {
+    isDark,
+    colorPrimary,
+    colorSecondary: isPublic ? publicSettings.colorSecondary : undefined,
+    colorAccent: isPublic ? publicSettings.colorAccent : undefined,
+  };
 }
 
 /**
@@ -50,7 +55,7 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => subscribeThemeRuntime(() => bump((n) => n + 1)), []);
 
-  const { isDark, colorPrimary } = resolveTheme(pathname);
+  const { isDark, colorPrimary, colorSecondary, colorAccent } = resolveTheme(pathname);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -58,11 +63,24 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     if (colorPrimary) {
       root.style.setProperty('--ph-color-primary', colorPrimary);
     }
+    // antd 种子令牌没有辅助色和强调色，跟主色一样写到同一套语义变量，不另开主题状态。
+    if (colorSecondary) {
+      root.style.setProperty('--ph-color-secondary', colorSecondary);
+    } else {
+      root.style.removeProperty('--ph-color-secondary');
+    }
+    if (colorAccent) {
+      root.style.setProperty('--ph-color-accent', colorAccent);
+    } else {
+      root.style.removeProperty('--ph-color-accent');
+    }
     return () => {
       root.classList.remove('ph-theme-dark');
       root.style.removeProperty('--ph-color-primary');
+      root.style.removeProperty('--ph-color-secondary');
+      root.style.removeProperty('--ph-color-accent');
     };
-  }, [colorPrimary, isDark]);
+  }, [colorAccent, colorPrimary, colorSecondary, isDark]);
 
   return (
     <ConfigProvider

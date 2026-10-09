@@ -139,7 +139,10 @@ const AiConfig: React.FC = () => {
 
   const openBrandingDrawer = () => {
     if (!data?.branding) return;
-    setEditingBranding(data.branding);
+    setEditingBranding({
+      ...data.branding,
+      aiEnabled: data.branding.aiEnabled !== false,
+    });
   };
 
   const closeBrandingDrawer = () => {
@@ -245,6 +248,7 @@ const AiConfig: React.FC = () => {
       await updateAdminAiBrandingConfig({
         brandName: values.brandName,
         logoText: values.logoText,
+        aiEnabled: values.aiEnabled,
       });
       await run();
       message.success('AI 品牌配置已保存');
@@ -398,6 +402,11 @@ const AiConfig: React.FC = () => {
             columns={[
               { title: '品牌名', dataIndex: 'brandName' },
               { title: 'Logo 文案', dataIndex: 'logoText' },
+              {
+                title: 'AI 入口',
+                dataIndex: 'aiEnabled',
+                render: (_, record) => (record.aiEnabled === false ? '关闭' : '开启'),
+              },
               { title: '更新时间', dataIndex: 'updatedAt', valueType: 'dateTime' },
               {
                 title: '操作',
@@ -732,6 +741,14 @@ const AiConfig: React.FC = () => {
               rules={[{ required: true, message: '请输入 Logo 文案' }]}
             >
               <Input maxLength={12} placeholder="例如 PH AI" showCount />
+            </Form.Item>
+            <Form.Item
+              label="AI 入口"
+              name="aiEnabled"
+              valuePropName="checked"
+              extra="关闭后公开菜单不再显示 /ai，直接打开地址仍然可以进入"
+            >
+              <Switch checkedChildren="开启" unCheckedChildren="关闭" />
             </Form.Item>
           </Form>
         )}

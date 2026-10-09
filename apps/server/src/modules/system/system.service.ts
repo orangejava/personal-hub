@@ -18,6 +18,7 @@ import {
   SYSTEM_CONFIG_GROUPS,
   type PublicSiteConfig,
   type ProjectVisualAssetConfig,
+  type SiteGeneral,
   type SiteLayout,
   type SystemConfigGroup,
 } from './config-registry';
@@ -31,8 +32,8 @@ import {
 import { MENU_ROUTE_OPTIONS } from './route-registry';
 import { SystemRepository } from './system.repository';
 
-// 公开配置新增 projectVisualAssets，升级时不能读取旧 shape 的 5 分钟缓存。
-const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config:v2';
+// v3 起公开响应不再带 logo/favicon 文件 ID，不能继续读 v2 缓存里的旧字段。
+const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config:v3';
 const PUBLIC_NAV_CACHE_KEY = 'cache:navigation:public';
 const MENU_EPOCH_KEY = 'system:menu-epoch';
 const CACHE_TTL_SECONDS = 300;
@@ -174,6 +175,13 @@ export class SystemService {
         (parsed as SiteLayout).projectVisualAssets,
         currentLayout.projectVisualAssets,
       );
+    }
+    if (group === 'site.general') {
+      const currentGeneral = parseGroupValue(
+        'site.general',
+        currentConfig?.value ?? DEFAULT_SYSTEM_CONFIGS['site.general'],
+      ) as SiteGeneral;
+      await this.assertOwnedBrandFiles(input.actorId, parsed as SiteGeneral, currentGeneral);
     }
 
     const updated = await this.repository.asTransaction(async (tx) => {
@@ -482,12 +490,31 @@ export class SystemService {
         };
       }),
     );
-    const { projectVisualAssetFiles, ...publicConfig } = assembled;
+    const { projectVisualAssetFiles, logoFileId, faviconFileId, ...publicConfig } = assembled;
     return {
       ...publicConfig,
-      logoUrl: await this.files.signFileId(assembled.logoFileId),
+      // 未就绪或不存在时得到 null。文件 ID 留在后台组值里，不进公开响应。
+      logoUrl: await this.files.signFileId(logoFileId),
+      faviconUrl: await this.files.signFileId(faviconFileId),
       projectVisualAssets,
     };
+  }
+
+  /**
+   * Logo / favicon 和项目图一样，必须是当前管理员自己的、已完成的封面图。
+   * 没改动的旧文件不再检查，避免历史引用因为上传者变更而保存失败。
+   */
+  private async assertOwnedBrandFiles(actorId: string, next: SiteGeneral, current: SiteGeneral) {
+    const checks: Array<Promise<unknown>> = [];
+    if (next.logoFileId && next.logoFileId !== current.logoFileId) {
+      checks.push(this.files.requireReadyOwnedFile(actorId, next.logoFileId, FilePurpose.COVER));
+    }
+    if (next.faviconFileId && next.faviconFileId !== current.faviconFileId) {
+      checks.push(
+        this.files.requireReadyOwnedFile(actorId, next.faviconFileId, FilePurpose.COVER),
+      );
+    }
+    await Promise.all(checks);
   }
 
   /**

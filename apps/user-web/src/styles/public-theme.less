@@ -62,6 +62,97 @@ html.ph-theme-dark,
   color: var(--ph-text-primary);
 }
 
+.ph-public-logo-image {
+  display: block;
+  height: 32px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}
+
+/* 桌面左右导航：240px 不透明侧栏，菜单只在侧栏内滚动，操作区整块贴底。 */
+.ph-public-layout-side {
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+}
+
+.ph-public-layout-side-right {
+  flex-direction: row-reverse;
+}
+
+.ph-public-sider {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  width: 240px;
+  height: 100vh;
+  flex: 0 0 240px;
+  background: var(--ph-bg-container);
+  z-index: 10;
+}
+
+.ph-public-layout-side-left .ph-public-sider {
+  border-right: 1px solid var(--ph-border-color);
+}
+
+.ph-public-layout-side-right .ph-public-sider {
+  border-left: 1px solid var(--ph-border-color);
+}
+
+.ph-public-sider-brand {
+  flex: 0 0 auto;
+  padding: 16px 16px 8px;
+}
+
+.ph-public-sider .ph-public-logo {
+  /* 侧栏里的链接不是顶栏的 flex 子项，保持 inline 时 max-width 不生效，长文字会压到正文。 */
+  display: block;
+  max-width: 100%;
+}
+
+.ph-public-sider-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+
+  a {
+    color: var(--ph-text-secondary);
+    padding: 8px 12px;
+    border-radius: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+      color: var(--ph-color-primary);
+    }
+
+    &.active {
+      color: var(--ph-color-primary);
+      background: color-mix(in srgb, var(--ph-color-primary) 12%, transparent);
+    }
+  }
+}
+
+.ph-public-sider .ph-public-header-actions {
+  flex: 0 0 auto;
+  margin-left: 0;
+  justify-content: flex-start;
+  padding: 12px 16px;
+  border-top: 1px solid var(--ph-border-color);
+}
+
+.ph-public-side-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .ph-public-header-actions {
   flex: 0 0 auto;
   margin-left: auto;

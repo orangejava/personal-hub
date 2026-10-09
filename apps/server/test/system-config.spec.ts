@@ -6,7 +6,14 @@ describe('系统配置注册表', () => {
   it('缺字段时用默认值补齐，公开组装含 logoFileId 占位', () => {
     const publicConfig = assemblePublicSiteConfig(new Map());
     expect(publicConfig.siteName).toBe('Personal Hub');
+    expect(publicConfig.keywords).toBe('');
     expect(publicConfig.logoFileId).toBeNull();
+    expect(publicConfig.logoMode).toBe('text');
+    expect(publicConfig.logoText).toBe('');
+    expect(publicConfig.faviconFileId).toBeNull();
+    expect(publicConfig.faviconMode).toBe('text');
+    expect(publicConfig.faviconText).toBe('');
+    expect(publicConfig.faviconUrl).toBeNull();
     expect(publicConfig.homepage.featuredContent.contentIds).toEqual([]);
     expect(publicConfig.layout.homeHeroStyle).toBe('split');
     expect(publicConfig.layout.projectsTitle).toBe('项目');
@@ -25,6 +32,23 @@ describe('系统配置注册表', () => {
       { key: 'flutter', coverFileId: null, screenshotFileIds: [] },
       { key: 'desktop', coverFileId: null, screenshotFileIds: [] },
     ]);
+  });
+
+  it('已有 Logo 文件且没写模式时仍按图片展示', () => {
+    const publicConfig = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          { logoFileId: '3f7d05d7-ea41-4565-94d1-05152c7ae64a' },
+        ],
+      ]),
+    );
+    expect(publicConfig.logoMode).toBe('image');
+    expect(publicConfig.faviconMode).toBe('text');
+  });
+
+  it('站点名称超过 20 个字时拒绝', () => {
+    expect(() => parseGroupValue('site.general', { siteName: 'a'.repeat(21) })).toThrow();
   });
 
   it('拒绝非法颜色', () => {

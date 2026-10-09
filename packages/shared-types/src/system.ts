@@ -8,6 +8,9 @@ export type ThemeMode = 'light' | 'dark' | 'auto';
 /** 导航栏位置 */
 export type NavigationPosition = 'top' | 'left' | 'right';
 
+/** 页头 Logo / 浏览器图标用文字还是图片。 */
+export type SiteBrandMode = 'text' | 'image';
+
 /** 作品矩阵中可配置视觉资产的固定端。 */
 export const PROJECT_SHOWCASE_KEYS = [
   'user-web',
@@ -81,7 +84,18 @@ export interface AdminSiteLayoutConfig extends SiteLayoutConfig {
 export interface SystemPublicConfig {
   siteName: string;
   siteDescription?: string;
+  /** SEO keywords。空字符串表示不输出 meta。 */
+  keywords?: string;
+  /** 未上传或选择文字时不使用 logo。 */
   logo?: string;
+  logoMode?: SiteBrandMode;
+  /** 文字 Logo。空字符串表示用站点名称。 */
+  logoText?: string;
+  /** 已签名的 favicon 地址。文字模式或空图时由前台另画图标。 */
+  faviconUrl?: string | null;
+  faviconMode?: SiteBrandMode;
+  /** 文字图标，最多 2 个字。空字符串表示用站点名称的第一个字。 */
+  faviconText?: string;
   /** 首页 Hero 文案 */
   heroTitle?: string;
   heroSubtitle?: string;
