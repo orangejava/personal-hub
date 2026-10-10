@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import TextbusEditor, {
   type TextbusEditorHandle,
 } from '@/components/workspace/TextbusEditor';
-import { PageContainer } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchContentMeta } from '@/services/content';
 import {

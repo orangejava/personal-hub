@@ -3,7 +3,8 @@ import { type ContentType, ContentTypeLabel } from '@personal-hub/shared-types';
 import { Link, useIntl } from '@umijs/max';
 import { Tag } from 'antd';
 import React from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
+import ResultState from '@/components/shared/ResultState';
 import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { fetchFavorites } from '@/services/workspace';
 

@@ -18,7 +18,7 @@ import type { RcFile } from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
 import JSZip from 'jszip';
 import React, { useState } from 'react';
-import { PageContainer } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchContentMeta } from '@/services/content';
 import {

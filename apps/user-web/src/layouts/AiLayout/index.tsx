@@ -28,6 +28,7 @@ import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import PublicThemeDrawer from '@/components/PublicThemeDrawer';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import UserAccountPopover from '@/components/shared/UserAccountPopover';
@@ -606,14 +607,16 @@ const AiLayout: React.FC<AiLayoutProps> = ({
             </Space>
           </header>
           <section className="ph-ai-content">
-            {pageUnavailable && currentLeaf ? (
-              <AiUnavailableNotice
-                label={currentLeaf.label}
-                status={currentNavStatus}
-              />
-            ) : (
-              children
-            )}
+            <PerfRouteMarker>
+              {pageUnavailable && currentLeaf ? (
+                <AiUnavailableNotice
+                  label={currentLeaf.label}
+                  status={currentNavStatus}
+                />
+              ) : (
+                children
+              )}
+            </PerfRouteMarker>
           </section>
         </main>
 

@@ -2,6 +2,7 @@ import { ArrowLeftOutlined } from '@ant-design/icons';
 import { history } from '@umijs/max';
 import { Button } from 'antd';
 import React from 'react';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 
@@ -43,7 +44,8 @@ export const AuthPageShell: React.FC<{ children: React.ReactNode }> = ({
       <Button className="ph-auth-back" icon={<ArrowLeftOutlined />} type="text" onClick={goAuthBack}>
         返回
       </Button>
-      {children}
+      {/* 登录不走 PublicLayout，计时结束点放在这里，否则站内进入后写不进登录卡片。 */}
+      <PerfRouteMarker>{children}</PerfRouteMarker>
     </div>
   );
 };

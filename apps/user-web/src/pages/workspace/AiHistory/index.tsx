@@ -3,7 +3,8 @@ import type { AiConversation } from '@personal-hub/shared-types';
 import { history, Link, useIntl } from '@umijs/max';
 import { App, Button, Input, Modal, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
+import ResultState from '@/components/shared/ResultState';
 import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   batchDeleteWorkspaceAiHistory,

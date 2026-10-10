@@ -8,7 +8,7 @@ import {
 import { history, useIntl, useModel, useParams } from '@umijs/max';
 import { App, Button, Drawer, Form, Input, Select, Tooltip, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { PageContainer } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchContentMeta } from '@/services/content';
 import {

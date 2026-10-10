@@ -1,0 +1,447 @@
+/**
+ * 性能面板表层。颜色来自组件传入的站点主题变量。
+ * 断点与 apps/user-web/src/config/viewport-bands.json 一致：
+ * phoneMax 767、tabletMax 991、shortHeightMax 499。
+ */
+
+.ph-perf-shell {
+  color: var(--ph-perf-text);
+  background: var(--ph-perf-bg);
+}
+
+/* 根节点同时包着蒙层。实色只能留在抽屉面板上，否则整屏会被涂成面板底色。 */
+.ph-perf-drawer-root.ph-perf-shell {
+  background: transparent;
+}
+
+.ph-perf-drawer-root .ant-drawer-mask {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* 抽屉宽度有限，页面卡片按容器排成一列，不跟整页的多列断点走。 */
+.ph-perf-drawer-root .ph-perf-page-grid {
+  grid-template-columns: 1fr;
+}
+
+.ph-perf-dark {
+  --ph-perf-bg: #141414;
+  --ph-perf-elevated: #1f1f1f;
+  --ph-perf-text: rgba(255, 255, 255, 0.88);
+  --ph-perf-muted: rgba(255, 255, 255, 0.65);
+  --ph-perf-line: rgba(255, 255, 255, 0.12);
+  --ph-perf-good-fg: var(--ph-perf-success);
+  --ph-perf-good-bg: color-mix(in srgb, var(--ph-perf-success) 22%, transparent);
+  --ph-perf-mid-fg: var(--ph-perf-warning);
+  --ph-perf-mid-bg: color-mix(in srgb, var(--ph-perf-warning) 22%, transparent);
+  --ph-perf-poor-fg: var(--ph-perf-error);
+  --ph-perf-poor-bg: color-mix(in srgb, var(--ph-perf-error) 22%, transparent);
+}
+
+.ph-perf-light {
+  --ph-perf-bg: #f7f7f8;
+  --ph-perf-elevated: #ffffff;
+  --ph-perf-text: rgba(0, 0, 0, 0.88);
+  --ph-perf-muted: rgba(0, 0, 0, 0.65);
+  --ph-perf-line: rgba(0, 0, 0, 0.08);
+  /* 浅底上原色对比度不够，往深色混一档，好/待改进/差的语义不变。 */
+  --ph-perf-good-fg: color-mix(in srgb, var(--ph-perf-success) 72%, #06210c);
+  --ph-perf-good-bg: color-mix(in srgb, var(--ph-perf-success) 16%, #ffffff);
+  --ph-perf-mid-fg: color-mix(in srgb, var(--ph-perf-warning) 78%, #3d2a04);
+  --ph-perf-mid-bg: color-mix(in srgb, var(--ph-perf-warning) 22%, #ffffff);
+  --ph-perf-poor-fg: color-mix(in srgb, var(--ph-perf-error) 80%, #3d0808);
+  --ph-perf-poor-bg: color-mix(in srgb, var(--ph-perf-error) 12%, #ffffff);
+}
+
+.ph-perf-shell.ph-perf-dark,
+.ph-perf-shell.ph-perf-light {
+  .ant-drawer-content,
+  .ant-drawer-header,
+  .ant-drawer-body {
+    background: var(--ph-perf-bg);
+    color: var(--ph-perf-text);
+  }
+
+  .ant-drawer-title,
+  .ant-drawer-close {
+    color: var(--ph-perf-text);
+  }
+}
+
+.ph-perf-score-row,
+.ph-perf-toolbar,
+.ph-perf-card-head,
+.ph-perf-chart-head,
+.ph-perf-api-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ph-perf-score {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid var(--ph-perf-accent);
+  background: transparent;
+  font: inherit;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--ph-perf-primary);
+  cursor: help;
+
+  &:focus-visible {
+    outline: 2px solid var(--ph-perf-primary);
+    outline-offset: 4px;
+  }
+}
+
+.ph-perf-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.ph-perf-block {
+  padding: 16px;
+  background: var(--ph-perf-elevated);
+  border: 1px solid var(--ph-perf-line);
+  border-radius: 12px;
+}
+
+.ph-perf-block .ph-perf-card {
+  background: var(--ph-perf-bg);
+}
+
+.ph-perf-block .ph-perf-section-title {
+  margin-bottom: 0;
+}
+
+.ph-perf-block .ph-perf-filters {
+  margin-top: 12px;
+}
+
+.ph-perf-kicker {
+  margin: 8px 0 0;
+  color: var(--ph-perf-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ph-perf-api-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+
+.ph-perf-tip {
+  width: min(280px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+
+  p {
+    margin: 8px 0 0;
+    line-height: 1.5;
+  }
+
+  strong {
+    display: block;
+    margin-top: 8px;
+  }
+}
+
+.ph-perf-tip-dark .ph-perf-tip {
+  background: #1c1c1f;
+  color: rgba(255, 255, 255, 0.88);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.ph-perf-tip-light .ph-perf-tip {
+  background: #fff;
+  color: rgba(0, 0, 0, 0.88);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.ph-perf-tip-badge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ph-perf-primary, #722ed1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.ph-perf-tip-dark .ph-perf-tip-range,
+.ph-perf-tip-dark .ph-perf-tip-formula {
+  color: #d3adf7;
+  font-weight: 650;
+}
+
+.ph-perf-tip-light .ph-perf-tip-range,
+.ph-perf-tip-light .ph-perf-tip-formula {
+  color: #531dab;
+  font-weight: 650;
+}
+
+.ph-perf-tip-note {
+  font-size: 12px;
+}
+
+.ph-perf-tip-dark .ph-perf-tip-note {
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.ph-perf-tip-light .ph-perf-tip-note {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.ph-perf-tip-rows {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 12px;
+  }
+
+  b {
+    font-weight: 650;
+  }
+
+  em {
+    font-style: normal;
+  }
+}
+
+.ph-perf-tip-dark .ph-perf-tip-rows em {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.ph-perf-tip-light .ph-perf-tip-rows em {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.ph-perf-source,
+.ph-perf-missing {
+  color: var(--ph-perf-secondary);
+  border: 1px solid color-mix(in srgb, var(--ph-perf-secondary) 45%, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
+.ph-perf-missing {
+  display: inline-flex;
+  width: fit-content;
+  margin: 12px 0 0;
+}
+
+.ph-perf-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  p {
+    margin: 0;
+  }
+
+  .ant-btn {
+    flex: none;
+  }
+}
+
+.ph-perf-more {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ph-perf-muted {
+  color: var(--ph-perf-muted);
+}
+
+.ph-perf-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.ph-perf-page-grid,
+.ph-perf-chart-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.ph-perf-card,
+.ph-perf-chart-card,
+.ph-perf-api-card {
+  background: var(--ph-perf-elevated);
+  border: 1px solid var(--ph-perf-line);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.ph-perf-card h3,
+.ph-perf-chart-card h3,
+.ph-perf-section-title {
+  margin: 0;
+  color: var(--ph-perf-text);
+  font-size: 16px;
+}
+
+.ph-perf-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ph-perf-cell {
+  border-radius: 8px;
+  padding: 8px;
+  min-width: 0;
+
+  strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 16px;
+  }
+}
+
+.ph-perf-cell-label {
+  font-size: 12px;
+  cursor: help;
+  border: 0;
+  border-bottom: 1px dashed currentColor;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+
+.ph-perf-tier-good {
+  background: var(--ph-perf-good-bg);
+  color: var(--ph-perf-good-fg);
+}
+
+.ph-perf-tier-needs-improvement {
+  background: var(--ph-perf-mid-bg);
+  color: var(--ph-perf-mid-fg);
+}
+
+.ph-perf-tier-poor {
+  background: var(--ph-perf-poor-bg);
+  color: var(--ph-perf-poor-fg);
+}
+
+.ph-perf-tier-unknown {
+  background: color-mix(in srgb, var(--ph-perf-muted) 12%, transparent);
+  color: var(--ph-perf-muted);
+}
+
+.ph-perf-chart-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.ph-perf-chart-inner {
+  min-width: 560px;
+}
+
+.ph-perf-api-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 1px solid var(--ph-perf-line);
+    color: var(--ph-perf-text);
+    white-space: nowrap;
+  }
+
+  th:first-child,
+  td:first-child {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+.ph-perf-api-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-perf-page {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* 桌面 ≥992：卡片多列。平板 768–991 两列。手机 ≤767 单列。 */
+@media (min-width: 992px) {
+  .ph-perf-page-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ph-perf-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  .ph-perf-page-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ph-perf-chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .ph-perf-page-grid,
+  .ph-perf-chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ph-perf-score {
+    font-size: 48px;
+  }
+
+  .ph-perf-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* 矮屏 ≤499：抽屉撑满可视高度，内容在内部滚动。 */
+@media (max-height: 499px) {
+  .ph-perf-drawer-root .ant-drawer-content-wrapper {
+    height: 100dvh;
+    max-height: 100dvh;
+    top: 0;
+  }
+
+  .ph-perf-drawer-root .ant-drawer-body {
+    overflow: auto;
+  }
+}

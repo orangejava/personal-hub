@@ -35,6 +35,11 @@ export default [
     component: './public/About',
   },
   {
+    path: '/status',
+    layout: false,
+    component: './public/Status',
+  },
+  {
     path: '/ai',
     layout: false,
     routes: [

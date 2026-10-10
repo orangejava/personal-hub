@@ -3,7 +3,9 @@ import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, Col, Row, Typography } from 'antd';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
-import { ContentCard, ErrorState, SectionSkeleton } from '@/components/shared';
+import ContentCard from '@/components/shared/ContentCard';
+import ErrorState from '@/components/shared/ErrorState';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { fetchFeatured, fetchContentMeta } from '@/services/content';
 
 const { Title, Paragraph } = Typography;

@@ -13,7 +13,7 @@ import type {
 import { AiPageHeader, AiTemplateCard } from '@/components/ai';
 import AiLayout from '@/layouts/AiLayout';
 import { fetchAiHome } from '@/services/ai';
-import { ResultState } from '@/components/shared';
+import ResultState from '@/components/shared/ResultState';
 
 const toolStatusMeta: Record<AiToolStatus, { color: string; text: string }> = {
   enabled: { color: 'blue', text: '可用' },

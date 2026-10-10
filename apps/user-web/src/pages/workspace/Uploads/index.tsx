@@ -3,7 +3,8 @@ import type { UploadTaskItem } from '@personal-hub/shared-types';
 import { history, useIntl } from '@umijs/max';
 import { App, Button, Popconfirm, Progress, Select, Tag } from 'antd';
 import React, { useEffect, useRef, useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
+import ResultState from '@/components/shared/ResultState';
 import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import {
   fetchMyUploadTasks,

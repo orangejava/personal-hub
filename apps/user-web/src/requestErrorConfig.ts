@@ -8,6 +8,7 @@ import {
   getMockBridgeToken,
   isNestAuthEnabled,
 } from '@personal-hub/api-client';
+import { beginApiTiming, finishApiTiming } from '@/utils/perf/apiTiming';
 
 const NEST_ENVELOPE_KEYS = new Set(['data', 'requestId', 'error', 'success']);
 
@@ -73,6 +74,8 @@ export const errorConfig: RequestConfig = {
       }
     },
     errorHandler: (error: any, opts: any) => {
+      // 只记最终失败，不改变后面的 toast 和 401 跳转。
+      finishApiTiming(error?.config, { ok: false });
       if (opts?.skipErrorHandler) throw error;
 
       if (error?.name === 'BizError') {
@@ -138,18 +141,28 @@ export const errorConfig: RequestConfig = {
           headers.Authorization = `Bearer ${token}`;
         }
       }
-      return {
+      return beginApiTiming({
         ...config,
         headers,
         credentials: 'include',
-      };
+      });
     },
   ],
 
   responseInterceptors: [
-    (response) => ({
-      ...response,
-      data: unwrapResponseData(response.data),
-    }),
+    (response) => {
+      const config = response.config as { phPerfId?: string } | undefined;
+      try {
+        const data = unwrapResponseData<typeof response.data>(response.data);
+        finishApiTiming(config, { ok: true });
+        return {
+          ...response,
+          data,
+        };
+      } catch (error) {
+        finishApiTiming(config, { ok: false });
+        throw error;
+      }
+    },
   ],
 };
