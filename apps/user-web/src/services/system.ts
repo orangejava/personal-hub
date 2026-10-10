@@ -11,13 +11,59 @@ import {
 } from '@personal-hub/api-client';
 import { request } from '@umijs/max';
 
+export interface PublicHomepageModule {
+  key: string;
+  title: string;
+  visible: boolean;
+  sort: number;
+}
+
+export interface PublicHomepageConfig {
+  hero: {
+    title: string;
+    subtitle: string;
+    primaryAction: { label: string; target: string };
+    secondaryAction: { label: string; target: string };
+  };
+  modules: PublicHomepageModule[];
+  aiTools: { key: string; title: string; description: string; enabled: boolean }[];
+  techStack: { name: string; icon?: string; category: string }[];
+}
+
+/** 公开配置在扁平字段之外，再带上首页区块。页面读的是解包后的对象。 */
+export type PublicSiteView = SystemPublicConfig & {
+  homepage?: PublicHomepageConfig;
+};
+
+type PublicSitePayload = NestPublicSiteConfig & {
+  homepage?: NestPublicSiteConfig['homepage'] & {
+    modules?: PublicHomepageModule[];
+    aiTools?: PublicHomepageConfig['aiTools'];
+    techStack?: PublicHomepageConfig['techStack'];
+  };
+};
+
+function readHomepage(payload: PublicSitePayload): PublicHomepageConfig | undefined {
+  const homepage = payload.homepage;
+  if (!homepage?.hero?.title) return undefined;
+  return {
+    hero: {
+      title: homepage.hero.title,
+      subtitle: homepage.hero.subtitle,
+      primaryAction: homepage.hero.primaryAction ?? { label: '浏览内容', target: '/content' },
+      secondaryAction: homepage.hero.secondaryAction ?? { label: '关于我', target: '/about' },
+    },
+    modules: homepage.modules ?? [],
+    aiTools: homepage.aiTools ?? [],
+    techStack: homepage.techStack ?? [],
+  };
+}
+
 /**
  * api-client 热更新滞后时，从 Nest 原始 payload 补齐 about/layout。
+ * 首页区块不写入共享的扁平配置，避免和其他 worktree 抢同一处类型。
  */
-function enrichPublicConfig(
-  payload: NestPublicSiteConfig,
-  mapped: SystemPublicConfig,
-): SystemPublicConfig {
+function enrichPublicConfig(payload: PublicSitePayload, mapped: SystemPublicConfig): PublicSiteView {
   const about = payload.about;
   const layout = payload.layout;
   return {
@@ -26,11 +72,12 @@ function enrichPublicConfig(
       ? { title: about.title ?? '关于我', markdown: about.markdown ?? '' }
       : undefined),
     layout: mapped.layout ?? layout,
+    homepage: readHomepage(payload),
   };
 }
 
 export async function fetchPublicConfig() {
-  const res = await request<NestPublicSiteConfig>('/api/v1/public/site-config', {
+  const res = await request<PublicSitePayload>('/api/v1/public/site-config', {
     skipErrorHandler: true,
   });
   const payload = readNestData(res);

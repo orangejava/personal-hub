@@ -8,6 +8,7 @@ import {
   AI_MEDIA_RESOLUTION_LABELS,
   formatAiMediaParamLabel,
 } from '@/components/ai/mediaLabels';
+import { renderImagePreviewActions } from '@/components/shared/imagePreviewActions';
 import { downloadAiAsset, releaseAiAssetObjectUrl, resolveAiAssetObjectUrl } from '@/services/ai';
 
 export interface AiMediaDetailModalProps {
@@ -256,6 +257,10 @@ const AiMediaDetailModal: React.FC<AiMediaDetailModalProps> = ({
                 open: previewOpen,
                 src: previewSrc,
                 onOpenChange: setPreviewOpen,
+                actionsRender: (original, info) =>
+                  renderImagePreviewActions(original, info, {
+                    save: () => downloadAiAsset(current),
+                  }),
               }}
               src={previewSrc}
               style={{ display: 'none' }}

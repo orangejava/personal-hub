@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="Desktop app">
+  <rect width="1200" height="760" fill="#2a2418"/>
+  <rect x="70" y="48" width="1060" height="600" rx="24" fill="#1c1812" stroke="#e8d7a8" stroke-dasharray="12 8" stroke-width="4"/>
+  <rect x="102" y="80" width="996" height="44" rx="10" fill="#3a3224"/>
+  <circle cx="130" cy="102" r="7" fill="#ff5f57"/>
+  <circle cx="154" cy="102" r="7" fill="#febc2e"/>
+  <circle cx="178" cy="102" r="7" fill="#28c840"/>
+  <rect x="102" y="148" width="620" height="450" rx="16" fill="#f7f1e4"/>
+  <rect x="134" y="180" width="280" height="28" rx="8" fill="#2a2418"/>
+  <rect x="134" y="228" width="500" height="14" rx="7" fill="#d9cbb0"/>
+  <rect x="134" y="256" width="420" height="14" rx="7" fill="#d9cbb0"/>
+  <rect x="134" y="320" width="250" height="180" rx="14" fill="#efe4cc"/>
+  <rect x="404" y="320" width="270" height="180" rx="14" fill="#efe4cc"/>
+  <rect x="748" y="148" width="350" height="210" rx="16" fill="#3a3224"/>
+  <rect x="776" y="180" width="180" height="16" rx="8" fill="#f7f1e4"/>
+  <rect x="776" y="214" width="260" height="12" rx="6" fill="#b5a584"/>
+  <rect x="748" y="380" width="350" height="218" rx="16" fill="#3a3224"/>
+  <rect x="470" y="668" width="260" height="16" rx="8" fill="#6d624c"/>
+  <rect x="390" y="696" width="420" height="18" rx="6" fill="#4a4030"/>
+</svg>

@@ -1,0 +1,46 @@
+{
+  "purpose": "随代码提交的公开占位图。以后素材库按 path 收录。后台上传的封面不在这里，它们在 site.layout.projectVisualAssets 的文件 ID 里，按各自环境的对象存储走。",
+  "shippedWith": "user-web 构建。Umi 把 public 拷进 dist，生产 Nginx 镜像再拷 dist。不是数据库迁移。",
+  "items": [
+    {
+      "path": "/images/showcase/user-web.svg",
+      "file": "apps/user-web/public/images/showcase/user-web.svg",
+      "usedBy": ["项目页用户端卡片", "首页作品预告"]
+    },
+    {
+      "path": "/images/showcase/admin-web.svg",
+      "file": "apps/user-web/public/images/showcase/admin-web.svg",
+      "usedBy": ["项目页管理端卡片", "首页作品预告"]
+    },
+    {
+      "path": "/images/showcase/server.svg",
+      "file": "apps/user-web/public/images/showcase/server.svg",
+      "usedBy": ["项目页服务端卡片", "首页作品预告"]
+    },
+    {
+      "path": "/images/showcase/flutter.svg",
+      "file": "apps/user-web/public/images/showcase/flutter.svg",
+      "usedBy": ["项目页 Flutter 卡片", "首页作品预告"]
+    },
+    {
+      "path": "/images/showcase/desktop.svg",
+      "file": "apps/user-web/public/images/showcase/desktop.svg",
+      "usedBy": ["项目页桌面端卡片", "首页作品预告"]
+    },
+    {
+      "path": "/images/home/featured-reading.svg",
+      "file": "apps/user-web/public/images/home/featured-reading.svg",
+      "usedBy": ["首页精选示例：阅读笔记"]
+    },
+    {
+      "path": "/images/home/featured-ai.svg",
+      "file": "apps/user-web/public/images/home/featured-ai.svg",
+      "usedBy": ["首页精选示例：AI 引用"]
+    },
+    {
+      "path": "/images/home/featured-structure.svg",
+      "file": "apps/user-web/public/images/home/featured-structure.svg",
+      "usedBy": ["首页精选示例：站点结构"]
+    }
+  ]
+}

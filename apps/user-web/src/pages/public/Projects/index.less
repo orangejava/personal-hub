@@ -1,0 +1,292 @@
+.ph-projects {
+  max-width: 100%;
+  overflow-x: clip;
+  color: var(--ph-text-primary);
+}
+
+.ph-projects-header h1,
+.ph-projects-more h2,
+.ph-project-progress h2,
+.ph-project-card h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ph-projects-header p,
+.ph-projects-overview p,
+.ph-project-card p {
+  color: var(--ph-text-secondary);
+  line-height: 1.7;
+}
+
+.ph-projects-overview {
+  margin: 28px 0 40px;
+}
+
+.ph-architecture {
+  margin: 28px 0 0;
+}
+
+.ph-architecture figcaption {
+  margin-bottom: 16px;
+  color: var(--ph-text-secondary);
+}
+
+.ph-architecture-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.ph-architecture-clients,
+.ph-architecture-stores {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.ph-architecture-clients span,
+.ph-architecture-stores span,
+.ph-architecture-flow strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--ph-border-color);
+  border-radius: 999px;
+  background: var(--ph-bg-container);
+}
+
+.ph-architecture .is-planned {
+  border-style: dashed;
+  color: var(--ph-text-tertiary);
+}
+
+.ph-architecture-join {
+  position: relative;
+  flex: 0 0 36px;
+  height: 1px;
+  background: var(--ph-border-color);
+}
+
+.ph-architecture-join::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--ph-text-tertiary);
+}
+
+.ph-project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ph-project-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--ph-border-color);
+  border-radius: var(--ph-radius);
+  background: var(--ph-bg-container);
+  overflow: hidden;
+}
+
+.ph-project-cover,
+.ph-project-card .ant-image,
+.ph-project-card .ant-image-img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  background: var(--ph-bg-spotlight);
+}
+
+.ph-project-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ph-project-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ph-project-stack,
+.ph-project-highlights,
+.ph-project-progress ol,
+.ph-project-progress ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-project-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ph-project-stack li {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ph-bg-spotlight);
+  color: var(--ph-text-secondary);
+  font-size: 12px;
+}
+
+.ph-project-highlights li {
+  position: relative;
+  padding-left: 12px;
+  color: var(--ph-text-secondary);
+}
+
+.ph-project-highlights li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ph-text-tertiary);
+}
+
+.ph-project-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ph-project-links a {
+  color: var(--ph-color-primary);
+}
+
+.ph-project-progress,
+.ph-projects-more {
+  margin-top: 72px;
+}
+
+.ph-project-progress h2,
+.ph-projects-more h2 {
+  margin-bottom: 20px;
+}
+
+.ph-project-progress > ol > li {
+  position: relative;
+  padding: 0 0 28px 20px;
+  border-left: 1px solid var(--ph-border-color);
+}
+
+.ph-project-progress > ol > li:last-child {
+  padding-bottom: 0;
+  border-left-color: transparent;
+}
+
+.ph-project-progress > ol > li::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ph-color-primary);
+}
+
+.ph-project-progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.ph-project-progress h3 {
+  margin: 0;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.ph-project-progress time,
+.ph-project-progress ul {
+  color: var(--ph-text-secondary);
+}
+
+.ph-project-progress ul {
+  margin-top: 8px;
+  padding-left: 18px;
+  list-style: disc;
+}
+
+.ph-projects-more-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ph-projects-more-note {
+  max-width: 40rem;
+  color: var(--ph-text-secondary);
+}
+
+/* 平板 768–991：两列。手机 ≤767：单列。数字来自 viewport-bands.json。 */
+@media (max-width: 991px) {
+  .ph-architecture-flow {
+    flex-direction: column;
+  }
+
+  .ph-architecture-join {
+    flex-basis: 1px;
+    width: 1px;
+    height: 28px;
+  }
+
+  .ph-architecture-join::after {
+    top: auto;
+    right: auto;
+    bottom: 0;
+    left: -4px;
+    border-top: 6px solid var(--ph-text-tertiary);
+    border-right: 4px solid transparent;
+    border-bottom: 0;
+    border-left: 4px solid transparent;
+  }
+
+  .ph-project-grid,
+  .ph-projects-more-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 原因同首页：手机档要让文档跟着内容变高，否则作品矩阵滑不到底。
+   类名只在本页挂载时存在。 */
+@media (max-width: 767px) {
+  html.ph-document-grows,
+  body.ph-document-grows,
+  #root.ph-document-grows {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .ph-project-grid,
+  .ph-projects-more-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (pointer: coarse) {
+  .ph-project-links a,
+  .ph-project-card .ant-image {
+    min-height: 44px;
+  }
+}

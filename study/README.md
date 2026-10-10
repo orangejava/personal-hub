@@ -17,6 +17,7 @@
 - [features/markdown-booklet-reading.md](./features/markdown-booklet-reading.md)：Markdown 渲染 + 目录提取 + 多类型内容分发 + 本地小册同步脚本。
 - [features/react-first-phase-0-3.md](./features/react-first-phase-0-3.md)：React-first 阶段 0–3 合并复盘（权限、主题分离、菜单 i18n、文档预览选型）。
 - [features/react-experience-system.md](./features/react-experience-system.md)：阶段 4.5 体验系统（动效、骨架屏、结果态、操作反馈）。
+- [features/home-showcase-motion.md](./features/home-showcase-motion.md)：首页按滚动逐块出现时，动效封装、延迟请求和手机文档高度。
 - [features/ai-composer-layout.md](./features/ai-composer-layout.md)：AI 三页统一布局、可配置输入框、配置弹窗和多类型消息渲染。
 - [features/nest-auth-login-slice.md](./features/nest-auth-login-slice.md)：Nest 登录切片、内存 Access Token 与 Refresh Cookie。
 - [features/nest-auth-permissions.md](./features/nest-auth-permissions.md)：权限快照、菜单过滤与前端 routeKey 注册表。

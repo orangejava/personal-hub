@@ -1,0 +1,397 @@
+.ph-home {
+  max-width: 100%;
+  overflow-x: clip;
+  color: var(--ph-text-primary);
+}
+
+.ph-home-section {
+  width: min(var(--ph-content-max-width), 100%);
+  margin: 0 auto;
+  padding: 72px var(--ph-page-padding);
+}
+
+.ph-home-section h2,
+.ph-home-hero-copy h1 {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ph-text-primary);
+}
+
+.ph-home-hero-stage {
+  position: relative;
+  min-height: calc(100svh - var(--ph-header-height));
+  padding: 48px var(--ph-page-padding) 72px;
+  background: var(--ph-hero-gradient);
+}
+
+.ph-home-hero-inner {
+  display: grid;
+  align-items: center;
+  width: min(var(--ph-content-max-width), 100%);
+  min-height: calc(100svh - var(--ph-header-height) - 120px);
+  margin: 0 auto;
+}
+
+.ph-home-hero-stage-split .ph-home-hero-inner {
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  gap: 48px;
+}
+
+.ph-home-hero-stage-center,
+.ph-home-hero-stage-minimal {
+  justify-items: center;
+  text-align: center;
+}
+
+.ph-home-hero-stage-center .ph-home-hero-copy,
+.ph-home-hero-stage-minimal .ph-home-hero-copy {
+  max-width: 18em;
+}
+
+/* 矮屏高度来自 viewport-bands.json shortHeightMax。矮屏不强制满屏。 */
+.ph-home-hero-stage-short {
+  min-height: 0;
+}
+
+.ph-home-hero-copy h1 {
+  font-size: clamp(40px, 7vw, 88px);
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.ph-home-hero-copy p {
+  max-width: 36rem;
+  margin: 20px 0 0;
+  color: var(--ph-text-secondary);
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+.ph-home-hero-stage-center .ph-home-hero-copy p,
+.ph-home-hero-stage-minimal .ph-home-hero-copy p {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ph-home-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.ph-home-hero-stage-center .ph-home-hero-actions,
+.ph-home-hero-stage-minimal .ph-home-hero-actions,
+.ph-home-ending .ph-home-hero-actions {
+  justify-content: center;
+}
+
+.ph-home-hero-visual {
+  position: relative;
+  height: min(420px, 52vh);
+}
+
+.ph-home-hero-visual span {
+  position: absolute;
+  display: block;
+  border: 1px solid var(--ph-border-color);
+  background: color-mix(in srgb, var(--ph-color-primary) 16%, var(--ph-bg-container));
+}
+
+.ph-home-hero-visual span:nth-child(1) {
+  inset: 12% 8% 18% 18%;
+}
+
+.ph-home-hero-visual span:nth-child(2) {
+  inset: 28% 22% 8% 4%;
+  background: color-mix(in srgb, var(--ph-color-primary) 8%, transparent);
+}
+
+.ph-home-hero-visual span:nth-child(3) {
+  width: 28%;
+  height: 28%;
+  right: 0;
+  bottom: 0;
+}
+
+.ph-home-scroll-hint {
+  position: absolute;
+  left: var(--ph-page-padding);
+  bottom: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ph-text-tertiary);
+  cursor: pointer;
+}
+
+.ph-home-capability-frame,
+.ph-home-capability-stack {
+  display: grid;
+  gap: 24px;
+}
+
+.ph-home-capability-frame {
+  height: 100%;
+  grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+  align-items: center;
+  width: min(var(--ph-content-max-width), 100%);
+  margin: 0 auto;
+  padding: 0 var(--ph-page-padding);
+}
+
+.ph-home-capability-stage {
+  display: grid;
+}
+
+.ph-home-capability {
+  padding: 28px;
+  border: 1px solid var(--ph-border-color);
+  border-radius: var(--ph-radius);
+  background: var(--ph-bg-container);
+}
+
+.ph-home-capability-stage .ph-home-capability {
+  grid-area: 1 / 1;
+  opacity: 0.28;
+}
+
+.ph-home-capability-stage .ph-home-capability.is-active {
+  opacity: 1;
+}
+
+.ph-home-capability h3,
+.ph-home-tech-groups h3 {
+  margin: 0 0 8px;
+}
+
+.ph-home-capability p,
+.ph-home-ending p {
+  margin: 0;
+  color: var(--ph-text-secondary);
+  line-height: 1.7;
+}
+
+.ph-home-categories,
+.ph-home-ai-row,
+.ph-home-featured-grid,
+.ph-home-tech-groups {
+  display: grid;
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.ph-home-categories {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ph-home-categories a,
+.ph-home-ai-card,
+.ph-home-showcase-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ph-home-categories a,
+.ph-home-ai-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--ph-border-color);
+  border-radius: var(--ph-radius);
+  background: var(--ph-bg-container);
+}
+
+.ph-home-categories a span,
+.ph-home-ai-card span {
+  color: var(--ph-text-tertiary);
+}
+
+.ph-home-ai-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ph-home-ai-card {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  flex-direction: column;
+}
+
+.ph-home-section-note {
+  max-width: 40rem;
+  margin: 12px 0 0;
+  color: var(--ph-text-secondary);
+}
+
+.ph-home-featured-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ph-home-sample-card {
+  overflow: hidden;
+  border: 1px solid var(--ph-border-color);
+  border-radius: var(--ph-radius);
+  background: var(--ph-bg-container);
+}
+
+.ph-home-sample-card img {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  background: var(--ph-bg-spotlight);
+}
+
+.ph-home-sample-card div {
+  padding: 16px;
+}
+
+.ph-home-sample-card span,
+.ph-home-sample-card p {
+  color: var(--ph-text-secondary);
+}
+
+.ph-home-sample-card h3 {
+  margin: 8px 0;
+  overflow-wrap: anywhere;
+}
+
+.ph-home-showcase-list {
+  margin-top: 12px;
+}
+
+.ph-home-showcase-row {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--ph-border-color);
+  font-size: clamp(22px, 3vw, 40px);
+  line-height: 1.2;
+}
+
+.ph-home-showcase-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ph-text-secondary);
+  font-size: 16px;
+}
+
+.ph-home-showcase-meta i {
+  width: 48px;
+  height: 1px;
+  background: var(--ph-border-color);
+}
+
+.ph-home-showcase-cover {
+  position: absolute;
+  right: 28%;
+  top: 50%;
+  width: 180px;
+  height: 112px;
+  object-fit: cover;
+  border-radius: var(--ph-radius);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.ph-home-tech-groups {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ph-home-tech-groups ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-home-tech-groups li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ph-border-color);
+}
+
+.ph-home-ending {
+  text-align: center;
+}
+
+.ph-home-ending p {
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.25;
+  color: var(--ph-text-primary);
+}
+
+/* 悬停预览只在桌面且不是矮屏。数字来自 viewport-bands.json。 */
+@media (min-width: 992px) and (min-height: 500px) {
+  .ph-home-showcase-row:hover .ph-home-showcase-cover {
+    opacity: 1;
+  }
+}
+
+/* 平板上限 991。平板和更窄的档不用滚动场景，卡片改为更紧的网格。 */
+@media (max-width: 991px) {
+  .ph-home-hero-stage-split .ph-home-hero-inner {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+
+  .ph-home-hero-visual {
+    display: none;
+  }
+
+  .ph-home-categories,
+  .ph-home-ai-row,
+  .ph-home-featured-grid,
+  .ph-home-tech-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* 手机上限 767。整档同一套单列。
+   html/body/#root 在全局是 height 100%，再叠加 overflow-x:hidden 后，
+   长页面不会撑开文档，手机上滑不到后面的区块。
+   类名只在本页挂载时存在，离开后样式不再作用到别的页面。 */
+@media (max-width: 767px) {
+  html.ph-document-grows,
+  body.ph-document-grows,
+  #root.ph-document-grows {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .ph-home-section {
+    padding: 48px var(--ph-page-padding);
+  }
+
+  .ph-home-hero-copy h1 {
+    font-size: 40px;
+  }
+
+  .ph-home-categories,
+  .ph-home-ai-row,
+  .ph-home-featured-grid,
+  .ph-home-tech-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .ph-home-showcase-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* 触屏热区不小于 viewport-bands.json 的 controlMinSize。 */
+@media (pointer: coarse) {
+  .ph-home-hero-actions .ant-btn,
+  .ph-home-categories a,
+  .ph-home-ai-card,
+  .ph-home-scroll-hint,
+  .ph-home-showcase-row {
+    min-height: 44px;
+  }
+}

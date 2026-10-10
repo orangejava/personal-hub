@@ -18,7 +18,14 @@ export default defineConfig({
   hash: true,
   esbuildMinifyIIFE: true,
   publicPath: PUBLIC_PATH,
-  routes,
+  // /__motion 只给开发环境验收动效组件。生产构建不注册，也不进公开菜单。
+  routes:
+    process.env.NODE_ENV === 'production'
+      ? routes
+      : [
+          ...routes,
+          { path: '/__motion', layout: false, component: './dev/MotionLab' },
+        ],
   ignoreMomentLocale: true,
   proxy: proxy[UMI_ENV as keyof typeof proxy],
   fastRefresh: true,

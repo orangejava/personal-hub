@@ -14,6 +14,7 @@
 | [prod-startup-order.md](./prod-startup-order.md) | 首次上线检查清单 | 第一次上线时 |
 | [tencent-cloud-prep.md](./tencent-cloud-prep.md) | 腾讯云：COS、SMTP、域名、HTTPS | 控制台准备时 |
 | [domain-https.md](./domain-https.md) | **下一步（main）**：域名与备案已完成后，切 HTTPS，开启 Nginx gzip 与静态资源缓存 | 切域名时 |
+| [public-image-assets.md](./public-image-assets.md) | 首页和项目页占位图如何随用户端构建上生产 | 发布带这些图的前端时 |
 | [nest-compose-strategy.md](./nest-compose-strategy.md) | Compose 拓扑、COS、Worker、备份与发布原则 | 了解架构时 |
 | [old/README.md](./old/README.md) | 阶段 A 和旧部署方案索引 | 追溯历史时 |
 

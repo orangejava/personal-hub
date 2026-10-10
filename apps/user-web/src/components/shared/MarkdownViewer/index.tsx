@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import MarkdownCodeBlock from '@/components/shared/MarkdownCodeBlock';
+import { renderImagePreviewActions } from '@/components/shared/imagePreviewActions';
 import {
   normalizeImageUrl,
   resolveMarkdownImageSrc,
@@ -94,7 +95,7 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
 
   const content = useMemo(
     () => (
-      <Image.PreviewGroup>
+      <Image.PreviewGroup preview={{ actionsRender: renderImagePreviewActions }}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{

@@ -53,6 +53,44 @@ describe('系统配置注册表', () => {
     ).toThrow();
   });
 
+  it('旧首页模块只有 4 个 key 时补上新区块，并保留已保存的显隐', () => {
+    const homepage = parseGroupValue('site.homepage', {
+      modules: [
+        { key: 'hero', title: 'Hero 区块', visible: true, sort: 1 },
+        { key: 'featured', title: '精选内容', visible: false, sort: 2 },
+        { key: 'aiTools', title: 'AI 工具推荐', visible: true, sort: 3 },
+        { key: 'techStack', title: '技术栈展示', visible: true, sort: 4 },
+      ],
+    }) as { modules: { key: string; visible: boolean; sort: number }[] };
+    expect(homepage.modules.map((item) => item.key)).toEqual([
+      'hero',
+      'capabilities',
+      'featured',
+      'aiTools',
+      'showcase',
+      'techStack',
+      'performance',
+    ]);
+    expect(homepage.modules.find((item) => item.key === 'featured')?.visible).toBe(false);
+    expect(homepage.modules.find((item) => item.key === 'capabilities')?.visible).toBe(true);
+  });
+
+  it('首页模块已包含全部默认 key 时尊重后台保存的排序', () => {
+    const homepage = parseGroupValue('site.homepage', {
+      modules: [
+        { key: 'techStack', title: '技术栈展示', visible: true, sort: 1 },
+        { key: 'hero', title: 'Hero 区块', visible: false, sort: 2 },
+        { key: 'capabilities', title: '平台能力', visible: true, sort: 3 },
+        { key: 'featured', title: '精选内容与分类入口', visible: true, sort: 4 },
+        { key: 'aiTools', title: 'AI 工具推荐', visible: true, sort: 5 },
+        { key: 'showcase', title: '作品矩阵预告', visible: true, sort: 6 },
+        { key: 'performance', title: '性能数据', visible: true, sort: 7 },
+      ],
+    }) as { modules: { key: string; visible: boolean; sort: number }[] };
+    expect(homepage.modules.find((item) => item.key === 'techStack')?.sort).toBe(1);
+    expect(homepage.modules.find((item) => item.key === 'hero')?.visible).toBe(false);
+  });
+
   it('拒绝单端超过六张截图', () => {
     expect(() =>
       parseGroupValue('site.layout', {
@@ -60,8 +98,9 @@ describe('系统配置注册表', () => {
           {
             key: 'user-web',
             coverFileId: null,
-            screenshotFileIds: Array.from({ length: 7 }, (_, index) =>
-              `00000000-0000-4000-8000-00000000000${index}`,
+            screenshotFileIds: Array.from(
+              { length: 7 },
+              (_, index) => `00000000-0000-4000-8000-00000000000${index}`,
             ),
           },
           { key: 'admin-web', coverFileId: null, screenshotFileIds: [] },

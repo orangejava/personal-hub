@@ -1,83 +1,114 @@
-import { Col, Pagination, Row, Typography } from 'antd';
-import { useRequest } from '@/hooks/useRequest';
+import { ContentType } from '@personal-hub/shared-types';
 import { useModel } from '@umijs/max';
-import React, { useState } from 'react';
+import { Tag } from 'antd';
+import React from 'react';
+import { MotionRoot, Reveal } from '@/components/motion';
+import { ContentCard, SectionSkeleton } from '@/components/shared';
+import { PROJECT_PROGRESS, PROJECT_SHOWCASE } from '@/config/projectShowcase';
+import { useDocumentGrows } from '@/hooks/useDocumentGrows';
+import { useRequest } from '@/hooks/useRequest';
 import PublicLayout from '@/layouts/PublicLayout';
-import {
-  AnimatedList,
-  ContentCard,
-  ErrorState,
-  ResultState,
-  SectionSkeleton,
-} from '@/components/shared';
-import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { fetchContentList } from '@/services/content';
 import { fetchPublicConfig } from '@/services/system';
-import { ContentType } from '@personal-hub/shared-types';
+import ArchitectureDiagram from './ArchitectureDiagram';
+import ShowcaseCard from './ShowcaseCard';
+import './index.less';
 
-const { Title, Paragraph } = Typography;
-
-/** 项目页：标题/简介来自系统配置，列表仍按内容类型 Project 拉取。 */
+/** 项目页改成作品矩阵。文字来自静态配置，图片只读公开资产 URL。 */
 const Projects: React.FC = () => {
+  useDocumentGrows();
   const { initialState } = useModel('@@initialState');
   const { data: liveConfig } = useRequest(fetchPublicConfig);
   const layout = liveConfig?.layout ?? initialState?.systemConfig?.layout;
+  const assets =
+    liveConfig?.projectVisualAssets ??
+    initialState?.systemConfig?.projectVisualAssets ??
+    [];
+  const assetByKey = new Map(assets.map((item) => [item.key, item]));
   const title = layout?.projectsTitle?.trim() || '项目';
   const intro = layout?.projectsIntro?.trim();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_TABLE_PAGE_SIZE);
-  const { data, loading, error, run } = useRequest(
-    () => fetchContentList({ type: ContentType.Project, page, pageSize }),
-    { refreshDeps: [page, pageSize] },
+  // 更多作品先只展示一篇。分页等作品多了再加回来。
+  const { data, loading, error } = useRequest(() =>
+    fetchContentList({ type: ContentType.Project, page: 1, pageSize: 1 }),
   );
-  const list = data?.list ?? [];
-  const total = data?.total ?? 0;
-
-  const handlePageChange = (nextPage: number, nextSize: number) => {
-    setPage(nextPage);
-    setPageSize(nextSize);
-  };
+  const featuredWork = data?.list?.[0];
+  const showWork = !loading && !error && featuredWork != null;
 
   return (
     <PublicLayout>
-      <Title level={2} style={{ marginTop: 0 }}>
-        {title}
-      </Title>
-      {intro ? (
-        <Paragraph type="secondary" style={{ marginBottom: 24 }}>
-          {intro}
-        </Paragraph>
-      ) : null}
-      {error && <ErrorState onRetry={run} />}
-      {loading ? (
-        <SectionSkeleton variant="card" count={3} columns={3} />
-      ) : list.length > 0 ? (
-        <>
-          <Row gutter={16}>
-            <AnimatedList
-              items={list}
-              getKey={(item) => item.id}
-              wrapItem={false}
-              renderItem={(item) => (
-                <Col xs={24} md={12} lg={8}>
-                  <ContentCard item={item} />
-                </Col>
-              )}
-            />
-          </Row>
-          <div style={{ textAlign: 'center', marginTop: 24 }}>
-            <Pagination
-              {...DEFAULT_TABLE_PAGINATION}
-              current={page}
-              pageSize={pageSize}
-              total={total}
-              onChange={handlePageChange}
-            />
-          </div>
-        </>
-      ) : (
-        <ResultState status="empty" description="暂无项目，将在后续补充" />
-      )}
+      <MotionRoot>
+        <div className="ph-projects">
+          <header className="ph-projects-header">
+            <h1>{title}</h1>
+            {intro ? <p>{intro}</p> : null}
+          </header>
+
+          <section className="ph-projects-overview">
+            <Reveal>
+              <p>personal-hub 把公开前台、管理端和服务端接在同一套接口上。</p>
+              <ArchitectureDiagram />
+            </Reveal>
+          </section>
+
+          <section className="ph-project-grid">
+            {PROJECT_SHOWCASE.map((item) => (
+              <ShowcaseCard
+                key={item.key}
+                item={item}
+                asset={assetByKey.get(item.key)}
+              />
+            ))}
+          </section>
+
+          <section className="ph-project-progress">
+            <h2>项目进度</h2>
+            <ol>
+              {PROJECT_PROGRESS.map((entry) => (
+                <li key={entry.key}>
+                  <div className="ph-project-progress-head">
+                    <h3>{entry.title}</h3>
+                    <Tag
+                      color={
+                        entry.status === '进行中' ? 'processing' : 'default'
+                      }
+                    >
+                      {entry.status}
+                    </Tag>
+                    {entry.publishedAt ? (
+                      <time dateTime={entry.publishedAt}>
+                        {entry.publishedAt}
+                      </time>
+                    ) : null}
+                  </div>
+                  <ul>
+                    {entry.changes.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="ph-projects-more">
+            <h2>更多作品</h2>
+            {loading ? (
+              <SectionSkeleton variant="card" count={1} columns={1} />
+            ) : null}
+            {showWork && featuredWork ? (
+              <div className="ph-projects-more-list">
+                <ContentCard item={featuredWork} />
+              </div>
+            ) : loading ? null : (
+              <p className="ph-projects-more-note">
+                {error
+                  ? '暂时读不到内容。'
+                  : '这里以后放内容中心里类型为「项目」的文章。现在还没有，所以先留着这个位置。'}
+              </p>
+            )}
+          </section>
+        </div>
+      </MotionRoot>
     </PublicLayout>
   );
 };

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-label="Nest server">
+  <rect width="1200" height="760" fill="#10281f"/>
+  <rect x="80" y="70" width="1040" height="150" rx="24" fill="#17392c"/>
+  <rect x="120" y="110" width="16" height="70" rx="8" fill="#52c41a"/>
+  <rect x="160" y="118" width="280" height="22" rx="8" fill="#eaffea"/>
+  <rect x="160" y="154" width="520" height="14" rx="7" fill="#8fbf9d"/>
+  <rect x="80" y="250" width="1040" height="150" rx="24" fill="#17392c"/>
+  <rect x="120" y="290" width="16" height="70" rx="8" fill="#722ed1"/>
+  <rect x="160" y="298" width="240" height="22" rx="8" fill="#f3eaff"/>
+  <rect x="160" y="334" width="480" height="14" rx="7" fill="#b9a4d6"/>
+  <rect x="80" y="430" width="1040" height="230" rx="24" fill="#17392c"/>
+  <rect x="120" y="470" width="16" height="70" rx="8" fill="#faad14"/>
+  <rect x="160" y="478" width="200" height="22" rx="8" fill="#fff7e6"/>
+  <rect x="160" y="520" width="640" height="14" rx="7" fill="#d8c48a"/>
+  <rect x="160" y="552" width="520" height="14" rx="7" fill="#d8c48a"/>
+  <rect x="160" y="584" width="400" height="14" rx="7" fill="#d8c48a"/>
+</svg>

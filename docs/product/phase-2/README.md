@@ -15,6 +15,7 @@
 | [ops-and-platform.md](./ops-and-platform.md) | 文件物理清理、头像页、杀毒扫描、生产 COS 实桶、Prisma 枚举运营化 |
 | [workspace-pages.md](./workspace-pages.md) | 工作区上传任务已落地；我的文件库仍待讨论 |
 | [desktop-app.md](./desktop-app.md) | 桌面端 App：Electron / Tauri 2 / Flutter Desktop 选型对比；项目页已先作为「规划中」展示 |
+| [asset-library.md](./asset-library.md) | 素材库：管理端统一查看占位图与上传图片、预览下载、本地素材迁到生产；已确认要做，未排期 |
 
 ## 和「明确不做」的区别
 

@@ -277,9 +277,12 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     },
     modules: [
       { key: 'hero', title: 'Hero 区块', visible: true, sort: 1 },
-      { key: 'featured', title: '精选内容', visible: true, sort: 2 },
-      { key: 'aiTools', title: 'AI 工具推荐', visible: true, sort: 3 },
-      { key: 'techStack', title: '技术栈展示', visible: true, sort: 4 },
+      { key: 'capabilities', title: '平台能力', visible: true, sort: 2 },
+      { key: 'featured', title: '精选内容与分类入口', visible: true, sort: 3 },
+      { key: 'aiTools', title: 'AI 工具推荐', visible: true, sort: 4 },
+      { key: 'showcase', title: '作品矩阵预告', visible: true, sort: 5 },
+      { key: 'techStack', title: '技术栈展示', visible: true, sort: 6 },
+      { key: 'performance', title: '性能数据', visible: true, sort: 7 },
     ],
     featuredContent: { contentIds: [] },
     aiTools: [
@@ -344,15 +347,106 @@ export function isSystemConfigGroup(value: string): value is SystemConfigGroup {
   return (SYSTEM_CONFIG_GROUPS as readonly string[]).includes(value);
 }
 
+interface StoredHomepageModule {
+  key: string;
+  title: string;
+  visible: boolean;
+  sort: number;
+}
+
+function readStoredHomepageModules(raw: unknown): StoredHomepageModule[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as Record<string, unknown>;
+    if (typeof row.key !== 'string' || row.key.length === 0) return [];
+    return [
+      {
+        key: row.key,
+        title: typeof row.title === 'string' ? row.title : row.key,
+        visible: typeof row.visible === 'boolean' ? row.visible : true,
+        sort: typeof row.sort === 'number' ? row.sort : 0,
+      },
+    ];
+  });
+}
+
+/**
+ * 线上旧的 site.homepage.modules 只有 4 个 key。对象浅合并会整表覆盖，新区块会丢。
+ * 默认列表做底，同 key 只覆盖 visible / sort。缺 key 时插到默认顺序里前一个已出现区块后面，
+ * 这样旧数据仍能看到新区块，后台已经保存过的完整排序不会被重排。
+ */
+export function mergeHomepageModules(
+  defaults: SiteHomepage['modules'],
+  rawModules: unknown,
+): SiteHomepage['modules'] {
+  const stored = readStoredHomepageModules(rawModules);
+  const defaultsByKey = new Map(defaults.map((item) => [item.key, item]));
+  const storedByKey = new Map(stored.map((item) => [item.key, item]));
+  const hasEveryDefault = defaults.every((item) => storedByKey.has(item.key));
+
+  if (hasEveryDefault) {
+    const known = defaults.map((item) => {
+      const saved = storedByKey.get(item.key);
+      return {
+        key: item.key,
+        title: item.title,
+        visible: saved?.visible ?? item.visible,
+        sort: Math.round(saved?.sort ?? item.sort),
+      };
+    });
+    const extras = stored
+      .filter((item) => !defaultsByKey.has(item.key))
+      .map((item) => ({
+        key: item.key,
+        title: item.title,
+        visible: item.visible,
+        sort: Math.round(item.sort),
+      }));
+    return [...known, ...extras];
+  }
+
+  const ordered = stored
+    .filter((item) => defaultsByKey.has(item.key))
+    .sort((left, right) => left.sort - right.sort)
+    .map((item) => {
+      const base = defaultsByKey.get(item.key);
+      return {
+        key: item.key,
+        title: base?.title ?? item.title,
+        visible: item.visible,
+        sort: item.sort,
+      };
+    });
+
+  defaults.forEach((item, index) => {
+    if (storedByKey.has(item.key)) return;
+    const previous = [...defaults.slice(0, index)]
+      .reverse()
+      .find((candidate) => ordered.some((row) => row.key === candidate.key));
+    const insertAt = previous ? ordered.findIndex((row) => row.key === previous.key) + 1 : 0;
+    ordered.splice(insertAt, 0, { ...item });
+  });
+
+  return ordered.map((item, index) => ({ ...item, sort: index + 1 }));
+}
+
 /**
  * 用默认值补齐后做 DTO 校验，避免库里缺字段或半套 JSON 让公开接口 500。
  */
 export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
   const defaults = DEFAULT_SYSTEM_CONFIGS[group];
-  const merged =
+  const rawObject =
     raw && typeof raw === 'object' && !Array.isArray(raw)
-      ? { ...(defaults as object), ...(raw as object) }
-      : defaults;
+      ? (raw as Record<string, unknown>)
+      : undefined;
+  // 始终拷贝，避免首页模块合并写回默认配置对象。
+  const merged = { ...(defaults as object), ...(rawObject ?? {}) };
+  if (group === 'site.homepage') {
+    const homepage = merged as SiteHomepage;
+    const rawModules = rawObject ? rawObject.modules : homepage.modules;
+    homepage.modules = mergeHomepageModules((defaults as SiteHomepage).modules, rawModules);
+  }
   return GROUP_SCHEMAS[group].parse(merged);
 }
 

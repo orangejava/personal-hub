@@ -5,9 +5,9 @@ import type { Settings as ProSettings } from '@ant-design/pro-components';
 import type {
   MenuItem,
   PermissionCode,
-  SystemPublicConfig,
   User,
 } from '@personal-hub/shared-types';
+import type { PublicSiteView } from '@/services/system';
 
 /** ProLayout 设置类型（pro-components 导出名为 Settings，等价于 ProSettings） */
 export type LayoutSettings = ProSettings;
@@ -31,7 +31,7 @@ export interface InitialState {
   menu?: MenuItem[];
   /** 匿名公开顶栏菜单；与登录后工作区/后台 menu 分开，避免串区 */
   publicMenu?: MenuItem[];
-  systemConfig?: SystemPublicConfig;
+  systemConfig?: PublicSiteView;
   /** 工作区 SettingDrawer 开关 */
   workspaceSettingDrawerOpen?: boolean;
   /** Markdown / 富文本编辑时隐藏工作区框架，退出页面自动恢复。 */
