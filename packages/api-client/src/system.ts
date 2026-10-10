@@ -2,6 +2,7 @@ import type {
   PublicNavigationConfig,
   PublicProjectVisualAsset,
   SiteAboutConfig,
+  SiteBrandMode,
   SiteLayoutConfig,
   SystemPublicConfig,
   ThemeConfig,
@@ -13,8 +14,12 @@ export interface NestPublicSiteConfig {
   siteName: string;
   siteDescription?: string;
   keywords?: string;
-  logoFileId?: string | null;
   logoUrl?: string | null;
+  logoMode?: SiteBrandMode;
+  logoText?: string;
+  faviconUrl?: string | null;
+  faviconMode?: SiteBrandMode;
+  faviconText?: string;
   theme: {
     colorPrimary: string;
     colorSuccess?: string;
@@ -99,7 +104,13 @@ export function mapPublicSiteConfig(
   return {
     siteName: payload.siteName,
     siteDescription: payload.siteDescription,
+    keywords: payload.keywords,
     logo: payload.logoUrl ?? undefined,
+    logoMode: payload.logoMode,
+    logoText: payload.logoText,
+    faviconUrl: payload.faviconUrl ?? null,
+    faviconMode: payload.faviconMode,
+    faviconText: payload.faviconText,
     heroTitle: payload.homepage?.hero?.title,
     heroSubtitle: payload.homepage?.hero?.subtitle,
     navigation: payload.navigation?.publicPosition ?? 'top',

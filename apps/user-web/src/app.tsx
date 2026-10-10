@@ -2,7 +2,7 @@ import type { Settings as LayoutSettings } from '@ant-design/pro-components';
 import { SettingDrawer } from '@ant-design/pro-components';
 import type { MenuItem } from '@personal-hub/shared-types';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import { history, Link } from '@umijs/max';
+import { Helmet, HelmetProvider, history, Link } from '@umijs/max';
 import { Button, message } from 'antd';
 import React from 'react';
 import { ErrorBoundary, Footer } from '@/components';
@@ -23,6 +23,7 @@ import { ensureActiveLocale } from '@/utils/locale';
 import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
+import { setSiteHead, siteHeadFromConfig, getSiteHead, subscribeSiteHead } from '@/utils/siteHead';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
 import { mapPublicNavigation } from '@/auth/routeRegistry';
 import defaultSettings from '../config/defaultSettings';
@@ -130,11 +131,17 @@ export async function getInitialState(): Promise<InitialState> {
     const sys = await fetchPublicConfig();
     if (sys) {
       state.systemConfig = sys;
+      setSiteHead(siteHeadFromConfig(sys));
       if (sys.theme) {
         const navTheme = sys.theme.mode === 'dark' ? 'realDark' : 'light';
         const colorPrimary =
           sys.theme.colorPrimary ?? publicDefaultSettings.colorPrimary;
-        state.publicSettings = { navTheme, colorPrimary };
+        state.publicSettings = {
+          navTheme,
+          colorPrimary,
+          colorSecondary: sys.theme.colorSecondary,
+          colorAccent: sys.theme.colorAccent,
+        };
         state.settings = {
           ...state.settings,
           navTheme,
@@ -158,10 +165,14 @@ export async function getInitialState(): Promise<InitialState> {
     // 公开导航失败时继续使用写死的 publicMenu
   }
 
-  // 用户本地主题覆盖站点默认，直到用户再次修改
+  // 用户本地主题只覆盖明暗和主色；辅助色、强调色仍跟站点配置。
   const localTheme = getThemePreference();
   if (localTheme) {
-    state.publicSettings = localTheme;
+    state.publicSettings = {
+      ...(state.publicSettings ?? publicDefaultSettings),
+      navTheme: localTheme.navTheme,
+      colorPrimary: localTheme.colorPrimary,
+    };
     state.settings = {
       ...state.settings,
       navTheme: localTheme.navTheme,
@@ -414,10 +425,31 @@ export const request: RequestConfig = {
   ...errorConfig,
 };
 
+/** rootContainer 不能用 useModel，站点身份从启动期写入的模块状态读取。 */
+function SiteDocumentHelmet() {
+  const [head, setHead] = React.useState(getSiteHead);
+  React.useEffect(() => subscribeSiteHead(() => setHead(getSiteHead())), []);
+  return (
+    <Helmet>
+      <title>{head.title}</title>
+      {head.description ? <meta name="description" content={head.description} /> : null}
+      {head.keywords ? <meta name="keywords" content={head.keywords} /> : null}
+      {head.faviconUrl ? <link rel="icon" href={head.faviconUrl} /> : null}
+    </Helmet>
+  );
+}
+
 export function rootContainer(container: React.ReactNode) {
+  // Umi 自带的 HelmetProvider 包在 container 里面，管不到 rootContainer。
+  // 站点级 Helmet 放在这里，必须自备 Provider，否则整站渲染直接抛错。
   return (
     <ErrorBoundary>
-      <ThemeProvider>{container}</ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider>
+          <SiteDocumentHelmet />
+          {container}
+        </ThemeProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   );
 }

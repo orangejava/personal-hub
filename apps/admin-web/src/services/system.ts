@@ -22,6 +22,13 @@ function enrichPublicConfig(
   const layout = payload.layout;
   return {
     ...mapped,
+    logo: payload.logoUrl || mapped.logo,
+    logoMode: payload.logoMode ?? mapped.logoMode,
+    logoText: payload.logoText ?? mapped.logoText,
+    faviconUrl: payload.faviconUrl ?? mapped.faviconUrl ?? null,
+    faviconMode: payload.faviconMode ?? mapped.faviconMode,
+    faviconText: payload.faviconText ?? mapped.faviconText,
+    keywords: payload.keywords ?? mapped.keywords,
     about: mapped.about ?? (about
       ? { title: about.title ?? '关于我', markdown: about.markdown ?? '' }
       : undefined),

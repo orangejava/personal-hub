@@ -1,5 +1,6 @@
 import { useModel } from '@umijs/max';
 import React, { useEffect } from 'react';
+import { setSiteHead, siteHeadFromConfig } from '@/utils/siteHead';
 import {
   bootstrapThemeRuntime,
   setPublicThemeSettings,
@@ -32,6 +33,10 @@ const ThemeRuntimeSync: React.FC = () => {
       setWorkspaceThemeSettings(initialState.settings);
     }
   }, [initialState?.settings]);
+
+  useEffect(() => {
+    setSiteHead(siteHeadFromConfig(initialState?.systemConfig));
+  }, [initialState?.systemConfig]);
 
   return null;
 };

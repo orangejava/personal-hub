@@ -31,6 +31,13 @@ const hexColor = z
   .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, '颜色必须是 #RGB / #RRGGBB');
 
 const nullableUuid = z.string().uuid().nullable();
+
+/** 旧配置没有模式字段：已经绑了文件就继续当图片，否则显示文字。 */
+export function resolveBrandMode(mode: unknown, fileId: string | null): 'text' | 'image' {
+  if (mode === 'text' || mode === 'image') return mode;
+  return fileId ? 'image' : 'text';
+}
+
 const shortText = z.string().max(200);
 const longText = z.string().max(20000);
 const urlOrEmpty = z.union([z.string().url().max(2048), z.literal('')]);
@@ -79,11 +86,16 @@ const actionSchema = z.object({
 });
 
 export const siteGeneralSchema = z.object({
-  siteName: z.string().min(1).max(80),
+  siteName: z.string().min(1).max(20),
   siteDescription: z.string().max(500),
   keywords: z.string().max(500),
   logoFileId: nullableUuid,
+  /** 未写入时由 resolveBrandMode 按有没有文件决定，避免把已上传的 Logo 收成文字。 */
+  logoMode: z.enum(['text', 'image']).optional(),
+  logoText: z.string().max(20).optional(),
   faviconFileId: nullableUuid,
+  faviconMode: z.enum(['text', 'image']).optional(),
+  faviconText: z.string().max(2).optional(),
   avatarFileId: nullableUuid,
   ownerName: shortText,
   githubUrl: urlOrEmpty,
@@ -224,9 +236,12 @@ export interface PublicSiteConfig {
   siteName: string;
   siteDescription: string;
   keywords: string;
-  logoFileId: string | null;
   logoUrl: string | null;
-  faviconFileId: string | null;
+  logoMode: 'text' | 'image';
+  logoText: string;
+  faviconUrl: string | null;
+  faviconMode: 'text' | 'image';
+  faviconText: string;
   avatarFileId: string | null;
   ownerName: string;
   githubUrl: string;
@@ -241,6 +256,9 @@ export interface PublicSiteConfig {
 }
 
 export interface AssembledPublicSiteConfig extends Omit<PublicSiteConfig, 'projectVisualAssets'> {
+  /** 只给签名使用，公开响应发出前会去掉。 */
+  logoFileId: string | null;
+  faviconFileId: string | null;
   projectVisualAssetFiles: ProjectVisualAssetConfig[];
 }
 
@@ -474,7 +492,12 @@ export function assemblePublicSiteConfig(
     keywords: general.keywords,
     logoFileId: general.logoFileId,
     logoUrl: null,
+    logoMode: resolveBrandMode(general.logoMode, general.logoFileId),
+    logoText: general.logoText ?? '',
     faviconFileId: general.faviconFileId,
+    faviconUrl: null,
+    faviconMode: resolveBrandMode(general.faviconMode, general.faviconFileId),
+    faviconText: general.faviconText ?? '',
     avatarFileId: general.avatarFileId,
     ownerName: general.ownerName,
     githubUrl: general.githubUrl,

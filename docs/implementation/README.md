@@ -16,6 +16,7 @@
 - 内容审核与上传任务 UI → [content/content-review-and-uploads.md](./content/content-review-and-uploads.md)
 - 私密内容指定读者与 AI 首次会话修复 → [content/private-access-and-ai-session.md](./content/private-access-and-ai-session.md)
 - 审查修复收口（幂等/审核/上传任务） → [review-remediation.md](./review-remediation.md)
+- 阶段 A 主题剩余 UI → [theme-config.md](./theme-config.md)
 
 进度总览见 [`docs/completed/README.md`](../completed/README.md)。
 

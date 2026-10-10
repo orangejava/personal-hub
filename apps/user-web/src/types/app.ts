@@ -16,6 +16,9 @@ export type LayoutSettings = ProSettings;
 export interface PublicThemeSettings {
   navTheme: 'light' | 'realDark';
   colorPrimary: string;
+  /** 站点辅助色、强调色。用户本地只覆盖明暗和主色，这两项仍跟站点配置。 */
+  colorSecondary?: string;
+  colorAccent?: string;
 }
 
 /** @@initialState 结构 */

@@ -216,7 +216,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
    - `ai-admin`：见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。分阶段完成 Provider / 模型配置、用户自备 Key、用量、额度、公共发放和连续签到。
    - `perf-dashboard`：见 [prd/post-launch/performance-dashboard-prd.md](./prd/post-launch/performance-dashboard-prd.md)。一期前端性能面板（抽屉 + `/status`），首轮入口体积优化，二期接 Nest 汇总。**最先合并**，留下改版前基线。
    - `home-showcase`：见 [apps/user-web/docs/prd/home-showcase-prd.md](../apps/user-web/docs/prd/home-showcase-prd.md)。首页滚动改版、项目作品矩阵；动效用 Motion 为主，GSAP 按区块备选。
-   - `theme-config`：见 [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md) §3。后台主题表单、导航位置、Logo / favicon / SEO。
+   - `theme-config`：见 [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md) §3。后台主题表单、导航位置、Logo / favicon / SEO。实现说明见 [implementation/theme-config.md](./implementation/theme-config.md)。
 3. **main 上先做，不占 worktree**：建 worktree 前在 `main` 上完成「启动前骨架」（见 [prd/post-launch/README.md](./prd/post-launch/README.md)）。域名与 ICP 备案已完成（2026-09）；HTTPS、Nginx gzip 与静态资源缓存后置独立处理（见 [deploy/domain-https.md](./deploy/domain-https.md)），不阻塞 worktree。这不替代网信办对「调用已备案模型、向公众提供生成服务」的应用登记。
 4. **再往后，可互相并行**：Flutter、后台治理 M7（禁用用户 / 改角色 / 审计；额度调整已在 AI 后台）、账号安全（改邮箱、TOTP）。
 5. **明确跳过**：阶段 5.5 Next API Bridge。
@@ -252,7 +252,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 - [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、公共发放和连续签到。不做充值、支付、自研模型。
 - [ ] [`perf-dashboard`](./prd/post-launch/performance-dashboard-prd.md)：性能与接口响应面板、性能基线、首轮入口体积优化、二期 Nest 汇总。
 - [ ] [`home-showcase`](../apps/user-web/docs/prd/home-showcase-prd.md)：首页滚动改版、项目作品矩阵（Flutter / 桌面端先作为规划中）。
-- [ ] [`theme-config`](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、导航位置、Logo / favicon / SEO。
+- [ ] [`theme-config`](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、导航位置、Logo / favicon / SEO。代码已落在该分支，见 [implementation/theme-config.md](./implementation/theme-config.md)。管理端 `8001`、本 worktree 用户端 `8003` 已做过浏览器核对；小册章节目录和主题页加载失败态还没在浏览器里走完。
 - [ ] 上面三个合并后：Loading / Skeleton 与内容中心、小册阅读、AI 工作台、登录表单的交互优化（总纲 §4.3、§5.3–5.6）。
 
 ### main 上先做（不占 worktree）

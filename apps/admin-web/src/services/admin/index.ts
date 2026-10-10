@@ -32,7 +32,6 @@ import type {
   PaginationResult,
   SiteAboutConfig,
   SiteLayoutConfig,
-  SystemPublicConfig,
   ContentReviewItem,
   TagRecord,
   ThemeConfig,
@@ -620,17 +619,68 @@ export async function fetchAdminSystemConfig() {
   return mapPublicSiteConfig(groupsToPublicConfig(groups));
 }
 
-export async function updateAdminSystemConfig(data: Partial<SystemPublicConfig>) {
+export interface AdminSiteGeneralForm {
+  siteName: string;
+  siteDescription: string;
+  keywords: string;
+  logoFileId: string | null;
+  logoMode: 'text' | 'image';
+  logoText: string;
+  faviconFileId: string | null;
+  faviconMode: 'text' | 'image';
+  faviconText: string;
+}
+
+function readConfigText(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function readConfigFileId(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function readBrandMode(value: unknown, fileId: string | null): 'text' | 'image' {
+  if (value === 'text' || value === 'image') return value;
+  return fileId ? 'image' : 'text';
+}
+
+/** 站点身份表单读 site.general 原文，文件 ID 不进入公开配置对象。 */
+export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
+  const groups = await loadAdminConfigGroups('site.general');
+  const value = groups[0]?.value ?? {};
+  const logoFileId = readConfigFileId(value.logoFileId);
+  const faviconFileId = readConfigFileId(value.faviconFileId);
+  return {
+    siteName: readConfigText(value.siteName),
+    siteDescription: readConfigText(value.siteDescription),
+    keywords: readConfigText(value.keywords),
+    logoFileId,
+    logoMode: readBrandMode(value.logoMode, logoFileId),
+    logoText: readConfigText(value.logoText),
+    faviconFileId,
+    faviconMode: readBrandMode(value.faviconMode, faviconFileId),
+    faviconText: readConfigText(value.faviconText),
+  };
+}
+
+export async function updateAdminSystemConfig(data: AdminSiteGeneralForm) {
   const groups = await loadAdminConfigGroups();
   const general = groups.find((item) => item.group === 'site.general');
-  if (general) {
-    await putAdminConfigGroup('site.general', general.version, {
-      ...general.value,
-      siteName: data.siteName ?? general.value.siteName,
-      siteDescription: data.siteDescription ?? general.value.siteDescription,
-    });
+  if (!general) {
+    throw new Error('站点配置不存在，无法保存');
   }
-  return fetchAdminSystemConfig();
+  await putAdminConfigGroup('site.general', general.version, {
+    ...general.value,
+    siteName: data.siteName,
+    siteDescription: data.siteDescription,
+    keywords: data.keywords,
+    logoFileId: data.logoFileId,
+    logoMode: data.logoMode,
+    logoText: data.logoText,
+    faviconFileId: data.faviconFileId,
+    faviconMode: data.faviconMode,
+    faviconText: data.faviconText,
+  });
 }
 
 export async function updateAdminSystemTheme(data: Partial<ThemeConfig>) {
@@ -643,10 +693,27 @@ export async function updateAdminSystemTheme(data: Partial<ThemeConfig>) {
   await putAdminConfigGroup('site.theme', row.version, {
     ...row.value,
     colorPrimary: data.colorPrimary ?? row.value.colorPrimary,
+    colorSecondary: data.colorSecondary ?? row.value.colorSecondary,
+    colorAccent: data.colorAccent ?? row.value.colorAccent,
     borderRadius: data.borderRadius ?? row.value.borderRadius,
+    allowUserSwitch:
+      typeof data.allowUserSwitch === 'boolean'
+        ? data.allowUserSwitch
+        : row.value.allowUserSwitch,
     mode,
   });
   return data;
+}
+
+/** 只改公开导航位置，保留模糊、吸顶等其余导航字段。 */
+export async function updateAdminSystemNavigation(publicPosition: 'top' | 'left' | 'right') {
+  const groups = await loadAdminConfigGroups('site.navigation');
+  const row = groups[0];
+  await putAdminConfigGroup('site.navigation', row.version, {
+    ...row.value,
+    publicPosition,
+  });
+  return publicPosition;
 }
 
 /** 读取关于我配置组；页面拿到的就是 T，不要再解信封。 */

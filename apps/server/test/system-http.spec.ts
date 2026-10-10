@@ -133,7 +133,8 @@ describe('System config and menu HTTP', () => {
   it('匿名可读公开配置，含预留字段且不含密钥', async () => {
     const res = await json<Record<string, unknown>>('/api/v1/public/site-config');
     expect(res.data?.siteName).toBe('Personal Hub');
-    expect(res.data?.logoFileId).toBeNull();
+    expect(res.data).not.toHaveProperty('logoFileId');
+    expect(res.data).not.toHaveProperty('faviconFileId');
     expect(JSON.stringify(res.data)).not.toMatch(/JWT|SMTP|sk-/i);
     const homepage = res.data?.homepage as { featuredContent?: { contentIds?: string[] } };
     expect(homepage.featuredContent?.contentIds).toEqual([]);
