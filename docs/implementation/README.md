@@ -10,6 +10,7 @@
 
 - Nest 阶段 0 / Auth 切片 / 系统配置菜单 / 内容域 / 文件小册 / AI 域 → [apps/server/docs](../../apps/server/docs/README.md)
 - 用户端阶段 0–3、5 → [apps/user-web/docs](../../apps/user-web/docs/README.md)
+- 用户端性能面板一期 → [apps/user-web/docs/implementation/performance-dashboard.md](../../apps/user-web/docs/implementation/performance-dashboard.md)
 - 管理端阶段 4 → [apps/admin-web/docs](../../apps/admin-web/docs/README.md)
 - 用户端 / 管理端拆分 → [admin-web-split.md](./admin-web-split.md)
 - 内容审核与上传任务 UI → [content/content-review-and-uploads.md](./content/content-review-and-uploads.md)

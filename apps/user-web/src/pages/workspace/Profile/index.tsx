@@ -6,7 +6,7 @@ import {
 import { useIntl, useModel } from '@umijs/max';
 import { Card, message } from 'antd';
 import React, { useState } from 'react';
-import { PageContainer } from '@/components/shared';
+import PageContainer from '@/components/shared/PageContainer';
 
 /** 个人中心：基础资料 mock 编辑 */
 const Profile: React.FC = () => {

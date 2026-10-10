@@ -4,7 +4,8 @@ import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Button, Drawer } from 'antd';
 import React, { useEffect, useState } from 'react';
 import PublicThemeDrawer from '@/components/PublicThemeDrawer';
-import { PageTransition } from '@/components/shared';
+import PageTransition from '@/components/shared/PageTransition';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import PublicHeaderActions from '@/layouts/PublicHeaderActions';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
@@ -101,7 +102,7 @@ const PublicLayout: React.FC<{
         <PageTransition
           routeKey={getPageTransitionKey(history.location.pathname)}
         >
-          {children}
+          <PerfRouteMarker>{children}</PerfRouteMarker>
         </PageTransition>
       </main>
       {/* 紧凑视口统一使用 Drawer，路由切换时由上面的 effect 关闭。 */}

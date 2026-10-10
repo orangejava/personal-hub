@@ -2,7 +2,9 @@ import { Card, Col, Row, Typography } from 'antd';
 import { useModel } from '@umijs/max';
 import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
-import { MarkdownViewer, MotionSurface, ResultState } from '@/components/shared';
+import MarkdownViewer from '@/components/shared/MarkdownViewer';
+import MotionSurface from '@/components/shared/MotionSurface';
+import ResultState from '@/components/shared/ResultState';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchPublicConfig } from '@/services/system';
 

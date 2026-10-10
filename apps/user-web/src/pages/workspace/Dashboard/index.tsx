@@ -1,13 +1,11 @@
 import { Link, useIntl } from '@umijs/max';
 import { Card, Col, Row, Statistic } from 'antd';
 import React from 'react';
-import {
-  AnimatedList,
-  ErrorState,
-  PageContainer,
-  ResultState,
-  SectionSkeleton,
-} from '@/components/shared';
+import AnimatedList from '@/components/shared/AnimatedList';
+import ErrorState from '@/components/shared/ErrorState';
+import PageContainer from '@/components/shared/PageContainer';
+import ResultState from '@/components/shared/ResultState';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { useRequest } from '@/hooks/useRequest';
 import {
   fetchContinueReading,

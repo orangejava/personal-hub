@@ -24,17 +24,13 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import { ContentType, ContentTypeLabel } from '@personal-hub/shared-types';
-import {
-  ErrorState,
-  MarkdownViewer,
-  ReaderActionBar,
-  PdfViewer,
-  RichTextViewer,
-  ScrollBackTop,
-  SectionSkeleton,
-  TocPanel,
-  WordViewer,
-} from '@/components/shared';
+import ErrorState from '@/components/shared/ErrorState';
+import MarkdownViewer from '@/components/shared/MarkdownViewer';
+import ReaderActionBar from '@/components/shared/ReaderActionBar';
+import RichTextViewer from '@/components/shared/RichTextViewer';
+import ScrollBackTop from '@/components/shared/ScrollBackTop';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
+import TocPanel from '@/components/shared/TocPanel';
 import {
   favoriteContent,
   fetchContentDetail,
@@ -42,6 +38,10 @@ import {
   unfavoriteContent,
 } from '@/services/content';
 import { copyToClipboard } from '@/utils/copyToClipboard';
+
+/** 预览器只在打开对应内容时加载，避免 pdfjs / docx 跟着入口包下载。 */
+const PdfViewer = React.lazy(() => import('@/components/shared/PdfViewer'));
+const WordViewer = React.lazy(() => import('@/components/shared/WordViewer'));
 import {
   calcScrollPercent,
   getReadingProgress,
@@ -345,9 +345,13 @@ const ContentDetail: React.FC = () => {
               detail.previewUrl && (
                 <Card>
                   {detail.type === ContentType.Pdf ? (
-                    <PdfViewer url={detail.previewUrl} />
+                    <React.Suspense fallback={<SectionSkeleton />}>
+                      <PdfViewer url={detail.previewUrl} />
+                    </React.Suspense>
                   ) : (
-                    <WordViewer url={detail.previewUrl} />
+                    <React.Suspense fallback={<SectionSkeleton />}>
+                      <WordViewer url={detail.previewUrl} />
+                    </React.Suspense>
                   )}
                 </Card>
               )}

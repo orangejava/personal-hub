@@ -1,6 +1,7 @@
 import { Link } from '@umijs/max';
 import React from 'react';
-import { ContentCard, SectionSkeleton } from '@/components/shared';
+import ContentCard from '@/components/shared/ContentCard';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchContentMeta, fetchFeatured } from '@/services/content';
 import { FEATURED_SAMPLES } from '../content';

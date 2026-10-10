@@ -17,16 +17,14 @@ import clsx from 'clsx';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import PublicLayout from '@/layouts/PublicLayout';
-import {
-  BookletChapterFooter,
-  EllipsisTooltip,
-  ReaderActionBar,
-  ErrorState,
-  MarkdownViewer,
-  ScrollBackTop,
-  SectionSkeleton,
-  TocPanel,
-} from '@/components/shared';
+import BookletChapterFooter from '@/components/shared/BookletChapterFooter';
+import EllipsisTooltip from '@/components/shared/EllipsisTooltip';
+import ErrorState from '@/components/shared/ErrorState';
+import MarkdownViewer from '@/components/shared/MarkdownViewer';
+import ReaderActionBar from '@/components/shared/ReaderActionBar';
+import ScrollBackTop from '@/components/shared/ScrollBackTop';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
+import TocPanel from '@/components/shared/TocPanel';
 import { fetchBookletChapters, fetchChapter } from '@/services/booklet';
 import {
   favoriteContent,

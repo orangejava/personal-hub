@@ -8,7 +8,7 @@ import type { AiConversation } from '@personal-hub/shared-types';
 import { Button, Input, Skeleton, Tooltip } from 'antd';
 import React, { useMemo, useState } from 'react';
 import { AiXConversations } from '@/components/ai-x';
-import { ResultState } from '@/components/shared';
+import ResultState from '@/components/shared/ResultState';
 
 interface AiConversationHistoryPanelProps {
   sessions: AiConversation[];

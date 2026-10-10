@@ -3,13 +3,11 @@ import { useRequest } from '@/hooks/useRequest';
 import { history, Link, useIntl } from '@umijs/max';
 import { Button, Card, Col, Pagination, Row, Tag } from 'antd';
 import React, { useState } from 'react';
-import {
-  AnimatedList,
-  ErrorState,
-  PageContainer,
-  ResultState,
-  SectionSkeleton,
-} from '@/components/shared';
+import AnimatedList from '@/components/shared/AnimatedList';
+import ErrorState from '@/components/shared/ErrorState';
+import PageContainer from '@/components/shared/PageContainer';
+import ResultState from '@/components/shared/ResultState';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { fetchMyContents } from '@/services/workspace';
 import ContentMetaDrawer from '../Content/ContentMetaDrawer';

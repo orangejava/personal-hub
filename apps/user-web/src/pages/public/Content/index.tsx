@@ -4,12 +4,10 @@ import { Button, Col, Input, Pagination, Row, Select, Space, Tag } from 'antd';
 import React, { useEffect } from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
-import {
-  ContentCard,
-  ErrorState,
-  ResultState,
-  SectionSkeleton,
-} from '@/components/shared';
+import ContentCard from '@/components/shared/ContentCard';
+import ErrorState from '@/components/shared/ErrorState';
+import ResultState from '@/components/shared/ResultState';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { fetchContentList, fetchContentMeta, type ContentListQuery } from '@/services/content';
 import { ContentType, ContentTypeLabel, UserRole } from '@personal-hub/shared-types';
 

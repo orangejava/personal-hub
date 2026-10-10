@@ -1,11 +1,9 @@
 import { useIntl } from '@umijs/max';
 import { Card, Col, Progress, Row, Statistic } from 'antd';
 import React from 'react';
-import {
-  ErrorState,
-  PageContainer,
-  SectionSkeleton,
-} from '@/components/shared';
+import ErrorState from '@/components/shared/ErrorState';
+import PageContainer from '@/components/shared/PageContainer';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { useRequest } from '@/hooks/useRequest';
 import { fetchUsage } from '@/services/workspace';
 

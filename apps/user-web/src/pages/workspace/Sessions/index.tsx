@@ -2,11 +2,9 @@ import { useIntl } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
 import { Button, Card, List, message, Popconfirm, Space, Tag } from 'antd';
 import React from 'react';
-import {
-  ErrorState,
-  PageContainer,
-  SectionSkeleton,
-} from '@/components/shared';
+import ErrorState from '@/components/shared/ErrorState';
+import PageContainer from '@/components/shared/PageContainer';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import {
   type AuthSessionItem,
   fetchAuthSessions,

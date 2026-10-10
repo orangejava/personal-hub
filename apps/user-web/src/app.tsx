@@ -8,7 +8,8 @@ import React from 'react';
 import { ErrorBoundary, Footer } from '@/components';
 import { AvatarDropdown } from '@/components/RightContent/AvatarDropdown';
 import { ThemeSettingButton } from '@/components/RightContent/ThemeSettingButton';
-import { PageTransition } from '@/components/shared';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
+import PageTransition from '@/components/shared/PageTransition';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
@@ -25,7 +26,11 @@ import { resolveMenuSelectedKey } from '@/utils/menuSelection';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
 import { mapPublicNavigation } from '@/auth/routeRegistry';
 import defaultSettings from '../config/defaultSettings';
+import { startPerfCollection } from '@/utils/perf/collect';
+import { markRouteStart } from '@/utils/perf/routeTiming';
 import { errorConfig } from './requestErrorConfig';
+
+startPerfCollection();
 
 const loginPath = '/user/login';
 const changePasswordPath = '/user/change-password';
@@ -363,7 +368,7 @@ export const layout: RunTimeLayoutConfig = ({
           }
         >
           <PageTransition routeKey={history.location.pathname}>
-            {children}
+            <PerfRouteMarker>{children}</PerfRouteMarker>
           </PageTransition>
         </div>
         {/* 主题设置面板：触发按钮已移到顶栏右侧，这里隐藏其自带浮动把手 */}
@@ -397,6 +402,11 @@ export const layout: RunTimeLayoutConfig = ({
     },
   };
 };
+
+/** 路径变化时开始计时。结束点在各布局的 PerfRouteMarker，避免把懒加载 fallback 当成页面已经出现。 */
+export function onRouteChange({ location }: { location: { pathname: string } }) {
+  markRouteStart(location.pathname);
+}
 
 export const request: RequestConfig = {
   // 所有 Canonical 接口已带 `/api/v1`，生产同源时不能再叠加 `/api`。
