@@ -13,6 +13,7 @@ interface ScrollSceneProps {
 /**
  * 把一段区域固定在顶栏下方，用原生滚动进度驱动内部动画。
  * 不接管滚轮，也不做整页吸附。
+ * 进度量到粘性区结束之前就到 1。量尺和粘性区一样长时，条满格和松开是同一帧，采样会停在 100% 前面。
  */
 const ScrollScene: React.FC<ScrollSceneProps> = ({
   children,
@@ -32,10 +33,23 @@ const ScrollScene: React.FC<ScrollSceneProps> = ({
 
   return (
     <div
-      ref={ref}
       className={className}
-      style={{ height: `calc(${count} * (100svh - var(--ph-header-height)))` }}
+      style={{
+        position: 'relative',
+        height: `calc(${count} * (100svh - var(--ph-header-height)) + 12vh)`,
+      }}
     >
+      <div
+        ref={ref}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          width: '100%',
+          height: 'calc(100% - 12vh)',
+          pointerEvents: 'none',
+        }}
+      />
       <div className="ph-scroll-scene-sticky">{children(progress)}</div>
     </div>
   );

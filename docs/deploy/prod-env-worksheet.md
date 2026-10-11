@@ -27,7 +27,7 @@ openssl rand -hex 32
 | 变量                 | 你要填什么                                                                                  | 我的值（只写在本地/服务器）                                                          |
 | -------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `PUBLIC_APP_ORIGIN`  | 首版无域名：`http://<公网IPv4>`，不要末尾 `/`。有域名且已上 HTTPS 后再改 `https://你的域名` | `http://<公网IPv4>`                                                                  |
-| `CORS_ORIGIN`        | 生产同站留空即可                                                                            | （留空）                                                                             |
+| `CORS_ORIGIN`        | 非空后不再回退 `PUBLIC_APP_ORIGIN`。IP、裸域名、`www` 的 `http` 和 `https` 都要写，不要末尾 `/` | `http://111.231.13.252,http://personalhub.center,https://personalhub.center,http://www.personalhub.center,https://www.personalhub.center` |
 | `COOKIE_SECURE`      | 当前公网 IP + HTTP 必须为 `false`；切换 HTTPS 后改为 `true`                                 | `false`                                                                              |
 | `POSTGRES_DB`        | 一般不用改                                                                                  | `personal_hub`                                                                       |
 | `POSTGRES_USER`      | 一般不用改                                                                                  | `personal_hub`                                                                       |

@@ -37,8 +37,10 @@ export const DEFAULT_TECH_STACK: PublicHomepageConfig['techStack'] = [
   { name: 'Turborepo', category: 'engineering' },
   { name: 'TypeScript', category: 'language' },
   { name: 'NestJS', category: 'backend' },
+  { name: 'Prisma', category: 'backend' },
   { name: 'PostgreSQL', category: 'database' },
   { name: 'Redis', category: 'cache' },
+  { name: 'Nginx', category: 'deploy' },
 ];
 
 export const DEFAULT_HOME_MODULES: PublicHomepageModule[] = [
@@ -102,6 +104,7 @@ const TECH_CATEGORY_LABELS: Record<string, string> = {
   backend: '服务端',
   database: '数据库',
   cache: '缓存',
+  deploy: '部署',
 };
 
 export function techCategoryLabel(category: string) {

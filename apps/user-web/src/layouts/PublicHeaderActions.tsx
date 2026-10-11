@@ -1,9 +1,8 @@
-import { DashboardOutlined, SettingOutlined } from '@ant-design/icons';
+import { SettingOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
-import React, { lazy, Suspense, useState } from 'react';
+import React from 'react';
+import PerfPanelButton from '@/components/perf/PerfPanelButton';
 import UserAccountPopover from '@/components/shared/UserAccountPopover';
-
-const PerfDrawer = lazy(() => import('@/components/perf/PerfDrawer'));
 
 interface PublicHeaderActionsProps {
   /** 打开主题设置抽屉；后续性能面板只在这里追加入口，不触碰布局结构。 */
@@ -17,18 +16,9 @@ const PublicHeaderActions: React.FC<PublicHeaderActionsProps> = ({
   onOpenThemeSettings,
   showThemeButton = true,
 }) => {
-  const [perfOpen, setPerfOpen] = useState(false);
-  const openPerf = () => setPerfOpen(true);
-  const closePerf = () => setPerfOpen(false);
-
   return (
     <div className="ph-public-header-actions">
-      <Button
-        type="text"
-        aria-label="性能面板"
-        icon={<DashboardOutlined />}
-        onClick={openPerf}
-      />
+      <PerfPanelButton />
       {showThemeButton ? (
         <Button
           type="text"
@@ -38,11 +28,6 @@ const PublicHeaderActions: React.FC<PublicHeaderActionsProps> = ({
         />
       ) : null}
       <UserAccountPopover variant="base" />
-      {perfOpen ? (
-        <Suspense fallback={null}>
-          <PerfDrawer open onClose={closePerf} />
-        </Suspense>
-      ) : null}
     </div>
   );
 };

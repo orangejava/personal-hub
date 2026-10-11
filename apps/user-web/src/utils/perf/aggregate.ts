@@ -4,22 +4,23 @@ import {
   buildScoreTip,
   compositeScore,
   HEADLINE_WEIGHTS,
+  HOME_SUMMARY_WEIGHTS,
+  type MetricTier,
   MIN_METRIC_SAMPLES,
   PAGE_CARD_WEIGHTS,
   PAGE_THRESHOLDS,
   percentile,
-  scoreMetric,
-  tierFor,
-  type MetricTier,
   type ScoreFactor,
   type ScoreTip,
+  scoreMetric,
+  tierFor,
 } from '@/utils/perf/score';
 import {
+  type PageMetricName,
+  type PageSample,
   readApiSamples,
   readJsBundles,
   readPageSamples,
-  type PageMetricName,
-  type PageSample,
 } from '@/utils/perf/store';
 
 export interface MetricCell {
@@ -75,9 +76,11 @@ export const METRIC_HINTS: Record<string, string> = {
   LCP: '最大内容绘制。整页刷新用浏览器官方值；站内跳转记主区域里最大一块内容出现的时间。良好 ≤ 2.5 s，差 > 4 s。',
   CLS: '这一页上的累计布局偏移，不含用户输入后的位移。良好 ≤ 0.1，差 > 0.25。',
   INP: '交互到下一帧的延迟，使用 web-vitals 官方计算。良好 ≤ 200 ms，差 > 500 ms。',
-  route: '站内跳转到新页面挂载后的下一帧。良好 ≤ 300 ms，差 > 1000 ms。阈值是本项目自定的。',
+  route:
+    '站内跳转到新页面挂载后的下一帧。良好 ≤ 300 ms，差 > 1000 ms。阈值是本项目自定的。',
   js: '这次导航实际观察到的 JS 传输体积。良好 ≤ 300 KB，差 > 1 MB。缓存命中时用编码体积。',
-  apiP95: '本次会话最近 500 条请求的 p95。良好 ≤ 300 ms，差 > 800 ms。不与页面 7 天记录混成一个窗口。',
+  apiP95:
+    '本次会话最近 500 条请求的 p95。良好 ≤ 300 ms，差 > 800 ms。不与页面 7 天记录混成一个窗口。',
 };
 
 const CELL_LABELS: Record<string, string> = {
@@ -114,13 +117,23 @@ function formatClock(timestamp: number): string {
   return `${month}-${day} ${hour}:${minute}`;
 }
 
-function valuesOf(samples: PageSample[], route: string | null, metric: PageMetricName): number[] {
+function valuesOf(
+  samples: PageSample[],
+  route: string | null,
+  metric: PageMetricName,
+): number[] {
   return samples
-    .filter((sample) => sample.metric === metric && (route == null || sample.route === route))
+    .filter(
+      (sample) =>
+        sample.metric === metric && (route == null || sample.route === route),
+    )
     .map((sample) => sample.value);
 }
 
-function cellFromValues(key: string, values: number[]): MetricCell & { raw: number | null } {
+function cellFromValues(
+  key: string,
+  values: number[],
+): MetricCell & { raw: number | null } {
   const threshold = PAGE_THRESHOLDS[key as keyof typeof PAGE_THRESHOLDS];
   const sufficient = values.length >= MIN_METRIC_SAMPLES;
   const raw = sufficient ? percentile(values, 0.75) : null;
@@ -161,7 +174,10 @@ function factorsFor(
     return {
       label: CELL_LABELS[key] ?? key,
       weight,
-      score: raw == null || !threshold ? null : Math.round(scoreMetric(raw, threshold)),
+      score:
+        raw == null || !threshold
+          ? null
+          : Math.round(scoreMetric(raw, threshold)),
     };
   });
   return [...fromCells, ...extra];
@@ -185,16 +201,24 @@ function buildApiRows(): ApiRowModel[] {
         count: group.durations.length,
         p50: percentile(group.durations, 0.5) ?? 0,
         p95,
-        errorRate: group.durations.length === 0 ? 0 : group.errors / group.durations.length,
+        errorRate:
+          group.durations.length === 0
+            ? 0
+            : group.errors / group.durations.length,
         tier: tierFor(p95, PAGE_THRESHOLDS.apiP95),
       };
     })
     .sort((left, right) => right.p95 - left.p95);
 }
 
-function buildLcpSeries(samples: PageSample[], selected: string[]): ChartPoint[] {
+function buildLcpSeries(
+  samples: PageSample[],
+  selected: string[],
+): ChartPoint[] {
   return samples
-    .filter((sample) => sample.metric === 'LCP' && selected.includes(sample.route))
+    .filter(
+      (sample) => sample.metric === 'LCP' && selected.includes(sample.route),
+    )
     .sort((left, right) => left.at - right.at)
     .slice(-80)
     .map((sample) => ({
@@ -233,11 +257,17 @@ export function buildDashboard(selectedTemplates?: string[]): DashboardModel {
   };
   const apiRows = buildApiRows();
   const apiDurations = readApiSamples().map((sample) => sample.duration);
-  const apiP95 = apiDurations.length >= MIN_METRIC_SAMPLES ? percentile(apiDurations, 0.95) : null;
+  const apiP95 =
+    apiDurations.length >= MIN_METRIC_SAMPLES
+      ? percentile(apiDurations, 0.95)
+      : null;
   const apiFactor: ScoreFactor = {
     label: CELL_LABELS.apiP95,
     weight: HEADLINE_WEIGHTS.apiP95,
-    score: apiP95 == null ? null : Math.round(scoreMetric(apiP95, PAGE_THRESHOLDS.apiP95)),
+    score:
+      apiP95 == null
+        ? null
+        : Math.round(scoreMetric(apiP95, PAGE_THRESHOLDS.apiP95)),
   };
   const headlineFactors = factorsFor(
     headlineCells,
@@ -251,13 +281,24 @@ export function buildDashboard(selectedTemplates?: string[]): DashboardModel {
     [apiFactor],
   );
   const headline = compositeScore(
-    headlineFactors.map((factor) => ({ weight: factor.weight, value: factor.score })),
+    headlineFactors.map((factor) => ({
+      weight: factor.weight,
+      value: factor.score,
+    })),
   );
 
-  const pages = PERF_PAGES.filter((page) => selected.includes(page.template)).map((page) => {
+  const pages = PERF_PAGES.filter((page) =>
+    selected.includes(page.template),
+  ).map((page) => {
     const lcp = cellFromValues('LCP', valuesOf(samples, page.template, 'LCP'));
-    const ttfb = cellFromValues('TTFB', valuesOf(samples, page.template, 'TTFB'));
-    const route = cellFromValues('route', valuesOf(samples, page.template, 'route'));
+    const ttfb = cellFromValues(
+      'TTFB',
+      valuesOf(samples, page.template, 'TTFB'),
+    );
+    const route = cellFromValues(
+      'route',
+      valuesOf(samples, page.template, 'route'),
+    );
     const cardCells = { LCP: lcp, TTFB: ttfb, route };
     const card = compositeScore(scoreParts(cardCells, PAGE_CARD_WEIGHTS));
     return {
@@ -286,22 +327,41 @@ export function buildDashboard(selectedTemplates?: string[]): DashboardModel {
   };
 }
 
-export function currentPageCells(pathname: string): {
-  template: string | null;
-  label: string;
-  score: number | null;
-  scoreTip: ScoreTip;
-  missing: boolean;
-  cells: MetricCell[];
-} {
-  const template = matchPageTemplate(pathname);
+const PAGE_CELL_KEYS: PageMetricName[] = [
+  'TTFB',
+  'FCP',
+  'LCP',
+  'CLS',
+  'INP',
+  'route',
+  'js',
+];
+
+function apiScoreFactor(apiP95: number | null, weight: number): ScoreFactor {
+  return {
+    label: CELL_LABELS.apiP95,
+    weight,
+    score:
+      apiP95 == null
+        ? null
+        : Math.round(scoreMetric(apiP95, PAGE_THRESHOLDS.apiP95)),
+  };
+}
+
+/** 某一页的八个格子。页面指标只取这个路由，接口 p95 仍是本次会话。 */
+function routeCells(template: string | null) {
   const samples = readPageSamples();
-  const keys: PageMetricName[] = ['TTFB', 'FCP', 'LCP', 'CLS', 'INP', 'route', 'js'];
   const measured = Object.fromEntries(
-    keys.map((key) => [key, cellFromValues(key, valuesOf(samples, template, key))]),
+    PAGE_CELL_KEYS.map((key) => [
+      key,
+      cellFromValues(key, valuesOf(samples, template, key)),
+    ]),
   ) as Record<string, MetricCell & { raw: number | null }>;
   const apiDurations = readApiSamples().map((sample) => sample.duration);
-  const apiP95 = apiDurations.length >= MIN_METRIC_SAMPLES ? percentile(apiDurations, 0.95) : null;
+  const apiP95 =
+    apiDurations.length >= MIN_METRIC_SAMPLES
+      ? percentile(apiDurations, 0.95)
+      : null;
   const apiCell: MetricCell = {
     key: 'apiP95',
     label: CELL_LABELS.apiP95,
@@ -311,11 +371,19 @@ export function currentPageCells(pathname: string): {
     sufficient: apiP95 != null,
     samples: apiDurations.length,
   };
-  const apiFactor: ScoreFactor = {
-    label: CELL_LABELS.apiP95,
-    weight: HEADLINE_WEIGHTS.apiP95,
-    score: apiP95 == null ? null : Math.round(scoreMetric(apiP95, PAGE_THRESHOLDS.apiP95)),
-  };
+  return { measured, apiP95, apiCell };
+}
+
+export function currentPageCells(pathname: string): {
+  template: string | null;
+  label: string;
+  score: number | null;
+  scoreTip: ScoreTip;
+  missing: boolean;
+  cells: MetricCell[];
+} {
+  const template = matchPageTemplate(pathname);
+  const { measured, apiP95, apiCell } = routeCells(template);
   const headlineFactors = factorsFor(
     measured,
     {
@@ -325,10 +393,13 @@ export function currentPageCells(pathname: string): {
       INP: HEADLINE_WEIGHTS.INP,
       FCP: HEADLINE_WEIGHTS.FCP,
     },
-    [apiFactor],
+    [apiScoreFactor(apiP95, HEADLINE_WEIGHTS.apiP95)],
   );
   const headline = compositeScore(
-    headlineFactors.map((factor) => ({ weight: factor.weight, value: factor.score })),
+    headlineFactors.map((factor) => ({
+      weight: factor.weight,
+      value: factor.score,
+    })),
   );
 
   return {
@@ -337,6 +408,31 @@ export function currentPageCells(pathname: string): {
     score: headline.score,
     scoreTip: buildScoreTip('current', headlineFactors),
     missing: headline.missing || headline.score == null,
-    cells: [...keys.map((key) => measured[key]), apiCell],
+    cells: [...PAGE_CELL_KEYS.map((key) => measured[key]), apiCell],
+  };
+}
+
+/** 首页大分数计入展示的八项。性能页卡片仍只用 LCP、TTFB、路由切换，两个数字可以不同。 */
+export function homeSummary(): { score: number | null; cells: MetricCell[] } {
+  const { measured, apiP95, apiCell } = routeCells('/');
+  const factors = factorsFor(
+    measured,
+    {
+      LCP: HOME_SUMMARY_WEIGHTS.LCP,
+      TTFB: HOME_SUMMARY_WEIGHTS.TTFB,
+      CLS: HOME_SUMMARY_WEIGHTS.CLS,
+      INP: HOME_SUMMARY_WEIGHTS.INP,
+      FCP: HOME_SUMMARY_WEIGHTS.FCP,
+      route: HOME_SUMMARY_WEIGHTS.route,
+      js: HOME_SUMMARY_WEIGHTS.js,
+    },
+    [apiScoreFactor(apiP95, HOME_SUMMARY_WEIGHTS.apiP95)],
+  );
+  const summary = compositeScore(
+    factors.map((factor) => ({ weight: factor.weight, value: factor.score })),
+  );
+  return {
+    score: summary.score,
+    cells: [...PAGE_CELL_KEYS.map((key) => measured[key]), apiCell],
   };
 }

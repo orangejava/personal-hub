@@ -40,11 +40,11 @@ export function assertSameOrigin(
     return;
   }
 
+  // 不把白名单和本次来源写进响应，避免接口把站点地址列出去。
   throw new DomainHttpException(
     HttpStatus.FORBIDDEN,
     'AUTH_ORIGIN_FORBIDDEN',
     '请求来源不被允许',
-    [{ received: requestOrigin, allowed }],
   );
 }
 

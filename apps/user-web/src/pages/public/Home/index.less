@@ -1,6 +1,6 @@
+/* 这里不能加 overflow，否则大屏上平台能力的 sticky 会失效，三张卡停在同一视口里。 */
 .ph-home {
   max-width: 100%;
-  overflow-x: clip;
   color: var(--ph-text-primary);
 }
 
@@ -11,10 +11,20 @@
 }
 
 .ph-home-section h2,
-.ph-home-hero-copy h1 {
+.ph-home-hero-copy h1,
+.ph-home-capability-copy h2 {
   margin: 0;
   overflow-wrap: anywhere;
   color: var(--ph-text-primary);
+}
+
+/* 区块标题要能从正文里跳出来。Hero 的 h1 另有字号，不要套到这里。 */
+.ph-home-section > h2,
+.ph-home-capability-copy h2 {
+  font-size: clamp(32px, 4vw, 48px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
 }
 
 .ph-home-hero-stage {
@@ -131,13 +141,73 @@
   gap: 24px;
 }
 
+/* 紧凑档标题和第一张卡之间，间距与首页其它区块一致。 */
+.ph-home-capability-stack {
+  margin-top: 28px;
+}
+
 .ph-home-capability-frame {
   height: 100%;
-  grid-template-columns: minmax(180px, 280px) minmax(0, 1fr);
+  grid-template-columns: minmax(200px, 320px) minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
   align-items: center;
   width: min(var(--ph-content-max-width), 100%);
   margin: 0 auto;
   padding: 0 var(--ph-page-padding);
+}
+
+.ph-home-capability-steps {
+  display: grid;
+  gap: 12px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-home-capability-steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ph-text-tertiary);
+  font-size: 16px;
+}
+
+.ph-home-capability-steps span,
+.ph-home-capability-index {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.ph-home-capability-index {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--ph-color-primary);
+  font-size: 14px;
+}
+
+.ph-home-capability-steps .is-current {
+  color: var(--ph-color-primary);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.ph-home-capability-steps .is-done {
+  color: var(--ph-text-secondary);
+}
+
+/* 只挂在桌面滚动帧。紧凑档一次展开全部卡片，没有“滚到哪一步”。 */
+.ph-home-capability-progress {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  width: 100%;
+  height: 3px;
+  background: var(--ph-border-color);
+}
+
+.ph-home-capability-progress span {
+  display: block;
+  height: 100%;
+  background: var(--ph-color-primary);
 }
 
 .ph-home-capability-stage {
@@ -151,18 +221,44 @@
   background: var(--ph-bg-container);
 }
 
+/* 三张卡占同一格，靠滚动切换。未激活的必须藏起来，半透明会让大屏上的字叠在一起。 */
 .ph-home-capability-stage .ph-home-capability {
   grid-area: 1 / 1;
-  opacity: 0.28;
+  visibility: hidden;
+  opacity: 0;
 }
 
 .ph-home-capability-stage .ph-home-capability.is-active {
+  visibility: visible;
   opacity: 1;
+  animation: ph-home-capability-in 0.45s ease;
+}
+
+@keyframes ph-home-capability-in {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-home-capability-stage .ph-home-capability.is-active {
+    animation: none;
+  }
 }
 
 .ph-home-capability h3,
 .ph-home-tech-groups h3 {
   margin: 0 0 8px;
+}
+
+.ph-home-capability-stage .ph-home-capability h3 {
+  font-size: 28px;
 }
 
 .ph-home-capability p,
@@ -223,6 +319,99 @@
   max-width: 40rem;
   margin: 12px 0 0;
   color: var(--ph-text-secondary);
+}
+
+.ph-home-perf {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 32px;
+  align-items: center;
+  margin-top: 28px;
+}
+
+.ph-home-perf-score {
+  margin: 0;
+  color: var(--ph-color-primary);
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ph-home-perf-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ph-home-perf-metrics li {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: var(--ph-radius);
+}
+
+/* 档位色和性能面板同一套：良好 / 待改进 / 差。数据不足保持中性。 */
+.ph-home-perf-metrics.is-dark {
+  --ph-home-perf-good-fg: var(--ph-perf-success);
+  --ph-home-perf-good-bg: color-mix(in srgb, var(--ph-perf-success) 22%, transparent);
+  --ph-home-perf-mid-fg: var(--ph-perf-warning);
+  --ph-home-perf-mid-bg: color-mix(in srgb, var(--ph-perf-warning) 22%, transparent);
+  --ph-home-perf-poor-fg: var(--ph-perf-error);
+  --ph-home-perf-poor-bg: color-mix(in srgb, var(--ph-perf-error) 22%, transparent);
+}
+
+.ph-home-perf-metrics.is-light {
+  --ph-home-perf-good-fg: color-mix(in srgb, var(--ph-perf-success) 72%, #06210c);
+  --ph-home-perf-good-bg: color-mix(in srgb, var(--ph-perf-success) 16%, #ffffff);
+  --ph-home-perf-mid-fg: color-mix(in srgb, var(--ph-perf-warning) 78%, #3d2a04);
+  --ph-home-perf-mid-bg: color-mix(in srgb, var(--ph-perf-warning) 22%, #ffffff);
+  --ph-home-perf-poor-fg: color-mix(in srgb, var(--ph-perf-error) 80%, #3d0808);
+  --ph-home-perf-poor-bg: color-mix(in srgb, var(--ph-perf-error) 12%, #ffffff);
+}
+
+.ph-home-perf-tier-good {
+  background: var(--ph-home-perf-good-bg);
+  color: var(--ph-home-perf-good-fg);
+}
+
+.ph-home-perf-tier-needs-improvement {
+  background: var(--ph-home-perf-mid-bg);
+  color: var(--ph-home-perf-mid-fg);
+}
+
+.ph-home-perf-tier-poor {
+  background: var(--ph-home-perf-poor-bg);
+  color: var(--ph-home-perf-poor-fg);
+}
+
+.ph-home-perf-tier-unknown {
+  border-color: var(--ph-border-color);
+  background: var(--ph-bg-container);
+  color: var(--ph-text-secondary);
+}
+
+.ph-home-perf-metrics span,
+.ph-home-perf-metrics small {
+  display: block;
+  color: inherit;
+}
+
+.ph-home-perf-metrics small {
+  opacity: 0.8;
+}
+
+.ph-home-perf-metrics strong {
+  display: block;
+  margin: 8px 0;
+  font-size: 20px;
+}
+
+.ph-home-perf-link {
+  display: inline-block;
+  margin-top: 20px;
 }
 
 .ph-home-featured-grid {
@@ -310,6 +499,11 @@
   list-style: none;
 }
 
+.ph-home-tech-groups h3,
+.ph-home-tech-groups li {
+  overflow-wrap: anywhere;
+}
+
 .ph-home-tech-groups li {
   padding: 8px 0;
   border-bottom: 1px solid var(--ph-border-color);
@@ -349,6 +543,14 @@
   .ph-home-tech-groups {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .ph-home-perf {
+    grid-template-columns: 1fr;
+  }
+
+  .ph-home-perf-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 /* 手机上限 767。整档同一套单列。
@@ -371,11 +573,16 @@
     font-size: 40px;
   }
 
+  /* 技术栈不收成一列，沿用上面平板的两列。名字短，过长时在格子里换行。 */
   .ph-home-categories,
   .ph-home-ai-row,
   .ph-home-featured-grid,
-  .ph-home-tech-groups {
+  .ph-home-perf-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .ph-home-perf-score {
+    font-size: 48px;
   }
 
   .ph-home-showcase-row {
@@ -391,7 +598,8 @@
   .ph-home-categories a,
   .ph-home-ai-card,
   .ph-home-scroll-hint,
-  .ph-home-showcase-row {
+  .ph-home-showcase-row,
+  .ph-home-perf-link {
     min-height: 44px;
   }
 }

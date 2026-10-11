@@ -221,8 +221,10 @@ export const homepageConfig: HomepageConfig = {
     { name: 'Turborepo', category: 'engineering' },
     { name: 'TypeScript', category: 'language' },
     { name: 'NestJS', category: 'backend' },
+    { name: 'Prisma', category: 'backend' },
     { name: 'PostgreSQL', category: 'database' },
     { name: 'Redis', category: 'cache' },
+    { name: 'Nginx', category: 'deploy' },
   ],
 };
 

@@ -13,7 +13,7 @@ const TechStackSection: React.FC<TechStackSectionProps> = ({ items }) => {
 
   return (
     <div className="ph-home-section">
-      <h2>技术栈</h2>
+      <h2>网站技术栈</h2>
       <div className="ph-home-tech-groups">
         {groups.map(([category, list]) => (
           <section key={category}>
