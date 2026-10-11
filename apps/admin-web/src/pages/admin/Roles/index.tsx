@@ -6,7 +6,8 @@ import type {
 import { useIntl } from '@umijs/max';
 import { Alert, App, Button, Checkbox, Drawer, Space, Tag } from 'antd';
 import React, { useEffect, useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import {
   fetchAdminPermissions,
   fetchAdminRoles,
@@ -32,6 +33,7 @@ const Roles: React.FC = () => {
   const { message } = App.useApp();
   const format = (id: string, values?: Record<string, string>) =>
     intl.formatMessage({ id }, values);
+  const tablePlaceholder = useAdminTablePlaceholder(format('admin.roles.empty'));
   const [catalog, setCatalog] = useState<AdminPermissionItem[]>([]);
   const [editing, setEditing] = useState<AdminRoleRecord | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
@@ -86,14 +88,7 @@ const Roles: React.FC = () => {
         rowKey="code"
         search={false}
         pagination={false}
-        locale={{
-          emptyText: (
-            <ResultState
-              status="empty"
-              description={format('admin.roles.empty')}
-            />
-          ),
-        }}
+        {...tablePlaceholder}
         request={async () => {
           const res = await fetchAdminRoles();
           return { data: res ?? [], success: true };

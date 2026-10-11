@@ -39,6 +39,17 @@
   padding: var(--ph-page-padding);
 }
 
+// 布局内容区默认左右 40px，再加上页面 24px。手机上两层叠在一起，表单会被挤在中间。
+@media (max-width: 767px) {
+  .ant-pro-layout .ant-pro-layout-content {
+    padding-inline: 12px !important;
+  }
+
+  .ph-page {
+    padding: 12px;
+  }
+}
+
 .ph-booklet-sidebar-title {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -65,6 +76,24 @@
 
 .ant-layout {
   min-height: 100vh;
+}
+
+.ph-route-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 24px 16px;
+  overflow: auto;
+  background: var(--ant-color-bg-layout, #f5f5f5);
+}
+
+.ant-table-placeholder > .ant-table-cell {
+  background: transparent !important;
 }
 
 .ant-pro-page-container,

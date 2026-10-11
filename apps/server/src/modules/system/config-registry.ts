@@ -85,6 +85,51 @@ const actionSchema = z.object({
   target: z.string().max(500),
 });
 
+const LOADING_SVG_TAGS = new Set([
+  'svg',
+  'g',
+  'path',
+  'circle',
+  'rect',
+  'ellipse',
+  'line',
+  'polyline',
+  'polygon',
+  'text',
+  'tspan',
+  'defs',
+  'lineargradient',
+  'radialgradient',
+  'stop',
+  'title',
+  'desc',
+  'clippath',
+  'mask',
+]);
+
+/**
+ * 首屏脚本会把这段插进页面。只保留图形标签。
+ * 出现脚本、事件、外链、foreignObject 或其他标签时整段丢掉，避免只删一半还留下可执行内容。
+ */
+function sanitizeLoadingSvg(value: string): string {
+  const text = value.trim();
+  if (!/^<svg[\s>]/i.test(text) || !/<\/svg>\s*$/i.test(text)) return '';
+  if (
+    /<\s*(script|foreignobject|iframe|embed|object|image|use|set|animate|animatetransform|animatemotion|style|link|meta|audio|video|canvas)\b/i.test(
+      text,
+    )
+  ) {
+    return '';
+  }
+  if (/javascript\s*:|\son[a-z0-9_-]+\s*=|(?:xlink:)?href\s*=/i.test(text)) return '';
+  const tags = text.match(/<\/?\s*([a-zA-Z][\w:-]*)/g) ?? [];
+  for (const raw of tags) {
+    const name = raw.replace(/<\/?\s*/, '').toLowerCase();
+    if (!LOADING_SVG_TAGS.has(name)) return '';
+  }
+  return text;
+}
+
 export const siteGeneralSchema = z.object({
   siteName: z.string().min(1).max(20),
   siteDescription: z.string().max(500),
@@ -96,6 +141,29 @@ export const siteGeneralSchema = z.object({
   faviconFileId: nullableUuid,
   faviconMode: z.enum(['text', 'image']).optional(),
   faviconText: z.string().max(2).optional(),
+  /** 首屏占位的图形。旧配置没有这项时用圆点转圈。 */
+  loadingStyle: z.enum(['spinner', 'square', 'image', 'svg', 'video']).optional(),
+  loadingTitle: z.string().max(40).optional(),
+  loadingSubtitle: z.string().max(80).optional(),
+  /** 图片、SVG、视频的动效。圆点和方块不用这项。 */
+  loadingMotion: z.enum(['none', 'spin', 'pulse', 'float']).optional(),
+  /** 默认用素材自身宽高；custom 时使用下面的宽高。两者都不能超过限制宽高。 */
+  loadingSizeMode: z.enum(['default', 'custom']).optional(),
+  loadingMaxWidth: z.number().int().min(48).max(480).optional(),
+  loadingMaxHeight: z.number().int().min(48).max(480).optional(),
+  loadingWidth: z.number().int().min(48).max(480).optional(),
+  loadingHeight: z.number().int().min(48).max(480).optional(),
+  /** 旧的正方形边长。没有 loadingSizeMode 且不是 72 时，当成自定义正方形。 */
+  loadingSize: z.number().int().min(48).max(240).optional(),
+  loadingVideoFileId: nullableUuid,
+  /** 标题下面三道灰色骨架。旧配置没有这项时仍然显示。 */
+  loadingShowSkeleton: z.boolean().optional(),
+  loadingFileId: nullableUuid,
+  loadingSvg: z
+    .string()
+    .max(8000)
+    .optional()
+    .transform((value) => (value ? sanitizeLoadingSvg(value) : '')),
   avatarFileId: nullableUuid,
   ownerName: shortText,
   githubUrl: urlOrEmpty,
@@ -242,6 +310,23 @@ export interface PublicSiteConfig {
   faviconUrl: string | null;
   faviconMode: 'text' | 'image';
   faviconText: string;
+  loadingStyle: 'spinner' | 'square' | 'image' | 'svg' | 'video';
+  loadingTitle: string;
+  loadingSubtitle: string;
+  loadingMotion: 'none' | 'spin' | 'pulse' | 'float';
+  loadingSizeMode: 'default' | 'custom';
+  /** 默认宽高和自定义宽高都不能超过这组限制。 */
+  loadingMaxWidth: number;
+  loadingMaxHeight: number;
+  loadingWidth: number;
+  loadingHeight: number;
+  loadingVideoUrl: string | null;
+  /** 为 false 时加载页不画标题下的三道骨架。 */
+  loadingShowSkeleton: boolean;
+  /** 图片模式的签名地址。文件 ID 不进公开响应。 */
+  loadingImageUrl: string | null;
+  /** 已去掉脚本的 SVG 标记。其它样式时为空字符串。 */
+  loadingSvg: string;
   avatarFileId: string | null;
   ownerName: string;
   githubUrl: string;
@@ -259,6 +344,8 @@ export interface AssembledPublicSiteConfig extends Omit<PublicSiteConfig, 'proje
   /** 只给签名使用，公开响应发出前会去掉。 */
   logoFileId: string | null;
   faviconFileId: string | null;
+  loadingFileId: string | null;
+  loadingVideoFileId: string | null;
   projectVisualAssetFiles: ProjectVisualAssetConfig[];
 }
 
@@ -269,6 +356,19 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     keywords: '',
     logoFileId: null,
     faviconFileId: null,
+    loadingStyle: 'spinner',
+    loadingTitle: '正在打开 Personal Hub',
+    loadingSubtitle: '首次打开会先拉取页面资源，请稍候',
+    loadingShowSkeleton: true,
+    loadingMotion: 'none',
+    loadingSizeMode: 'default',
+    loadingMaxWidth: 320,
+    loadingMaxHeight: 320,
+    loadingWidth: 72,
+    loadingHeight: 72,
+    loadingFileId: null,
+    loadingVideoFileId: null,
+    loadingSvg: '',
     avatarFileId: null,
     ownerName: '',
     githubUrl: '',
@@ -468,6 +568,57 @@ export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
   return GROUP_SCHEMAS[group].parse(merged);
 }
 
+function clampLoadingLimit(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return 320;
+  return Math.min(480, Math.max(48, value));
+}
+
+function clampLoadingSide(value: number | undefined, limit: number): number {
+  const side = typeof value === 'number' && Number.isInteger(value) ? value : 72;
+  return Math.min(limit, Math.max(48, side));
+}
+
+/** 旧配置只存了一个边长。72 是当时的默认值，不当成用户亲手设的自定义尺寸。 */
+function resolveLoadingFrame(general: SiteGeneral): {
+  loadingSizeMode: 'default' | 'custom';
+  loadingMaxWidth: number;
+  loadingMaxHeight: number;
+  loadingWidth: number;
+  loadingHeight: number;
+} {
+  const loadingMaxWidth = clampLoadingLimit(general.loadingMaxWidth);
+  const loadingMaxHeight = clampLoadingLimit(general.loadingMaxHeight);
+  const width = clampLoadingSide(general.loadingWidth ?? general.loadingSize, loadingMaxWidth);
+  const height = clampLoadingSide(general.loadingHeight ?? general.loadingSize, loadingMaxHeight);
+  if (general.loadingSizeMode === 'custom' || general.loadingSizeMode === 'default') {
+    return {
+      loadingSizeMode: general.loadingSizeMode,
+      loadingMaxWidth,
+      loadingMaxHeight,
+      loadingWidth: width,
+      loadingHeight: height,
+    };
+  }
+  if (typeof general.loadingSize === 'number' && general.loadingSize !== 72) {
+    const sideWidth = clampLoadingSide(general.loadingSize, loadingMaxWidth);
+    const sideHeight = clampLoadingSide(general.loadingSize, loadingMaxHeight);
+    return {
+      loadingSizeMode: 'custom',
+      loadingMaxWidth,
+      loadingMaxHeight,
+      loadingWidth: sideWidth,
+      loadingHeight: sideHeight,
+    };
+  }
+  return {
+    loadingSizeMode: 'default',
+    loadingMaxWidth,
+    loadingMaxHeight,
+    loadingWidth: width,
+    loadingHeight: height,
+  };
+}
+
 /**
  * 只拼装允许公开的字段。调用方必须传入已按组取出的 value，不要把整张 system_configs 表丢进来。
  */
@@ -498,6 +649,17 @@ export function assemblePublicSiteConfig(
     faviconUrl: null,
     faviconMode: resolveBrandMode(general.faviconMode, general.faviconFileId),
     faviconText: general.faviconText ?? '',
+    loadingStyle: general.loadingStyle ?? 'spinner',
+    loadingTitle: general.loadingTitle ?? '正在打开 Personal Hub',
+    loadingSubtitle: general.loadingSubtitle ?? '首次打开会先拉取页面资源，请稍候',
+    loadingShowSkeleton: general.loadingShowSkeleton !== false,
+    loadingMotion: general.loadingMotion ?? 'none',
+    ...resolveLoadingFrame(general),
+    loadingFileId: general.loadingFileId,
+    loadingVideoFileId: general.loadingVideoFileId,
+    loadingVideoUrl: null,
+    loadingImageUrl: null,
+    loadingSvg: general.loadingStyle === 'svg' ? (general.loadingSvg ?? '') : '',
     avatarFileId: general.avatarFileId,
     ownerName: general.ownerName,
     githubUrl: general.githubUrl,

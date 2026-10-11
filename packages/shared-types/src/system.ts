@@ -96,6 +96,23 @@ export interface SystemPublicConfig {
   faviconMode?: SiteBrandMode;
   /** 文字图标，最多 2 个字。空字符串表示用站点名称的第一个字。 */
   faviconText?: string;
+  /** 首屏占位图形。缺省时前台脚本用圆点转圈。 */
+  loadingStyle?: 'spinner' | 'square' | 'image' | 'svg' | 'video';
+  loadingTitle?: string;
+  loadingSubtitle?: string;
+  loadingImageUrl?: string | null;
+  loadingSvg?: string;
+  loadingMotion?: 'none' | 'spin' | 'pulse' | 'float';
+  /** default 用素材自身宽高；custom 使用 loadingWidth / loadingHeight。 */
+  loadingSizeMode?: 'default' | 'custom';
+  /** 默认宽高和自定义宽高的上限，像素。 */
+  loadingMaxWidth?: number;
+  loadingMaxHeight?: number;
+  loadingWidth?: number;
+  loadingHeight?: number;
+  loadingVideoUrl?: string | null;
+  /** 为 false 时首屏不显示标题下的三道骨架。缺省为显示。 */
+  loadingShowSkeleton?: boolean;
   /** 首页 Hero 文案 */
   heroTitle?: string;
   heroSubtitle?: string;

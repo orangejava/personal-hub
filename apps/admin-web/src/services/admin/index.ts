@@ -629,6 +629,19 @@ export interface AdminSiteGeneralForm {
   faviconFileId: string | null;
   faviconMode: 'text' | 'image';
   faviconText: string;
+  loadingStyle: 'spinner' | 'square' | 'image' | 'svg' | 'video';
+  loadingTitle: string;
+  loadingSubtitle: string;
+  loadingFileId: string | null;
+  loadingSvg: string;
+  loadingShowSkeleton: boolean;
+  loadingMotion: 'none' | 'spin' | 'pulse' | 'float';
+  loadingSizeMode: 'default' | 'custom';
+  loadingMaxWidth: number;
+  loadingMaxHeight: number;
+  loadingWidth: number;
+  loadingHeight: number;
+  loadingVideoFileId: string | null;
 }
 
 function readConfigText(value: unknown): string {
@@ -637,6 +650,43 @@ function readConfigText(value: unknown): string {
 
 function readConfigFileId(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function readFrameLimit(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isInteger(value)) return 320;
+  return Math.min(480, Math.max(48, value));
+}
+
+function readFrameSide(value: unknown, fallback: unknown, limit: number): number {
+  const candidate = typeof value === 'number' ? value : fallback;
+  const side = typeof candidate === 'number' && Number.isInteger(candidate) ? candidate : 72;
+  return Math.min(limit, Math.max(48, side));
+}
+
+function readLoadingFrame(value: Record<string, unknown>): {
+  loadingSizeMode: 'default' | 'custom';
+  loadingMaxWidth: number;
+  loadingMaxHeight: number;
+  loadingWidth: number;
+  loadingHeight: number;
+} {
+  const loadingMaxWidth = readFrameLimit(value.loadingMaxWidth);
+  const loadingMaxHeight = readFrameLimit(value.loadingMaxHeight);
+  const loadingWidth = readFrameSide(value.loadingWidth, value.loadingSize, loadingMaxWidth);
+  const loadingHeight = readFrameSide(value.loadingHeight, value.loadingSize, loadingMaxHeight);
+  if (value.loadingSizeMode === 'custom' || value.loadingSizeMode === 'default') {
+    return { loadingSizeMode: value.loadingSizeMode, loadingMaxWidth, loadingMaxHeight, loadingWidth, loadingHeight };
+  }
+  if (typeof value.loadingSize === 'number' && value.loadingSize !== 72) {
+    return {
+      loadingSizeMode: 'custom',
+      loadingMaxWidth,
+      loadingMaxHeight,
+      loadingWidth: readFrameSide(value.loadingSize, 72, loadingMaxWidth),
+      loadingHeight: readFrameSide(value.loadingSize, 72, loadingMaxHeight),
+    };
+  }
+  return { loadingSizeMode: 'default', loadingMaxWidth, loadingMaxHeight, loadingWidth, loadingHeight };
 }
 
 function readBrandMode(value: unknown, fileId: string | null): 'text' | 'image' {
@@ -650,6 +700,7 @@ export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
   const value = groups[0]?.value ?? {};
   const logoFileId = readConfigFileId(value.logoFileId);
   const faviconFileId = readConfigFileId(value.faviconFileId);
+  const loadingStyle = value.loadingStyle;
   return {
     siteName: readConfigText(value.siteName),
     siteDescription: readConfigText(value.siteDescription),
@@ -660,6 +711,27 @@ export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
     faviconFileId,
     faviconMode: readBrandMode(value.faviconMode, faviconFileId),
     faviconText: readConfigText(value.faviconText),
+    loadingStyle:
+      loadingStyle === 'square' ||
+      loadingStyle === 'image' ||
+      loadingStyle === 'svg' ||
+      loadingStyle === 'video'
+        ? loadingStyle
+        : 'spinner',
+    loadingTitle: readConfigText(value.loadingTitle) || '正在打开 Personal Hub',
+    loadingSubtitle:
+      readConfigText(value.loadingSubtitle) || '首次打开会先拉取页面资源，请稍候',
+    loadingFileId: readConfigFileId(value.loadingFileId),
+    loadingSvg: readConfigText(value.loadingSvg),
+    loadingShowSkeleton: value.loadingShowSkeleton !== false,
+    loadingMotion:
+      value.loadingMotion === 'spin' ||
+      value.loadingMotion === 'pulse' ||
+      value.loadingMotion === 'float'
+        ? value.loadingMotion
+        : 'none',
+    ...readLoadingFrame(value),
+    loadingVideoFileId: readConfigFileId(value.loadingVideoFileId),
   };
 }
 
@@ -680,6 +752,21 @@ export async function updateAdminSystemConfig(data: AdminSiteGeneralForm) {
     faviconFileId: data.faviconFileId,
     faviconMode: data.faviconMode,
     faviconText: data.faviconText,
+    loadingStyle: data.loadingStyle,
+    loadingTitle: data.loadingTitle,
+    loadingSubtitle: data.loadingSubtitle,
+    loadingFileId: data.loadingFileId,
+    loadingSvg: data.loadingSvg,
+    loadingShowSkeleton: data.loadingShowSkeleton !== false,
+    loadingMotion: data.loadingMotion,
+    ...readLoadingFrame({
+      loadingSizeMode: data.loadingSizeMode,
+      loadingMaxWidth: data.loadingMaxWidth,
+      loadingMaxHeight: data.loadingMaxHeight,
+      loadingWidth: data.loadingWidth,
+      loadingHeight: data.loadingHeight,
+    }),
+    loadingVideoFileId: data.loadingVideoFileId,
   });
 }
 

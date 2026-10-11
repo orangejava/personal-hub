@@ -63,7 +63,8 @@ export default defineConfig({
   request: {},
   reactQuery: {},
   access: {},
-  headScripts: [{ src: join(PUBLIC_PATH, 'scripts/loading.js'), async: true }],
+  // 不要 async：脚本必须在页面包之前执行，才能按站点配置画出首屏，而不是被 React 清掉。
+  headScripts: [{ src: join(PUBLIC_PATH, 'scripts/loading.js') }],
   tailwindcss: {},
   mock: {
     // 仅 `pnpm dev:mock` 会加载；`MOCK=none`（默认 `dev`）和生产 `max build` 都不跑 mock 中间件

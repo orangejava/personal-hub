@@ -16,12 +16,15 @@ const Register: React.FC = () => {
   const { message } = App.useApp();
   const [errorText, setErrorText] = useState('');
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: {
     email: string;
     password: string;
     nickname?: string;
   }) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await registerService(values);
       setSubmittedEmail(values.email);
@@ -31,6 +34,8 @@ const Register: React.FC = () => {
       setErrorText(
         nest.message || (error as Error).message || '注册失败，请重试',
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -64,7 +69,10 @@ const Register: React.FC = () => {
             contentStyle={{ minWidth: 280, maxWidth: '75vw' }}
             title="创建账号"
             subTitle="注册后需先完成邮箱验证才能登录"
-            submitter={{ searchConfig: { submitText: '注册' } }}
+            submitter={{
+              searchConfig: { submitText: '注册' },
+              submitButtonProps: { loading: submitting, disabled: submitting },
+            }}
             onFinish={async (values) =>
               handleSubmit(
                 values as {

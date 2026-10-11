@@ -14,6 +14,18 @@ describe('系统配置注册表', () => {
     expect(publicConfig.faviconMode).toBe('text');
     expect(publicConfig.faviconText).toBe('');
     expect(publicConfig.faviconUrl).toBeNull();
+    expect(publicConfig.loadingStyle).toBe('spinner');
+    expect(publicConfig.loadingTitle).toBe('正在打开 Personal Hub');
+    expect(publicConfig.loadingFileId).toBeNull();
+    expect(publicConfig.loadingSvg).toBe('');
+    expect(publicConfig.loadingShowSkeleton).toBe(true);
+    expect(publicConfig.loadingMotion).toBe('none');
+    expect(publicConfig.loadingSizeMode).toBe('default');
+    expect(publicConfig.loadingMaxWidth).toBe(320);
+    expect(publicConfig.loadingMaxHeight).toBe(320);
+    expect(publicConfig.loadingWidth).toBe(72);
+    expect(publicConfig.loadingHeight).toBe(72);
+    expect(publicConfig.loadingVideoFileId).toBeNull();
     expect(publicConfig.homepage.featuredContent.contentIds).toEqual([]);
     expect(publicConfig.layout.homeHeroStyle).toBe('split');
     expect(publicConfig.layout.projectsTitle).toBe('项目');
@@ -45,6 +57,81 @@ describe('系统配置注册表', () => {
     );
     expect(publicConfig.logoMode).toBe('image');
     expect(publicConfig.faviconMode).toBe('text');
+  });
+
+  it('首屏 SVG 带脚本时公开结果清空，不把脚本发出去', () => {
+    const publicConfig = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          {
+            loadingStyle: 'svg',
+            loadingSvg: '<svg onload="alert(1)"><script>alert(1)</script></svg>',
+          },
+        ],
+      ]),
+    );
+    expect(publicConfig.loadingStyle).toBe('svg');
+    expect(publicConfig.loadingSvg).toBe('');
+  });
+
+  it('首屏 SVG 含 foreignObject 或外链时公开结果清空，普通图形保留', () => {
+    const foreign = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          {
+            loadingStyle: 'svg',
+            loadingSvg:
+              '<svg><foreignObject><iframe src="https://evil.example"></iframe></foreignObject></svg>',
+          },
+        ],
+      ]),
+    );
+    const linked = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          {
+            loadingStyle: 'svg',
+            loadingSvg: '<svg><path d="M0 0" href="https://evil.example/a"/></svg>',
+          },
+        ],
+      ]),
+    );
+    const plain = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          {
+            loadingStyle: 'svg',
+            loadingSvg: '<svg viewBox="0 0 10 10"><path d="M0 0h10v10H0z"/></svg>',
+          },
+        ],
+      ]),
+    );
+    expect(foreign.loadingSvg).toBe('');
+    expect(linked.loadingSvg).toBe('');
+    expect(plain.loadingSvg).toContain('<path');
+  });
+
+  it('自定义宽高超过限制时公开结果收到限制以内', () => {
+    const publicConfig = assemblePublicSiteConfig(
+      new Map([
+        [
+          'site.general',
+          {
+            loadingSizeMode: 'custom',
+            loadingMaxWidth: 160,
+            loadingMaxHeight: 120,
+            loadingWidth: 400,
+            loadingHeight: 400,
+          },
+        ],
+      ]),
+    );
+    expect(publicConfig.loadingWidth).toBe(160);
+    expect(publicConfig.loadingHeight).toBe(120);
   });
 
   it('站点名称超过 20 个字时拒绝', () => {

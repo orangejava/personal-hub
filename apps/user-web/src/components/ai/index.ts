@@ -22,6 +22,7 @@ export { default as AiQuotaAlert } from './AiQuotaAlert';
 export { default as AiReferencePicker } from './AiReferencePicker';
 export type { AiReferenceItem } from './AiReferencePicker';
 export { default as AiTemplateCard } from './AiTemplateCard';
+export { default as AiGenerationStatus } from './AiGenerationStatus';
 export { default as AiGenerationStream } from './AiGenerationStream';
 export { default as AiWorkspaceFrame } from './AiWorkspaceFrame';
 export { useAiChat } from './hooks/useAiChat';

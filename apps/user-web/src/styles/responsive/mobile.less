@@ -486,7 +486,10 @@
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    min-height: calc(100dvh - var(--ph-header-height) - 88px);
     padding: 20px var(--ph-page-padding) 28px;
+    background: var(--ph-bg-layout);
+    overscroll-behavior: none;
   }
 
   .ph-booklet-main > h2 {
@@ -504,7 +507,7 @@
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
-    padding: 20px var(--ph-page-padding) 28px;
+    padding: 20px var(--ph-page-padding) calc(104px + env(safe-area-inset-bottom));
   }
 
   .ph-booklet-footer-nav {
@@ -550,6 +553,28 @@
     background: color-mix(in srgb, var(--ph-bg-container) 94%, transparent);
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
     backdrop-filter: blur(12px);
+  }
+
+  .ph-reader-mobile-controls-with-notice {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    min-height: 88px;
+  }
+
+  .ph-reader-mobile-controls-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    width: 100%;
+  }
+
+  .ph-booklet-reading-progress {
+    margin: 0;
+    padding: 0 8px;
+    color: var(--ph-text-tertiary);
+    font-size: 12px;
+    line-height: 1.4;
   }
 
   .ph-booklet-mobile-controls .ant-btn,

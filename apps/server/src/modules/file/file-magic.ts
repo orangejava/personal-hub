@@ -16,6 +16,9 @@ export function sniffMimeType(buffer: Uint8Array, declared: string): string | nu
   if (isWebp(buffer) && declaredMime === 'image/webp') {
     return 'image/webp';
   }
+  if (isGif(buffer) && declaredMime === 'image/gif') {
+    return 'image/gif';
+  }
   if (isPdf(buffer) && declaredMime === 'application/pdf') {
     return 'application/pdf';
   }
@@ -42,6 +45,21 @@ function isJpeg(buffer: Uint8Array): boolean {
 
 function isPng(buffer: Uint8Array): boolean {
   return buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+}
+
+function isGif(buffer: Uint8Array): boolean {
+  if (buffer.length < 6) {
+    return false;
+  }
+  const header = String.fromCharCode(
+    buffer[0],
+    buffer[1],
+    buffer[2],
+    buffer[3],
+    buffer[4],
+    buffer[5],
+  );
+  return header === 'GIF87a' || header === 'GIF89a';
 }
 
 function isWebp(buffer: Uint8Array): boolean {

@@ -2,7 +2,8 @@ import { ModalForm, ProFormText, ProTable } from '@ant-design/pro-components';
 import { useIntl } from '@umijs/max';
 import { App, Popconfirm } from 'antd';
 import React, { useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import { createAdminTag, deleteAdminTag, fetchAdminTags } from '@/services/admin';
 
 /** 标签管理 */
@@ -10,6 +11,7 @@ const Tags: React.FC = () => {
   const intl = useIntl();
   const { message } = App.useApp();
   const format = (id: string) => intl.formatMessage({ id });
+  const tablePlaceholder = useAdminTablePlaceholder(format('admin.tags.empty'));
   const [reloadKey, setReloadKey] = useState(0);
   const [deletingId, setDeletingId] = useState<string>();
 
@@ -37,9 +39,7 @@ const Tags: React.FC = () => {
         rowKey="id"
         search={false}
         pagination={false}
-        locale={{
-          emptyText: <ResultState status="empty" description={format('admin.tags.empty')} />,
-        }}
+        {...tablePlaceholder}
         request={async () => {
           const res = await fetchAdminTags();
           return { data: res ?? [], success: true };

@@ -3,6 +3,7 @@ import { ContentType } from '@personal-hub/shared-types';
 import { App, Popconfirm, Tag } from 'antd';
 import React, { useState } from 'react';
 import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import { getUserWebOrigin } from '@personal-hub/app-origins';
 import { deleteAdminContent, fetchAdminContents } from '@/services/admin';
@@ -11,6 +12,7 @@ import { deleteAdminContent, fetchAdminContents } from '@/services/admin';
 const Booklets: React.FC = () => {
   const { message } = App.useApp();
   const [reloadKey, setReloadKey] = useState(0);
+  const tablePlaceholder = useAdminTablePlaceholder('暂无小册');
 
   return (
     <PageContainer title="小册管理">
@@ -19,6 +21,7 @@ const Booklets: React.FC = () => {
         rowKey="id"
         search={false}
         pagination={DEFAULT_TABLE_PAGINATION}
+        {...tablePlaceholder}
         request={async (params) => {
           const res = await fetchAdminContents({
             current: params.current,

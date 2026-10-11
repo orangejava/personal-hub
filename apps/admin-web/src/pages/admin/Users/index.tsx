@@ -2,6 +2,7 @@ import { type ActionType, ProTable } from '@ant-design/pro-components';
 import { App, Button, Drawer, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer, ResultState } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   fetchNestAdminUserSessions,
@@ -36,6 +37,7 @@ const Users: React.FC = () => {
   const [sessionUser, setSessionUser] = useState<NestAdminUser | null>(null);
   const [sessions, setSessions] = useState<AuthSessionItem[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+  const tablePlaceholder = useAdminTablePlaceholder('暂无用户');
 
   const openSessions = async (user: NestAdminUser) => {
     setSessionUser(user);
@@ -75,9 +77,7 @@ const Users: React.FC = () => {
         rowKey="id"
         pagination={DEFAULT_TABLE_PAGINATION}
         search={DEFAULT_TABLE_SEARCH}
-        locale={{
-          emptyText: <ResultState status="empty" description="暂无用户" />,
-        }}
+        {...tablePlaceholder}
         request={async (params) => {
           const res = await fetchNestAdminUsers({
             current: params.current,

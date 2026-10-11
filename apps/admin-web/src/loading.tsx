@@ -1,7 +1,11 @@
-import { Skeleton } from 'antd';
+import React from 'react';
+import SectionSkeleton from '@/components/shared/SectionSkeleton';
 
+/** 后台路由分包等待。侧栏已经在，只占内容区，不盖住菜单。 */
 const Loading: React.FC = () => (
-  <Skeleton style={{ padding: '24px 40px', height: '60vh' }} active />
+  <div className="ph-route-loading" style={{ padding: '8px 0 24px' }}>
+    <SectionSkeleton variant="table" rows={12} />
+  </div>
 );
 
 export default Loading;

@@ -15,12 +15,15 @@ const ResetPassword: React.FC = () => {
   const { message } = App.useApp();
   const [errorText, setErrorText] = useState('');
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const token = useMemo(
     () => new URLSearchParams(window.location.search).get('token') ?? '',
     [],
   );
 
   const handleSubmit = async (values: { newPassword: string }) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await resetPassword({ token, newPassword: values.newPassword });
       setDone(true);
@@ -28,6 +31,8 @@ const ResetPassword: React.FC = () => {
     } catch (error: unknown) {
       const nest = nestError(error);
       setErrorText(nest.message || (error as Error).message || '重置失败，请重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -62,7 +67,10 @@ const ResetPassword: React.FC = () => {
             contentStyle={{ minWidth: 280, maxWidth: '75vw' }}
             title="重置密码"
             subTitle="链接 30 分钟内有效，成功后需重新登录"
-            submitter={{ searchConfig: { submitText: '确认重置' } }}
+            submitter={{
+              searchConfig: { submitText: '确认重置' },
+              submitButtonProps: { loading: submitting, disabled: submitting },
+            }}
             onFinish={async (values) => handleSubmit(values as { newPassword: string })}
           >
             {errorText && (

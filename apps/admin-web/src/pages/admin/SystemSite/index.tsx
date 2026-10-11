@@ -1,6 +1,6 @@
-import { ProForm, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
+import { ProForm, ProFormDigit, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
 import { Link, useModel } from '@umijs/max';
-import { Alert, Card, Form, Radio, message } from 'antd';
+import { Alert, Button, Card, Form, Radio, Switch, Upload, message } from 'antd';
 import React, { useEffect, useState } from 'react';
 import ImageFileField from '@/components/ImageFileField';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
@@ -10,6 +10,7 @@ import {
   updateAdminSystemConfig,
   type AdminSiteGeneralForm,
 } from '@/services/admin';
+import { uploadLoadingVideo } from '@/services/files';
 import { fetchPublicConfig } from '@/services/system';
 import styles from './index.module.less';
 
@@ -53,7 +54,7 @@ function BrandAssetField({
 }: BrandAssetFieldProps) {
   return (
     <div style={fieldBlockStyle}>
-      <div style={{ marginBottom: 12, fontWeight: 500 }}>{label}</div>
+      <div className={styles.sectionTitle}>{label}</div>
       <Form.Item name={modeName} style={{ marginBottom: 16 }}>
         <Radio.Group>
           <Radio value="text">文字</Radio>
@@ -71,6 +72,7 @@ function BrandAssetField({
       </div>
       <div style={{ display: mode === 'image' ? 'block' : 'none', paddingTop: 4 }}>
         <ImageFileField
+          allowGif
           maxCount={1}
           previewUrls={previewUrls}
           value={fileId ? [fileId] : []}
@@ -89,8 +91,15 @@ const SystemSite: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [logoFileId, setLogoFileId] = useState<string | null>(null);
   const [faviconFileId, setFaviconFileId] = useState<string | null>(null);
+  const [loadingFileId, setLoadingFileId] = useState<string | null>(null);
+  const [loadingVideoFileId, setLoadingVideoFileId] = useState<string | null>(null);
+  const [videoUploading, setVideoUploading] = useState(false);
   const logoMode = Form.useWatch('logoMode', form);
   const faviconMode = Form.useWatch('faviconMode', form);
+  const loadingStyle = Form.useWatch('loadingStyle', form);
+  const loadingSizeMode = Form.useWatch('loadingSizeMode', form);
+  const loadingMaxWidth = Form.useWatch('loadingMaxWidth', form);
+  const loadingMaxHeight = Form.useWatch('loadingMaxHeight', form);
   const { data, loading, error, run } = useRequest(fetchAdminSiteGeneral);
   const { data: publicConfig, run: reloadPublicConfig } = useRequest(async () => {
     try {
@@ -105,6 +114,8 @@ const SystemSite: React.FC = () => {
     form.setFieldsValue(data);
     setLogoFileId(data.logoFileId);
     setFaviconFileId(data.faviconFileId);
+    setLoadingFileId(data.loadingFileId);
+    setLoadingVideoFileId(data.loadingVideoFileId);
   }, [data, form]);
 
   const handleReset = () => {
@@ -112,6 +123,29 @@ const SystemSite: React.FC = () => {
     form.setFieldsValue(data);
     setLogoFileId(data.logoFileId);
     setFaviconFileId(data.faviconFileId);
+    setLoadingFileId(data.loadingFileId);
+    setLoadingVideoFileId(data.loadingVideoFileId);
+  };
+
+  const clampCustomSide = (sideName: 'loadingWidth' | 'loadingHeight', limit: number | null) => {
+    if (typeof limit !== 'number') return;
+    const current = form.getFieldValue(sideName);
+    if (typeof current === 'number' && current > limit) {
+      form.setFieldValue(sideName, limit);
+    }
+  };
+
+  const handleVideoUpload = async (file: File) => {
+    setVideoUploading(true);
+    try {
+      const uploaded = await uploadLoadingVideo(file);
+      setLoadingVideoFileId(uploaded.id);
+      message.success('视频已上传，保存配置后将在公开页生效');
+    } catch (uploadError) {
+      message.error(uploadError instanceof Error ? uploadError.message : '视频上传失败');
+    } finally {
+      setVideoUploading(false);
+    }
   };
 
   const handleFinish = async (values: AdminSiteGeneralForm) => {
@@ -121,8 +155,13 @@ const SystemSite: React.FC = () => {
         ...values,
         logoText: values.logoText ?? '',
         faviconText: values.faviconText ?? '',
+        loadingTitle: values.loadingTitle ?? '',
+        loadingSubtitle: values.loadingSubtitle ?? '',
+        loadingSvg: values.loadingSvg ?? '',
         logoFileId,
         faviconFileId,
+        loadingFileId,
+        loadingVideoFileId,
       });
       message.success('已保存，公开前台将读取最新配置');
       await run();
@@ -186,6 +225,7 @@ const SystemSite: React.FC = () => {
             render: (_, dom) => <div className={styles.submitter}>{dom}</div>,
           }}
         >
+          <div className={styles.sectionTitle}>站点信息</div>
           <ProFormText
             name="siteName"
             label="站点名称"
@@ -200,6 +240,161 @@ const SystemSite: React.FC = () => {
             extra="写入 meta keywords，多个词可用逗号分隔"
             rules={[{ max: 500 }]}
           />
+          <div style={fieldBlockStyle}>
+            <div className={styles.sectionTitle}>首页加载</div>
+            <Form.Item name="loadingStyle" label="加载样式" style={{ marginBottom: 16 }}>
+              <Radio.Group>
+                <Radio value="spinner">圆点转圈</Radio>
+                <Radio value="square">方块转圈</Radio>
+                <Radio value="image">图片</Radio>
+                <Radio value="svg">SVG</Radio>
+                <Radio value="video">视频</Radio>
+              </Radio.Group>
+            </Form.Item>
+            <div style={{ display: loadingStyle === 'image' ? 'block' : 'none' }}>
+              <ImageFileField
+                allowGif
+                maxCount={1}
+                previewUrls={previewUrlFor(loadingFileId, publicConfig?.loadingImageUrl)}
+                value={loadingFileId ? [loadingFileId] : []}
+                onChange={(fileIds) => setLoadingFileId(fileIds[0] ?? null)}
+              />
+              <p className={styles.hint}>JPG、PNG、WebP 或 GIF，单张不超过 5 MB。SVG 请改用 SVG 选项粘贴标记。</p>
+            </div>
+            <div style={{ display: loadingStyle === 'svg' ? 'block' : 'none' }}>
+              <ProFormTextArea
+                name="loadingSvg"
+                label="SVG 标记"
+                extra="粘贴以 <svg 开头的标记。带脚本或事件的内容保存后会被丢掉。"
+                fieldProps={{ maxLength: 8000, rows: 6 }}
+                rules={[{ max: 8000, message: '最多 8000 个字符' }]}
+              />
+            </div>
+            <div style={{ display: loadingStyle === 'video' ? 'block' : 'none', paddingTop: 4 }}>
+              {loadingVideoFileId ? (
+                <div style={{ marginBottom: 8 }}>
+                  {publicConfig?.loadingVideoUrl ? (
+                    <video
+                      muted
+                      playsInline
+                      src={publicConfig.loadingVideoUrl}
+                      style={{ width: 160, maxHeight: 120 }}
+                    />
+                  ) : (
+                    <p className={styles.hint}>视频已选择，保存后可预览。</p>
+                  )}
+                  <Button size="small" danger onClick={() => setLoadingVideoFileId(null)}>
+                    移除视频
+                  </Button>
+                </div>
+              ) : null}
+              <Upload
+                accept="video/mp4"
+                maxCount={1}
+                showUploadList={false}
+                disabled={videoUploading}
+                customRequest={({ file, onError, onSuccess }) => {
+                  if (!(file instanceof File)) {
+                    onError?.(new Error('浏览器未提供可上传的视频文件'));
+                    return;
+                  }
+                  handleVideoUpload(file)
+                    .then(() => onSuccess?.({}))
+                    .catch((uploadError) =>
+                      onError?.(uploadError instanceof Error ? uploadError : new Error('视频上传失败')),
+                    );
+                }}
+              >
+                <Button loading={videoUploading}>上传 MP4</Button>
+              </Upload>
+              <p className={styles.hint}>仅 MP4，不超过 10 MB。静音循环播放。</p>
+            </div>
+            <div
+              style={{
+                display:
+                  loadingStyle === 'image' || loadingStyle === 'svg' || loadingStyle === 'video'
+                    ? 'block'
+                    : 'none',
+              }}
+            >
+              <Form.Item name="loadingMotion" label="动效" style={{ marginBottom: 12 }}>
+                <Radio.Group>
+                  <Radio value="none">不动</Radio>
+                  <Radio value="spin">旋转</Radio>
+                  <Radio value="pulse">缩放</Radio>
+                  <Radio value="float">上下浮动</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <Form.Item name="loadingSizeMode" label="尺寸" style={{ marginBottom: 12 }}>
+                <Radio.Group>
+                  <Radio value="default">默认宽高</Radio>
+                  <Radio value="custom">自定义宽高</Radio>
+                </Radio.Group>
+              </Form.Item>
+              <ProFormDigit
+                name="loadingMaxWidth"
+                label="限制宽度"
+                extra="48 到 480 像素。默认宽高和自定义宽度都不能超过它。"
+                min={48}
+                max={480}
+                fieldProps={{
+                  precision: 0,
+                  onChange: (value) => clampCustomSide('loadingWidth', typeof value === 'number' ? value : null),
+                }}
+              />
+              <ProFormDigit
+                name="loadingMaxHeight"
+                label="限制高度"
+                extra="48 到 480 像素。默认宽高和自定义高度都不能超过它。"
+                min={48}
+                max={480}
+                fieldProps={{
+                  precision: 0,
+                  onChange: (value) => clampCustomSide('loadingHeight', typeof value === 'number' ? value : null),
+                }}
+              />
+              <div style={{ display: loadingSizeMode === 'custom' ? 'block' : 'none' }}>
+                <ProFormDigit
+                  name="loadingWidth"
+                  label="宽度"
+                  extra={`不能超过限制宽度 ${typeof loadingMaxWidth === 'number' ? loadingMaxWidth : 320} 像素。`}
+                  min={48}
+                  max={typeof loadingMaxWidth === 'number' ? loadingMaxWidth : 320}
+                  fieldProps={{ precision: 0 }}
+                />
+                <ProFormDigit
+                  name="loadingHeight"
+                  label="高度"
+                  extra={`不能超过限制高度 ${typeof loadingMaxHeight === 'number' ? loadingMaxHeight : 320} 像素。可以和宽度不同。`}
+                  min={48}
+                  max={typeof loadingMaxHeight === 'number' ? loadingMaxHeight : 320}
+                  fieldProps={{ precision: 0 }}
+                />
+              </div>
+            </div>
+            <ProFormText
+              name="loadingTitle"
+              label="标题"
+              extra="最多 40 个字。留空则保存后仍显示默认标题。"
+              fieldProps={{ maxLength: 40 }}
+              rules={[{ max: 40, message: '最多 40 个字' }]}
+            />
+            <ProFormText
+              name="loadingSubtitle"
+              label="副文案"
+              extra="最多 80 个字。"
+              fieldProps={{ maxLength: 80 }}
+              rules={[{ max: 80, message: '最多 80 个字' }]}
+            />
+            <Form.Item
+              name="loadingShowSkeleton"
+              label="骨架条"
+              valuePropName="checked"
+              extra="标题下面的三道灰色条。关掉后只保留图形、文字和底部进度。"
+            >
+              <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
+            </Form.Item>
+          </div>
           <BrandAssetField
             label="Logo"
             modeName="logoMode"
@@ -207,7 +402,7 @@ const SystemSite: React.FC = () => {
             mode={shownLogoMode}
             textMax={20}
             textHint="最多 20 个字。留空则使用站点名称。"
-            imageHint="JPG、PNG 或 WebP，单张不超过 5 MB。页头按高度 32 像素显示。"
+            imageHint="JPG、PNG、WebP 或 GIF，单张不超过 5 MB。页头按高度 32 像素显示。"
             fileId={logoFileId}
             previewUrls={previewUrlFor(logoFileId, publicConfig?.logo)}
             onFileChange={setLogoFileId}
@@ -219,7 +414,7 @@ const SystemSite: React.FC = () => {
             mode={shownFaviconMode}
             textMax={2}
             textHint="最多 2 个字。留空则使用站点名称的第一个字。"
-            imageHint="JPG、PNG 或 WebP，单张不超过 5 MB。建议使用正方形小图。"
+            imageHint="JPG、PNG、WebP 或 GIF，单张不超过 5 MB。建议使用正方形小图。"
             fileId={faviconFileId}
             previewUrls={previewUrlFor(faviconFileId, publicConfig?.faviconUrl)}
             onFileChange={setFaviconFileId}

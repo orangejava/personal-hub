@@ -3,7 +3,8 @@ import type { AdminFileRecord } from '@personal-hub/shared-types';
 import { useIntl } from '@umijs/max';
 import { App, Popconfirm, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import {
   batchDeleteAdminFiles,
@@ -31,6 +32,7 @@ const Files: React.FC = () => {
   const { message } = App.useApp();
   const format = (id: string, values?: Record<string, number>) =>
     intl.formatMessage({ id }, values);
+  const tablePlaceholder = useAdminTablePlaceholder(format('admin.files.empty'));
   const actionRef = useRef<ActionType>(null);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [deletingId, setDeletingId] = useState<string>();
@@ -71,9 +73,7 @@ const Files: React.FC = () => {
         rowKey="id"
         pagination={DEFAULT_TABLE_PAGINATION}
         search={DEFAULT_TABLE_SEARCH}
-        locale={{
-          emptyText: <ResultState status="empty" description={format('admin.files.empty')} />,
-        }}
+        {...tablePlaceholder}
         rowSelection={{
           selectedRowKeys,
           onChange: setSelectedRowKeys,

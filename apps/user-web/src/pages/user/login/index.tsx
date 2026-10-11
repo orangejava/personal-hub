@@ -61,6 +61,7 @@ const Login: React.FC = () => {
   } | null>(null);
   const [lastEmail, setLastEmail] = useState(formInitialValues.email ?? '');
   const [captchaLoading, setCaptchaLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [rememberEmail, setRememberEmail] = useState(
     Boolean(formInitialValues.email),
   );
@@ -132,10 +133,11 @@ const Login: React.FC = () => {
     password: string;
     captchaAnswer?: string;
   }) => {
-    persistRememberedEmail(values.email, rememberEmail);
-    if (cooldownRemain > 0) {
+    if (submitting || cooldownRemain > 0) {
       return;
     }
+    persistRememberedEmail(values.email, rememberEmail);
+    setSubmitting(true);
     try {
       const res = await loginService({
         email: values.email,
@@ -184,6 +186,8 @@ const Login: React.FC = () => {
         await loadCaptcha(values.email);
       }
       setErrorText(nest.message || (e as Error).message || '登录失败，请重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -219,7 +223,10 @@ const Login: React.FC = () => {
           initialValues={formInitialValues}
           submitter={{
             searchConfig: { submitText: '登录' },
-            submitButtonProps: { disabled: cooldownRemain > 0 },
+            submitButtonProps: {
+              loading: submitting,
+              disabled: cooldownRemain > 0 || submitting,
+            },
           }}
           onFinish={async (values) =>
             handleSubmit(

@@ -24,10 +24,20 @@ const AiQuotaAlert: React.FC<AiQuotaAlertProps> = ({
 }) => {
   if (!visible || !quota) return null;
 
+  const remaining = quota.remainingTokens.toLocaleString();
   const insufficient = quota.remainingTokens < estimatedTokens;
   const lowBalance = quota.remainingTokens <= quota.lowBalanceThreshold;
 
-  if (!insufficient && !lowBalance) return null;
+  if (!insufficient && !lowBalance) {
+    return (
+      <Alert
+        showIcon
+        className="ph-ai-quota-alert"
+        type="info"
+        title={`${toolName}剩余 ${remaining} Token`}
+      />
+    );
+  }
 
   return (
     <Alert
@@ -39,7 +49,7 @@ const AiQuotaAlert: React.FC<AiQuotaAlertProps> = ({
         <Space orientation="vertical" size={4}>
           <Typography.Text>
             {toolName}本次预计消耗 {estimatedTokens.toLocaleString()} Token，
-            当前剩余 {quota.remainingTokens.toLocaleString()} Token。
+            当前剩余 {remaining} Token。
           </Typography.Text>
           <Typography.Text type="secondary">
             额度由服务端预占和结算，这里只做余额提示。

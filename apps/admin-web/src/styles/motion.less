@@ -88,8 +88,10 @@
 }
 
 .ph-table-skeleton {
+  box-sizing: border-box;
+  min-height: calc(100dvh - 240px);
   padding: var(--ph-space-md);
-  background: #fff;
+  background: transparent;
   border-radius: var(--ph-radius);
 
   .ant-skeleton {

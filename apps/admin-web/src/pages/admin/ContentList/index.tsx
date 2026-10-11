@@ -10,7 +10,8 @@ import {
 } from '@personal-hub/shared-types';
 import { App, Button, Form, Input, Modal, Popconfirm, Select, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
-import { PageContainer, ResultState } from '@/components/shared';
+import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
 import { getUserWebOrigin } from '@personal-hub/app-origins';
 import {
@@ -68,6 +69,7 @@ const ContentList: React.FC = () => {
     copyrightNote?: string;
   }>();
   const reload = () => actionRef.current?.reload();
+  const tablePlaceholder = useAdminTablePlaceholder('暂无文档');
 
   const changeStatus = async (
     id: string,
@@ -151,9 +153,7 @@ const ContentList: React.FC = () => {
         rowKey="id"
         pagination={DEFAULT_TABLE_PAGINATION}
         search={DEFAULT_TABLE_SEARCH}
-        locale={{
-          emptyText: <ResultState status="empty" description="暂无文档" />,
-        }}
+        {...tablePlaceholder}
         request={async (params) => {
           const res = await fetchAdminContents({
             current: params.current,

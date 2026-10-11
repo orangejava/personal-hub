@@ -8,6 +8,8 @@ interface ImageFileFieldProps {
   previewUrls?: Record<string, string>;
   maxCount: number;
   disabled?: boolean;
+  /** 站点配置里的图片允许 GIF。项目封面仍只选静态图。 */
+  allowGif?: boolean;
   onChange: (nextValue: string[]) => void;
 }
 
@@ -22,6 +24,7 @@ const ImageFileField: React.FC<ImageFileFieldProps> = ({
   previewUrls = {},
   maxCount,
   disabled = false,
+  allowGif = false,
   onChange,
 }) => {
   const [uploading, setUploading] = useState(false);
@@ -31,7 +34,7 @@ const ImageFileField: React.FC<ImageFileFieldProps> = ({
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
-      const uploaded = await uploadCoverImage(file);
+      const uploaded = await uploadCoverImage(file, { allowGif });
       const localPreviewUrl = URL.createObjectURL(file);
       setLocalPreviewUrls((current) => ({ ...current, [uploaded.id]: localPreviewUrl }));
       onChange([...value, uploaded.id]);
@@ -102,7 +105,11 @@ const ImageFileField: React.FC<ImageFileFieldProps> = ({
       })}
       {canUpload && (
         <Upload
-          accept="image/jpeg,image/png,image/webp"
+          accept={
+            allowGif
+              ? 'image/jpeg,image/png,image/webp,image/gif'
+              : 'image/jpeg,image/png,image/webp'
+          }
           customRequest={({ file, onError, onSuccess }) => {
             if (!(file instanceof File)) {
               onError?.(new Error('浏览器未提供可上传的图片文件'));

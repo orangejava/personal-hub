@@ -11,6 +11,7 @@ import {
 import { App, Button, Card, Input, Select, Space, Statistic, Tabs, Tag } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AiGenerationStatus,
   AiGuestLimitAlert,
   AiPageHeader,
   AiQuotaAlert,
@@ -270,6 +271,7 @@ const AiTextPage: React.FC = () => {
             />
           </div>
 
+          <AiGenerationStatus active={generation.isGenerating} />
           <div className="ph-ai-text-actions">
             <Space wrap>
               {generation.isGenerating ? (

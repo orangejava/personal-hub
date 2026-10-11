@@ -77,6 +77,12 @@
   padding: 0 12px 8px;
 }
 
+.ph-booklet-chapter-switching {
+  margin: 0 0 12px;
+  color: var(--ph-text-tertiary);
+  font-size: 13px;
+}
+
 /** 右侧阅读区：纵向分为中间(正文+大纲)与底部 footer，参与整页滚动高度 */
 .ph-booklet-body {
   flex: 1;
@@ -184,4 +190,80 @@
 .ph-booklet-mobile-action-sheet,
 .ph-booklet-mobile-panel {
   display: none;
+}
+
+/**
+ * 窄屏章节抽屉和大纲抽屉共用容器色。
+ * 章节列表不再用实心主色块，大纲不再铺一层布局黑底，选中态都是主色浅底。
+ */
+.ph-booklet-mobile-panel {
+  .ant-drawer-content,
+  .ant-drawer-header,
+  .ant-drawer-body {
+    background: var(--ph-bg-container) !important;
+    color: var(--ph-text-primary);
+  }
+
+  .ant-drawer-header {
+    border-bottom: 1px solid var(--ph-border-color);
+  }
+
+  .ant-drawer-title,
+  .ant-drawer-close {
+    color: var(--ph-text-primary) !important;
+  }
+
+  .ant-menu,
+  .ant-menu-sub {
+    background: transparent !important;
+    color: var(--ph-text-primary);
+  }
+
+  .ant-menu-item,
+  .ant-menu-title-content {
+    color: var(--ph-text-secondary) !important;
+    border-radius: 8px;
+  }
+
+  .ant-menu-item:hover,
+  .ant-menu-item-active {
+    color: var(--ph-text-primary) !important;
+    background: color-mix(in srgb, var(--ph-color-primary) 8%, transparent) !important;
+  }
+
+  .ant-menu-item-selected,
+  .ant-menu-item-selected:hover {
+    color: var(--ph-color-primary) !important;
+    background: color-mix(in srgb, var(--ph-color-primary) 16%, transparent) !important;
+  }
+
+  .ant-menu-item-selected .ant-menu-title-content {
+    color: var(--ph-color-primary) !important;
+    background: transparent !important;
+  }
+
+  .ph-outline {
+    background: transparent;
+    min-height: 0;
+  }
+
+  .ph-outline-header {
+    display: none;
+  }
+
+  .ph-outline-body {
+    padding-top: 4px;
+  }
+
+  .ph-outline-row {
+    border-radius: 8px;
+  }
+
+  .ph-outline-row.active {
+    background: color-mix(in srgb, var(--ph-color-primary) 16%, transparent);
+  }
+
+  .ph-outline-row.active::before {
+    background: var(--ph-color-primary);
+  }
 }

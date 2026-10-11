@@ -22,11 +22,14 @@ const ChangePassword: React.FC = () => {
   const { setInitialState } = useModel('@@initialState');
   const { message } = App.useApp();
   const [errorText, setErrorText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async ({
     currentPassword,
     newPassword,
   }: ChangePasswordFormValues) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await changePassword({ currentPassword, newPassword });
       await setInitialState((s) => ({
@@ -42,6 +45,8 @@ const ChangePassword: React.FC = () => {
       setErrorText(
         nest.message || (error as Error).message || '修改失败，请重试',
       );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -55,7 +60,10 @@ const ChangePassword: React.FC = () => {
           contentStyle={{ minWidth: 280, maxWidth: '75vw' }}
           title="修改密码"
           subTitle="首次登录或管理员重置后，必须先设置新密码"
-          submitter={{ searchConfig: { submitText: '确认修改' } }}
+          submitter={{
+            searchConfig: { submitText: '确认修改' },
+            submitButtonProps: { loading: submitting, disabled: submitting },
+          }}
           onFinish={async (values) =>
             handleSubmit(
               values as ChangePasswordFormValues,

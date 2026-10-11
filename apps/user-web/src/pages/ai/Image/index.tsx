@@ -15,6 +15,7 @@ import {
   AiComposer,
   AiConfigPopover,
   type AiConfigGroup,
+  AiGenerationStatus,
   AiGenerationStream,
   AiGuestLimitAlert,
   AiMediaDetailModal,
@@ -309,9 +310,12 @@ const AiImagePage: React.FC = () => {
                     type="info"
                   />
                 )}
+                <AiGenerationStatus active={generation.task.status === 'generating'} />
                 <AiComposer
                   layoutKey={configSummary}
-                  loading={generation.isSavingAssets}
+                  loading={
+                    generation.task.status === 'generating' || generation.isSavingAssets
+                  }
                   model={{
                     value: generation.draft.modelId,
                     options: modelState.options,

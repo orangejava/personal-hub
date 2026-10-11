@@ -33,7 +33,7 @@ import { MENU_ROUTE_OPTIONS } from './route-registry';
 import { SystemRepository } from './system.repository';
 
 // v3 起公开响应不再带 logo/favicon 文件 ID，不能继续读 v2 缓存里的旧字段。
-const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config:v3';
+const PUBLIC_CONFIG_CACHE_KEY = 'cache:system:public-config:v8';
 const PUBLIC_NAV_CACHE_KEY = 'cache:navigation:public';
 const MENU_EPOCH_KEY = 'system:menu-epoch';
 const CACHE_TTL_SECONDS = 300;
@@ -490,12 +490,21 @@ export class SystemService {
         };
       }),
     );
-    const { projectVisualAssetFiles, logoFileId, faviconFileId, ...publicConfig } = assembled;
+    const {
+      projectVisualAssetFiles,
+      logoFileId,
+      faviconFileId,
+      loadingFileId,
+      loadingVideoFileId,
+      ...publicConfig
+    } = assembled;
     return {
       ...publicConfig,
       // 未就绪或不存在时得到 null。文件 ID 留在后台组值里，不进公开响应。
       logoUrl: await this.files.signFileId(logoFileId),
       faviconUrl: await this.files.signFileId(faviconFileId),
+      loadingImageUrl: await this.files.signFileId(loadingFileId),
+      loadingVideoUrl: await this.files.signFileId(loadingVideoFileId),
       projectVisualAssets,
     };
   }
@@ -512,6 +521,16 @@ export class SystemService {
     if (next.faviconFileId && next.faviconFileId !== current.faviconFileId) {
       checks.push(
         this.files.requireReadyOwnedFile(actorId, next.faviconFileId, FilePurpose.COVER),
+      );
+    }
+    if (next.loadingFileId && next.loadingFileId !== current.loadingFileId) {
+      checks.push(
+        this.files.requireReadyOwnedFile(actorId, next.loadingFileId, FilePurpose.COVER),
+      );
+    }
+    if (next.loadingVideoFileId && next.loadingVideoFileId !== current.loadingVideoFileId) {
+      checks.push(
+        this.files.requireReadyOwnedFile(actorId, next.loadingVideoFileId, FilePurpose.AI_ASSET),
       );
     }
     await Promise.all(checks);

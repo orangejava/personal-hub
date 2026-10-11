@@ -148,6 +148,7 @@ interface MobileReaderControlsProps {
   favorited?: boolean;
   menuTheme: 'light' | 'dark';
   hasToc: boolean;
+  progressPercent: number;
   tocItems?: React.ComponentProps<typeof TocPanel>['items'];
   onChapterClick: (chapterId: string) => void;
   onBookletClick: (bookletId: string) => void;
@@ -164,6 +165,7 @@ const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
   favorited = false,
   menuTheme,
   hasToc,
+  progressPercent,
   tocItems,
   onChapterClick,
   onBookletClick,
@@ -215,6 +217,11 @@ const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
     <>
       <ReaderActionBar
         progressive={band === 'phone'}
+        notice={
+          <p className="ph-booklet-reading-progress" role="status">
+            阅读进度 {progressPercent}%
+          </p>
+        }
         primary={[
           {
             key: 'chapters',
@@ -382,6 +389,17 @@ function scrollSidebarItemByIndex(body: HTMLElement | null, itemIndex: number) {
   scrollChildIntoCenter(body, selected, 'auto');
 }
 
+/** 当前章节滚过视口的比例。一屏能看完时视为这一章已经读完。 */
+function readArticleScrollRatio(): number {
+  const article = document.querySelector('.ph-booklet-main');
+  if (!(article instanceof HTMLElement)) return 0;
+  const { height, top } = article.getBoundingClientRect();
+  const view = window.innerHeight;
+  if (height <= view * 0.9) return 1;
+  const scrolled = Math.min(Math.max(-top, 0), height - view);
+  return scrolled / (height - view);
+}
+
 /** 小册章节阅读：全宽四栏 + 可折叠侧栏 */
 const BookletChapter: React.FC = () => {
   const { menuTheme } = usePublicTheme();
@@ -392,15 +410,19 @@ const BookletChapter: React.FC = () => {
   const [listCollapsed, setListCollapsed] = useState(true);
   const [chapterCollapsed, setChapterCollapsed] = useState(false);
   const restoredRef = useRef<string | null>(null);
-  const allowScrollRestoreRef = useRef(true);
+  /** 只有这次进入文档的第一屏才用已保存的滚动位置。 */
+  const resumeScrollOnEntryRef = useRef(true);
+  /** goTo 已经记下离开前的位置，章节切换的滚动清理不要再写成 0。 */
+  const savedOnLeaveRef = useRef(false);
   const listMenuRef = useRef<HTMLDivElement>(null);
   const chapterMenuRef = useRef<HTMLDivElement>(null);
   const lastChapterRef = useRef<BookletChapterType | null>(null);
+  const [scrollRatio, setScrollRatio] = useState(0);
 
   useEffect(() => {
     setListCollapsed(true);
     setChapterCollapsed(false);
-    allowScrollRestoreRef.current = true;
+    resumeScrollOnEntryRef.current = true;
     restoredRef.current = null;
   }, [bookletId]);
 
@@ -432,16 +454,40 @@ const BookletChapter: React.FC = () => {
     : undefined;
   const chapters = bookData?.chapters ?? [];
 
-  const { data: chapter, loading: chapterLoading } = useRequest(
-    () => fetchChapter(bookletId, chapterId),
-    { ready: !!chapterId, refreshDeps: [bookletId, chapterId] },
-  );
+  const {
+    data: chapter,
+    loading: chapterLoading,
+    error: chapterError,
+    refresh: reloadChapter,
+  } = useRequest(() => fetchChapter(bookletId, chapterId), {
+    ready: !!chapterId,
+    refreshDeps: [bookletId, chapterId],
+  });
 
   if (chapter) {
     lastChapterRef.current = chapter;
   }
   const displayChapter = chapter ?? lastChapterRef.current;
-  const initialChapterLoad = chapterLoading && !displayChapter;
+  // 书目和章节是两次请求。正文出来之前只留这一层，不要先骨架、再空白、再换一套。
+  const waitingForChapter =
+    !bookError && !chapterError && !displayChapter && (bookLoading || chapterLoading);
+
+  useEffect(() => {
+    let frame = 0;
+    const update = () => setScrollRatio(readArticleScrollRatio());
+    const onScroll = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(update);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [chapterId, displayChapter?.id]);
 
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const prev = currentIndex > 0 ? chapters[currentIndex - 1] : undefined;
@@ -451,7 +497,7 @@ const BookletChapter: React.FC = () => {
       : undefined;
   const progressPercent =
     chapters.length > 0 && currentIndex >= 0
-      ? Math.round(((currentIndex + 1) / chapters.length) * 100)
+      ? Math.round(((currentIndex + scrollRatio) / chapters.length) * 100)
       : 0;
 
   const { data: bookletListData } = useRequest(() =>
@@ -461,58 +507,69 @@ const BookletChapter: React.FC = () => {
 
   const bookletListIndex = bookletList.findIndex((b) => b.id === bookletId);
 
-  const goTo = (nextChapterId: string, options?: { restoreScroll?: boolean }) => {
+  const goTo = (nextChapterId: string) => {
+    if (nextChapterId === chapterId) return;
     persistChapterProgress(bookletId, chapterId);
-    if (nextChapterId !== chapterId) {
-      if (options?.restoreScroll) {
-        allowScrollRestoreRef.current = true;
-      } else {
-        allowScrollRestoreRef.current = false;
-        scrollPageToTop();
-      }
-    }
+    savedOnLeaveRef.current = true;
+    resumeScrollOnEntryRef.current = false;
     history.push(`/content/booklets/${bookletId}/chapters/${nextChapterId}`);
   };
 
   useEffect(() => {
     let ticking = false;
     const onScroll = () => {
-      if (ticking) return;
+      if (savedOnLeaveRef.current || ticking) return;
       ticking = true;
       window.requestAnimationFrame(() => {
-        persistChapterProgress(bookletId, chapterId);
+        if (!savedOnLeaveRef.current) {
+          persistChapterProgress(bookletId, chapterId);
+        }
         ticking = false;
       });
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
       window.removeEventListener('scroll', onScroll);
+      if (savedOnLeaveRef.current) {
+        savedOnLeaveRef.current = false;
+        return;
+      }
       persistChapterProgress(bookletId, chapterId);
     };
   }, [bookletId, chapterId]);
 
-  useEffect(() => {
-    if (!chapter || chapterLoading) return;
+  useLayoutEffect(() => {
+    const previous = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = previous;
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (chapterLoading || !chapter) return;
     const restoreKey = `${bookletId}:${chapterId}`;
     if (restoredRef.current === restoreKey) return;
     restoredRef.current = restoreKey;
 
     const progress = getReadingProgress(bookletId);
     const shouldRestore =
-      allowScrollRestoreRef.current &&
+      resumeScrollOnEntryRef.current &&
       progress?.chapterId === chapterId &&
       (progress.scrollY ?? 0) > 0;
+    resumeScrollOnEntryRef.current = false;
 
-    const timer = window.setTimeout(() => {
-      if (shouldRestore) {
-        window.scrollTo({ top: progress!.scrollY, behavior: 'auto' });
-      } else {
-        scrollPageToTop();
+    const apply = () => {
+      if (shouldRestore && progress) {
+        window.scrollTo({ top: progress.scrollY, left: 0, behavior: 'auto' });
+        return;
       }
-    }, 50);
-
+      scrollPageToTop();
+    };
+    apply();
+    const timer = window.setTimeout(apply, 50);
     return () => window.clearTimeout(timer);
-  }, [bookletId, chapterId, chapter, chapterLoading]);
+  }, [bookletId, chapterId, chapterLoading, chapter?.id]);
 
   useLayoutEffect(() => {
     if (chapterCollapsed || currentIndex < 0) return;
@@ -543,7 +600,7 @@ const BookletChapter: React.FC = () => {
         saved?.chapterId && chapters.some((c) => c.id === saved.chapterId)
           ? saved.chapterId
           : chapters[0].id;
-      goTo(target, { restoreScroll: true });
+      if (target !== chapterId) goTo(target);
       setListCollapsed(true);
       setChapterCollapsed(false);
       return;
@@ -560,12 +617,13 @@ const BookletChapter: React.FC = () => {
           <ErrorState title="小册不存在或加载失败" onRetry={reloadBook} />
         </div>
       )}
-      {bookLoading && (
+      {chapterError && (
         <div className="ph-container" style={{ padding: 'var(--ph-page-padding)' }}>
-          <SectionSkeleton variant="article" rows={8} />
+          <ErrorState title="章节加载失败" onRetry={reloadChapter} />
         </div>
       )}
-      {booklet && (
+      {waitingForChapter && <SectionSkeleton variant="article" rows={16} fill />}
+      {booklet && !waitingForChapter && (
         <div className="ph-booklet-reader">
           <BookletListSidebar
             bookletId={bookletId}
@@ -592,7 +650,11 @@ const BookletChapter: React.FC = () => {
           <div className="ph-booklet-body">
             <div className="ph-booklet-columns ph-booklet-content">
               <main className="ph-booklet-main">
-                {initialChapterLoad && <SectionSkeleton variant="article" rows={10} />}
+                {chapterLoading && displayChapter ? (
+                  <p className="ph-booklet-chapter-switching" role="status">
+                    正在打开章节
+                  </p>
+                ) : null}
                 {displayChapter && (
                   <>
                     <h2>{displayChapter.title}</h2>
@@ -626,6 +688,7 @@ const BookletChapter: React.FC = () => {
             bookletList={bookletList}
             menuTheme={menuTheme}
             hasToc={hasToc}
+            progressPercent={progressPercent}
             tocItems={displayChapter?.toc}
             onChapterClick={goTo}
             onBookletClick={onBookletClick}

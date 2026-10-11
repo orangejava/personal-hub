@@ -8,7 +8,8 @@ import {
 import { Button, message, Popconfirm, Tag } from 'antd';
 import React, { useMemo, useState } from 'react';
 import type { CategoryMutationInput, CategoryRecord } from '@personal-hub/shared-types';
-import { PageContainer, ResultState } from '@/components/shared';
+import { PageContainer } from '@/components/shared';
+import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
 import {
   createAdminCategory,
   deleteAdminCategory,
@@ -75,6 +76,8 @@ const Categories: React.FC = () => {
     return true;
   };
 
+  const tablePlaceholder = useAdminTablePlaceholder('暂无分类');
+
   return (
     <PageContainer
       title="分类管理"
@@ -89,9 +92,7 @@ const Categories: React.FC = () => {
         rowKey="id"
         search={false}
         pagination={false}
-        locale={{
-          emptyText: <ResultState status="empty" description="暂无分类" />,
-        }}
+        {...tablePlaceholder}
         expandable={{ defaultExpandAllRows: true }}
         request={async () => {
           const res = await fetchAdminCategories();

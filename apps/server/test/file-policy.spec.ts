@@ -24,6 +24,8 @@ describe('file-magic', () => {
   it('核对 PDF / ZIP 魔数，拒绝假扩展名', () => {
     expect(sniffMimeType(Buffer.from('%PDF-1.4\n'), 'application/pdf')).toBe('application/pdf');
     expect(sniffMimeType(Buffer.from('%PDF-1.4\n'), 'image/png')).toBeNull();
+    expect(sniffMimeType(Buffer.from('GIF89a'), 'image/gif')).toBe('image/gif');
+    expect(sniffMimeType(Buffer.from('GIF89a'), 'image/png')).toBeNull();
     expect(sniffMimeType(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]), 'application/zip')).toBe(
       'application/zip',
     );

@@ -23,6 +23,7 @@ import { ensureActiveLocale } from '@/utils/locale';
 import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
+import { rememberBootLoading } from '@/utils/bootLoading';
 import { setSiteHead, siteHeadFromConfig, getSiteHead, subscribeSiteHead } from '@/utils/siteHead';
 import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
 import { mapPublicNavigation } from '@/auth/routeRegistry';
@@ -132,6 +133,7 @@ export async function getInitialState(): Promise<InitialState> {
     if (sys) {
       state.systemConfig = sys;
       setSiteHead(siteHeadFromConfig(sys));
+      rememberBootLoading(sys);
       if (sys.theme) {
         const navTheme = sys.theme.mode === 'dark' ? 'realDark' : 'light';
         const colorPrimary =

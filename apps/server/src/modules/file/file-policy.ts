@@ -22,7 +22,7 @@ const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'] as const;
  */
 export const FILE_POLICY_DEFAULTS: Record<FilePurpose, FilePurposePolicy> = {
   [FilePurpose.AVATAR]: { mimeTypes: [...IMAGE_MIMES], maxBytes: 5 * 1024 * 1024 },
-  [FilePurpose.COVER]: { mimeTypes: [...IMAGE_MIMES], maxBytes: 5 * 1024 * 1024 },
+  [FilePurpose.COVER]: { mimeTypes: [...IMAGE_MIMES, 'image/gif'], maxBytes: 5 * 1024 * 1024 },
   [FilePurpose.CONTENT_FILE]: {
     mimeTypes: [
       'application/pdf',

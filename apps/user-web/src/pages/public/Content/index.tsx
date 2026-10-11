@@ -1,7 +1,7 @@
 import { useSearchParams, Link, useModel } from '@umijs/max';
 import { useRequest } from '@/hooks/useRequest';
 import { Button, Col, Input, Pagination, Row, Select, Space, Tag } from 'antd';
-import React, { useEffect } from 'react';
+import React from 'react';
 import PublicLayout from '@/layouts/PublicLayout';
 import { DEFAULT_TABLE_PAGE_SIZE, DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
 import ContentCard from '@/components/shared/ContentCard';
@@ -32,7 +32,9 @@ const Content: React.FC = () => {
   const pageSize = Number(searchParams.get('pageSize') ?? DEFAULT_TABLE_PAGE_SIZE);
 
   const query: ContentListQuery = { keyword, type, category, tag, sort, page, pageSize };
-  const { data, loading, error, run } = useRequest(() => fetchContentList(query));
+  const { data, loading, error, run } = useRequest(() => fetchContentList(query), {
+    refreshDeps: [keyword, type, category, tag, sort, page, pageSize],
+  });
   const result = data;
   const { data: meta } = useRequest(fetchContentMeta);
   const categories = meta?.categories ?? [];
@@ -43,11 +45,6 @@ const Content: React.FC = () => {
   const canManage =
     initialState?.currentUser?.role === UserRole.Admin ||
     initialState?.currentUser?.role === UserRole.Editor;
-
-  // 任意筛选条件变化时重新拉取
-  useEffect(() => {
-    run();
-  }, [keyword, type, category, tag, sort, page, pageSize]);
 
   const update = (patch: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
@@ -103,7 +100,7 @@ const Content: React.FC = () => {
 
       {/* 标签快速过滤 */}
       {tags.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
+        <div className="ph-content-filter-tags" style={{ marginBottom: 16 }}>
           {tags.map((t) => (
             <Tag.CheckableTag
               key={t.slug}
@@ -116,9 +113,14 @@ const Content: React.FC = () => {
         </div>
       )}
 
-      {error && <ErrorState onRetry={run} />}
-      {loading ? (
-        <SectionSkeleton variant="list" count={3} rows={3} />
+      {error ? (
+        <ErrorState
+          title="内容列表加载失败"
+          description="筛选条件还在，可以重试"
+          onRetry={run}
+        />
+      ) : loading ? (
+        <SectionSkeleton variant="content" count={6} fill />
       ) : result && result.list.length > 0 ? (
         <>
           <Row gutter={[16, 16]}>
@@ -148,8 +150,9 @@ const Content: React.FC = () => {
         </>
       ) : (
         <ResultState
-          status="empty"
-          description="没有匹配的内容"
+          status="filtered-empty"
+          title="没有匹配的内容"
+          description="可以去掉关键词、分类或标签后再看"
           actionText="清除筛选"
           actionTo="/content"
         />

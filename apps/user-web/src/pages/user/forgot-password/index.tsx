@@ -17,8 +17,11 @@ const ForgotPassword: React.FC = () => {
   const { message } = App.useApp();
   const [errorText, setErrorText] = useState('');
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (values: { email: string }) => {
+    if (submitting) return;
+    setSubmitting(true);
     try {
       await forgotPassword(values);
       setSubmittedEmail(values.email);
@@ -26,6 +29,8 @@ const ForgotPassword: React.FC = () => {
     } catch (error: unknown) {
       const nest = nestError(error);
       setErrorText(nest.message || (error as Error).message || '提交失败，请重试');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -54,7 +59,10 @@ const ForgotPassword: React.FC = () => {
             contentStyle={{ minWidth: 280, maxWidth: '75vw' }}
             title="忘记密码"
             subTitle="我们会向已激活邮箱发送一次性重置链接"
-            submitter={{ searchConfig: { submitText: '发送重置邮件' } }}
+            submitter={{
+              searchConfig: { submitText: '发送重置邮件' },
+              submitButtonProps: { loading: submitting, disabled: submitting },
+            }}
             onFinish={async (values) => handleSubmit(values as { email: string })}
           >
             {errorText && (

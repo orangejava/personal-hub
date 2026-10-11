@@ -20,6 +20,19 @@ export interface NestPublicSiteConfig {
   faviconUrl?: string | null;
   faviconMode?: SiteBrandMode;
   faviconText?: string;
+  loadingStyle?: 'spinner' | 'square' | 'image' | 'svg' | 'video';
+  loadingTitle?: string;
+  loadingSubtitle?: string;
+  loadingImageUrl?: string | null;
+  loadingSvg?: string;
+  loadingShowSkeleton?: boolean;
+  loadingMotion?: 'none' | 'spin' | 'pulse' | 'float';
+  loadingSizeMode?: 'default' | 'custom';
+  loadingMaxWidth?: number;
+  loadingMaxHeight?: number;
+  loadingWidth?: number;
+  loadingHeight?: number;
+  loadingVideoUrl?: string | null;
   theme: {
     colorPrimary: string;
     colorSuccess?: string;
@@ -111,6 +124,19 @@ export function mapPublicSiteConfig(
     faviconUrl: payload.faviconUrl ?? null,
     faviconMode: payload.faviconMode,
     faviconText: payload.faviconText,
+    loadingStyle: payload.loadingStyle,
+    loadingTitle: payload.loadingTitle,
+    loadingSubtitle: payload.loadingSubtitle,
+    loadingImageUrl: payload.loadingImageUrl ?? null,
+    loadingSvg: payload.loadingSvg,
+    loadingShowSkeleton: payload.loadingShowSkeleton,
+    loadingMotion: payload.loadingMotion,
+    loadingSizeMode: payload.loadingSizeMode,
+    loadingMaxWidth: payload.loadingMaxWidth,
+    loadingMaxHeight: payload.loadingMaxHeight,
+    loadingWidth: payload.loadingWidth,
+    loadingHeight: payload.loadingHeight,
+    loadingVideoUrl: payload.loadingVideoUrl ?? null,
     heroTitle: payload.homepage?.hero?.title,
     heroSubtitle: payload.homepage?.hero?.subtitle,
     navigation: payload.navigation?.publicPosition ?? 'top',

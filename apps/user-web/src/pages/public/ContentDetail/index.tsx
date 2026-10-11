@@ -268,7 +268,10 @@ const ContentDetail: React.FC = () => {
       {detail?.type === ContentType.Booklet && chapterError && (
         <ErrorState title="小册章节加载失败" onRetry={reloadChapters} />
       )}
-      {loading && <SectionSkeleton variant="article" rows={10} />}
+      {/* 小册还要再请求章节后才跳走。这层骨架留到离开本页，避免详情回来后空一帧再换另一套。 */}
+      {(loading || (detail?.type === ContentType.Booklet && !chapterError)) && (
+        <SectionSkeleton variant="article" rows={16} fill />
+      )}
       {detail && detail.type !== ContentType.Booklet && (
         <div className="ph-content-detail-layout">
           <div

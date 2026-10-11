@@ -27,6 +27,7 @@ import {
   type AiChatAdvancedSettingsValue,
   AiComposer,
   AiConversationHistoryPanel,
+  AiGenerationStatus,
   AiGuestLimitAlert,
   AiQuotaAlert,
   type AiReferenceItem,
@@ -573,6 +574,7 @@ const AiChatPage: React.FC = () => {
         composer={
           <div className="ph-ai-sender-bar">
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+              <AiGenerationStatus active={isGenerating} />
               {band !== 'phone' && (
                 <AiChatAdvancedSettings
                   hasModels={modelState.hasModels}

@@ -102,6 +102,11 @@ const MarkdownViewer: React.FC<MarkdownViewerProps> = ({
             a: 'a',
             img: ({ src, alt }) => <MarkdownImage src={src} alt={alt} />,
             code: MarkdownCode,
+            table: ({ children }) => (
+              <div className="ph-prose-table-wrap">
+                <table>{children}</table>
+              </div>
+            ),
             h2: ({ children }) => (
               <h2 id={headingId(children)}>{children}</h2>
             ),

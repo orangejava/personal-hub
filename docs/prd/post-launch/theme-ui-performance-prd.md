@@ -32,7 +32,7 @@
 
 ### 3.1 后台表单
 
-> 由 `theme-config` worktree 落地。Logo、favicon 上传复用骨架里的 `ImageFileField`，用途固定为已有的 `COVER`。允许 `image/jpeg`、`image/png`、`image/webp`，单文件不超过 5 MB，与 `apps/server/src/modules/file/file-policy.ts` 的 COVER 默认一致。不接受 `.ico` 和 `image/svg+xml`（SVG 在 MIME 拒绝列表里）。favicon 用 png 或 webp，经签名 URL 放进 `rel=icon`。格式不对时走现有上传错误，不新增文件用途。不实现首屏透明顶栏，也不把 `publicBlur` 做成「滚动后毛玻璃」。该字段保持现有存储，首页顶栏维持不透明。见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
+> 由 `theme-config` worktree 落地。Logo、favicon 上传复用骨架里的 `ImageFileField`，用途固定为已有的 `COVER`。允许 `image/jpeg`、`image/png`、`image/webp`、`image/gif`，单文件不超过 5 MB，与 `apps/server/src/modules/file/file-policy.ts` 的 COVER 默认一致。不接受 `.ico` 和 `image/svg+xml`（SVG 在 MIME 拒绝列表里）。favicon 用 png 或 webp，经签名 URL 放进 `rel=icon`。格式不对时走现有上传错误，不新增文件用途。不实现首屏透明顶栏，也不把 `publicBlur` 做成「滚动后毛玻璃」。该字段保持现有存储，首页顶栏维持不透明。见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
 
 配置组已经拆开，表单跟着组走，避免一个保存按钮写错组：
 
