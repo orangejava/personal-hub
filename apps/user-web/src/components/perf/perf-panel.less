@@ -100,9 +100,11 @@
 .ph-perf-stack {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .ph-perf-block {
+  min-width: 0;
   padding: 16px;
   background: var(--ph-perf-elevated);
   border: 1px solid var(--ph-perf-line);
@@ -353,10 +355,40 @@
   color: var(--ph-perf-muted);
 }
 
-.ph-perf-chart-scroll {
+.ph-perf-chart-scroll,
+.ph-perf-lab-scroll {
   width: 100%;
   max-width: 100%;
   overflow-x: auto;
+}
+
+.ph-perf-section-title .ph-perf-cell-label {
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+.ph-perf-lab-round + .ph-perf-lab-round {
+  margin-top: 20px;
+}
+
+.ph-perf-lab-date {
+  margin: 12px 0 8px;
+  color: var(--ph-perf-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ph-perf-lab-table {
+  min-width: 640px;
+}
+
+.ph-perf-lab-value {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
 }
 
 .ph-perf-chart-inner {

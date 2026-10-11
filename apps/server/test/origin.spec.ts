@@ -39,13 +39,14 @@ describe('assertSameOrigin', () => {
       expect(error).toBeInstanceOf(HttpException);
       const body = (error as HttpException).getResponse() as {
         code: string;
-        details: Array<{ received: string; allowed: string[] }>;
+        message: string;
+        details: unknown[];
       };
       expect(body.code).toBe('AUTH_ORIGIN_FORBIDDEN');
-      expect(body.details[0]).toEqual({
-        received: 'http://127.0.0.1:3001',
-        allowed: ALLOWED,
-      });
+      expect(body.message).toBe('请求来源不被允许');
+      expect(JSON.stringify(body)).not.toContain('localhost');
+      expect(JSON.stringify(body)).not.toContain('127.0.0.1');
+      expect(body.details).toEqual([]);
     }
   });
 });

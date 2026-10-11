@@ -416,8 +416,10 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
       { name: 'Turborepo', category: 'engineering' },
       { name: 'TypeScript', category: 'language' },
       { name: 'NestJS', category: 'backend' },
+      { name: 'Prisma', category: 'backend' },
       { name: 'PostgreSQL', category: 'database' },
       { name: 'Redis', category: 'cache' },
+      { name: 'Nginx', category: 'deploy' },
     ],
   } satisfies SiteHomepage,
   'site.about': {
@@ -550,6 +552,32 @@ export function mergeHomepageModules(
 }
 
 /**
+ * 已保存的技术栈整表覆盖默认值。新加的默认项按名字补到末尾，已有顺序不动。
+ * 后台明确存了空数组时保持为空，不把默认名单填回去。
+ */
+export function mergeTechStack(
+  defaults: SiteHomepage['techStack'],
+  raw: unknown,
+): SiteHomepage['techStack'] {
+  if (!Array.isArray(raw)) return defaults;
+  const stored = raw.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const row = item as { name?: unknown; category?: unknown; icon?: unknown };
+    if (typeof row.name !== 'string' || typeof row.category !== 'string') return [];
+    return [
+      {
+        name: row.name,
+        category: row.category,
+        ...(typeof row.icon === 'string' ? { icon: row.icon } : {}),
+      },
+    ];
+  });
+  if (stored.length === 0) return [];
+  const names = new Set(stored.map((item) => item.name));
+  return [...stored, ...defaults.filter((item) => !names.has(item.name))];
+}
+
+/**
  * 用默认值补齐后做 DTO 校验，避免库里缺字段或半套 JSON 让公开接口 500。
  */
 export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
@@ -564,6 +592,12 @@ export function parseGroupValue(group: SystemConfigGroup, raw: unknown) {
     const homepage = merged as SiteHomepage;
     const rawModules = rawObject ? rawObject.modules : homepage.modules;
     homepage.modules = mergeHomepageModules((defaults as SiteHomepage).modules, rawModules);
+    if (rawObject && 'techStack' in rawObject) {
+      homepage.techStack = mergeTechStack(
+        (defaults as SiteHomepage).techStack,
+        rawObject.techStack,
+      );
+    }
   }
   return GROUP_SCHEMAS[group].parse(merged);
 }

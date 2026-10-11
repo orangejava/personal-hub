@@ -1,36 +1,51 @@
 import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
+import { buildAdminWebUrl } from '@personal-hub/app-origins';
 import type { MenuItem } from '@personal-hub/shared-types';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { Helmet, HelmetProvider, history, Link } from '@umijs/max';
 import { Button, message } from 'antd';
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
+import { mapPublicNavigation } from '@/auth/routeRegistry';
 import { ErrorBoundary, Footer } from '@/components';
+import PerfPanelButton from '@/components/perf/PerfPanelButton';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import { AvatarDropdown } from '@/components/RightContent/AvatarDropdown';
 import { ThemeSettingButton } from '@/components/RightContent/ThemeSettingButton';
-import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import PageTransition from '@/components/shared/PageTransition';
 import ThemeProvider from '@/components/ThemeProvider';
 import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { publicMenu } from '@/config/publicMenu';
-import { buildAdminWebUrl } from '@personal-hub/app-origins';
-import { fetchCurrentUser, fetchPermissions, nestHttpStatus } from '@/services/auth';
+import {
+  fetchCurrentUser,
+  fetchPermissions,
+  nestHttpStatus,
+} from '@/services/auth';
 import { fetchPublicConfig, fetchPublicNavigation } from '@/services/system';
 import type { InitialState } from '@/types/app';
+import { rememberBootLoading } from '@/utils/bootLoading';
 import { getThemePreference } from '@/utils/clientPreferences';
 import { ensureActiveLocale } from '@/utils/locale';
 import { localizeMenu } from '@/utils/localizeMenu';
 import { withMenuIcons } from '@/utils/menuIcons';
 import { resolveMenuSelectedKey } from '@/utils/menuSelection';
-import { rememberBootLoading } from '@/utils/bootLoading';
-import { setSiteHead, siteHeadFromConfig, getSiteHead, subscribeSiteHead } from '@/utils/siteHead';
-import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
-import { mapPublicNavigation } from '@/auth/routeRegistry';
-import defaultSettings from '../config/defaultSettings';
 import { startPerfCollection } from '@/utils/perf/collect';
 import { markRouteStart } from '@/utils/perf/routeTiming';
+import {
+  getSiteHead,
+  setSiteHead,
+  siteHeadFromConfig,
+  subscribeSiteHead,
+} from '@/utils/siteHead';
+import { bootstrapThemeRuntime } from '@/utils/themeRuntime';
+import defaultSettings from '../config/defaultSettings';
 import { errorConfig } from './requestErrorConfig';
+
+const SettingDrawer = lazy(() =>
+  import('@ant-design/pro-components').then((mod) => ({
+    default: mod.SettingDrawer,
+  })),
+);
 
 startPerfCollection();
 
@@ -220,7 +235,10 @@ export async function getInitialState(): Promise<InitialState> {
       // 权限拉取失败不阻塞
     }
     // /ai 使用 layout: false，ProLayout.onPageChange 不会跑；启动态统一拦到改密页。
-    if (currentUser.mustChangePassword && location.pathname !== changePasswordPath) {
+    if (
+      currentUser.mustChangePassword &&
+      location.pathname !== changePasswordPath
+    ) {
       history.replace(changePasswordPath);
     }
   }
@@ -234,11 +252,9 @@ export const layout: RunTimeLayoutConfig = ({
 }) => {
   const region = getRegion(history.location.pathname);
   const workspaceEditorRoute =
-    region === 'workspace' &&
-    isWorkspaceEditorPath(history.location.pathname);
+    region === 'workspace' && isWorkspaceEditorPath(history.location.pathname);
   const workspaceEditorFullscreen =
-    workspaceEditorRoute &&
-    !!initialState?.workspaceEditorFullscreen;
+    workspaceEditorRoute && !!initialState?.workspaceEditorFullscreen;
   const menuData = localizeMenu(
     withMenuIcons(pickMenu(initialState?.menu, region)),
   );
@@ -263,8 +279,9 @@ export const layout: RunTimeLayoutConfig = ({
     ? resolveMenuSelectedKey('/workspace/content', menuData)
     : resolveMenuSelectedKey(history.location.pathname, menuData);
   // 工作区仅有内容中心这一层目录菜单；首次进入默认展开，之后由用户点击结果接管。
-  const workspaceMenuOpenKeys =
-    initialState?.workspaceMenuOpenKeys ?? ['/workspace/content-center'];
+  const workspaceMenuOpenKeys = initialState?.workspaceMenuOpenKeys ?? [
+    '/workspace/content-center',
+  ];
 
   return {
     title: initialState?.systemConfig?.siteName ?? 'Personal Hub',
@@ -312,6 +329,7 @@ export const layout: RunTimeLayoutConfig = ({
     },
     // 拆成独立 action，避免三个按钮共享同一个 hover 容器
     actionsRender: () => [
+      <PerfPanelButton key="perf" />,
       ...(region === 'workspace'
         ? [
             <Button
@@ -385,18 +403,23 @@ export const layout: RunTimeLayoutConfig = ({
           </PageTransition>
         </div>
         {/* 主题设置面板：触发按钮已移到顶栏右侧，这里隐藏其自带浮动把手 */}
-        <SettingDrawer
-          disableUrlParams
-          enableDarkTheme
-          collapse={initialState?.workspaceSettingDrawerOpen}
-          onCollapseChange={(open) =>
-            setInitialState((s) => ({ ...s, workspaceSettingDrawerOpen: open }))
-          }
-          settings={initialState?.settings}
-          onSettingChange={(settings) =>
-            setInitialState((s) => ({ ...s, settings }))
-          }
-        />
+        <Suspense fallback={null}>
+          <SettingDrawer
+            disableUrlParams
+            enableDarkTheme
+            collapse={initialState?.workspaceSettingDrawerOpen}
+            onCollapseChange={(open) =>
+              setInitialState((s) => ({
+                ...s,
+                workspaceSettingDrawerOpen: open,
+              }))
+            }
+            settings={initialState?.settings}
+            onSettingChange={(settings) =>
+              setInitialState((s) => ({ ...s, settings }))
+            }
+          />
+        </Suspense>
       </>
     ),
     ...restSettings,
@@ -417,7 +440,11 @@ export const layout: RunTimeLayoutConfig = ({
 };
 
 /** 路径变化时开始计时。结束点在各布局的 PerfRouteMarker，避免把懒加载 fallback 当成页面已经出现。 */
-export function onRouteChange({ location }: { location: { pathname: string } }) {
+export function onRouteChange({
+  location,
+}: {
+  location: { pathname: string };
+}) {
   markRouteStart(location.pathname);
 }
 
@@ -434,7 +461,9 @@ function SiteDocumentHelmet() {
   return (
     <Helmet>
       <title>{head.title}</title>
-      {head.description ? <meta name="description" content={head.description} /> : null}
+      {head.description ? (
+        <meta name="description" content={head.description} />
+      ) : null}
       {head.keywords ? <meta name="keywords" content={head.keywords} /> : null}
       {head.faviconUrl ? <link rel="icon" href={head.faviconUrl} /> : null}
     </Helmet>

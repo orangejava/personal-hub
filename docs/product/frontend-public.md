@@ -154,7 +154,7 @@
 
 ## 项目 / 作品 `/projects`
 
-> 2026-09-29 起改为「作品矩阵」：展示 personal-hub 由哪些端组成（用户端 Web、管理端 Web、Nest 服务端已上线；Flutter、桌面端规划中），下方保留「项目」类型内容列表作为「更多作品」。端卡片数据先放前端静态配置。权威需求见 [home-showcase-prd.md](../../apps/user-web/docs/prd/home-showcase-prd.md) §5；下面的卡片样式仍适用于「更多作品」列表。
+> 2026-10-10 起，页面是作品矩阵：展示 personal-hub 由哪些端组成（用户端 Web、管理端 Web、Nest 服务端已上线；Flutter、桌面端规划中）。端卡片数据放前端静态配置。底部「更多作品」固定写「敬请期待」，不读取内容中心的项目文章。权威需求见 [home-showcase-prd.md](../../apps/user-web/docs/prd/home-showcase-prd.md) §5。下面的时间线和卡片样式是更早的内容列表草案，当前页面不使用。
 
 ### 页面设计
 
@@ -176,7 +176,7 @@
 ### 数据来源
 
 - **页头文案**：后台系统配置中心「项目配置」写入 `site.layout.projectsTitle` / `projectsIntro`
-- **列表**：通过后台内容管理录入（类型 = `project`，首版方案）
+- **更多作品**：不读内容列表。标题下固定「敬请期待」，不通过内容管理拉取类型为 `project` 的文章
 - **GitHub 集成**（后续）：调用 GitHub API 同步 Star 数、语言、最后更新时间
 
 ### 首版内容优先级

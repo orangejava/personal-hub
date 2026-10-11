@@ -41,8 +41,8 @@
 - 所有页面首屏都要先下载 1.16 MB 的入口 JS。这是当前最大的性能问题，远大于任何动效库的体积。
 - 入口里出现了 pdfjs（65 处）和图表库 g2 的代码，但首页不需要它们。
 - 高度怀疑的原因：`src/app.tsx` 和 `src/layouts/PublicLayout.tsx` 从 `@/components/shared` 汇总导出文件引入 `PageTransition`，而该文件同时导出 `PdfViewer`、`WordViewer`、`MarkdownViewer`。需要在本 worktree 用 `pnpm analyze` 确认。
-- 生产 Nginx（`deploy/nginx/default.conf`）没有开启 gzip，也没有给带哈希的静态资源设置长缓存；`nginx:alpine` 默认不压缩。访客很可能每次都要下载 3.86 MB 未压缩的入口文件。这一项和 HTTPS 一起在 `main` 上处理（见 [deploy/domain-https.md](../../deploy/domain-https.md)），不放进本 worktree。
-- 生产 Lighthouse 不挡住一期。改 Nginx 或对比「优化前」时，再对线上首页、内容中心、小册阅读、AI 对话各跑一次，把结果补进本节。一期面板和入口体积以本节已有的本地 `pnpm build` 数字为基线。
+- 生产 Nginx（`deploy/nginx/default.conf`）已开启 gzip，并给带哈希的静态资源设置一年缓存。`/api/v1/` 不压缩。HTTPS 仍后置（见 [deploy/domain-https.md](../../deploy/domain-https.md)）。线上要重建 Nginx 镜像后才生效。
+- 生产 Lighthouse 不挡住一期。2026-10-10 已在 `http://www.personalhub.center` 测过发版前基线（未开 gzip，入口 `umi.js` 传输约 1.84 MB）。桌面 / 手机各一份：首页 71 / 48，内容中心 71 / 43，小册章节 64 / 41，AI 对话 64 / 42。手机 LCP 为 13.3–20.2 秒。同一张表挂在 `/status` 底部。gzip 上线后再测一轮，接在这张表后面。
 
 ## 4. 不做
 
@@ -98,6 +98,7 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
   - 「差」阈值 → 「差」阈值的 2 倍：50 → 0 分；更差按 0 分
 - 按权重加权：LCP 25、TTFB 15、CLS 15、INP 15、FCP 10、接口 p95 20。
 - 有一条有效样本就计入。没有样本才标「数据不足」，并按剩余权重重新归一。
+- 首页摘要的大分数另计。在上面六项之外，再加上路由切换 15、首屏 JS 10。八项都有数时分母是 125。这一分和面板顶部、页面卡片都可以不同。页面卡片仍只看 LCP、TTFB、路由切换。
 
 ### 5.4 统计的页面
 
@@ -187,7 +188,7 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 
 ### 7.1 上报
 
-- 前端在页面隐藏时用 `navigator.sendBeacon` 上报 Web Vitals，按比例抽样（默认 20%，可配置）
+- 前端在页面隐藏时用 `navigator.sendBeacon` 上报 Web Vitals。默认抽样 20%。抽样比例和小时/日数据的保留时长都在后台可配置，不写死在代码里
 - `POST /api/v1/metrics/web-vitals`：允许匿名，限流，严格校验字段，只收路由模板和指标数值
 
 ### 7.2 服务端耗时
@@ -245,4 +246,4 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 ## 10. 待确认
 
 - [x] 看板配色：跟随站点当前主题，使用站点主题的主色 / 辅助色 / 状态色。面板不单独切换深浅色（2026-10-09，替代 2026-09-30 的手动切换）
-- [ ] 二期抽样比例和数据保留时长是否需要在后台可配置
+- [x] 二期抽样比例和数据保留时长在后台可配置（2026-10-10 确认）。默认抽样 20%，保留时长仍按 §7.2。随二期实现，不在首页摘要这一轮

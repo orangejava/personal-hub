@@ -1,37 +1,38 @@
-import type {
-  AiNavigationItem,
-  AiTool,
-  AiToolStatus,
-  AiToolType,
-} from '@personal-hub/shared-types';
 import {
   ApiOutlined,
   AppstoreOutlined,
   CrownOutlined,
+  DeploymentUnitOutlined,
+  ExperimentOutlined,
   FileTextOutlined,
+  FolderOutlined,
   HomeOutlined,
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
   PictureOutlined,
   RobotOutlined,
-  ExperimentOutlined,
-  DeploymentUnitOutlined,
   SendOutlined,
   SettingOutlined,
+  TeamOutlined,
   UserOutlined,
   VideoCameraOutlined,
-  FolderOutlined,
-  TeamOutlined,
 } from '@ant-design/icons';
+import type {
+  AiNavigationItem,
+  AiTool,
+  AiToolStatus,
+  AiToolType,
+} from '@personal-hub/shared-types';
 import { history, Link, useLocation, useModel } from '@umijs/max';
 import { Button, Drawer, Popover, Space, Tag, Tooltip } from 'antd';
 import React, { useEffect, useMemo, useState } from 'react';
 import { AiXProvider } from '@/components/ai-x';
-import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import PublicThemeDrawer from '@/components/PublicThemeDrawer';
-import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
+import PerfPanelButton from '@/components/perf/PerfPanelButton';
+import PerfRouteMarker from '@/components/perf/PerfRouteMarker';
 import UserAccountPopover from '@/components/shared/UserAccountPopover';
+import ThemeRuntimeSync from '@/components/ThemeRuntimeSync';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { usePublicTheme } from '@/hooks/usePublicTheme';
 import { useViewportBand } from '@/hooks/useViewportBand';
@@ -128,13 +129,32 @@ const navItems: AiNavItem[] = [
     ],
   },
   { path: '/ai/assets', label: '资产', icon: <FolderOutlined /> },
-  { path: '/ai/profile', label: '个人中心', icon: <UserOutlined />, dividerBefore: true },
-  { path: '/ai/team', label: '创建团队', icon: <TeamOutlined />, navStatus: 'disabled' },
-  { path: '/ai/creation-center', label: '创作中心', icon: <AppstoreOutlined /> },
+  {
+    path: '/ai/profile',
+    label: '个人中心',
+    icon: <UserOutlined />,
+    dividerBefore: true,
+  },
+  {
+    path: '/ai/team',
+    label: '创建团队',
+    icon: <TeamOutlined />,
+    navStatus: 'disabled',
+  },
+  {
+    path: '/ai/creation-center',
+    label: '创作中心',
+    icon: <AppstoreOutlined />,
+  },
   { path: '/ai/membership', label: '会员中心', icon: <CrownOutlined /> },
   { path: '/ai/publish', label: '发布', icon: <SendOutlined /> },
   { path: '/ai/tutorials', label: '教程', icon: <FileTextOutlined /> },
-  { path: '/ai/api', label: 'API', icon: <ApiOutlined />, navStatus: 'disabled' },
+  {
+    path: '/ai/api',
+    label: 'API',
+    icon: <ApiOutlined />,
+    navStatus: 'disabled',
+  },
 ];
 
 const iconByName: Record<string, React.ReactNode> = {
@@ -200,13 +220,19 @@ const toolStatusText: Record<Exclude<AiToolStatus, 'enabled'>, string> = {
   disabled: '暂不可用',
 };
 
-function getToolConfig(tools: AiTool[] | undefined, code: AiToolType | undefined) {
+function getToolConfig(
+  tools: AiTool[] | undefined,
+  code: AiToolType | undefined,
+) {
   if (!code) return undefined;
   return tools?.find((tool) => tool.code === code);
 }
 
 /** 导航表状态优先；绑定了 AiTool 时，工具禁用/即将上线会压过导航 ENABLED。 */
-function resolveNavStatus(item: AiNavItem, tools?: AiTool[]): AiToolStatus | undefined {
+function resolveNavStatus(
+  item: AiNavItem,
+  tools?: AiTool[],
+): AiToolStatus | undefined {
   const toolStatus = getToolConfig(tools, item.toolCode)?.status;
   if (toolStatus && toolStatus !== 'enabled') {
     return toolStatus;
@@ -326,11 +352,12 @@ const AiNavigation: React.FC<AiNavigationProps> = ({
         selectedPath === item.path ||
         item.children?.some((child) => selectedPath === child.path);
       const status = resolveNavStatus(item, tools);
-      const unavailable =
-        !item.children && isUnavailableStatus(status);
-      const statusLabel = isUnavailableStatus(status) ? toolStatusText[status] : undefined;
+      const unavailable = !item.children && isUnavailableStatus(status);
+      const statusLabel = isUnavailableStatus(status)
+        ? toolStatusText[status]
+        : undefined;
       const targetPath = item.children
-        ? firstAvailableChild(item, tools)?.path ?? item.path
+        ? (firstAvailableChild(item, tools)?.path ?? item.path)
         : item.path;
       const itemNode = (
         <div
@@ -428,7 +455,10 @@ interface AiUserPopoverProps {
   planName?: string;
 }
 
-const AiUserPopover: React.FC<AiUserPopoverProps> = ({ quotaText, planName }) => (
+const AiUserPopover: React.FC<AiUserPopoverProps> = ({
+  quotaText,
+  planName,
+}) => (
   <UserAccountPopover
     planName={planName}
     quotaText={quotaText}
@@ -465,8 +495,12 @@ const AiLayout: React.FC<AiLayoutProps> = ({
   const location = useLocation();
   const { initialState, setInitialState } = useModel('@@initialState');
   const { settings: publicSettings, colorPrimary, isDark } = usePublicTheme();
-  const { runtimeConfig, loadHomeConfig, navigation, loadNavigation } = useModel('ai');
-  const resolvedNavItems = useMemo(() => buildNavItems(navigation), [navigation]);
+  const { runtimeConfig, loadHomeConfig, navigation, loadNavigation } =
+    useModel('ai');
+  const resolvedNavItems = useMemo(
+    () => buildNavItems(navigation),
+    [navigation],
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const { band } = useViewportBand();
@@ -479,7 +513,8 @@ const AiLayout: React.FC<AiLayoutProps> = ({
       }
     };
     document.addEventListener('visibilitychange', refreshIfVisible);
-    return () => document.removeEventListener('visibilitychange', refreshIfVisible);
+    return () =>
+      document.removeEventListener('visibilitychange', refreshIfVisible);
   }, [loadNavigation]);
 
   useEffect(() => {
@@ -583,8 +618,13 @@ const AiLayout: React.FC<AiLayoutProps> = ({
               </span>
             </Space>
             <Space size={12}>
+              <PerfPanelButton />
               <Link to="/">
-                <Button aria-label="返回首页" icon={<HomeOutlined />} type="text">
+                <Button
+                  aria-label="返回首页"
+                  icon={<HomeOutlined />}
+                  type="text"
+                >
                   首页
                 </Button>
               </Link>

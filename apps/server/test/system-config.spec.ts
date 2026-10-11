@@ -202,6 +202,27 @@ describe('系统配置注册表', () => {
     expect(homepage.modules.find((item) => item.key === 'hero')?.visible).toBe(false);
   });
 
+  it('已保存的技术栈缺新项时补到末尾，空数组保持为空', () => {
+    const saved = parseGroupValue('site.homepage', {
+      techStack: [
+        { name: 'React', category: 'frontend' },
+        { name: 'NestJS', category: 'backend' },
+      ],
+    }) as { techStack: { name: string }[] };
+    expect(saved.techStack.map((item) => item.name).slice(0, 2)).toEqual([
+      'React',
+      'NestJS',
+    ]);
+    expect(saved.techStack.map((item) => item.name)).toEqual(
+      expect.arrayContaining(['Prisma', 'Nginx']),
+    );
+
+    const cleared = parseGroupValue('site.homepage', { techStack: [] }) as {
+      techStack: unknown[];
+    };
+    expect(cleared.techStack).toEqual([]);
+  });
+
   it('拒绝单端超过六张截图', () => {
     expect(() =>
       parseGroupValue('site.layout', {

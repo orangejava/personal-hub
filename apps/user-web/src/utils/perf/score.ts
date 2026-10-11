@@ -42,7 +42,30 @@ export const PAGE_CARD_WEIGHTS = {
   route: 15,
 } as const;
 
-function lerp(value: number, from: number, to: number, start: number, end: number): number {
+/**
+ * 首页摘要把展示出来的八项都计入。
+ * 前六项沿用顶部综合分。路由切换沿用页面卡片的 15。
+ * 首屏 JS 原来不进任何综合分；这里给和 FCP 一样的 10，避免体积一项压过 LCP。
+ * 缺样本的项不进分子，并从分母拿掉权重。八项都有数时分母是 125。
+ */
+export const HOME_SUMMARY_WEIGHTS = {
+  LCP: HEADLINE_WEIGHTS.LCP,
+  TTFB: HEADLINE_WEIGHTS.TTFB,
+  CLS: HEADLINE_WEIGHTS.CLS,
+  INP: HEADLINE_WEIGHTS.INP,
+  FCP: HEADLINE_WEIGHTS.FCP,
+  apiP95: HEADLINE_WEIGHTS.apiP95,
+  route: PAGE_CARD_WEIGHTS.route,
+  js: 10,
+} as const;
+
+function lerp(
+  value: number,
+  from: number,
+  to: number,
+  start: number,
+  end: number,
+): number {
   if (to === from) return end;
   const ratio = (value - from) / (to - from);
   return start + ratio * (end - start);
@@ -56,9 +79,12 @@ export function scoreMetric(value: number, threshold: MetricThreshold): number {
   const halfGood = threshold.good / 2;
   const doublePoor = threshold.poor * 2;
   if (value <= halfGood) return 100;
-  if (value <= threshold.good) return lerp(value, halfGood, threshold.good, 100, 90);
-  if (value <= threshold.poor) return lerp(value, threshold.good, threshold.poor, 90, 50);
-  if (value <= doublePoor) return lerp(value, threshold.poor, doublePoor, 50, 0);
+  if (value <= threshold.good)
+    return lerp(value, halfGood, threshold.good, 100, 90);
+  if (value <= threshold.poor)
+    return lerp(value, threshold.good, threshold.poor, 90, 50);
+  if (value <= doublePoor)
+    return lerp(value, threshold.poor, doublePoor, 50, 0);
   return 0;
 }
 
@@ -95,10 +121,18 @@ export interface ScoreTip {
  * 悬停分数时的结构化说明。
  * 顶部总分是指标加权，不是页面卡片的平均；抽屉只看当前页。
  */
-export function buildScoreTip(scope: ScoreScope, factors: ScoreFactor[]): ScoreTip {
-  const used = factors.filter((factor) => factor.score != null && factor.weight > 0);
+export function buildScoreTip(
+  scope: ScoreScope,
+  factors: ScoreFactor[],
+): ScoreTip {
+  const used = factors.filter(
+    (factor) => factor.score != null && factor.weight > 0,
+  );
   const weight = used.reduce((sum, factor) => sum + factor.weight, 0);
-  const total = used.reduce((sum, factor) => sum + (factor.score as number) * factor.weight, 0);
+  const total = used.reduce(
+    (sum, factor) => sum + (factor.score as number) * factor.weight,
+    0,
+  );
   const score = weight > 0 ? Math.round(total / weight) : null;
   const formula =
     score == null
@@ -107,7 +141,8 @@ export function buildScoreTip(scope: ScoreScope, factors: ScoreFactor[]): ScoreT
   if (scope === 'headline') {
     return {
       kicker: '全部记录',
-      summary: '同一项指标先把各次访问合在一起，再按权重平均。不是下面页面卡片的平均分。',
+      summary:
+        '同一项指标先把各次访问合在一起，再按权重平均。不是下面页面卡片的平均分。',
       rows: factors,
       formula,
       note: '分母是计入项的权重之和。六项都有数时是 100。某一项不计，分母就少掉它的权重。首屏 JS 不计入。',
@@ -146,7 +181,10 @@ export function compositeScore(parts: WeightedScorePart[]): {
   const present = parts.filter((part) => part.value != null && part.weight > 0);
   const weight = present.reduce((sum, part) => sum + part.weight, 0);
   if (weight <= 0) return { score: null, missing: true };
-  const total = present.reduce((sum, part) => sum + (part.value as number) * part.weight, 0);
+  const total = present.reduce(
+    (sum, part) => sum + (part.value as number) * part.weight,
+    0,
+  );
   return {
     score: Math.round(total / weight),
     missing: present.length !== parts.filter((part) => part.weight > 0).length,

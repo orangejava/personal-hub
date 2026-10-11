@@ -16,22 +16,24 @@ import EndingSection from './sections/EndingSection';
 import FeaturedSection from './sections/FeaturedSection';
 import HeroSection from './sections/HeroSection';
 import HomeBlock from './sections/HomeBlock';
+import PerformanceSection from './sections/PerformanceSection';
 import ShowcasePreviewSection from './sections/ShowcasePreviewSection';
 import TechStackSection from './sections/TechStackSection';
 import './index.less';
 
 function blockMinHeight(key: string, scene: boolean) {
   if (key === 'capabilities') {
-    return scene ? 'calc(3 * (100svh - var(--ph-header-height)))' : 640;
+    return scene ? 'calc(3 * (100svh - var(--ph-header-height)) + 12vh)' : 640;
   }
   if (key === 'featured') return 520;
   if (key === 'aiTools') return 280;
   if (key === 'showcase') return 420;
   if (key === 'techStack') return 320;
+  if (key === 'performance') return 480;
   return 240;
 }
 
-/** 首页按后台 modules 的 visible / sort 渲染。性能区块等面板合并后再做。 */
+/** 首页按后台 modules 的 visible / sort 渲染。 */
 const Home: React.FC = () => {
   useDocumentGrows();
   const { initialState } = useModel('@@initialState');
@@ -55,7 +57,6 @@ const Home: React.FC = () => {
         />
       );
     }
-    if (key === 'performance') return null;
     // 工具全关或技术栈为空时区块自己返回 null，外层仍会占 minHeight，所以这里先不挂。
     if (
       key === 'aiTools' &&
@@ -75,6 +76,7 @@ const Home: React.FC = () => {
     if (key === 'techStack') {
       section = <TechStackSection items={techStack} />;
     }
+    if (key === 'performance') section = <PerformanceSection />;
     if (!section) return null;
 
     return (
