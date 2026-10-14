@@ -97,7 +97,7 @@ PRD 曾建议 `src/models/auth.ts`，在本项目中**不必再拆一层**：登
 | 模块 | 路径 |
 |---|---|
 | 运行时 / 布局 | `src/app.tsx`、`src/access.ts`、`src/layouts/PublicLayout.tsx` |
-| 主题 | `src/config/publicDefaultSettings.ts`、`src/components/PublicThemeDrawer/` |
+| 主题 | `src/config/publicDefaultSettings.ts`、`src/components/PublicThemeDrawer/`（`index.tsx` 第一次打开才加载 `PublicThemeDrawerPanel.tsx`，取色器不进首屏；分包加载失败只提示并关闭抽屉，再点会重新请求） |
 | 菜单 i18n | `src/utils/localizeMenu.ts`、`mock/data/menus.ts`、`src/locales/*/workspace.ts` |
 | 小册阅读 | `src/pages/public/BookletChapter/`、`src/styles/booklet-reader.less` |
 | 目录 | `src/components/shared/TocPanel/`、`MarkdownViewer/` |

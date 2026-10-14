@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
       {loading ? (
         <SectionSkeleton variant="card" count={5} columns={5} rows={2} />
       ) : (
-        <Row gutter={[16, 16]}>
+        <Row gutter={[16, 16]} className="ph-dashboard-stats">
           {statCards.map((s) => (
             <Col xs={24} sm={12} lg={4} key={s.key}>
               <Card>

@@ -18,6 +18,7 @@ import {
   SYSTEM_CONFIG_GROUPS,
   type PublicSiteConfig,
   type ProjectVisualAssetConfig,
+  type OpsMetrics,
   type SiteGeneral,
   type SiteLayout,
   type SystemConfigGroup,
@@ -99,6 +100,17 @@ export class SystemService {
     const assembled = await this.loadPublicSiteConfig();
     await this.redis.setJson(PUBLIC_CONFIG_CACHE_KEY, assembled, CACHE_TTL_SECONDS);
     return assembled;
+  }
+
+  /**
+   * 抽样比例和小时保留天数。没有落库时用默认值，不把保留天数放进公开站点配置。
+   */
+  async getMetricsSettings(): Promise<OpsMetrics> {
+    const row = await this.repository.findConfigByGroup('ops.metrics');
+    return parseGroupValue(
+      'ops.metrics',
+      row?.value ?? DEFAULT_SYSTEM_CONFIGS['ops.metrics'],
+    ) as OpsMetrics;
   }
 
   async getPublicNavigation(): Promise<MenuTreeNode[]> {

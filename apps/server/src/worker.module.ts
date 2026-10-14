@@ -10,6 +10,7 @@ import { BOOKLET_IMPORT_QUEUE, AI_IMAGE_GENERATION_QUEUE, AI_VIDEO_GENERATION_QU
 import { RedisModule } from './infrastructure/redis/redis.module';
 import { StorageModule } from './infrastructure/storage/storage.module';
 import { AiModule } from './modules/ai/ai.module';
+import { MetricsModule } from './modules/metrics/metrics.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BookletModule } from './modules/booklet/booklet.module';
 import { FileModule } from './modules/file/file.module';
@@ -29,6 +30,7 @@ import { FileModule } from './modules/file/file.module';
     FileModule,
     AiModule,
     BookletModule,
+    MetricsModule,
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({

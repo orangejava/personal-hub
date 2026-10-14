@@ -27,6 +27,13 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const { isDark, colorPrimary } = resolveTheme();
 
+  useEffect(() => {
+    document.documentElement.classList.toggle('ph-theme-dark', isDark);
+    return () => {
+      document.documentElement.classList.remove('ph-theme-dark');
+    };
+  }, [isDark]);
+
   return (
     <ConfigProvider
       pagination={DEFAULT_TABLE_PAGINATION}

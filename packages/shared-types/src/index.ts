@@ -13,3 +13,4 @@ export * from './workspace';
 export * from './system';
 export * from './admin';
 export * from './ai';
+export * from './metrics';

@@ -339,7 +339,7 @@ export const layout: RunTimeLayoutConfig = ({
                 history.push('/');
               }}
             >
-              返回前台
+              返回
             </Button>,
           ]
         : []),

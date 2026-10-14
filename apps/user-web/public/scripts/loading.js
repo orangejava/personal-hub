@@ -28,6 +28,7 @@
           loadingImageUrl: config.loadingImageUrl,
           loadingSvg: config.loadingSvg,
           loadingShowSkeleton: config.loadingShowSkeleton !== false,
+          loadingShowElapsed: config.loadingShowElapsed !== false,
           loadingMotion: config.loadingMotion,
           loadingSizeMode: config.loadingSizeMode,
           loadingMaxWidth: config.loadingMaxWidth,
@@ -222,12 +223,9 @@
         }
 
         .ph-boot-progress {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          height: 3px;
-          background: rgba(0, 0, 0, 0.08);
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         .ph-boot-progress-bar {
@@ -307,6 +305,7 @@
       'align-items:center',
       'justify-content:center',
     ].join(';');
+    document.documentElement.style.overflow = 'hidden';
     document.documentElement.appendChild(overlay);
     const progress = document.createElement('div');
     progress.className = 'ph-boot-progress';
@@ -317,7 +316,7 @@
     progressBar.className = 'ph-boot-progress-bar';
     progressBar.style.cssText = 'width:0;height:100%;background:var(--ph-boot-color,#722ed1);';
     const progressLabel = document.createElement('span');
-    progressLabel.style.cssText = 'flex:none;min-width:36px;font-size:12px;line-height:1;text-align:right;color:var(--ph-boot-color,#722ed1);';
+    progressLabel.style.cssText = 'flex:none;font-size:12px;line-height:1;white-space:nowrap;text-align:right;color:var(--ph-boot-color,#722ed1);';
     progressLabel.textContent = '0%';
     progressTrack.appendChild(progressBar);
     progress.appendChild(progressTrack);
@@ -517,10 +516,13 @@
     };
 
     const STAGES = [8, 18, 46, 88, 100];
-    // 档与档之间放慢。某一档已经完成时只补完这一档，下一档仍按这个速度走完。
-    const SPEED = 8;
-    let shown = 8;
-    let lockedTarget = null;
+    // 文件还没到下一档时慢走，避免进度停住，也不提前标成这一档已完成。
+    const WAITING_SPEED = 8;
+    // 这一档已经测到时仍要从当前百分比走到档位终点，再进下一档。约 0.8 秒走完全程，不能一帧跳过。
+    const DONE_SPEED = 120;
+    const bootStarted = performance.now();
+    let shown = 0;
+    let showElapsed = !cached || cached.loadingShowElapsed !== false;
     let lastTick = performance.now();
     const measure = () => {
       const resources = performance.getEntriesByType('resource');
@@ -540,47 +542,44 @@
       }
       return 100;
     };
-    const stepToward = (goal, dt) => {
+    const stepToward = (goal, dt, speed) => {
       const delta = goal - shown;
       if (Math.abs(delta) < 0.05) {
         shown = goal;
         return;
       }
-      shown += Math.sign(delta) * Math.min(Math.abs(delta), SPEED * dt);
+      shown += Math.sign(delta) * Math.min(Math.abs(delta), speed * dt);
+    };
+    const paintLabel = (width, now) => {
+      const percent = `${Math.round(width)}%`;
+      if (!showElapsed) {
+        progressLabel.textContent = percent;
+        return;
+      }
+      const seconds = Math.max(0, (now - bootStarted) / 1000);
+      progressLabel.textContent = `${percent} - ${seconds.toFixed(1)}s`;
     };
     const frame = (now) => {
       if (removed || !progressBar) return;
       const dt = Math.min(0.05, Math.max(0, (now - lastTick) / 1000));
       lastTick = now;
       const measured = measure();
-      if (lockedTarget != null) {
-        stepToward(lockedTarget, dt);
-        if (shown >= lockedTarget - 0.05) {
-          shown = lockedTarget;
-          const upcoming = nextStage(shown);
-          // 下一档也已经完成时，仍然整段慢慢走，避免连跳。
-          lockedTarget = measured > upcoming ? upcoming : null;
-        }
-      } else {
-        const segmentEnd = nextStage(shown);
-        if (measured > segmentEnd) {
-          // 正在走的这一档已经完成：补到终点，下一档再慢慢走。
-          shown = segmentEnd;
-          lockedTarget = Math.min(nextStage(shown), measured);
+      if (shown < 100) {
+        const end = nextStage(shown);
+        if (measured + 0.05 >= end) {
+          stepToward(end, dt, DONE_SPEED);
         } else {
-          stepToward(Math.min(segmentEnd, measured), dt);
+          const creepCap = end - 0.6;
+          if (shown < creepCap) stepToward(creepCap, dt, WAITING_SPEED);
         }
       }
-      if (measured === 100 && shown > 99.4) shown = 100;
       const width = Math.max(0, Math.min(100, shown));
       progressBar.style.width = `${width}%`;
-      progressLabel.textContent = `${Math.round(width)}%`;
+      paintLabel(width, now);
       if (shown >= 100 && measured === 100) {
-        window.setTimeout(() => {
-          if (removed) return;
-          removed = true;
-          overlay.remove();
-        }, 160);
+        removed = true;
+        overlay.remove();
+        document.documentElement.style.overflow = '';
         return;
       }
       window.requestAnimationFrame(frame);
@@ -593,6 +592,7 @@
         const config = body && body.data ? body.data : body;
         if (!config || typeof config !== 'object') return;
         writeCache(config);
+        showElapsed = config.loadingShowElapsed !== false;
         paintedStyle = paint(config, true);
         applyColor(config.theme && config.theme.colorPrimary);
       })

@@ -45,9 +45,10 @@ export default defineConfig({
   },
   locale: {
     // 只加载 src/locales 下的 zh-CN / en-US；其它语言在 src/locales-frozen
+    // 英文页面没有做完。没在地球图标里手动选过语言时固定中文，不跟浏览器语言。
     default: 'zh-CN',
     antd: true,
-    baseNavigator: true,
+    baseNavigator: false,
   },
   antd: {
     appConfig: {},

@@ -25,17 +25,34 @@ a {
   }
 }
 
-/* 滚动条统一 */
+/*
+ * 跟管理端亮暗主题。滑块不用主色，轨道保持透明，避免出现黑边。
+ */
+:root {
+  --ph-scrollbar-thumb: rgba(0, 0, 0, 0.28);
+  --ph-scrollbar-thumb-hover: rgba(0, 0, 0, 0.45);
+}
+html.ph-theme-dark {
+  --ph-scrollbar-thumb: rgba(255, 255, 255, 0.35);
+  --ph-scrollbar-thumb-hover: rgba(255, 255, 255, 0.55);
+}
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ph-scrollbar-thumb) transparent;
+}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--ph-scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--ph-scrollbar-thumb-hover);
 }
 
 ul,

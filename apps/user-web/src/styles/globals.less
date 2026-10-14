@@ -30,17 +30,27 @@ a {
   }
 }
 
-/* 滚动条统一 */
+/*
+ * 细滚动条。轨道透明，滑块读主题变量，亮色深、暗色浅。
+ * 不要涂成主色：8px 色条会比内容还显眼。
+ */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ph-scrollbar-thumb, rgba(0, 0, 0, 0.28)) transparent;
+}
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--ph-scrollbar-thumb, rgba(0, 0, 0, 0.28));
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--ph-scrollbar-thumb-hover, rgba(0, 0, 0, 0.45));
 }
 
 ul,

@@ -1,4 +1,4 @@
-import { Button, Switch } from 'antd';
+import { Button, Segmented, Switch } from 'antd';
 import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import ApiList from '@/components/perf/ApiList';
 import MetricCells from '@/components/perf/MetricCells';
@@ -10,15 +10,30 @@ import { useViewportBand } from '@/hooks/useViewportBand';
 import PublicLayout from '@/layouts/PublicLayout';
 import { buildDashboard } from '@/utils/perf/aggregate';
 import LabBaseline from './LabBaseline';
+import SiteOverview from './SiteOverview';
 import '@/components/perf/perf-panel.less';
 
 const PerfCharts = lazy(() => import('@/components/perf/PerfCharts'));
 
-/** 公开性能面板。数据来源一期固定为本机，筛选只影响卡片和图表。 */
+type StatusSource = 'local' | 'site' | 'lab';
+
+const SOURCE_KICKER: Record<StatusSource, string> = {
+  local: '全部记录，不是下面卡片的平均分',
+  site: '全站聚合，不是这台浏览器的分数',
+  lab: '生产环境按日期分轮，不是这台浏览器的实时分数',
+};
+
+function sourceFromSegment(value: string | number): StatusSource {
+  if (value === 'site' || value === 'lab') return value;
+  return 'local';
+}
+
+/** 公开性能面板。本机看这台浏览器，全站看服务端汇总，Lighthouse 只放生产实验室记录。 */
 const StatusPage: React.FC = () => {
   const { band } = useViewportBand();
   const appearance = usePerfAppearance();
   const revision = usePerfRevision();
+  const [source, setSource] = useState<StatusSource>('local');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshTick, setRefreshTick] = useState(0);
   const [selected, setSelected] = useState<string[]>(() =>
@@ -62,26 +77,43 @@ const StatusPage: React.FC = () => {
         <section className="ph-perf-block">
           <div className="ph-perf-toolbar">
             <div>
-              <p className="ph-perf-kicker">全部记录，不是下面卡片的平均分</p>
-              <div className="ph-perf-score-row">
-                <ScoreValue
-                  value={dashboard.headlineScore}
-                  tip={dashboard.headlineTip}
-                />
-                <span className="ph-perf-source">{dashboard.sourceLabel}</span>
-              </div>
-              {dashboard.headlineMissing ? (
+              <Segmented
+                value={source}
+                options={[
+                  { label: '本机', value: 'local' },
+                  { label: '全站', value: 'site' },
+                  { label: 'Lighthouse', value: 'lab' },
+                ]}
+                onChange={(value) => setSource(sourceFromSegment(value))}
+              />
+              <p className="ph-perf-kicker">{SOURCE_KICKER[source]}</p>
+              {source === 'local' ? (
+                <div className="ph-perf-score-row">
+                  <ScoreValue
+                    value={dashboard.headlineScore}
+                    tip={dashboard.headlineTip}
+                  />
+                  <span className="ph-perf-source">{dashboard.sourceLabel}</span>
+                </div>
+              ) : null}
+              {source === 'local' && dashboard.headlineMissing ? (
                 <p className="ph-perf-missing">数据不足</p>
               ) : null}
             </div>
-            <div className="ph-perf-score-row">
-              <span className="ph-perf-muted">每 60 秒刷新</span>
-              <Switch checked={autoRefresh} onChange={toggleAutoRefresh} />
-              <Button onClick={refreshNow}>立即刷新</Button>
-            </div>
+            {source === 'local' ? (
+              <div className="ph-perf-score-row">
+                <span className="ph-perf-muted">每 60 秒刷新</span>
+                <Switch checked={autoRefresh} onChange={toggleAutoRefresh} />
+                <Button onClick={refreshNow}>立即刷新</Button>
+              </div>
+            ) : null}
           </div>
         </section>
 
+        {source === 'site' ? <SiteOverview /> : null}
+
+        {source === 'local' ? (
+        <>
         <section className="ph-perf-block">
           <h2 className="ph-perf-section-title">各页面</h2>
           <p className="ph-perf-kicker">
@@ -149,8 +181,10 @@ const StatusPage: React.FC = () => {
           </p>
           <ApiList rows={dashboard.apis} phone={band === 'phone'} />
         </section>
+        </>
+        ) : null}
 
-        <LabBaseline />
+        {source === 'lab' ? <LabBaseline /> : null}
       </div>
     </PublicLayout>
   );

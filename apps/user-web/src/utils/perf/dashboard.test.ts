@@ -3,6 +3,7 @@ import { buildDashboard, currentPageCells, homeSummary } from './aggregate';
 import { beginApiTiming, finishApiTiming } from './apiTiming';
 import {
   appendPageSample,
+  latestVitalSamples,
   readPageSamples,
   resetPerfMemory,
   upsertRecentPageSample,
@@ -75,6 +76,35 @@ describe('perf store and dashboard', () => {
         count: 1,
         errorRate: 1,
       }),
+    ]);
+  });
+
+  it('上报只带这次打开之后的指标，几天前的 TTFB 不带上', () => {
+    const now = Date.now();
+    appendPageSample(
+      {
+        route: '/',
+        metric: 'TTFB',
+        value: 40,
+        at: now - 3 * 24 * 60 * 60 * 1000,
+      },
+      now,
+    );
+    appendPageSample({ route: '/', metric: 'LCP', value: 1800, at: now }, now);
+    expect(
+      latestVitalSamples('/', now - 1000).map((sample) => sample.metric),
+    ).toEqual(['LCP']);
+  });
+
+  it('Beacon 只使用本标签内存样本，不读取其他标签写入的存储值', () => {
+    const now = Date.now();
+    appendPageSample({ route: '/', metric: 'LCP', value: 1800, at: now }, now);
+    localStorage.setItem(
+      'ph-perf-pages',
+      JSON.stringify([{ route: '/', metric: 'LCP', value: 9000, at: now }]),
+    );
+    expect(latestVitalSamples('/', now - 1000)).toEqual([
+      { metric: 'LCP', value: 1800 },
     ]);
   });
 

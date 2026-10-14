@@ -558,6 +558,19 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_QUOTA_ADJUSTMENT_REJECTED`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND` |
 | Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
 | System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
+| Metrics                | `METRICS_INVALID`、`METRICS_RATE_LIMITED` |
+
+## 5.5 性能汇总：`/metrics`
+
+匿名。成功仍是 `{ data }`，失败仍是 `{ error }`。不上报用户标识、完整 URL 或查询串。
+
+| 方法 | 路径 | 鉴权 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/metrics/sampling` | 公开 | `{ sampleRate }`，0 到 1。浏览器未取得配置时不上报；新页面按最新比例判断，0 表示停用 |
+| POST | `/metrics/web-vitals` | 公开，按 IP 每分钟 60 次 | body `{ route, samples: [{ metric, value }] }`。`metric` 只允许 `TTFB` `FCP` `LCP` `CLS` `INP`。非法字段 `422 METRICS_INVALID`，超限 `429 METRICS_RATE_LIMITED` |
+| GET | `/metrics/overview?range=24h\|7d\|30d` | 公开 | 聚合 p50 / p95。`/api/v1/admin/**` 不出现。认证接口的 `label` 为「认证」 |
+
+分钟计数先进入 Redis（保留 48 小时），worker 启动时及每 5 分钟重试已结束的小时。小时行、日累计与完成水位在同一事务提交后才删除 Redis 副本。小时行默认保留 90 天，日行保留；概览和发布对比依据实际清理边界补读日行，已清理的边界日期按 UTC 整日近似。保留天数和抽样比例在后台配置组 `ops.metrics`，不进入公开站点配置。容器环境变量 `GIT_SHA` 有值时，启动记一条发布标记。
 
 ## 6. 旧 Mock 迁移
 

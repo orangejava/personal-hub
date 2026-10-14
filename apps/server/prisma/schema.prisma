@@ -1339,3 +1339,84 @@ model AiAsset {
   @@index([folderId])
   @@map("ai_assets")
 }
+
+/// 接口耗时的小时直方图。分钟计数先在 Redis，worker 收口后才写入。
+model MetricHttpHour {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucketStart   DateTime @map("bucket_start") @db.Timestamptz(6)
+  method        String   @db.VarChar(16)
+  routeTemplate String   @map("route_template") @db.VarChar(200)
+  statusClass   String   @map("status_class") @db.VarChar(8)
+  histogram     Json
+  count         Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([bucketStart, method, routeTemplate, statusClass], map: "metric_http_hours_bucket_key")
+  @@index([bucketStart])
+  @@map("metric_http_hours")
+}
+
+/// Web Vitals 的小时直方图。只存路由模板和指标，不存用户或完整 URL。
+model MetricVitalHour {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucketStart   DateTime @map("bucket_start") @db.Timestamptz(6)
+  routeTemplate String   @map("route_template") @db.VarChar(200)
+  metric        String   @db.VarChar(16)
+  histogram     Json
+  count         Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([bucketStart, routeTemplate, metric], map: "metric_vital_hours_bucket_key")
+  @@index([bucketStart])
+  @@map("metric_vital_hours")
+}
+
+/// 日汇总长期保留。小时行按配置删除，日行不删。
+model MetricHttpDay {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucketDate    DateTime @map("bucket_date") @db.Date
+  method        String   @db.VarChar(16)
+  routeTemplate String   @map("route_template") @db.VarChar(200)
+  statusClass   String   @map("status_class") @db.VarChar(8)
+  histogram     Json
+  count         Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([bucketDate, method, routeTemplate, statusClass], map: "metric_http_days_bucket_key")
+  @@index([bucketDate])
+  @@map("metric_http_days")
+}
+
+model MetricVitalDay {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bucketDate    DateTime @map("bucket_date") @db.Date
+  routeTemplate String   @map("route_template") @db.VarChar(200)
+  metric        String   @db.VarChar(16)
+  histogram     Json
+  count         Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([bucketDate, routeTemplate, metric], map: "metric_vital_days_bucket_key")
+  @@index([bucketDate])
+  @@map("metric_vital_days")
+}
+
+/// 一次部署一个提交号。重复启动不新增行，已有备注也不覆盖。
+model DeployMarker {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gitSha     String   @unique @map("git_sha") @db.VarChar(64)
+  deployedAt DateTime @default(now()) @map("deployed_at") @db.Timestamptz(6)
+  note       String?  @db.VarChar(200)
+
+  @@index([deployedAt])
+  @@map("deploy_markers")
+}
+
+/// 单例收口进度。与小时/日写入同事务提交；查询据此排除尚未删除的 Redis 副本。
+model MetricRollupState {
+  id           Int      @id
+  closedBefore DateTime @map("closed_before") @db.Timestamptz(6)
+  hoursSince   DateTime @map("hours_since") @db.Timestamptz(6)
+
+  @@map("metric_rollup_state")
+}

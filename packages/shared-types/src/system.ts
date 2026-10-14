@@ -113,6 +113,8 @@ export interface SystemPublicConfig {
   loadingVideoUrl?: string | null;
   /** 为 false 时首屏不显示标题下的三道骨架。缺省为显示。 */
   loadingShowSkeleton?: boolean;
+  /** 为 false 时进度只显示百分比。缺省为在百分比后显示秒数。 */
+  loadingShowElapsed?: boolean;
   /** 首页 Hero 文案 */
   heroTitle?: string;
   heroSubtitle?: string;

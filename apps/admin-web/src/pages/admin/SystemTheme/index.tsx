@@ -1,8 +1,21 @@
-import { ProForm, ProFormDigit, ProFormSelect, ProFormText } from '@ant-design/pro-components';
-import type { NavigationPosition, ThemeConfig } from '@personal-hub/shared-types';
-import { Card, Form, Grid, Switch, message } from 'antd';
+import {
+  ProForm,
+  ProFormDigit,
+  ProFormSelect,
+  ProFormText,
+} from '@ant-design/pro-components';
+import type {
+  NavigationPosition,
+  ThemeConfig,
+} from '@personal-hub/shared-types';
+import { Link } from '@umijs/max';
+import { Card, Form, Grid, message, Switch } from 'antd';
 import React, { useState } from 'react';
-import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
+import {
+  ErrorState,
+  PageContainer,
+  SectionSkeleton,
+} from '@/components/shared';
 import { useRequest } from '@/hooks/useRequest';
 import {
   fetchAdminSystemConfig,
@@ -48,9 +61,13 @@ function ThemeLayoutPreview({
     minWidth: 0,
   };
   const brand = (
-    <span style={{ color: colorPrimary, fontWeight: 700, flex: '0 0 auto' }}>{siteName}</span>
+    <span style={{ color: colorPrimary, fontWeight: 700, flex: '0 0 auto' }}>
+      {siteName}
+    </span>
   );
-  const links = <span style={{ flex: '1 1 auto', minWidth: 0 }}>首页 / 内容 / 关于</span>;
+  const links = (
+    <span style={{ flex: '1 1 auto', minWidth: 0 }}>首页 / 内容 / 关于</span>
+  );
   const action = (
     <span
       aria-hidden
@@ -92,7 +109,9 @@ function ThemeLayoutPreview({
             {links}
             {action}
           </div>
-          <div style={{ flex: '1 1 auto', minWidth: 48, background: '#f5f5f5' }} />
+          <div
+            style={{ flex: '1 1 auto', minWidth: 48, background: '#f5f5f5' }}
+          />
         </div>
       </div>
     );
@@ -116,18 +135,41 @@ const SystemTheme: React.FC = () => {
   const screens = Grid.useBreakpoint();
   const { data, loading, error, run } = useRequest(fetchAdminSystemConfig);
   const theme = data?.theme;
-  const loadedPosition = data?.navigationConfig?.publicPosition ?? data?.navigation ?? 'top';
+  const loadedPosition =
+    data?.navigationConfig?.publicPosition ?? data?.navigation ?? 'top';
   // 保存成功后用这次写入的值作为重置基准。打开页面时的 data 还是保存前的内容。
   const [savedTheme, setSavedTheme] = useState<ThemeConfig | null>(null);
-  const [savedPosition, setSavedPosition] = useState<NavigationPosition | null>(null);
+  const [savedPosition, setSavedPosition] = useState<NavigationPosition | null>(
+    null,
+  );
   const themeBaseline = savedTheme ?? theme;
   const positionBaseline = savedPosition ?? loadedPosition;
-  const colorPrimary = Form.useWatch('colorPrimary', themeForm) || themeBaseline?.colorPrimary || '#722ed1';
-  const colorSecondary = Form.useWatch('colorSecondary', themeForm) || themeBaseline?.colorSecondary || '#14B8A6';
-  const colorAccent = Form.useWatch('colorAccent', themeForm) || themeBaseline?.colorAccent || '#F97316';
-  const borderRadius = Form.useWatch('borderRadius', themeForm) ?? themeBaseline?.borderRadius ?? 8;
-  const publicPosition = Form.useWatch('publicPosition', navForm) || positionBaseline;
+  const colorPrimary =
+    Form.useWatch('colorPrimary', themeForm) ||
+    themeBaseline?.colorPrimary ||
+    '#722ed1';
+  const colorSecondary =
+    Form.useWatch('colorSecondary', themeForm) ||
+    themeBaseline?.colorSecondary ||
+    '#14B8A6';
+  const colorAccent =
+    Form.useWatch('colorAccent', themeForm) ||
+    themeBaseline?.colorAccent ||
+    '#F97316';
+  const borderRadius =
+    Form.useWatch('borderRadius', themeForm) ??
+    themeBaseline?.borderRadius ??
+    8;
+  const publicPosition =
+    Form.useWatch('publicPosition', navForm) || positionBaseline;
   const previewBeside = screens.md === true;
+  const twoColumns = screens.lg === true;
+  const pageExtra = <Link to="/admin/system">返回系统配置</Link>;
+  const fieldGrid: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: twoColumns ? '1fr 1fr' : '1fr',
+    columnGap: 16,
+  };
 
   const handleThemeFinish = async (values: ThemeConfig) => {
     setThemeSaving(true);
@@ -143,7 +185,9 @@ const SystemTheme: React.FC = () => {
     }
   };
 
-  const handleNavigationFinish = async (values: { publicPosition: NavigationPosition }) => {
+  const handleNavigationFinish = async (values: {
+    publicPosition: NavigationPosition;
+  }) => {
     setNavSaving(true);
     try {
       await updateAdminSystemNavigation(values.publicPosition);
@@ -159,7 +203,7 @@ const SystemTheme: React.FC = () => {
 
   if (loading && !data) {
     return (
-      <PageContainer title="主题配置">
+      <PageContainer title="主题配置" extra={pageExtra}>
         <SectionSkeleton variant="form" count={2} />
       </PageContainer>
     );
@@ -167,7 +211,7 @@ const SystemTheme: React.FC = () => {
 
   if (error) {
     return (
-      <PageContainer title="主题配置">
+      <PageContainer title="主题配置" extra={pageExtra}>
         <ErrorState title="主题配置加载失败" onRetry={run} />
       </PageContainer>
     );
@@ -185,7 +229,7 @@ const SystemTheme: React.FC = () => {
   );
 
   return (
-    <PageContainer title="主题配置">
+    <PageContainer title="主题配置" extra={pageExtra}>
       <Card title="主题">
         <div
           style={{
@@ -207,25 +251,53 @@ const SystemTheme: React.FC = () => {
                 submitButtonProps: { loading: themeSaving },
               }}
             >
-              <ProFormText name="colorPrimary" label="主色" rules={[{ required: true }, HEX_COLOR_RULE]} />
-              <ProFormText name="colorSecondary" label="辅助色" rules={[{ required: true }, HEX_COLOR_RULE]} />
-              <ProFormText name="colorAccent" label="强调色" rules={[{ required: true }, HEX_COLOR_RULE]} />
-              <ProFormDigit name="borderRadius" label="圆角" min={0} max={24} />
-              <ProFormSelect
-                name="mode"
-                label="默认模式"
-                options={[
-                  { label: '亮色', value: 'light' },
-                  { label: '暗色', value: 'dark' },
-                  { label: '跟随系统', value: 'auto' },
-                ]}
-              />
-              <Form.Item name="allowUserSwitch" label="允许用户切换主题" valuePropName="checked">
-                <Switch />
-              </Form.Item>
+              <div style={fieldGrid}>
+                <ProFormText
+                  name="colorPrimary"
+                  label="主色"
+                  rules={[{ required: true }, HEX_COLOR_RULE]}
+                />
+                <ProFormText
+                  name="colorSecondary"
+                  label="辅助色"
+                  rules={[{ required: true }, HEX_COLOR_RULE]}
+                />
+                <ProFormText
+                  name="colorAccent"
+                  label="强调色"
+                  rules={[{ required: true }, HEX_COLOR_RULE]}
+                />
+                <ProFormDigit
+                  name="borderRadius"
+                  label="圆角"
+                  min={0}
+                  max={24}
+                />
+                <ProFormSelect
+                  name="mode"
+                  label="默认模式"
+                  options={[
+                    { label: '亮色', value: 'light' },
+                    { label: '暗色', value: 'dark' },
+                    { label: '跟随系统', value: 'auto' },
+                  ]}
+                />
+                <Form.Item
+                  name="allowUserSwitch"
+                  label="允许用户切换主题"
+                  valuePropName="checked"
+                >
+                  <Switch />
+                </Form.Item>
+              </div>
             </ProForm>
           </div>
-          <div style={{ flex: previewBeside ? '0 0 360px' : '1 1 auto', width: previewBeside ? 360 : '100%' }}>
+          <div
+            style={{
+              flex: previewBeside ? '0 0 360px' : '1 1 auto',
+              width: previewBeside ? 360 : '100%',
+            }}
+          >
             {preview}
           </div>
         </div>
@@ -234,7 +306,9 @@ const SystemTheme: React.FC = () => {
         <ProForm
           form={navForm}
           initialValues={{ publicPosition: positionBaseline }}
-          onReset={() => navForm.setFieldsValue({ publicPosition: positionBaseline })}
+          onReset={() =>
+            navForm.setFieldsValue({ publicPosition: positionBaseline })
+          }
           onFinish={handleNavigationFinish}
           submitter={{
             submitButtonProps: { loading: navSaving },
@@ -243,6 +317,7 @@ const SystemTheme: React.FC = () => {
           <ProFormSelect
             name="publicPosition"
             label="公开导航位置"
+            fieldProps={{ style: { maxWidth: twoColumns ? 420 : '100%' } }}
             options={[
               { label: '顶部', value: 'top' },
               { label: '左侧', value: 'left' },

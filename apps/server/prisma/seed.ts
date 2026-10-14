@@ -350,6 +350,8 @@ export const SYSTEM_MENUS: readonly SystemMenuDefinition[] = [
     name: '主题配置',
     parentRouteKey: 'admin.system.group',
     sortOrder: 50,
+    // 从系统配置卡片进入。侧栏不再单列，和首页配置一样只隐藏入口。
+    visible: false,
     permissionCodes: ['system:config:manage'],
   },
   {

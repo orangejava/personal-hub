@@ -58,6 +58,8 @@ export function parseCorsOriginList(raw: string): string[] {
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    /** 仅填写受控反向代理的 IP/CIDR；默认不信任转发头。 */
+    TRUST_PROXY_CIDRS: z.string().default(''),
     PORT: z.coerce.number().int().min(1).max(65535).default(3001),
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
@@ -112,6 +114,8 @@ export const envSchema = z
     AI_OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     AI_OPENAI_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     AI_OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(60000),
+    /** 容器启动时写入发布标记。不配则不记，重复启动同一个值不会多插一行。 */
+    GIT_SHA: z.preprocess(emptyToUndefined, z.string().min(1).max(64).optional()),
   })
   .superRefine((env, ctx) => {
     if (env.AI_TEXT_PROVIDER !== 'openai_compatible') {

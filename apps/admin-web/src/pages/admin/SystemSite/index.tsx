@@ -1,14 +1,32 @@
-import { ProForm, ProFormDigit, ProFormText, ProFormTextArea } from '@ant-design/pro-components';
+import {
+  ProForm,
+  ProFormDigit,
+  ProFormText,
+  ProFormTextArea,
+} from '@ant-design/pro-components';
 import { Link, useModel } from '@umijs/max';
-import { Alert, Button, Card, Form, Radio, Switch, Upload, message } from 'antd';
+import {
+  Alert,
+  Button,
+  Card,
+  Form,
+  message,
+  Radio,
+  Switch,
+  Upload,
+} from 'antd';
 import React, { useEffect, useState } from 'react';
 import ImageFileField from '@/components/ImageFileField';
-import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
+import {
+  ErrorState,
+  PageContainer,
+  SectionSkeleton,
+} from '@/components/shared';
 import { useRequest } from '@/hooks/useRequest';
 import {
+  type AdminSiteGeneralForm,
   fetchAdminSiteGeneral,
   updateAdminSystemConfig,
-  type AdminSiteGeneralForm,
 } from '@/services/admin';
 import { uploadLoadingVideo } from '@/services/files';
 import { fetchPublicConfig } from '@/services/system';
@@ -17,7 +35,10 @@ import styles from './index.module.less';
 const fieldBlockStyle: React.CSSProperties = { marginBottom: 28 };
 
 /** 已保存文件用公开签名地址预览；刚上传的文件由 ImageFileField 自己用本地 URL。 */
-function previewUrlFor(fileId: string | null, url?: string | null): Record<string, string> {
+function previewUrlFor(
+  fileId: string | null,
+  url?: string | null,
+): Record<string, string> {
   if (!fileId || !url) return {};
   return { [fileId]: url };
 }
@@ -70,7 +91,9 @@ function BrandAssetField({
           rules={[{ max: textMax, message: `最多 ${textMax} 个字` }]}
         />
       </div>
-      <div style={{ display: mode === 'image' ? 'block' : 'none', paddingTop: 4 }}>
+      <div
+        style={{ display: mode === 'image' ? 'block' : 'none', paddingTop: 4 }}
+      >
         <ImageFileField
           allowGif
           maxCount={1}
@@ -92,7 +115,9 @@ const SystemSite: React.FC = () => {
   const [logoFileId, setLogoFileId] = useState<string | null>(null);
   const [faviconFileId, setFaviconFileId] = useState<string | null>(null);
   const [loadingFileId, setLoadingFileId] = useState<string | null>(null);
-  const [loadingVideoFileId, setLoadingVideoFileId] = useState<string | null>(null);
+  const [loadingVideoFileId, setLoadingVideoFileId] = useState<string | null>(
+    null,
+  );
   const [videoUploading, setVideoUploading] = useState(false);
   const logoMode = Form.useWatch('logoMode', form);
   const faviconMode = Form.useWatch('faviconMode', form);
@@ -101,13 +126,15 @@ const SystemSite: React.FC = () => {
   const loadingMaxWidth = Form.useWatch('loadingMaxWidth', form);
   const loadingMaxHeight = Form.useWatch('loadingMaxHeight', form);
   const { data, loading, error, run } = useRequest(fetchAdminSiteGeneral);
-  const { data: publicConfig, run: reloadPublicConfig } = useRequest(async () => {
-    try {
-      return await fetchPublicConfig();
-    } catch {
-      return undefined;
-    }
-  });
+  const { data: publicConfig, run: reloadPublicConfig } = useRequest(
+    async () => {
+      try {
+        return await fetchPublicConfig();
+      } catch {
+        return undefined;
+      }
+    },
+  );
 
   useEffect(() => {
     if (!data) return;
@@ -127,7 +154,10 @@ const SystemSite: React.FC = () => {
     setLoadingVideoFileId(data.loadingVideoFileId);
   };
 
-  const clampCustomSide = (sideName: 'loadingWidth' | 'loadingHeight', limit: number | null) => {
+  const clampCustomSide = (
+    sideName: 'loadingWidth' | 'loadingHeight',
+    limit: number | null,
+  ) => {
     if (typeof limit !== 'number') return;
     const current = form.getFieldValue(sideName);
     if (typeof current === 'number' && current > limit) {
@@ -142,7 +172,9 @@ const SystemSite: React.FC = () => {
       setLoadingVideoFileId(uploaded.id);
       message.success('视频已上传，保存配置后将在公开页生效');
     } catch (uploadError) {
-      message.error(uploadError instanceof Error ? uploadError.message : '视频上传失败');
+      message.error(
+        uploadError instanceof Error ? uploadError.message : '视频上传失败',
+      );
     } finally {
       setVideoUploading(false);
     }
@@ -173,7 +205,9 @@ const SystemSite: React.FC = () => {
     } catch (submitError) {
       // 写接口失败已由全局 toast 提示；本地抛出的错误没有 response，需要自己说一声。
       if (!isRequestFailure(submitError)) {
-        message.error(submitError instanceof Error ? submitError.message : '保存失败');
+        message.error(
+          submitError instanceof Error ? submitError.message : '保存失败',
+        );
       }
       return false;
     } finally {
@@ -231,9 +265,15 @@ const SystemSite: React.FC = () => {
             label="站点名称"
             extra="最多 20 个字。用作浏览器标题；文字 Logo 未另填时，页头也显示它。"
             fieldProps={{ maxLength: 20 }}
-            rules={[{ required: true, max: 20, message: '站点名称最多 20 个字' }]}
+            rules={[
+              { required: true, max: 20, message: '站点名称最多 20 个字' },
+            ]}
           />
-          <ProFormTextArea name="siteDescription" label="站点描述" rules={[{ max: 500 }]} />
+          <ProFormTextArea
+            name="siteDescription"
+            label="站点描述"
+            rules={[{ max: 500 }]}
+          />
           <ProFormText
             name="keywords"
             label="关键词"
@@ -242,7 +282,11 @@ const SystemSite: React.FC = () => {
           />
           <div style={fieldBlockStyle}>
             <div className={styles.sectionTitle}>首页加载</div>
-            <Form.Item name="loadingStyle" label="加载样式" style={{ marginBottom: 16 }}>
+            <Form.Item
+              name="loadingStyle"
+              label="加载样式"
+              style={{ marginBottom: 16 }}
+            >
               <Radio.Group>
                 <Radio value="spinner">圆点转圈</Radio>
                 <Radio value="square">方块转圈</Radio>
@@ -251,15 +295,23 @@ const SystemSite: React.FC = () => {
                 <Radio value="video">视频</Radio>
               </Radio.Group>
             </Form.Item>
-            <div style={{ display: loadingStyle === 'image' ? 'block' : 'none' }}>
+            <div
+              style={{ display: loadingStyle === 'image' ? 'block' : 'none' }}
+            >
               <ImageFileField
                 allowGif
                 maxCount={1}
-                previewUrls={previewUrlFor(loadingFileId, publicConfig?.loadingImageUrl)}
+                previewUrls={previewUrlFor(
+                  loadingFileId,
+                  publicConfig?.loadingImageUrl,
+                )}
                 value={loadingFileId ? [loadingFileId] : []}
                 onChange={(fileIds) => setLoadingFileId(fileIds[0] ?? null)}
               />
-              <p className={styles.hint}>JPG、PNG、WebP 或 GIF，单张不超过 5 MB。SVG 请改用 SVG 选项粘贴标记。</p>
+              <p className={styles.hint}>
+                JPG、PNG、WebP 或 GIF，单张不超过 5 MB。SVG 请改用 SVG
+                选项粘贴标记。
+              </p>
             </div>
             <div style={{ display: loadingStyle === 'svg' ? 'block' : 'none' }}>
               <ProFormTextArea
@@ -270,7 +322,12 @@ const SystemSite: React.FC = () => {
                 rules={[{ max: 8000, message: '最多 8000 个字符' }]}
               />
             </div>
-            <div style={{ display: loadingStyle === 'video' ? 'block' : 'none', paddingTop: 4 }}>
+            <div
+              style={{
+                display: loadingStyle === 'video' ? 'block' : 'none',
+                paddingTop: 4,
+              }}
+            >
               {loadingVideoFileId ? (
                 <div style={{ marginBottom: 8 }}>
                   {publicConfig?.loadingVideoUrl ? (
@@ -283,7 +340,11 @@ const SystemSite: React.FC = () => {
                   ) : (
                     <p className={styles.hint}>视频已选择，保存后可预览。</p>
                   )}
-                  <Button size="small" danger onClick={() => setLoadingVideoFileId(null)}>
+                  <Button
+                    size="small"
+                    danger
+                    onClick={() => setLoadingVideoFileId(null)}
+                  >
                     移除视频
                   </Button>
                 </div>
@@ -301,23 +362,35 @@ const SystemSite: React.FC = () => {
                   handleVideoUpload(file)
                     .then(() => onSuccess?.({}))
                     .catch((uploadError) =>
-                      onError?.(uploadError instanceof Error ? uploadError : new Error('视频上传失败')),
+                      onError?.(
+                        uploadError instanceof Error
+                          ? uploadError
+                          : new Error('视频上传失败'),
+                      ),
                     );
                 }}
               >
                 <Button loading={videoUploading}>上传 MP4</Button>
               </Upload>
-              <p className={styles.hint}>仅 MP4，不超过 10 MB。静音循环播放。</p>
+              <p className={styles.hint}>
+                仅 MP4，不超过 10 MB。静音循环播放。
+              </p>
             </div>
             <div
               style={{
                 display:
-                  loadingStyle === 'image' || loadingStyle === 'svg' || loadingStyle === 'video'
+                  loadingStyle === 'image' ||
+                  loadingStyle === 'svg' ||
+                  loadingStyle === 'video'
                     ? 'block'
                     : 'none',
               }}
             >
-              <Form.Item name="loadingMotion" label="动效" style={{ marginBottom: 12 }}>
+              <Form.Item
+                name="loadingMotion"
+                label="动效"
+                style={{ marginBottom: 12 }}
+              >
                 <Radio.Group>
                   <Radio value="none">不动</Radio>
                   <Radio value="spin">旋转</Radio>
@@ -325,7 +398,11 @@ const SystemSite: React.FC = () => {
                   <Radio value="float">上下浮动</Radio>
                 </Radio.Group>
               </Form.Item>
-              <Form.Item name="loadingSizeMode" label="尺寸" style={{ marginBottom: 12 }}>
+              <Form.Item
+                name="loadingSizeMode"
+                label="尺寸"
+                style={{ marginBottom: 12 }}
+              >
                 <Radio.Group>
                   <Radio value="default">默认宽高</Radio>
                   <Radio value="custom">自定义宽高</Radio>
@@ -339,7 +416,11 @@ const SystemSite: React.FC = () => {
                 max={480}
                 fieldProps={{
                   precision: 0,
-                  onChange: (value) => clampCustomSide('loadingWidth', typeof value === 'number' ? value : null),
+                  onChange: (value) =>
+                    clampCustomSide(
+                      'loadingWidth',
+                      typeof value === 'number' ? value : null,
+                    ),
                 }}
               />
               <ProFormDigit
@@ -350,16 +431,26 @@ const SystemSite: React.FC = () => {
                 max={480}
                 fieldProps={{
                   precision: 0,
-                  onChange: (value) => clampCustomSide('loadingHeight', typeof value === 'number' ? value : null),
+                  onChange: (value) =>
+                    clampCustomSide(
+                      'loadingHeight',
+                      typeof value === 'number' ? value : null,
+                    ),
                 }}
               />
-              <div style={{ display: loadingSizeMode === 'custom' ? 'block' : 'none' }}>
+              <div
+                style={{
+                  display: loadingSizeMode === 'custom' ? 'block' : 'none',
+                }}
+              >
                 <ProFormDigit
                   name="loadingWidth"
                   label="宽度"
                   extra={`不能超过限制宽度 ${typeof loadingMaxWidth === 'number' ? loadingMaxWidth : 320} 像素。`}
                   min={48}
-                  max={typeof loadingMaxWidth === 'number' ? loadingMaxWidth : 320}
+                  max={
+                    typeof loadingMaxWidth === 'number' ? loadingMaxWidth : 320
+                  }
                   fieldProps={{ precision: 0 }}
                 />
                 <ProFormDigit
@@ -367,7 +458,11 @@ const SystemSite: React.FC = () => {
                   label="高度"
                   extra={`不能超过限制高度 ${typeof loadingMaxHeight === 'number' ? loadingMaxHeight : 320} 像素。可以和宽度不同。`}
                   min={48}
-                  max={typeof loadingMaxHeight === 'number' ? loadingMaxHeight : 320}
+                  max={
+                    typeof loadingMaxHeight === 'number'
+                      ? loadingMaxHeight
+                      : 320
+                  }
                   fieldProps={{ precision: 0 }}
                 />
               </div>
@@ -391,6 +486,14 @@ const SystemSite: React.FC = () => {
               label="骨架条"
               valuePropName="checked"
               extra="标题下面的三道灰色条。关掉后只保留图形、文字和底部进度。"
+            >
+              <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
+            </Form.Item>
+            <Form.Item
+              name="loadingShowElapsed"
+              label="加载用时"
+              valuePropName="checked"
+              extra="显示时写在百分比后面，例如 42% - 3.2s。关掉后只保留百分比。"
             >
               <Switch checkedChildren="显示" unCheckedChildren="隐藏" />
             </Form.Item>

@@ -227,6 +227,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@personal-hub/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
       '@aws-sdk/client-s3':
         specifier: ^3.1127.0
         version: 3.1127.0

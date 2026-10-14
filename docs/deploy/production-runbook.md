@@ -77,6 +77,10 @@ docker compose --env-file .env.prod -f compose.prod.yml up --build -d server ser
 场景。服务即使本次没有变更也可以包含在命令中，Compose 会保留无需替换的现有容器；若只改一个服务，
 见第 2.2 节的“按变更范围更新”。
 
+性能汇总这次包含 `metrics_rollup` 和 `metrics_checkpoint` 两条迁移。升级前先停止旧 `server-worker`，再迁移，最后启动新 worker，避免旧进程在进度回填期间继续写表。`metrics_checkpoint` 保留已存在的小时/日数据，并建立收口水位。
+
+生产 Nginx 与 HTTP server 使用专用 `proxy` 网络，默认网段 `172.30.0.0/24`。如与宿主已有网段冲突，在 `.env.prod` 调整 `PROXY_SUBNET`；Compose 会把同一 CIDR 传给 server 的 `TRUST_PROXY_CIDRS`。Nginx 用 `$remote_addr` 覆盖 `X-Forwarded-For`，不要改回追加客户端 Header，也不要开启 `trust proxy=true`。本地开发缺省不信任转发头。本次代理改动需同时重建 server 与 nginx；上线后核对两个独立客户端的上报额度及登录/审计 IP。
+
 如果本次包含 Prisma migration，必须先只启动依赖和 HTTP `server`，执行迁移后再启动
 `server-worker` 与 Nginx。`server` 的 `ready` 会查询已迁移的数据库，因此迁移前不能把
 Nginx 当作健康检查入口：

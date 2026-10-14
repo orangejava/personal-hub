@@ -7,6 +7,7 @@ export interface BootLoadingCache {
   loadingImageUrl?: string | null;
   loadingSvg?: string;
   loadingShowSkeleton?: boolean;
+  loadingShowElapsed?: boolean;
   loadingMotion?: string;
   loadingSizeMode?: string;
   loadingMaxWidth?: number;
@@ -35,6 +36,7 @@ export function rememberBootLoading(config: BootLoadingCache) {
         loadingImageUrl: config.loadingImageUrl,
         loadingSvg: config.loadingSvg,
         loadingShowSkeleton: config.loadingShowSkeleton !== false,
+        loadingShowElapsed: config.loadingShowElapsed !== false,
         loadingMotion: config.loadingMotion,
         loadingSizeMode: config.loadingSizeMode,
         loadingMaxWidth: config.loadingMaxWidth,

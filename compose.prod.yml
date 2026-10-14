@@ -52,6 +52,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      TRUST_PROXY_CIDRS: ${PROXY_SUBNET:-172.30.0.0/24}
       DATABASE_URL: ${DATABASE_URL:?set in env file}
       REDIS_URL: ${REDIS_URL:?set in env file}
       REDIS_KEY_PREFIX: ${REDIS_KEY_PREFIX:-ph:prod}
@@ -75,6 +76,7 @@ services:
       AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
       AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-}
       AI_OPENAI_TIMEOUT_MS: ${AI_OPENAI_TIMEOUT_MS:-60000}
+      GIT_SHA: ${GIT_SHA:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -91,6 +93,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+    networks:
+      - default
+      - proxy
     restart: unless-stopped
 
   server-worker:
@@ -123,6 +128,7 @@ services:
       AI_OPENAI_API_KEY: ${AI_OPENAI_API_KEY:-}
       AI_OPENAI_MODEL: ${AI_OPENAI_MODEL:-}
       AI_OPENAI_TIMEOUT_MS: ${AI_OPENAI_TIMEOUT_MS:-60000}
+      GIT_SHA: ${GIT_SHA:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -143,8 +149,17 @@ services:
         condition: service_healthy
     ports:
       - '80:80'
+    networks:
+      - proxy
     restart: unless-stopped
 
 volumes:
   personal_hub_prod_postgres:
   personal_hub_prod_redis:
+
+# 只有 Nginx 和 HTTP 服务加入该网络；数据库和 worker 不作为可信代理。
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: ${PROXY_SUBNET:-172.30.0.0/24}

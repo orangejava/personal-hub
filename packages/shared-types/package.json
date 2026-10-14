@@ -8,7 +8,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./*": "./src/*"
+    "./*": "./src/*",
+    "./metrics-pages.json": "./metrics-pages.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

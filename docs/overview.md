@@ -250,7 +250,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 ### 上线后优化（当前，四个 worktree）
 
 - [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、公共发放和连续签到。不做充值、支付、自研模型。
-- [ ] [`perf-dashboard`](./prd/post-launch/performance-dashboard-prd.md)：性能与接口响应面板、性能基线、首轮入口体积优化、二期 Nest 汇总。
+- [ ] [`perf-dashboard`](./prd/post-launch/performance-dashboard-prd.md)：一期面板和入口优化已在 main。二期全站汇总已接上报、Redis 分钟桶和 `/status` 全站视图，待迁移后验收。告警和按人统计仍不做。
 - [ ] [`home-showcase`](../apps/user-web/docs/prd/home-showcase-prd.md)：首页滚动改版、项目作品矩阵（Flutter / 桌面端先作为规划中）。
 - [x] [`theme-config`](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、导航位置、Logo / favicon / SEO。见 [implementation/theme-config.md](./implementation/theme-config.md)。生产环境已核对小册章节目录与公共导航不并排，以及主题配置加载失败时的错误态。
 - [ ] 上面三个合并后：Loading / Skeleton 与内容中心、小册阅读、AI 工作台、登录表单的交互优化（总纲 §4.3、§5.3–5.6）。

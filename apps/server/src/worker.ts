@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
+import { MetricsRollup } from './modules/metrics/metrics-rollup';
 import { WorkerModule } from './worker.module';
 
 /**
@@ -15,7 +16,10 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.createApplicationContext(WorkerModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
   const logger = app.get(Logger);
-  logger.log('server-worker 已启动，正在消费 booklet-import 队列');
+  app.get(MetricsRollup).start();
+  logger.log(
+    'server-worker 已启动，正在消费 booklet-import 队列，并每 5 分钟重试已结束小时的性能汇总',
+  );
 }
 
 void bootstrap();

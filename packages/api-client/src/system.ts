@@ -26,6 +26,7 @@ export interface NestPublicSiteConfig {
   loadingImageUrl?: string | null;
   loadingSvg?: string;
   loadingShowSkeleton?: boolean;
+  loadingShowElapsed?: boolean;
   loadingMotion?: 'none' | 'spin' | 'pulse' | 'float';
   loadingSizeMode?: 'default' | 'custom';
   loadingMaxWidth?: number;
@@ -130,6 +131,7 @@ export function mapPublicSiteConfig(
     loadingImageUrl: payload.loadingImageUrl ?? null,
     loadingSvg: payload.loadingSvg,
     loadingShowSkeleton: payload.loadingShowSkeleton,
+    loadingShowElapsed: payload.loadingShowElapsed,
     loadingMotion: payload.loadingMotion,
     loadingSizeMode: payload.loadingSizeMode,
     loadingMaxWidth: payload.loadingMaxWidth,

@@ -19,6 +19,7 @@ describe('系统配置注册表', () => {
     expect(publicConfig.loadingFileId).toBeNull();
     expect(publicConfig.loadingSvg).toBe('');
     expect(publicConfig.loadingShowSkeleton).toBe(true);
+    expect(publicConfig.loadingShowElapsed).toBe(true);
     expect(publicConfig.loadingMotion).toBe('none');
     expect(publicConfig.loadingSizeMode).toBe('default');
     expect(publicConfig.loadingMaxWidth).toBe(320);
@@ -242,6 +243,16 @@ describe('系统配置注册表', () => {
         ],
       }),
     ).toThrow();
+  });
+});
+
+describe('性能汇总配置', () => {
+  it('缺省时抽样 20%，小时行保留 90 天，公开站点配置不带这两项', () => {
+    const settings = parseGroupValue('ops.metrics', undefined);
+    expect(settings).toMatchObject({ sampleRate: 0.2, hourRetentionDays: 90 });
+    const publicConfig = assemblePublicSiteConfig(new Map());
+    expect(publicConfig).not.toHaveProperty('sampleRate');
+    expect(publicConfig).not.toHaveProperty('hourRetentionDays');
   });
 });
 

@@ -80,6 +80,7 @@ function enrichPublicConfig(payload: PublicSitePayload, mapped: SystemPublicConf
     loadingImageUrl: payload.loadingImageUrl ?? mapped.loadingImageUrl ?? null,
     loadingSvg: payload.loadingSvg ?? mapped.loadingSvg,
     loadingShowSkeleton: payload.loadingShowSkeleton ?? mapped.loadingShowSkeleton,
+    loadingShowElapsed: payload.loadingShowElapsed ?? mapped.loadingShowElapsed,
     loadingMotion: payload.loadingMotion ?? mapped.loadingMotion,
     loadingSizeMode: payload.loadingSizeMode ?? mapped.loadingSizeMode,
     loadingMaxWidth: payload.loadingMaxWidth ?? mapped.loadingMaxWidth,

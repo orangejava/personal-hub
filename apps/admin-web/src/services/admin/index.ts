@@ -635,6 +635,7 @@ export interface AdminSiteGeneralForm {
   loadingFileId: string | null;
   loadingSvg: string;
   loadingShowSkeleton: boolean;
+  loadingShowElapsed: boolean;
   loadingMotion: 'none' | 'spin' | 'pulse' | 'float';
   loadingSizeMode: 'default' | 'custom';
   loadingMaxWidth: number;
@@ -724,6 +725,7 @@ export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
     loadingFileId: readConfigFileId(value.loadingFileId),
     loadingSvg: readConfigText(value.loadingSvg),
     loadingShowSkeleton: value.loadingShowSkeleton !== false,
+    loadingShowElapsed: value.loadingShowElapsed !== false,
     loadingMotion:
       value.loadingMotion === 'spin' ||
       value.loadingMotion === 'pulse' ||
@@ -733,6 +735,33 @@ export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
     ...readLoadingFrame(value),
     loadingVideoFileId: readConfigFileId(value.loadingVideoFileId),
   };
+}
+
+export async function fetchAdminMetricsSettings(): Promise<{
+  samplePercent: number;
+  hourRetentionDays: number;
+  version: number;
+}> {
+  const groups = await loadAdminConfigGroups('ops.metrics');
+  const group = groups[0];
+  const sampleRate = Number(group?.value.sampleRate);
+  const days = Number(group?.value.hourRetentionDays);
+  return {
+    samplePercent: Number.isFinite(sampleRate) ? Math.round(sampleRate * 100) : 20,
+    hourRetentionDays: Number.isFinite(days) ? days : 90,
+    version: group?.version ?? 1,
+  };
+}
+
+export async function updateAdminMetricsSettings(input: {
+  samplePercent: number;
+  hourRetentionDays: number;
+  version: number;
+}) {
+  await putAdminConfigGroup('ops.metrics', input.version, {
+    sampleRate: input.samplePercent / 100,
+    hourRetentionDays: input.hourRetentionDays,
+  });
 }
 
 export async function updateAdminSystemConfig(data: AdminSiteGeneralForm) {
@@ -758,6 +787,7 @@ export async function updateAdminSystemConfig(data: AdminSiteGeneralForm) {
     loadingFileId: data.loadingFileId,
     loadingSvg: data.loadingSvg,
     loadingShowSkeleton: data.loadingShowSkeleton !== false,
+    loadingShowElapsed: data.loadingShowElapsed !== false,
     loadingMotion: data.loadingMotion,
     ...readLoadingFrame({
       loadingSizeMode: data.loadingSizeMode,

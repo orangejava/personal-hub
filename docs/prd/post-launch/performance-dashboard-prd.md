@@ -1,6 +1,6 @@
 # 性能与接口响应面板 PRD
 
-> 状态：一期已落地，待合并进 `main`；二期 Nest 汇总未做
+> 状态：一期已在 `main`。二期已接上报、Redis 分钟桶、小时落库和 `/status` 全站视图。告警和按人统计仍不做
 > 最后更新：2026-10-09
 > 落地记录：[performance-dashboard.md](../../../apps/user-web/docs/implementation/performance-dashboard.md)
 > Worktree：`perf-dashboard`（开工前依赖 `main` 上的「启动前骨架」，见 [README.md](./README.md)）

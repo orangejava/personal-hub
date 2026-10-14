@@ -13,4 +13,5 @@ Nest 工程约定与已落地切片（M0–M6）。跨端 HTTP/数据契约仍�
 | [implementation/content/README.md](./implementation/content/README.md) | M4 内容域 4.1–4.5 |
 | [implementation/file/README.md](./implementation/file/README.md) | M5 文件 / 小册 5.1–5.7 |
 | [implementation/ai/README.md](./implementation/ai/README.md) | M6 AI 域 |
+| [implementation/metrics/README.md](./implementation/metrics/README.md) | 全站性能汇总 |
 | [../../docs/implementation/review-remediation.md](../../docs/implementation/review-remediation.md) | 审查修复：幂等 / 审核 / 上传任务 |

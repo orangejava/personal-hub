@@ -13,6 +13,7 @@ export const SYSTEM_CONFIG_GROUPS = [
   'site.layout',
   'ai.branding',
   'file.policies',
+  'ops.metrics',
 ] as const;
 
 export type SystemConfigGroup = (typeof SYSTEM_CONFIG_GROUPS)[number];
@@ -20,6 +21,7 @@ export type SystemConfigGroup = (typeof SYSTEM_CONFIG_GROUPS)[number];
 /** 公开接口不得拼装这些组；一期也没有独立「文件策略」后台页。 */
 export const PRIVATE_SYSTEM_CONFIG_GROUPS: ReadonlySet<SystemConfigGroup> = new Set([
   'file.policies',
+  'ops.metrics',
 ]);
 
 export function isPublicSystemConfigGroup(group: SystemConfigGroup): boolean {
@@ -158,6 +160,8 @@ export const siteGeneralSchema = z.object({
   loadingVideoFileId: nullableUuid,
   /** 标题下面三道灰色骨架。旧配置没有这项时仍然显示。 */
   loadingShowSkeleton: z.boolean().optional(),
+  /** 进度百分比后面的秒数。旧配置没有这项时仍然显示。 */
+  loadingShowElapsed: z.boolean().optional(),
   loadingFileId: nullableUuid,
   loadingSvg: z
     .string()
@@ -264,6 +268,13 @@ const filePurposePolicySchema = z.object({
     .optional(),
 });
 
+export const opsMetricsSchema = z.object({
+  /** 0 到 1。0.2 表示约 20% 的访问会上报。 */
+  sampleRate: z.number().min(0).max(1),
+  /** 小时直方图保留天数。日汇总不按这个删除。 */
+  hourRetentionDays: z.number().int().min(1).max(365),
+});
+
 export const filePoliciesSchema = z.object({
   AVATAR: filePurposePolicySchema.optional(),
   COVER: filePurposePolicySchema.optional(),
@@ -282,6 +293,7 @@ export const GROUP_SCHEMAS = {
   'site.layout': siteLayoutSchema,
   'ai.branding': aiBrandingSchema,
   'file.policies': filePoliciesSchema,
+  'ops.metrics': opsMetricsSchema,
 } as const;
 
 export type SiteGeneral = z.infer<typeof siteGeneralSchema>;
@@ -293,6 +305,7 @@ export type SiteLayout = z.infer<typeof siteLayoutSchema>;
 export type ProjectVisualAssetConfig = z.infer<typeof projectVisualAssetSchema>;
 export type AiBranding = z.infer<typeof aiBrandingSchema>;
 export type FilePolicies = z.infer<typeof filePoliciesSchema>;
+export type OpsMetrics = z.infer<typeof opsMetricsSchema>;
 
 export interface PublicProjectVisualAsset {
   key: ProjectShowcaseKey;
@@ -323,6 +336,8 @@ export interface PublicSiteConfig {
   loadingVideoUrl: string | null;
   /** 为 false 时加载页不画标题下的三道骨架。 */
   loadingShowSkeleton: boolean;
+  /** 为 false 时进度只显示百分比，不带秒数。 */
+  loadingShowElapsed: boolean;
   /** 图片模式的签名地址。文件 ID 不进公开响应。 */
   loadingImageUrl: string | null;
   /** 已去掉脚本的 SVG 标记。其它样式时为空字符串。 */
@@ -360,6 +375,7 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     loadingTitle: '正在打开 Personal Hub',
     loadingSubtitle: '首次打开会先拉取页面资源，请稍候',
     loadingShowSkeleton: true,
+    loadingShowElapsed: true,
     loadingMotion: 'none',
     loadingSizeMode: 'default',
     loadingMaxWidth: 320,
@@ -461,6 +477,10 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     logoText: 'PH',
   } satisfies AiBranding,
   'file.policies': {} satisfies FilePolicies,
+  'ops.metrics': {
+    sampleRate: 0.2,
+    hourRetentionDays: 90,
+  } satisfies OpsMetrics,
 };
 
 export function isSystemConfigGroup(value: string): value is SystemConfigGroup {
@@ -687,6 +707,7 @@ export function assemblePublicSiteConfig(
     loadingTitle: general.loadingTitle ?? '正在打开 Personal Hub',
     loadingSubtitle: general.loadingSubtitle ?? '首次打开会先拉取页面资源，请稍候',
     loadingShowSkeleton: general.loadingShowSkeleton !== false,
+    loadingShowElapsed: general.loadingShowElapsed !== false,
     loadingMotion: general.loadingMotion ?? 'none',
     ...resolveLoadingFrame(general),
     loadingFileId: general.loadingFileId,

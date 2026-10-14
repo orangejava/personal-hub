@@ -20,6 +20,14 @@ export function configureHttpApp(
   logger: Logger,
 ): void {
   app.useLogger(logger);
+  // 不使用 trust proxy=true 或固定跳数，直连请求不能自行指定客户端 IP。
+  app.set(
+    'trust proxy',
+    (config.get<string>('TRUST_PROXY_CIDRS') ?? '')
+      .split(',')
+      .map((ip) => ip.trim())
+      .filter(Boolean),
+  );
   // requestId 必须先于其它 middleware 写入，才能覆盖其潜在异常与后续完整日志链路。
   app.use(assignRequestId);
   app.use(cookieParser());

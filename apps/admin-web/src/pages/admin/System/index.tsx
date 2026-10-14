@@ -31,9 +31,19 @@ const CONFIG_HUB_CARDS = [
     title: '项目配置',
     description: '项目页标题与简介文案。',
   },
+  {
+    path: '/admin/system/theme',
+    title: '主题配置',
+    description: '公开区的主题色和外观设置。',
+  },
+  {
+    path: '/admin/system/metrics',
+    title: '性能汇总',
+    description: '全站页面指标的上报比例，以及小时数据保留几天。',
+  },
 ] as const;
 
-/** 系统配置中心：只放按公开页面拆开的展示配置，不把 AI 管理或主题配置收进来。 */
+/** 系统配置中心。主题和性能汇总从卡片进入。 */
 const System: React.FC = () => {
   const openCard = (path: string) => {
     history.push(path);
@@ -42,7 +52,8 @@ const System: React.FC = () => {
   return (
     <PageContainer title="系统配置">
       <Paragraph type="secondary" style={{ marginTop: 0 }}>
-        按公开前台页面拆开维护展示配置。厂商模型、主题色仍在侧栏的「AI 管理」和「主题配置」。
+        按公开前台页面拆开维护。主题和性能汇总也可以从下面的卡片进入。厂商模型仍在侧栏的「AI
+        管理」。
       </Paragraph>
       <Row gutter={[16, 16]}>
         {CONFIG_HUB_CARDS.map((card) => (

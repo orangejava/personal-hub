@@ -7,7 +7,14 @@ const REPEAT_WINDOW_MS = 60_000;
 const PAGE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_API_RECORDS = 500;
 
-export type PageMetricName = 'TTFB' | 'FCP' | 'LCP' | 'CLS' | 'INP' | 'route' | 'js';
+export type PageMetricName =
+  | 'TTFB'
+  | 'FCP'
+  | 'LCP'
+  | 'CLS'
+  | 'INP'
+  | 'route'
+  | 'js';
 
 export interface PageSample {
   route: string;
@@ -31,6 +38,8 @@ export interface JsBundleStat {
 }
 
 const apiSamples: ApiSample[] = [];
+/** 当前标签页的样本只供 Beacon 使用，避免共用 localStorage 混入其他标签页。 */
+const documentSamples = new Map<string, PageSample>();
 const jsBundles = new Map<string, JsBundleStat>();
 const listeners = new Set<() => void>();
 
@@ -93,6 +102,15 @@ function metricKey(sample: PageSample): string {
   return `${sample.route}\0${sample.metric}`;
 }
 
+function rememberDocumentSample(sample: PageSample): void {
+  if (
+    sample.at <
+    (typeof performance === 'undefined' ? 0 : performance.timeOrigin)
+  )
+    return;
+  documentSamples.set(metricKey(sample), { ...sample });
+}
+
 /** 每个页面指标留住最近几次，再按全局 200 条丢掉最旧的。 */
 function trimPageSamples(samples: PageSample[]): PageSample[] {
   const grouped = new Map<string, PageSample[]>();
@@ -113,7 +131,10 @@ function trimPageSamples(samples: PageSample[]): PageSample[] {
 
 function writePageSamples(samples: PageSample[]): void {
   try {
-    localStorage.setItem(PAGE_STORAGE_KEY, JSON.stringify(trimPageSamples(samples)));
+    localStorage.setItem(
+      PAGE_STORAGE_KEY,
+      JSON.stringify(trimPageSamples(samples)),
+    );
   } catch {
     // 无痕模式或配额满：放弃持久化。
   }
@@ -128,6 +149,7 @@ export function appendPageSample(sample: PageSample, now = Date.now()): void {
   if (!Number.isFinite(sample.value) || sample.value < 0) return;
   const cutoff = now - PAGE_TTL_MS;
   if (sample.at < cutoff) return;
+  rememberDocumentSample(sample);
   const next = readStoredPages().filter((item) => item.at >= cutoff);
   next.push(sample);
   writePageSamples(next);
@@ -137,14 +159,20 @@ export function appendPageSample(sample: PageSample, now = Date.now()): void {
  * 连续上报时改写最近一条，而不是再追加。
  * CLS、INP 会在同一次停留里反复回调，全部追加会把已经打开过的页面记录挤掉。
  */
-export function upsertRecentPageSample(sample: PageSample, now = Date.now()): void {
+export function upsertRecentPageSample(
+  sample: PageSample,
+  now = Date.now(),
+): void {
   if (!Number.isFinite(sample.value) || sample.value < 0) return;
   const cutoff = now - PAGE_TTL_MS;
   if (sample.at < cutoff) return;
+  rememberDocumentSample(sample);
   const next = readStoredPages().filter((item) => item.at >= cutoff);
   const previous = [...next]
     .reverse()
-    .find((item) => item.route === sample.route && item.metric === sample.metric);
+    .find(
+      (item) => item.route === sample.route && item.metric === sample.metric,
+    );
   if (previous && sample.at - previous.at <= REPEAT_WINDOW_MS) {
     previous.value = sample.value;
     previous.at = sample.at;
@@ -179,11 +207,39 @@ export function rememberJsBundles(files: JsBundleStat[]): void {
 }
 
 export function readJsBundles(): JsBundleStat[] {
-  return [...jsBundles.values()].sort((left, right) => right.bytes - left.bytes);
+  return [...jsBundles.values()].sort(
+    (left, right) => right.bytes - left.bytes,
+  );
+}
+
+const VITAL_NAMES = ['TTFB', 'FCP', 'LCP', 'CLS', 'INP'] as const;
+
+/**
+ * 当前标签页这次打开之后的五项 Web Vitals。路由切换和 JS 体积留在本机，不上报。
+ *
+ * @param route 页面模板
+ * @param recordedAfter 只取这个时刻之后的样本。默认是这次文档开始加载的时间
+ */
+export function latestVitalSamples(
+  route: string,
+  recordedAfter = typeof performance === 'undefined'
+    ? 0
+    : performance.timeOrigin,
+): { metric: (typeof VITAL_NAMES)[number]; value: number }[] {
+  const stored = [...documentSamples.values()].filter(
+    (sample) => sample.route === route && sample.at >= recordedAfter,
+  );
+  return VITAL_NAMES.flatMap((metric) => {
+    const latest = stored
+      .filter((sample) => sample.metric === metric)
+      .sort((left, right) => right.at - left.at)[0];
+    return latest ? [{ metric, value: latest.value }] : [];
+  });
 }
 
 /** 单测清空内存样本。不触碰调用方自己的 localStorage 模拟。 */
 export function resetPerfMemory(): void {
   apiSamples.splice(0, apiSamples.length);
+  documentSamples.clear();
   jsBundles.clear();
 }

@@ -1,90 +1,44 @@
-import { CheckOutlined } from '@ant-design/icons';
-import { ColorPicker, Drawer, Space, Tooltip, Typography } from 'antd';
-import React from 'react';
-import {
-  NAV_THEME_PRESETS,
-  THEME_COLOR_PRESETS,
-  type NavThemePreset,
-} from '@/config/themePresets';
-import type { PublicThemeSettings } from '@/types/app';
+import { App } from 'antd';
+import React, { useEffect, useRef, useState } from 'react';
+import type { PublicThemeDrawerProps } from './PublicThemeDrawerPanel';
 
-interface PublicThemeDrawerProps {
-  open: boolean;
-  settings: PublicThemeSettings;
-  onClose: () => void;
-  onChange: (settings: PublicThemeSettings) => void;
+type PanelComponent = React.ComponentType<PublicThemeDrawerProps>;
+
+/**
+ * 抽屉内的 ColorPicker 等依赖约 60 KiB，不进公开页首屏，第一次打开时再拉。
+ * 不用 React.lazy：它会缓存失败的 import，之后再点也打不开，错误还会冒到全局 ErrorBoundary 把整页换掉。
+ */
+function loadPanel(): Promise<PanelComponent> {
+  return import('./PublicThemeDrawerPanel').then((mod) => mod.default);
 }
 
-/** 公开前台主题抽屉：风格块 + 预设色 + 自定义色盘（与工作区 SettingDrawer 对齐） */
-const PublicThemeDrawer: React.FC<PublicThemeDrawerProps> = ({
-  open,
-  settings,
-  onClose,
-  onChange,
-}) => (
-  <Drawer
-    title="主题设置"
-    open={open}
-    onClose={onClose}
-    size={320}
-    destroyOnHidden={false}
-    className="ph-public-theme-drawer"
-  >
-    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
-      <div>
-        <Typography.Text strong>整体风格</Typography.Text>
-        <div className="ph-theme-style-list" style={{ marginTop: 12 }}>
-          {NAV_THEME_PRESETS.map((item) => (
-            <Tooltip key={item.key} title={item.title}>
-              <button
-                type="button"
-                aria-label={item.title}
-                className={`ph-theme-style-item ph-theme-style-${item.key === 'realDark' ? 'dark' : 'light'}${settings.navTheme === item.key ? ' active' : ''}`}
-                onClick={() =>
-                  onChange({ ...settings, navTheme: item.key as NavThemePreset })
-                }
-              />
-            </Tooltip>
-          ))}
-        </div>
-      </div>
+/**
+ * 公开前台主题抽屉入口。
+ * 加载成功后保持挂载，关闭动画和 destroyOnHidden={false} 的行为不变。
+ * 加载失败时提示并关闭抽屉，下次点击重新请求分包。
+ */
+const PublicThemeDrawer: React.FC<PublicThemeDrawerProps> = (props) => {
+  const { open, onClose } = props;
+  const { message } = App.useApp();
+  const [Panel, setPanel] = useState<PanelComponent | null>(null);
+  /** 防止 StrictMode 双执行或请求未返回时重复发起加载、重复提示。 */
+  const loadingRef = useRef(false);
 
-      <div>
-        <Typography.Text strong>主题色</Typography.Text>
-        <div className="ph-theme-color-list">
-          {THEME_COLOR_PRESETS.map((item) => (
-            <Tooltip key={item.key} title={item.title}>
-              <button
-                type="button"
-                aria-label={item.title}
-                className={`ph-theme-color-block${settings.colorPrimary.toLowerCase() === item.color.toLowerCase() ? ' active' : ''}`}
-                style={{ backgroundColor: item.color, color: '#fff' }}
-                onClick={() => onChange({ ...settings, colorPrimary: item.color })}
-              >
-                {settings.colorPrimary.toLowerCase() === item.color.toLowerCase() ? (
-                  <CheckOutlined />
-                ) : null}
-              </button>
-            </Tooltip>
-          ))}
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-            自定义颜色
-          </Typography.Text>
-          <div style={{ marginTop: 8 }}>
-            <ColorPicker
-              value={settings.colorPrimary}
-              showText
-              onChange={(color) =>
-                onChange({ ...settings, colorPrimary: color.toHexString() })
-              }
-            />
-          </div>
-        </div>
-      </div>
-    </Space>
-  </Drawer>
-);
+  useEffect(() => {
+    if (!open || Panel || loadingRef.current) return;
+    loadingRef.current = true;
+    loadPanel()
+      .then((component) => setPanel(() => component))
+      .catch(() => {
+        message.error('主题设置加载失败，请检查网络后重试');
+        onClose();
+      })
+      .finally(() => {
+        loadingRef.current = false;
+      });
+  }, [open, Panel, message, onClose]);
+
+  return Panel ? <Panel {...props} /> : null;
+};
 
 export default PublicThemeDrawer;
