@@ -2,11 +2,13 @@ import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   AiAssetStatus,
   AiAssetType,
+  AiCredentialOwnerType,
   AiFeedback,
   AiFinishReason,
   AiGenerationJobStatus,
   AiMessageRole,
   AiMessageStatus,
+  AiModality,
   AiNavStatus,
   AiOwnerType,
   AiStoppedBy,
@@ -33,9 +35,12 @@ import {
 import { parseGroupValue, type AiBranding } from '../system/config-registry';
 import { SystemService } from '../system/system.service';
 import { AuthService } from '../auth/auth.service';
+import { AiCredentialService } from './ai-credential.service';
+import { probeProviderConnection } from './ai-provider-probe';
+import { lockModelConfig, updateModelDefaults, validateModelConfig } from './ai-model-config';
 import { estimateTextTokens, platformCost, AiQuotaService } from './ai-quota.service';
 import { AiRuntimeService } from './ai-runtime.service';
-import type { SendMessageDto, TextGenerateDto } from './dto/ai.dto';
+import type { CreateModelDto, SendMessageDto, TextGenerateDto } from './dto/ai.dto';
 import {
   AI_CHAT_PROVIDER,
   AI_IMAGE_PROVIDER,
@@ -54,6 +59,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quota: AiQuotaService,
+    private readonly credentials: AiCredentialService,
     private readonly runtime: AiRuntimeService,
     private readonly outbox: OutboxService,
     private readonly system: SystemService,
@@ -161,7 +167,7 @@ export class AiService {
         provider: { enabled: true },
         ...(guest ? { guestAllowed: true } : {}),
       },
-      include: { provider: true },
+      include: { provider: true, defaultForTools: { select: { code: true } } },
       orderBy: { displayName: 'asc' },
     });
     if (!owner.userId) {
@@ -543,6 +549,12 @@ export class AiService {
       let providerUsage: { inputTokens: number; outputTokens: number } | undefined;
       for await (const delta of this.chatProvider.stream({
         modelKey: model.modelKey,
+        providerId: model.provider.id,
+        providerCode: model.provider.code,
+        baseUrl: model.provider.baseUrl,
+        authEnvKey: model.provider.authEnvKey,
+        timeoutMs: model.provider.timeoutMs,
+        maxOutputTokens: model.maxOutputTokens,
         systemPrompt: session.systemPrompt,
         messages: promptMessages,
         signal,
@@ -692,7 +704,10 @@ export class AiService {
           userMessageId: failureContext.userMessageId,
           assistantMessageId: failureContext.assistantMessageId,
           code: failureCode,
-          message: 'AI 服务调用失败，请稍后重试',
+          message:
+            failureCode === 'AI_PROVIDER_KEY_MISSING' || failureCode === 'AI_CREDENTIAL_KEY_MISSING'
+              ? '模型厂商缺少可用凭据，请联系管理员配置'
+              : 'AI 服务调用失败，请稍后重试',
         });
         input.response.end();
         return;
@@ -1448,9 +1463,17 @@ export class AiService {
   async adminConfig() {
     const [providers, models, tools, templates, entitlements, branding, navigation] =
       await Promise.all([
-        this.prisma.aiProvider.findMany({ orderBy: { code: 'asc' } }),
+        this.prisma.aiProvider.findMany({
+          orderBy: { code: 'asc' },
+          include: {
+            credentials: {
+              where: { ownerType: AiCredentialOwnerType.SYSTEM },
+              select: { id: true },
+            },
+          },
+        }),
         this.prisma.aiModel.findMany({
-          include: { provider: true },
+          include: { provider: true, defaultForTools: { select: { code: true } } },
           orderBy: { displayName: 'asc' },
         }),
         this.prisma.aiTool.findMany({ orderBy: { sortOrder: 'asc' } }),
@@ -1464,28 +1487,8 @@ export class AiService {
       ]);
     return {
       branding,
-      providers: providers.map((row) => ({
-        id: row.id,
-        code: row.code,
-        name: row.label,
-        label: row.label,
-        enabled: row.enabled,
-        baseUrl: row.baseUrl ?? '',
-        apiKeyMasked: row.authEnvKey ? '********' : '',
-        hasKey: Boolean(row.authEnvKey),
-        updatedAt: row.updatedAt.toISOString(),
-      })),
-      models: models.map((row) => ({
-        ...mapModel(row),
-        modelId: row.modelKey,
-        displayName: row.displayName,
-        providerCode: row.provider.code,
-        providerName: row.provider.label,
-        visibleToUser: row.userVisible,
-        contextTokens: row.contextWindowTokens,
-        inputPricePer1k: row.inputPricePer1k,
-        outputPricePer1k: row.outputPricePer1k,
-      })),
+      providers: providers.map((row) => toAdminProvider(row)),
+      models: models.map(mapAdminModel),
       tools: tools.map((row) => ({
         ...mapTool(row),
         id: row.id,
@@ -1530,24 +1533,212 @@ export class AiService {
 
   async patchProvider(
     id: string,
-    input: { label?: string; name?: string; enabled?: boolean; baseUrl?: string; apiKey?: string },
+    input: {
+      label?: string;
+      name?: string;
+      enabled?: boolean;
+      baseUrl?: string;
+      apiKey?: string;
+      remark?: string;
+      sourceFiled?: boolean;
+      filingNote?: string;
+    },
   ) {
-    const current = await this.prisma.aiProvider.findUnique({ where: { id } });
-    if (!current) {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.aiProvider.findUnique({ where: { id } });
+      if (!current) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '厂商不存在');
+      }
+      const apiKey = input.apiKey?.trim();
+      if (apiKey) {
+        await this.credentials.upsertSystemKey(id, apiKey, tx);
+      }
+      const updated = await tx.aiProvider.update({
+        where: { id },
+        data: {
+          label: input.label ?? input.name,
+          enabled: input.enabled,
+          baseUrl: input.baseUrl,
+          remark: input.remark === undefined ? undefined : input.remark.trim() || null,
+          sourceFiled: input.sourceFiled,
+          filingNote: input.filingNote === undefined ? undefined : input.filingNote.trim() || null,
+        },
+        include: {
+          credentials: {
+            where: { ownerType: AiCredentialOwnerType.SYSTEM },
+            select: { id: true },
+          },
+        },
+      });
+      return toAdminProvider(updated);
+    });
+  }
+
+  /** 新建兼容协议厂商；凭据写入失败会回滚目录行。 */
+  async createProvider(input: {
+    code: string;
+    label: string;
+    providerType: 'openai-compatible';
+    baseUrl?: string;
+    enabled?: boolean;
+    apiKey?: string;
+    remark?: string;
+    sourceFiled?: boolean;
+    filingNote?: string;
+  }) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        const created = await tx.aiProvider.create({
+          data: {
+            code: input.code,
+            label: input.label.trim(),
+            baseUrl: input.baseUrl?.trim() || null,
+            enabled: input.enabled ?? true,
+            remark: input.remark?.trim() || null,
+            sourceFiled: input.sourceFiled ?? false,
+            filingNote: input.filingNote?.trim() || null,
+            timeoutMs: 20_000,
+          },
+        });
+        if (input.apiKey) {
+          await this.credentials.upsertSystemKey(created.id, input.apiKey, tx);
+        }
+        const saved = await tx.aiProvider.findUniqueOrThrow({
+          where: { id: created.id },
+          include: {
+            credentials: {
+              where: { ownerType: AiCredentialOwnerType.SYSTEM },
+              select: { id: true },
+            },
+          },
+        });
+        return toAdminProvider(saved);
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_PROVIDER_CODE_EXISTS',
+          '厂商标识已存在',
+        );
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * 探测厂商连通性。Fake 不发外网、不写用量。密钥解析顺序与正式调用相同。
+   *
+   * @param providerId 厂商行 ID
+   * @param modelId 可选，模型行 ID。传入时还要确认该 modelKey 存在于厂商
+   */
+  async testProvider(providerId: string, modelId?: string) {
+    const provider = await this.prisma.aiProvider.findUnique({ where: { id: providerId } });
+    if (!provider) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '厂商不存在');
     }
-    return this.prisma.aiProvider.update({
-      where: { id },
-      data: {
-        label: input.label ?? input.name,
-        enabled: input.enabled,
-        baseUrl: input.baseUrl,
-        // 明文 Key 不入库，只记下应对应的环境变量名，后台用 hasKey / 脱敏展示。
-        authEnvKey: input.apiKey?.trim()
-          ? `AI_PROVIDER_${current.code.toUpperCase()}_KEY`
-          : undefined,
-      },
+    if (provider.code === 'fake') {
+      return { ok: true as const, message: 'Fake Provider 连接成功' };
+    }
+    const secret = await this.credentials.resolveSystemSecret(provider, { require: true });
+    if (!secret) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_PROVIDER_KEY_MISSING',
+        '未配置系统凭据，且没有可用的环境变量回退',
+      );
+    }
+    let modelKey: string | undefined;
+    if (modelId) {
+      const model = await this.prisma.aiModel.findFirst({
+        where: { id: modelId, providerId },
+      });
+      if (!model) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '模型不存在');
+      }
+      modelKey = model.modelKey;
+    }
+    const message = await probeProviderConnection({
+      baseUrl: secret.baseUrl,
+      apiKey: secret.apiKey,
+      timeoutMs: secret.timeoutMs,
+      modelKey,
     });
+    return { ok: true as const, message };
+  }
+
+  /** 新增模型目录；同一厂商的 modelKey 唯一，默认模型在同一事务中让位。 */
+  async createModel(input: CreateModelDto) {
+    const modelKey = input.modelId.trim();
+    const providerCode = input.providerCode.trim();
+    const displayName = input.displayName.trim();
+    if (!modelKey || !providerCode || !displayName) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_MODEL_INVALID',
+        '模型标识、厂商和名称不能为空',
+      );
+    }
+    validateModelConfig({
+      ...input,
+      modelKey,
+      displayName,
+      contextWindowTokens: input.contextTokens,
+      maxOutputTokens: input.maxOutputTokens ?? 2048,
+      fixedPlatformCost: input.fixedPlatformCost ?? null,
+    });
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await lockModelConfig(tx);
+        const provider = await tx.aiProvider.findUnique({ where: { code: providerCode } });
+        if (!provider) {
+          throw new DomainHttpException(
+            HttpStatus.NOT_FOUND,
+            'AI_PROVIDER_NOT_FOUND',
+            '厂商不存在',
+          );
+        }
+        const row = await tx.aiModel.create({
+          data: {
+            providerId: provider.id,
+            modelKey,
+            displayName,
+            toolTypes: [...new Set(input.toolTypes)],
+            modality: input.modality ?? AiModality.TEXT,
+            enabled: input.enabled,
+            userVisible: input.visibleToUser,
+            isDefault: input.isDefault,
+            contextWindowTokens: input.contextTokens,
+            maxOutputTokens: input.maxOutputTokens ?? 2048,
+            fixedPlatformCost: input.fixedPlatformCost,
+            inputPricePer1k: input.inputPricePer1k,
+            outputPricePer1k: input.outputPricePer1k,
+          },
+          include: { provider: true },
+        });
+        // 模型目录权限不包含角色授权权限；仅独立的权益接口能改变显式白名单。
+        await updateModelDefaults(
+          tx,
+          row,
+          input.defaultToolTypes ?? (input.isDefault ? input.toolTypes : []),
+        );
+        return mapAdminModel(
+          await tx.aiModel.findUniqueOrThrow({
+            where: { id: row.id },
+            include: { provider: true, defaultForTools: { select: { code: true } } },
+          }),
+        );
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_MODEL_EXISTS',
+          '同一厂商下已有这个模型标识',
+        );
+      }
+      throw error;
+    }
   }
 
   async patchModel(
@@ -1561,38 +1752,94 @@ export class AiService {
       contextTokens?: number;
       inputPricePer1k?: number;
       outputPricePer1k?: number;
+      modelId?: string;
+      modality?: AiModality;
+      toolTypes?: AiToolCode[];
+      maxOutputTokens?: number;
+      fixedPlatformCost?: number | null;
+      defaultToolTypes?: AiToolCode[];
     },
   ) {
-    const current = await this.prisma.aiModel.findUnique({ where: { id } });
-    if (!current) {
-      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_MODEL_NOT_AVAILABLE', '模型不存在');
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        await lockModelConfig(tx);
+        const current = await tx.aiModel.findUnique({ where: { id } });
+        if (!current) {
+          throw new DomainHttpException(
+            HttpStatus.NOT_FOUND,
+            'AI_MODEL_NOT_AVAILABLE',
+            '模型不存在',
+          );
+        }
+        const nextFixedCost =
+          input.fixedPlatformCost === undefined
+            ? current.fixedPlatformCost
+            : input.fixedPlatformCost;
+        const modelKey = input.modelId?.trim();
+        validateModelConfig({
+          ...current,
+          modelKey: modelKey ?? current.modelKey,
+          displayName:
+            input.displayName === undefined ? current.displayName : input.displayName.trim(),
+          enabled: input.enabled ?? current.enabled,
+          toolTypes: input.toolTypes ?? current.toolTypes,
+          contextWindowTokens: input.contextTokens ?? current.contextWindowTokens,
+          maxOutputTokens: input.maxOutputTokens ?? current.maxOutputTokens,
+          inputPricePer1k: input.inputPricePer1k ?? current.inputPricePer1k,
+          outputPricePer1k: input.outputPricePer1k ?? current.outputPricePer1k,
+          fixedPlatformCost: nextFixedCost,
+        });
+        if (modelKey && modelKey !== current.modelKey) {
+          const clash = await tx.aiModel.findFirst({
+            where: { providerId: current.providerId, modelKey, NOT: { id } },
+            select: { id: true },
+          });
+          if (clash) {
+            throw new DomainHttpException(
+              HttpStatus.CONFLICT,
+              'AI_MODEL_EXISTS',
+              '同一厂商下已有这个模型标识',
+            );
+          }
+        }
+        const row = await tx.aiModel.update({
+          where: { id },
+          data: {
+            displayName: input.displayName?.trim(),
+            enabled: input.enabled,
+            userVisible: input.userVisible ?? input.visibleToUser,
+            isDefault: input.isDefault,
+            contextWindowTokens: input.contextTokens,
+            inputPricePer1k: input.inputPricePer1k,
+            outputPricePer1k: input.outputPricePer1k,
+            modelKey,
+            modality: input.modality,
+            toolTypes: input.toolTypes,
+            maxOutputTokens: input.maxOutputTokens,
+            fixedPlatformCost: input.fixedPlatformCost,
+          },
+        });
+        const defaults =
+          input.defaultToolTypes ??
+          (input.isDefault === undefined ? undefined : input.isDefault ? row.toolTypes : []);
+        await updateModelDefaults(tx, row, defaults);
+        return mapAdminModel(
+          await tx.aiModel.findUniqueOrThrow({
+            where: { id },
+            include: { provider: true, defaultForTools: { select: { code: true } } },
+          }),
+        );
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_MODEL_EXISTS',
+          '同一厂商下已有这个模型标识',
+        );
+      }
+      throw error;
     }
-    if (
-      input.enabled === true &&
-      current.inputPricePer1k === 0 &&
-      current.outputPricePer1k === 0 &&
-      current.fixedPlatformCost == null &&
-      input.inputPricePer1k == null &&
-      input.outputPricePer1k == null
-    ) {
-      throw new DomainHttpException(
-        HttpStatus.BAD_REQUEST,
-        'AI_MODEL_NOT_AVAILABLE',
-        '缺少定价的模型不能启用',
-      );
-    }
-    return this.prisma.aiModel.update({
-      where: { id },
-      data: {
-        displayName: input.displayName,
-        enabled: input.enabled,
-        userVisible: input.userVisible ?? input.visibleToUser,
-        isDefault: input.isDefault,
-        contextWindowTokens: input.contextTokens,
-        inputPricePer1k: input.inputPricePer1k,
-        outputPricePer1k: input.outputPricePer1k,
-      },
-    });
   }
 
   async patchTool(
@@ -1601,21 +1848,56 @@ export class AiService {
       name?: string;
       status?: AiToolStatus;
       sortOrder?: number;
-      defaultModelId?: string;
+      defaultModelId?: string | null;
       tokenCostLabel?: string;
       guestTrialEnabled?: boolean;
     },
   ) {
-    return this.prisma.aiTool.update({
-      where: { id },
-      data: {
-        name: input.name,
-        status: input.status,
-        sortOrder: input.sortOrder,
-        defaultModelId: input.defaultModelId,
-        tokenCostLabel: input.tokenCostLabel,
-        guestTrialEnabled: input.guestTrialEnabled,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      await lockModelConfig(tx);
+      const current = await tx.aiTool.findUnique({ where: { id } });
+      if (!current)
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'AI_TOOL_UNAVAILABLE', '工具不存在');
+      if (input.defaultModelId) {
+        const model = await tx.aiModel.findUnique({
+          where: { id: input.defaultModelId },
+          include: { provider: true },
+        });
+        if (
+          !model ||
+          !model.enabled ||
+          !model.userVisible ||
+          model.deprecatedAt ||
+          !model.provider.enabled ||
+          !model.toolTypes.includes(current.code)
+        ) {
+          throw new DomainHttpException(
+            HttpStatus.BAD_REQUEST,
+            'AI_MODEL_INVALID',
+            '默认模型必须可用，且支持对应工具',
+          );
+        }
+      }
+      const saved = await tx.aiTool.update({
+        where: { id },
+        data: {
+          name: input.name,
+          status: input.status,
+          sortOrder: input.sortOrder,
+          defaultModelId: input.defaultModelId,
+          tokenCostLabel: input.tokenCostLabel,
+          guestTrialEnabled: input.guestTrialEnabled,
+        },
+      });
+      await tx.aiModel.updateMany({
+        where: { defaultForTools: { none: {} } },
+        data: { isDefault: false },
+      });
+      await tx.aiModel.updateMany({
+        where: { defaultForTools: { some: {} } },
+        data: { isDefault: true },
+      });
+      return saved;
     });
   }
 
@@ -1623,8 +1905,28 @@ export class AiService {
     roleId: string,
     input: { maxConcurrent?: number; allowedModelIds?: string[] },
   ) {
+    if (input.allowedModelIds) {
+      const ids = [...new Set(input.allowedModelIds)];
+      const count = await this.prisma.aiModel.count({ where: { id: { in: ids } } });
+      if (count !== ids.length)
+        throw new DomainHttpException(
+          HttpStatus.BAD_REQUEST,
+          'AI_MODEL_INVALID',
+          '授权列表包含不存在的模型',
+        );
+      input = { ...input, allowedModelIds: ids };
+    }
+    if (!(await this.prisma.aiEntitlement.findUnique({ where: { roleId } }))) {
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_ENTITLEMENT_NOT_FOUND',
+        '角色权益不存在',
+      );
+    }
     return this.prisma.aiEntitlement.update({
       where: { roleId },
+      // 权益行含 BigInt 赠额，写响应只返回本接口字段，避免幂等缓存 JSON 序列化失败。
+      select: { id: true, roleId: true, maxConcurrent: true, allowedModelIds: true },
       data: {
         maxConcurrent: input.maxConcurrent,
         allowedModelIds: input.allowedModelIds,
@@ -2014,23 +2316,16 @@ export class AiService {
     tool: AiToolCode,
   ) {
     const guest = owner.type === AiOwnerType.ANONYMOUS;
-    const model = modelId
+    const defaultTool = modelId
+      ? null
+      : await this.prisma.aiTool.findUnique({ where: { code: tool } });
+    const selectedId = modelId ?? defaultTool?.defaultModelId;
+    const model = selectedId
       ? await this.prisma.aiModel.findUnique({
-          where: { id: modelId },
+          where: { id: selectedId },
           include: { provider: true },
         })
-      : await this.prisma.aiModel.findFirst({
-          where: {
-            enabled: true,
-            userVisible: true,
-            isDefault: true,
-            deprecatedAt: null,
-            toolTypes: { has: tool },
-            provider: { enabled: true },
-            ...(guest ? { guestAllowed: true } : {}),
-          },
-          include: { provider: true },
-        });
+      : null;
     if (
       !model ||
       !model.enabled ||
@@ -2220,6 +2515,33 @@ function mapTool(row: {
   };
 }
 
+function toAdminProvider(row: {
+  id: string;
+  code: string;
+  label: string;
+  enabled: boolean;
+  baseUrl: string | null;
+  remark: string | null;
+  sourceFiled: boolean;
+  filingNote: string | null;
+  updatedAt: Date;
+  credentials: Array<{ id: string }>;
+}) {
+  return {
+    id: row.id,
+    code: row.code,
+    name: row.label,
+    label: row.label,
+    enabled: row.enabled,
+    baseUrl: row.baseUrl ?? '',
+    hasKey: row.credentials.length > 0,
+    remark: row.remark ?? '',
+    sourceFiled: row.sourceFiled,
+    filingNote: row.filingNote ?? '',
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
 function mapModel(row: {
   id: string;
   displayName: string;
@@ -2228,6 +2550,7 @@ function mapModel(row: {
   isDefault: boolean;
   toolTypes: AiToolCode[];
   provider?: { label: string } | null;
+  defaultForTools?: Array<{ code: AiToolCode }>;
 }) {
   return {
     id: row.id,
@@ -2235,7 +2558,30 @@ function mapModel(row: {
     provider: row.provider?.label ?? 'fake',
     toolTypes: row.toolTypes.map((item) => item.toLowerCase()),
     enabled: row.enabled,
-    isDefault: row.isDefault,
+    isDefault: row.defaultForTools ? row.defaultForTools.length > 0 : row.isDefault,
+    defaultToolTypes: row.defaultForTools?.map((tool) => tool.code.toLowerCase()),
+  };
+}
+
+/** 管理端新增、编辑和列表共用同一业务对象，避免写接口返回 Prisma 原始字段。 */
+function mapAdminModel(
+  row: Prisma.AiModelGetPayload<{
+    include: { provider: true; defaultForTools: { select: { code: true } } };
+  }>,
+) {
+  return {
+    ...mapModel(row),
+    modelId: row.modelKey,
+    displayName: row.displayName,
+    providerCode: row.provider.code,
+    providerName: row.provider.label,
+    visibleToUser: row.userVisible,
+    contextTokens: row.contextWindowTokens,
+    maxOutputTokens: row.maxOutputTokens,
+    modality: row.modality.toLowerCase(),
+    fixedPlatformCost: row.fixedPlatformCost,
+    inputPricePer1k: row.inputPricePer1k,
+    outputPricePer1k: row.outputPricePer1k,
   };
 }
 
@@ -2324,6 +2670,14 @@ function mapMessage(row: {
 
 /** 将内部异常映射为可返回给前端的稳定错误码，避免泄露厂商响应或数据库细节。 */
 function aiFailureCode(error: unknown): string {
+  if (error instanceof DomainHttpException) {
+    const response = error.getResponse() as { code?: string };
+    if (
+      response.code &&
+      ['AI_PROVIDER_KEY_MISSING', 'AI_CREDENTIAL_KEY_MISSING'].includes(response.code)
+    )
+      return response.code;
+  }
   const message = error instanceof Error ? error.message : '';
   if (/^OPENAI_COMPATIBLE_\d{3}$/.test(message)) {
     return message;

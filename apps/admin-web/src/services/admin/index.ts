@@ -1,8 +1,6 @@
 /** 后台运营 service */
 import { request } from '@umijs/max';
-import {
-  PROJECT_SHOWCASE_KEYS,
-} from '@personal-hub/shared-types';
+import { PROJECT_SHOWCASE_KEYS } from '@personal-hub/shared-types';
 import type {
   AdminAiConfigData,
   AdminAiBrandingConfig,
@@ -10,10 +8,14 @@ import type {
   AdminAiModelCreateInput,
   AdminAiModelConfig,
   AdminAiModelMutationInput,
+  AdminAiEntitlement,
   AdminAiNavigationItem,
   AdminAiNavigationMutationInput,
   AdminAiProviderConfig,
+  AdminAiProviderCreateInput,
+  AiCredentialPublicKey,
   AdminAiProviderMutationInput,
+  AdminAiProviderTestResult,
   AdminAiStatsData,
   AdminAiToolConfig,
   AdminAiToolMutationInput,
@@ -46,6 +48,7 @@ import {
   type NestPublicSiteConfig,
 } from '@personal-hub/api-client';
 import { NEST_ROUTE_REGISTRY } from '@/auth/routeRegistry';
+import { encryptCredentialForRequest } from './aiCredentialTransport';
 import {
   mapNestContentPage,
   toNestContentType,
@@ -187,7 +190,7 @@ function nestMenusToConfig(trees: AdminMenuNode[]): AdminMenuConfig {
 }
 
 export async function fetchAdminDashboardStats() {
-  return request<AdminDashboardStats>('/api/admin/dashboard/stats');
+  return request<AdminDashboardStats>('/api/v1/admin/dashboard');
 }
 
 export async function fetchAdminAiConfig() {
@@ -236,10 +239,53 @@ export async function updateAdminAiBrandingConfig(data: AdminAiBrandingMutationI
   });
 }
 
+async function encryptedProviderKey(apiKey?: string) {
+  if (!apiKey?.trim()) return undefined;
+  const publicKey = await request<AiCredentialPublicKey>('/api/v1/admin/ai/credential-key');
+  return encryptCredentialForRequest(apiKey.trim(), publicKey);
+}
+
+export async function createAdminAiProviderConfig(data: AdminAiProviderCreateInput) {
+  const encryptedApiKey = await encryptedProviderKey(data.apiKey);
+  return request<AdminAiProviderConfig>('/api/v1/admin/ai/providers', {
+    method: 'POST',
+    data: {
+      code: data.code,
+      label: data.name,
+      providerType: 'openai-compatible',
+      baseUrl: data.baseUrl,
+      enabled: data.enabled,
+      remark: data.remark,
+      sourceFiled: data.sourceFiled,
+      filingNote: data.filingNote,
+      ...(encryptedApiKey ? { encryptedApiKey } : {}),
+    },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
 export async function updateAdminAiProviderConfig(id: string, data: AdminAiProviderMutationInput) {
+  const encryptedApiKey = await encryptedProviderKey(data.apiKey);
   return request<AdminAiProviderConfig>(`/api/v1/admin/ai/providers/${id}`, {
     method: 'PATCH',
-    data: { name: data.name, baseUrl: data.baseUrl, enabled: data.enabled, apiKey: data.apiKey },
+    data: {
+      name: data.name,
+      baseUrl: data.baseUrl,
+      enabled: data.enabled,
+      ...(encryptedApiKey ? { encryptedApiKey } : {}),
+      remark: data.remark,
+      sourceFiled: data.sourceFiled,
+      filingNote: data.filingNote,
+    },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+/** 探测厂商或某个模型。失败交给全局 toast，这里不 skipErrorHandler。 */
+export async function testAdminAiProvider(id: string, modelId?: string) {
+  return request<AdminAiProviderTestResult>(`/api/v1/admin/ai/providers/${id}/test`, {
+    method: 'POST',
+    data: modelId ? { modelId } : {},
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
 }
@@ -251,8 +297,14 @@ export async function updateAdminAiModelConfig(id: string, data: AdminAiModelMut
       displayName: data.displayName,
       enabled: data.enabled,
       isDefault: data.isDefault,
+      defaultToolTypes: data.defaultToolTypes,
       userVisible: data.visibleToUser,
       contextTokens: data.contextTokens,
+      maxOutputTokens: data.maxOutputTokens,
+      modality: data.modality,
+      toolTypes: data.toolTypes,
+      modelId: data.modelId,
+      fixedPlatformCost: data.fixedPlatformCost,
       inputPricePer1k: data.inputPricePer1k,
       outputPricePer1k: data.outputPricePer1k,
     },
@@ -261,9 +313,25 @@ export async function updateAdminAiModelConfig(id: string, data: AdminAiModelMut
 }
 
 export async function createAdminAiModelConfig(
-  _data: AdminAiModelCreateInput,
+  data: AdminAiModelCreateInput,
 ): Promise<AdminAiModelConfig> {
-  throw new Error('本阶段不开放新增模型，请启停现有 Fake 模型');
+  return request<AdminAiModelConfig>('/api/v1/admin/ai/models', {
+    method: 'POST',
+    data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+/** 显式修改角色模型范围；独立接口要求 ai:entitlement:manage。 */
+export async function updateAdminAiEntitlement(roleId: string, allowedModelIds: string[]) {
+  return request<Pick<AdminAiEntitlement, 'id' | 'roleId' | 'maxConcurrent' | 'allowedModelIds'>>(
+    '/api/v1/admin/ai/entitlements',
+    {
+      method: 'PUT',
+      data: { roleId, allowedModelIds },
+      headers: { 'Idempotency-Key': newIdempotencyKey() },
+    },
+  );
 }
 
 export async function deleteAdminAiModelConfig(
@@ -676,7 +744,13 @@ function readLoadingFrame(value: Record<string, unknown>): {
   const loadingWidth = readFrameSide(value.loadingWidth, value.loadingSize, loadingMaxWidth);
   const loadingHeight = readFrameSide(value.loadingHeight, value.loadingSize, loadingMaxHeight);
   if (value.loadingSizeMode === 'custom' || value.loadingSizeMode === 'default') {
-    return { loadingSizeMode: value.loadingSizeMode, loadingMaxWidth, loadingMaxHeight, loadingWidth, loadingHeight };
+    return {
+      loadingSizeMode: value.loadingSizeMode,
+      loadingMaxWidth,
+      loadingMaxHeight,
+      loadingWidth,
+      loadingHeight,
+    };
   }
   if (typeof value.loadingSize === 'number' && value.loadingSize !== 72) {
     return {
@@ -687,7 +761,13 @@ function readLoadingFrame(value: Record<string, unknown>): {
       loadingHeight: readFrameSide(value.loadingSize, 72, loadingMaxHeight),
     };
   }
-  return { loadingSizeMode: 'default', loadingMaxWidth, loadingMaxHeight, loadingWidth, loadingHeight };
+  return {
+    loadingSizeMode: 'default',
+    loadingMaxWidth,
+    loadingMaxHeight,
+    loadingWidth,
+    loadingHeight,
+  };
 }
 
 function readBrandMode(value: unknown, fileId: string | null): 'text' | 'image' {
@@ -720,8 +800,7 @@ export async function fetchAdminSiteGeneral(): Promise<AdminSiteGeneralForm> {
         ? loadingStyle
         : 'spinner',
     loadingTitle: readConfigText(value.loadingTitle) || '正在打开 Personal Hub',
-    loadingSubtitle:
-      readConfigText(value.loadingSubtitle) || '首次打开会先拉取页面资源，请稍候',
+    loadingSubtitle: readConfigText(value.loadingSubtitle) || '首次打开会先拉取页面资源，请稍候',
     loadingFileId: readConfigFileId(value.loadingFileId),
     loadingSvg: readConfigText(value.loadingSvg),
     loadingShowSkeleton: value.loadingShowSkeleton !== false,
@@ -814,9 +893,7 @@ export async function updateAdminSystemTheme(data: Partial<ThemeConfig>) {
     colorAccent: data.colorAccent ?? row.value.colorAccent,
     borderRadius: data.borderRadius ?? row.value.borderRadius,
     allowUserSwitch:
-      typeof data.allowUserSwitch === 'boolean'
-        ? data.allowUserSwitch
-        : row.value.allowUserSwitch,
+      typeof data.allowUserSwitch === 'boolean' ? data.allowUserSwitch : row.value.allowUserSwitch,
     mode,
   });
   return data;

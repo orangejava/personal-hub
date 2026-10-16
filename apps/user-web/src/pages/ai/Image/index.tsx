@@ -311,6 +311,9 @@ const AiImagePage: React.FC = () => {
                   />
                 )}
                 <AiGenerationStatus active={generation.task.status === 'generating'} />
+                {!modelState.loading && !modelState.error && !modelState.hasModels && (
+                  <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用图片模型" />
+                )}
                 <AiComposer
                   layoutKey={configSummary}
                   loading={

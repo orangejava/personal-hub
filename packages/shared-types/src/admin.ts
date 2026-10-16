@@ -170,27 +170,60 @@ export interface AdminFilePage {
   pageSize: number;
 }
 
-/** 后台 AI 厂商配置。API Key 只返回脱敏值，明文只允许后端保存。 */
+/** 后台 AI 厂商配置。API Key 只表示是否已保存，不回显明文或掩码。 */
 export interface AdminAiProviderConfig {
   id: string;
   code: string;
   name: string;
   baseUrl: string;
-  apiKeyMasked: string;
+  hasKey: boolean;
+  remark: string;
+  sourceFiled: boolean;
+  filingNote: string;
   enabled: boolean;
   updatedAt: string;
 }
 
-/** 后台 AI 厂商配置更新输入。API Key 为只写字段，接口只回传脱敏值。 */
+/** 后台 AI 厂商配置更新输入。API Key 为只写字段，留空表示不轮换。 */
 export interface AdminAiProviderMutationInput {
   name?: string;
   baseUrl?: string;
   apiKey?: string;
   enabled?: boolean;
+  remark?: string;
+  sourceFiled?: boolean;
+  filingNote?: string;
+}
+
+/** 请求加密公钥和密文信封；API Key 明文只在浏览器表单及加密前内存中存在。 */
+export interface AiCredentialPublicKey {
+  keyId: string;
+  publicKey: string;
+}
+
+export interface AiEncryptedCredential {
+  keyId: string;
+  ephemeralPublicKey: string;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+}
+
+export interface AdminAiProviderCreateInput extends AdminAiProviderMutationInput {
+  code: string;
+  name: string;
+  baseUrl: string;
+}
+
+/** 厂商连接测试结果。成功文案由前端 toast，失败走全局 error.message。 */
+export interface AdminAiProviderTestResult {
+  ok: true;
+  message: string;
 }
 
 /** 后台 AI 模型配置，控制用户端可见模型、默认模型和计费参数。 */
 export interface AdminAiModelConfig {
+  defaultToolTypes?: AiToolType[];
   id: string;
   modelId: string;
   displayName: string;
@@ -201,12 +234,16 @@ export interface AdminAiModelConfig {
   enabled: boolean;
   isDefault: boolean;
   contextTokens: number;
+  maxOutputTokens?: number;
+  modality?: 'text' | 'image' | 'video' | 'multimodal';
+  fixedPlatformCost?: number | null;
   inputPricePer1k: number;
   outputPricePer1k: number;
 }
 
-/** 后台 AI 模型新增输入，阶段 5 用于 mock 新模型接入。 */
+/** 后台 AI 模型新增输入。 */
 export interface AdminAiModelCreateInput {
+  defaultToolTypes?: AiToolType[];
   modelId: string;
   displayName: string;
   providerCode: string;
@@ -215,17 +252,26 @@ export interface AdminAiModelCreateInput {
   enabled: boolean;
   isDefault: boolean;
   contextTokens: number;
+  maxOutputTokens?: number;
+  modality?: 'text' | 'image' | 'video' | 'multimodal';
+  fixedPlatformCost?: number | null;
   inputPricePer1k: number;
   outputPricePer1k: number;
 }
 
 /** 后台 AI 模型配置更新输入。 */
 export interface AdminAiModelMutationInput {
+  defaultToolTypes?: AiToolType[];
   displayName?: string;
+  modelId?: string;
+  toolTypes?: AiToolType[];
+  modality?: 'text' | 'image' | 'video' | 'multimodal';
   visibleToUser?: boolean;
   enabled?: boolean;
   isDefault?: boolean;
   contextTokens?: number;
+  maxOutputTokens?: number;
+  fixedPlatformCost?: number | null;
   inputPricePer1k?: number;
   outputPricePer1k?: number;
 }
@@ -251,7 +297,7 @@ export interface AdminAiToolStatusMutationInput {
 /** 后台 AI 工具配置更新输入。 */
 export interface AdminAiToolMutationInput {
   status?: AiToolStatus;
-  defaultModelId?: string;
+  defaultModelId?: string | null;
   tokenCostLabel?: string;
   guestTrialEnabled?: boolean;
   sort?: number;
@@ -304,11 +350,21 @@ export interface AdminAiNavigationMutationInput {
 
 /** 后台 AI 配置页聚合数据。 */
 export interface AdminAiConfigData {
+  entitlements?: AdminAiEntitlement[];
   branding: AdminAiBrandingConfig;
   providers: AdminAiProviderConfig[];
   models: AdminAiModelConfig[];
   tools: AdminAiToolConfig[];
   navigation?: AdminAiNavigationItem[];
+}
+
+/** 空模型列表沿用服务端语义：不限制模型，含后续新增的可见模型。 */
+export interface AdminAiEntitlement {
+  id: string;
+  roleId: string;
+  roleCode: string;
+  maxConcurrent: number;
+  allowedModelIds: string[];
 }
 
 /** 后台 AI 统计汇总。 */

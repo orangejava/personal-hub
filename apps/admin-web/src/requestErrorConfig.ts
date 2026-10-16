@@ -1,13 +1,13 @@
 import type { RequestOptions } from '@@/plugin-request/request';
 import type { ApiResponse } from '@personal-hub/shared-types';
 import type { RequestConfig } from '@umijs/max';
-import { message, notification } from 'antd';
 import {
   getAccessToken,
   getMockBridgeToken,
   isNestAuthEnabled,
 } from '@personal-hub/api-client';
 import { buildUserWebLoginUrl } from '@personal-hub/app-origins';
+import { reportRequestError } from '@/utils/requestFeedback';
 
 const NEST_ENVELOPE_KEYS = new Set(['data', 'requestId', 'error', 'success']);
 
@@ -83,7 +83,7 @@ export const errorConfig: RequestConfig = {
             window.location.replace(buildUserWebLoginUrl(window.location.href));
             return;
           }
-          message.error(info.message);
+          reportRequestError(info.message);
         }
         return;
       }
@@ -96,19 +96,16 @@ export const errorConfig: RequestConfig = {
         }
         const nestMessage = readNestErrorMessage(error);
         if (nestMessage) {
-          message.error(nestMessage);
+          reportRequestError(nestMessage);
           return;
         }
-        notification.error({
-          message: `请求失败 (${status})`,
-          description: error.message,
-        });
+        reportRequestError(`请求失败 (${status})：${error.message}`);
       } else if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        message.error('网络不可用，请检查连接后重试');
+        reportRequestError('网络不可用，请检查连接后重试');
       } else if (error?.request) {
-        message.error('服务器无响应，请重试');
+        reportRequestError('服务器无响应，请重试');
       } else {
-        message.error(error?.message || '请求异常，请重试');
+        reportRequestError(error?.message || '请求异常，请重试');
       }
     },
   },

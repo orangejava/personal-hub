@@ -21,6 +21,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { configureHttpApp } from '../src/bootstrap';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { AiService } from '../src/modules/ai/ai.service';
+import { encryptCredentialForRequest } from '../../admin-web/src/services/admin/aiCredentialTransport';
+import type { AiCredentialPublicKey } from '@personal-hub/shared-types';
 import { runBaselineSeed } from '../prisma/seed';
 
 const serverDirectory = resolve(__dirname, '..');
@@ -75,11 +77,18 @@ describe('AI HTTP', () => {
       MINIO_ACCESS_KEY: 'test-access-key',
       MINIO_SECRET_KEY: 'test-secret-key',
       MINIO_BUCKET: 'test-bucket',
+      AI_CREDENTIAL_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     });
 
     execFileSync(
-      process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
-      ['exec', 'prisma', 'migrate', 'deploy', '--schema', 'prisma/schema.prisma'],
+      process.execPath,
+      [
+        resolve(serverDirectory, 'node_modules/prisma/build/index.js'),
+        'migrate',
+        'deploy',
+        '--schema',
+        'prisma/schema.prisma',
+      ],
       { cwd: serverDirectory, env: process.env, stdio: 'pipe' },
     );
 
@@ -423,6 +432,278 @@ describe('AI HTTP', () => {
     expect(after.data?.some((item) => item.id === target?.id)).toBe(false);
   });
 
+  it('新增模型不改变权益，显式授权后会员可见，重复标识被拒绝，停用后消失', async () => {
+    const memberRole = await prisma.role.findUniqueOrThrow({ where: { code: RoleCode.MEMBER } });
+    const before = await prisma.aiEntitlement.findMany({ orderBy: { id: 'asc' } });
+    const payload = {
+      providerCode: 'fake',
+      modelId: 'stage-a-model',
+      displayName: '阶段 A 测试模型',
+      toolTypes: ['chat'],
+      modality: 'text',
+      enabled: true,
+      visibleToUser: true,
+      isDefault: false,
+      contextTokens: 8192,
+      maxOutputTokens: 2048,
+      inputPricePer1k: 1,
+      outputPricePer1k: 2,
+    };
+    const created = await json<{ id: string; modelId: string }>('/api/v1/admin/ai/models', {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'create-stage-a-model' },
+      body: payload,
+    });
+    expect(created.data?.modelId).toBe(payload.modelId);
+    const id = created.data!.id;
+    const replay = await json<{ id: string }>('/api/v1/admin/ai/models', {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'create-stage-a-model' },
+      body: payload,
+    });
+    expect(replay.data?.id).toBe(id);
+    expect(await prisma.aiModel.count({ where: { modelKey: payload.modelId } })).toBe(1);
+    expect(await prisma.aiEntitlement.findMany({ orderBy: { id: 'asc' } })).toEqual(before);
+    const hidden = await json<Array<{ id: string }>>('/api/v1/app/ai/models', {
+      token: memberToken,
+    });
+    expect(hidden.data?.some((item) => item.id === id)).toBe(false);
+    const denied = await raw('/api/v1/app/ai/sessions', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'unauthorized-model-session' },
+      body: { modelId: id },
+    });
+    expect(denied.status).toBe(403);
+    expect(denied.body.error?.code).toBe('AUTH_FORBIDDEN');
+    const allowed = before.find((item) => item.roleId === memberRole.id)!
+      .allowedModelIds as string[];
+    const forbiddenGrant = await raw('/api/v1/admin/ai/entitlements', {
+      method: 'PUT',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'member-grant-model' },
+      body: { roleId: memberRole.id, allowedModelIds: [...allowed, id] },
+    });
+    expect(forbiddenGrant.status).toBe(403);
+    await json('/api/v1/admin/ai/entitlements', {
+      method: 'PUT',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'admin-grant-model' },
+      body: { roleId: memberRole.id, allowedModelIds: [...allowed, id] },
+    });
+    const adminModels = await json<Array<{ id: string }>>('/api/v1/app/ai/models', {
+      token: adminToken,
+    });
+    expect(adminModels.data?.some((item) => item.id === id)).toBe(false);
+    const models = await json<Array<{ id: string }>>('/api/v1/app/ai/models', {
+      token: memberToken,
+    });
+    expect(models.data?.some((item) => item.id === created.data?.id)).toBe(true);
+
+    const duplicate = await raw('/api/v1/admin/ai/models', {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'create-stage-a-model-again' },
+      body: payload,
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error?.code).toBe('AI_MODEL_EXISTS');
+    expect(await prisma.aiModel.count({ where: { modelKey: payload.modelId } })).toBe(1);
+
+    const forbidden = await raw('/api/v1/admin/ai/models', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'member-create-stage-a-model' },
+      body: { ...payload, modelId: 'member-model' },
+    });
+    expect(forbidden.status).toBe(403);
+
+    await json(`/api/v1/admin/ai/models/${created.data?.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'disable-stage-a-model' },
+      body: { enabled: false },
+    });
+    const after = await json<Array<{ id: string }>>('/api/v1/app/ai/models', {
+      token: memberToken,
+    });
+    expect(after.data?.some((item) => item.id === created.data?.id)).toBe(false);
+  });
+
+  it('Chat/Text 默认独立，编辑和清空定价校验最终状态，失败不改变数据库', async () => {
+    const originalChat = await prisma.aiTool.findUniqueOrThrow({
+      where: { code: AiToolCode.CHAT },
+    });
+    const originalText = await prisma.aiTool.findUniqueOrThrow({
+      where: { code: AiToolCode.TEXT },
+    });
+    const created = await json<{ id: string; defaultToolTypes: string[] }>(
+      '/api/v1/admin/ai/models',
+      {
+        method: 'POST',
+        token: adminToken,
+        headers: { 'Idempotency-Key': 'create-chat-default' },
+        body: {
+          providerCode: 'fake',
+          modelId: 'separate-chat-default',
+          maxOutputTokens: null,
+          displayName: 'Chat 默认测试',
+          toolTypes: ['chat'],
+          enabled: true,
+          visibleToUser: true,
+          isDefault: true,
+          defaultToolTypes: ['chat'],
+          contextTokens: 8192,
+          inputPricePer1k: 1,
+          outputPricePer1k: 2,
+        },
+      },
+    );
+    const id = created.data!.id;
+    expect(created.data?.defaultToolTypes).toEqual(['chat']);
+    expect(
+      (await prisma.aiTool.findUniqueOrThrow({ where: { code: AiToolCode.CHAT } })).defaultModelId,
+    ).toBe(id);
+    expect(
+      (await prisma.aiTool.findUniqueOrThrow({ where: { code: AiToolCode.TEXT } })).defaultModelId,
+    ).toBe(originalText.defaultModelId);
+    const adminConfig = await json<{ models: Array<{ id: string; defaultToolTypes: string[] }> }>(
+      '/api/v1/admin/ai/config',
+      { token: adminToken },
+    );
+    expect(
+      adminConfig.data?.models.find((model) => model.id === originalText.defaultModelId)
+        ?.defaultToolTypes,
+    ).toContain('text');
+    const snapshot = await prisma.aiModel.findUniqueOrThrow({ where: { id } });
+    expect(snapshot.maxOutputTokens).toBe(2048);
+    await prisma.aiProvider.update({
+      where: { id: snapshot.providerId },
+      data: { enabled: false },
+    });
+    await expect(ai.patchModel(id, { defaultToolTypes: [AiToolCode.CHAT] })).rejects.toThrow(
+      '停用厂商',
+    );
+    await prisma.aiProvider.update({ where: { id: snapshot.providerId }, data: { enabled: true } });
+    const invalidPatches = [
+      { inputPricePer1k: 0, outputPricePer1k: 0, fixedPlatformCost: null },
+      { inputPricePer1k: 0.1 },
+      { toolTypes: [] },
+      { defaultToolTypes: ['text'] },
+      { displayName: '   ' },
+      { enabled: null },
+    ];
+    for (const [index, body] of invalidPatches.entries()) {
+      const invalid = await raw(`/api/v1/admin/ai/models/${id}`, {
+        method: 'PATCH',
+        token: adminToken,
+        headers: { 'Idempotency-Key': `invalid-model-config-${index}` },
+        body,
+      });
+      expect(invalid.status).toBe(400);
+      expect(invalid.body.error?.code).toBeTruthy();
+      expect(await prisma.aiModel.findUniqueOrThrow({ where: { id } })).toEqual(snapshot);
+    }
+    await ai.patchModel(id, { fixedPlatformCost: 10 });
+    const cleared = await json<{ fixedPlatformCost: number | null; displayName: string }>(
+      `/api/v1/admin/ai/models/${id}`,
+      {
+        method: 'PATCH',
+        token: adminToken,
+        headers: { 'Idempotency-Key': 'clear-fixed-cost' },
+        body: { fixedPlatformCost: null },
+      },
+    );
+    expect(cleared.data?.fixedPlatformCost).toBeNull();
+    expect(cleared.data?.displayName).toBe('Chat 默认测试');
+    await ai.patchModel(id, {
+      toolTypes: [AiToolCode.CHAT, AiToolCode.TEXT],
+      defaultToolTypes: [AiToolCode.CHAT],
+    });
+    expect(
+      (await prisma.aiTool.findUniqueOrThrow({ where: { code: AiToolCode.TEXT } })).defaultModelId,
+    ).toBe(originalText.defaultModelId);
+    await ai.patchModel(id, { enabled: false });
+    expect(
+      (await prisma.aiTool.findUniqueOrThrow({ where: { code: AiToolCode.CHAT } })).defaultModelId,
+    ).toBeNull();
+    await ai.patchTool(originalChat.id, { defaultModelId: originalChat.defaultModelId });
+  });
+
+  it('并发首次保存同厂商密钥均成功且只保留一行凭据', async () => {
+    const provider = await ai.createProvider({
+      code: 'concurrent-key',
+      label: '并发凭据测试',
+      providerType: 'openai-compatible',
+      baseUrl: 'https://example.com/v1',
+    });
+    await Promise.all([
+      ai.patchProvider(provider.id, { apiKey: 'first-local-test-key' }),
+      ai.patchProvider(provider.id, { apiKey: 'second-local-test-key' }),
+    ]);
+    expect(await prisma.aiProviderCredential.count({ where: { providerId: provider.id } })).toBe(1);
+  });
+
+  it('真实厂商缺少 Key 时返回错误并释放额度，不生成 Fake 成功回答', async () => {
+    const provider = await ai.createProvider({
+      code: 'missing-chat-key',
+      label: '无凭据测试',
+      providerType: 'openai-compatible',
+      baseUrl: 'http://127.0.0.1:9/v1',
+    });
+    const created = await json<{ id: string }>('/api/v1/admin/ai/models', {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'create-no-key-model' },
+      body: {
+        providerCode: provider.code,
+        modelId: 'no-key-model',
+        displayName: '无凭据模型',
+        toolTypes: ['chat'],
+        enabled: true,
+        visibleToUser: true,
+        isDefault: false,
+        contextTokens: 8192,
+        inputPricePer1k: 1,
+        outputPricePer1k: 2,
+      },
+    });
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'member@example.com' } });
+    const entitlement = await prisma.aiEntitlement.findUniqueOrThrow({
+      where: { roleId: user.roleId },
+    });
+    await ai.putEntitlement(user.roleId, {
+      allowedModelIds: [...(entitlement.allowedModelIds as string[]), created.data!.id],
+    });
+    const account = await prisma.aiQuotaAccount.findUniqueOrThrow({ where: { userId: user.id } });
+    const session = await json<{ id: string }>('/api/v1/app/ai/sessions', {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'no-key-session' },
+      body: { modelId: created.data!.id },
+    });
+    const response = await fetch(`${baseUrl}/api/v1/app/ai/sessions/${session.data!.id}/messages`, {
+      method: 'POST',
+      headers: {
+        origin: ORIGIN,
+        authorization: `Bearer ${memberToken}`,
+        'content-type': 'application/json',
+        'Idempotency-Key': 'no-key-chat',
+      },
+      body: JSON.stringify({ content: '验证缺少凭据' }),
+    });
+    const stream = await response.text();
+    expect(stream).toContain('AI_PROVIDER_KEY_MISSING');
+    expect(stream).not.toContain('我收到了');
+    expect(stream).not.toContain('"type":"DONE"');
+    const after = await prisma.aiQuotaAccount.findUniqueOrThrow({ where: { userId: user.id } });
+    expect(after.availableAmount).toBe(account.availableAmount);
+    expect(after.reservedAmount).toBe(account.reservedAmount);
+    expect(await prisma.aiUsageRecord.count({ where: { modelId: created.data!.id } })).toBe(0);
+  });
+
   it('匿名 Chat 登录后可认领历史', async () => {
     const models = await json<Array<{ id: string; toolTypes: string[] }>>(
       '/api/v1/public/ai/models',
@@ -565,6 +846,158 @@ describe('AI HTTP', () => {
     });
     expect(stale.status).toBe(409);
     expect(stale.body.error?.code).toBe('SYSTEM_CONFIG_VERSION_CONFLICT');
+  });
+
+  it('保存厂商密钥后不回显，Fake 测试不写用量', async () => {
+    const secret = 'sk-phase-a-secret-should-not-leak';
+    const filingNote = 'FILING-PHASE-A-9f3c';
+    const config = await json<{ providers: Array<{ id: string; code: string }> }>(
+      '/api/v1/admin/ai/config',
+      { token: adminToken },
+    );
+    const fake = config.data?.providers.find((item) => item.code === 'fake');
+    expect(fake).toBeTruthy();
+    const usageBefore = await prisma.aiUsageRecord.count();
+    const publicKey = await json<AiCredentialPublicKey>('/api/v1/admin/ai/credential-key', {
+      token: adminToken,
+    });
+    expect(publicKey.data?.publicKey).toBeTruthy();
+    const encryptedApiKey = await encryptCredentialForRequest(secret, publicKey.data!);
+    expect(JSON.stringify(encryptedApiKey)).not.toContain(secret);
+    const saved = await json<Record<string, unknown>>(`/api/v1/admin/ai/providers/${fake!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-provider-key-1' },
+      body: {
+        encryptedApiKey,
+        remark: '阶段 A 备注',
+        sourceFiled: true,
+        filingNote,
+      },
+    });
+    const savedText = JSON.stringify(saved);
+    expect(savedText).not.toContain(secret);
+    expect(savedText).not.toContain('apiKeyMasked');
+    expect(saved.data?.hasKey).toBe(true);
+    expect(saved.data?.filingNote).toBe(filingNote);
+    const stored = await prisma.aiProviderCredential.findFirst({
+      where: { providerId: fake!.id },
+    });
+    expect(stored?.ciphertext).toBeTruthy();
+    expect(stored?.ciphertext.includes(secret)).toBe(false);
+    expect(stored?.nonce.includes(secret)).toBe(false);
+
+    const plaintextAttempt = await raw(`/api/v1/admin/ai/providers/${fake!.id}`, {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-provider-plaintext-rejected' },
+      body: { apiKey: secret },
+    });
+    expect(plaintextAttempt.status).toBe(400);
+
+    const created = await json<{ id: string; code: string; hasKey: boolean }>(
+      '/api/v1/admin/ai/providers',
+      {
+        method: 'POST',
+        token: adminToken,
+        headers: { 'Idempotency-Key': 'ai-provider-create-1' },
+        body: {
+          code: 'phase-a-new-provider',
+          label: '阶段 A 新厂商',
+          providerType: 'openai-compatible',
+          baseUrl: 'https://api.example.com',
+          encryptedApiKey,
+        },
+      },
+    );
+    expect(created.data?.hasKey).toBe(true);
+    expect(JSON.stringify(created)).not.toContain(secret);
+    const duplicate = await raw('/api/v1/admin/ai/providers', {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-provider-create-duplicate' },
+      body: {
+        code: 'phase-a-new-provider',
+        label: '重复厂商',
+        providerType: 'openai-compatible',
+        baseUrl: 'https://api.example.com',
+      },
+    });
+    expect(duplicate.status).toBe(409);
+    expect(duplicate.body.error?.code).toBe('AI_PROVIDER_CODE_EXISTS');
+
+    const again = await json<{
+      providers: Array<{ id: string; hasKey: boolean; remark: string; filingNote: string }>;
+    }>('/api/v1/admin/ai/config', { token: adminToken });
+    const listed = again.data?.providers.find((item) => item.id === fake!.id);
+    expect(listed?.hasKey).toBe(true);
+    expect(listed?.remark).toBe('阶段 A 备注');
+    expect(listed?.filingNote).toBe(filingNote);
+    const publicSite = await json<unknown>('/api/v1/public/site-config');
+    const publicModels = await json<unknown>('/api/v1/public/ai/models');
+    expect(JSON.stringify(publicSite)).not.toContain(filingNote);
+    expect(JSON.stringify(publicModels)).not.toContain(filingNote);
+    expect(JSON.stringify(again)).not.toContain(secret);
+
+    const tested = await json<{ ok: boolean; message: string }>(
+      `/api/v1/admin/ai/providers/${fake!.id}/test`,
+      {
+        method: 'POST',
+        token: adminToken,
+        headers: { 'Idempotency-Key': 'ai-provider-test-fake-1' },
+        body: {},
+      },
+    );
+    expect(tested.data?.ok).toBe(true);
+    expect(await prisma.aiUsageRecord.count()).toBe(usageBefore);
+    const withoutKey = await raw(`/api/v1/admin/ai/providers/${fake!.id}/test`, {
+      method: 'POST',
+      token: adminToken,
+      body: {},
+    });
+    expect(withoutKey.status).toBe(400);
+    expect(withoutKey.body.error?.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+
+    const upstream = await prisma.aiProvider.create({
+      data: {
+        code: 'phase-a-upstream',
+        label: '测试兼容厂商',
+        baseUrl: 'http://127.0.0.1:9/v1',
+        authEnvKey: 'AI_OPENAI_API_KEY',
+        enabled: true,
+      },
+    });
+    const missing = await raw(`/api/v1/admin/ai/providers/${upstream.id}/test`, {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-provider-test-missing-1' },
+      body: {},
+    });
+    expect(missing.status).toBe(400);
+    expect(String(missing.body.error?.message)).toContain('AI_OPENAI_API_KEY');
+    process.env.AI_OPENAI_API_KEY = secret;
+    const network = await raw(`/api/v1/admin/ai/providers/${upstream.id}/test`, {
+      method: 'POST',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'ai-provider-test-network-1' },
+      body: {},
+    });
+    expect(JSON.stringify(network.body)).not.toContain(secret);
+    expect(network.status).toBeGreaterThanOrEqual(400);
+    delete process.env.AI_OPENAI_API_KEY;
+
+    const rollbackProvider = await prisma.aiProvider.create({
+      data: { code: 'phase-a-rollback', label: '回滚测试厂商' },
+    });
+    await expect(
+      ai.patchProvider(rollbackProvider.id, {
+        apiKey: 'sk-rollback-should-not-persist',
+        name: 'x'.repeat(81),
+      }),
+    ).rejects.toThrow();
+    expect(
+      await prisma.aiProviderCredential.count({ where: { providerId: rollbackProvider.id } }),
+    ).toBe(0);
   });
 
   async function login(email: string): Promise<string> {

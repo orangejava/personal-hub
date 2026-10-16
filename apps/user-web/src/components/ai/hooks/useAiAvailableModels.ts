@@ -26,15 +26,17 @@ export function useAiAvailableModels({
   const models = useMemo(
     () =>
       (data ?? []).filter(
-        (model): model is AiModel =>
-          model.enabled && model.toolTypes.includes(toolType),
+        (model): model is AiModel => model.enabled && model.toolTypes.includes(toolType),
       ),
     [data, toolType],
   );
 
   const defaultModel = useMemo(
-    () => models.find((model) => model.isDefault) ?? models[0],
-    [models],
+    () =>
+      models.find((model) =>
+        model.defaultToolTypes ? model.defaultToolTypes.includes(toolType) : model.isDefault,
+      ) ?? models[0],
+    [models, toolType],
   );
 
   useEffect(() => {

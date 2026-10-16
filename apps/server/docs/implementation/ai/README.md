@@ -1,6 +1,6 @@
 # Nest M6 AI 域
 
-登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。文本 Provider 默认内置演示；可切 `OPENAI_COMPATIBLE` 适配层，真实 Key 只存在部署环境变量。
+登录用户走 `/api/v1/app/ai/*`，访客走 `/api/v1/public/ai/*`。Chat/Text 用 HTTP SSE；图片/视频用 Outbox + `server-worker`。文本按选中模型的厂商路由，仅 Fake 厂商使用演示回复。系统密钥加密进 `ai_provider_credentials`，没有凭据时回退该行 `authEnvKey` 指向的环境变量；真实厂商仍无凭据则明确失败并释放预占额度。
 
 ## 刀序（一次性落地）
 
@@ -28,7 +28,7 @@
 | 关页没点停止               | 只靠 reservation TTL（5 分钟），不断连自动 stop                                                                                         |
 | 额度不足                   | `409` `AI_QUOTA_INSUFFICIENT`                                                                                                           |
 | 并发/限流                  | `429` `AI_CONCURRENCY_LIMITED`；会话互斥 `409` `AI_GENERATION_IN_PROGRESS`                                                              |
-| Provider                   | 默认内置演示 / MockVideo；`AI_TEXT_PROVIDER=openai_compatible` 且有完整配置时走 OpenAI 兼容适配层；生产用 `sync-ai-catalog.ts` 同步目录 |
+| Provider                   | Chat/Text 按模型厂商路由，真实厂商先用系统凭据再读 `authEnvKey`，缺失则失败，禁止回落 Fake。`AI_TEXT_PROVIDER` 仅兼容旧目录初始化。保存密钥需要 `AI_CREDENTIAL_ENCRYPTION_KEY`（32 字节 base64）；图片/视频仍为演示实现。 |
 | 登录认领匿名历史           | 尽量认领，失败不阻断登录                                                                                                                |
 | Chat/Text                  | `ai_messages` + HTTP SSE（Skip 信封）                                                                                                   |
 | 图片/视频                  | `ai_generation_jobs` + Outbox + `server-worker`                                                                                         |
@@ -47,6 +47,7 @@
 7. 字段映射：camelCase 模型字段必须 `@map` 到 migration 的 snake_case（如 `finish_reason`、`tool_types`）。
 8. 品牌写 `system_configs.ai.branding`；左侧导航独立表 `AiNavigationItem`，隐藏不返回，禁用/即将上线仍返回。生成类接口和会员/创作中心读接口会再校验工具或导航状态，`409 AI_TOOL_UNAVAILABLE`，不能只靠前端拦截。
 9. `PATCH /admin/ai/navigation/:id` 必填 `version`；缺省 `400 VALIDATION_FAILED`，冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT`。
+10. 阶段 A Provider：管理端先 GET `/admin/ai/credential-key`，浏览器 ECDH/HKDF/AES-GCM 加密，再 POST/PATCH `encryptedApiKey`。Controller 解密，Service 在事务中写目录和二次加密的系统凭据；响应只返回 `hasKey`。新建仅支持 OpenAI-compatible；禁用用 `enabled=false`。模型通过 `POST /admin/ai/models` 关联已有厂商，同厂商 `modelKey` 唯一；停用走 PATCH，不物理删除。详情见 `docs/prd/post-launch/ai-admin-operations-prd.md` §3。
 
 ## 前端
 
@@ -71,7 +72,7 @@ pnpm --filter admin-web typecheck
 必须同时满足：
 
 1. Postgres / Redis 已起：`docker compose -f compose.dev.yml up -d`
-2. AI 表已迁移：`pnpm --filter server prisma:deploy`（应看到 `20260909070000_ai_domain`）
+2. AI 表已迁移：`pnpm --filter server prisma:deploy`（应看到 `20260909070000_ai_domain` 和 `20261007160000_ai_provider_credentials`）
 3. 权限 + Fake 目录 + 本地账号额度：`pnpm --filter server seed:local-users`
 4. 三个进程都在跑：
    - `pnpm dev:server`（API `http://localhost:3001`）

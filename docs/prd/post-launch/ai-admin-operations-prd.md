@@ -1,7 +1,7 @@
 # AI 后台运营 PRD
 
-> 状态：下一步开发计划
-> 最后更新：2026-10-02
+> 状态：阶段 A 代码已落地，隔离 HTTP 集成测试与浏览器联调待验收；阶段 B–E 待开发
+> 最后更新：2026-10-16
 > Worktree：AI 后台
 > 计划评分（plan-review，百分制，2026-10-02）：阶段 A 91，阶段 A–E 91，可以按本文开工。充值、支付、自研模型、活动运营界面、`ai_usage_daily`、`ai_quota_grants` 后置，不计入本期。
 > 关系：扩展 [../long-term/ai-tools-prd.md](../long-term/ai-tools-prd.md) 的上线后运营能力；实现时需要同步 Canonical API、数据模型和 `apps/server/docs/implementation/ai/`。
@@ -68,6 +68,10 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 
 现在的 `patchProvider` 收到 `apiKey` 后只把 `authEnvKey` 写成 `AI_PROVIDER_<CODE>_KEY`，密钥本身被丢掉，响应还带 `apiKeyMasked: '********'`。阶段 A 改掉这两处：密钥写入凭据表；响应只留 `hasKey`，不再返回掩码。
 
+补充请求侧保护：管理端先读取仅管理员可见的 P-256 公钥，再用临时 ECDH 密钥、HKDF-SHA256 和 AES-256-GCM 加密 Key。新增和更新接口只接收 `encryptedApiKey` 信封，拒绝旧的明文 `apiKey` 字段。服务端解密后仍按上面的数据库加密规则保存。公钥由主密钥域分离派生，轮换主密钥后旧页面需要重新取公钥并提交。HTTPS 仍是生产环境必须项；浏览器输入框和加密前内存中的明文无法用请求加密消除。
+
+第一版新增 Provider 仅支持 `openai-compatible` 类型，`code` 唯一，名称和 Base URL 必填。新增目录和可选的系统 Key 在同一事务中提交；重复 `code` 返回 409。禁用沿用更新接口的 `enabled=false`，不物理删除目录。
+
 ### 3.1.1 阶段 A 文件
 
 | 文件 | 改什么 |
@@ -75,28 +79,36 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 | `apps/server/prisma/schema.prisma` | 新增 `AiProviderCredential`（含 `ciphertext`、`nonce`、`keyVersion`）。`AiProvider` 只增加 `remark`、`sourceFiled`、`filingNote`，不增加密钥列 |
 | `apps/server/src/config/env.schema.ts` | 增加可选的 `AI_CREDENTIAL_ENCRYPTION_KEY` |
 | `apps/server/src/modules/ai/ai-credential.service.ts` | 加密、解密、按 Provider 取系统凭据 |
-| `apps/server/src/modules/ai/ai.service.ts` | `patchProvider` 把 `apiKey` 写入凭据表；`adminConfig` 返回 `hasKey`、`remark`、`sourceFiled`、`filingNote`，不返回密钥 |
+| `apps/server/src/modules/ai/ai.service.ts` | 新增与更新 Provider 把解密后的 Key 写入凭据表；`adminConfig` 返回 `hasKey`、`remark`、`sourceFiled`、`filingNote`，不返回密钥 |
 | `apps/server/src/modules/ai/providers/openai-compatible-text.provider.ts` | 按上面的顺序取密钥，不再写死只读 `AI_OPENAI_API_KEY` |
-| `apps/server/src/modules/ai/dto/ai.dto.ts` | `apiKey` 继续只写。响应用 `hasKey: boolean` |
+| `apps/server/src/modules/ai/dto/ai.dto.ts` | 请求只接收 `encryptedApiKey`，响应用 `hasKey: boolean` |
 | `apps/admin-web/src/pages/admin/AiConfig/index.tsx` | 表格列改为「已配置 / 未配置」；去掉掩码输入框。留空表示不修改密钥 |
 | `apps/server/test` | 保存后库里没有明文；响应没有 `apiKey` / `apiKeyMasked`；无凭据时仍能用 `AI_OPENAI_API_KEY` |
 
-HTTP 仍用现有 `PATCH /api/v1/admin/ai/providers/:providerId`，不新开一套厂商接口。页面拿到的是解包后的对象。写失败走全局 toast，读 `error.message`。
+更新沿用 `PATCH /api/v1/admin/ai/providers/:providerId`；新增用 `POST /api/v1/admin/ai/providers`；公钥用 `GET /api/v1/admin/ai/credential-key`。页面拿到的是解包后的对象。写失败走全局 toast，读 `error.message`。
 
 阶段 A 验收：用管理员打开 AI 配置，保存一个 Key、备注和备案号，刷新后仍显示已配置，备注和备案号还在。响应体里搜不到该 Key。用户端公开配置里也没有备案号。删掉凭据行后，已配置 `AI_OPENAI_API_KEY` 的环境仍能对话。Fake Provider 对话不受影响。邮箱验证赠额仍是账本里的一笔 `GRANT`，默认 10000。
 
 ### 3.2 模型管理
 
-模型继续用现有 `ai_models`，不另建模型表。后台编辑这些已有列：
+模型继续用现有 `ai_models`，不另建模型表。后台可新增模型，并编辑这些已有列：
 
 - `modelKey`、`displayName`
 - `modality` 与 `toolTypes`（能力类型）
 - `contextWindowTokens`、`maxOutputTokens`
 - `enabled`、`userVisible`
 - `inputPricePer1k`、`outputPricePer1k`、`fixedPlatformCost`（这就是消耗规则，见 §5.3）
-- `sort` 若现表没有排序列，本阶段不加；推荐位用已有的 `isDefault`，每种工具一个默认模型
+- `sort` 若现表没有排序列，本阶段不加；默认关系使用已有 `ai_tools.defaultModelId`，每种工具独立；接口 `defaultToolTypes` 表达默认范围，`isDefault` 仅作兼容摘要。
 
 用户端只展示 `enabled`、`userVisible`、当前工具类型匹配、并且通过 entitlement 的模型。未登录访客不展示 `guestAllowed = false` 的模型。
+
+### 3.2.1 后续：自定义角色与模型访问权限
+
+当前角色为受控固定角色，本阶段不提供自定义角色创建。后续开放自定义角色时，角色、角色权限和 `AiEntitlement` 必须在同一事务中建立；新角色创建后应自动出现在「模型访问权限」列表中。
+
+新角色默认不得使用任何 AI 模型，管理员显式配置「全部模型」或「指定模型」后才可使用。当前 `allowedModelIds = []` 的语义是「不限制模型」，不能复用为「拒绝全部」；届时需增加明确的访问模式，例如 `NONE`、`ALL`、`SELECTED`，并迁移已有权益数据。
+
+验收：创建角色后可立即在模型访问权限表看到该角色；该角色用户端模型列表为空，服务端调用也被拒绝；保存「全部模型」或「指定模型」后，用户端与服务端均按配置生效。
 
 ### 3.3 连接测试
 

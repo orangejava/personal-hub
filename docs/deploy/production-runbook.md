@@ -509,7 +509,21 @@ docker system df  # 镜像、容器、构建缓存占用；清理前先确认可
 
 ### 5.2 数据库备份
 
-备份命令必须结合实际 Compose volume 和数据库账号确认后执行。至少做到：
+本次 AI 凭据迁移前，先从运行中的 PostgreSQL 导出一份带时间戳的逻辑备份：
+
+```bash
+cd /opt/personal-hub
+backup_dir="/data/personal-hub/backups/$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$backup_dir"
+docker compose --env-file .env.prod -f compose.prod.yml exec -T postgres \
+  sh -lc 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  > "$backup_dir/personal_hub.sql"
+chmod 600 "$backup_dir/personal_hub.sql"
+test -s "$backup_dir/personal_hub.sql"
+ls -lh "$backup_dir/personal_hub.sql"
+```
+
+这份 SQL 备份与 Docker 的数据库 volume 是两种不同的东西。备份文件还需复制到服务器之外的私有位置，并定期在隔离数据库恢复验证。至少做到：
 
 1. 每日备份 PostgreSQL；
 2. migration 前额外备份；
@@ -644,13 +658,19 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps \
 
 只有 OpenAI Chat Completions 兼容协议的厂商才使用当前适配器：
 
+可以在后台新增厂商、保存密钥、新增模型并配置角色模型权限。使用数据库配置时，不要求下面的全局 URL、Key、Model 三项；这些变量仅用于旧目录同步脚本和环境变量凭据回退。运行时按选中模型所属厂商路由，`AI_TEXT_PROVIDER=fake` 不会把真实模型变成演示回复。真实厂商缺失密钥会失败，不再回落 Fake。
+
 ```env
 AI_TEXT_PROVIDER=openai_compatible
 AI_OPENAI_BASE_URL=https://厂商地址/v1
 AI_OPENAI_API_KEY=厂商 API Key
 AI_OPENAI_MODEL=厂商模型名
 AI_OPENAI_TIMEOUT_MS=60000
+# 后台配置 Provider Key 时必填，生成：openssl rand -base64 32
+AI_CREDENTIAL_ENCRYPTION_KEY=32字节随机值的base64
 ```
+
+该主密钥同时用于数据库凭据加密和派生请求解密私钥，必须在所有 `server` 实例保持一致并做好备份。不能直接更换主密钥，否则已有凭据无法解密。环境变量回退 `AI_OPENAI_API_KEY` 仍可用；通过后台保存 Key 后，管理端请求体只包含加密信封。生产管理端必须先启用 HTTPS，否则公网 HTTP 页面不能使用 Web Crypto 保存 Key。
 
 配置后重新创建容器：
 
@@ -658,7 +678,7 @@ AI_OPENAI_TIMEOUT_MS=60000
 docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate server server-worker  # 环境变量变更后必须重建容器才会生效
 ```
 
-然后同步 AI 目录。不要改数据库或重跑会写样例内容的完整 `prisma/seed.ts`：
+只有沿用旧环境变量配置、且明确要重设 Chat/Text 默认模型时，才同步 AI 目录。后台配置厂商和模型时跳过此命令；也不要重跑会写样例内容的完整 `prisma/seed.ts`：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
@@ -687,14 +707,12 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 7. 检查服务日志不出现 API Key；
 8. 连续发送两次请求，确认不会重复扣除或产生异常账本记录。
 
-如果 AI 页面仍显示内置演示模型或没有出现当前模型名，优先检查：
+如果 AI 页面仍显示内置演示模型或没有出现当前模型名，先检查后台厂商和模型是否启用、模型是否对用户可见、角色模型权限及 Chat/Text 各自的默认模型；旧环境变量目录模式才检查：
 
 ```bash
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  env | awk -F= '/^AI_TEXT_PROVIDER=|^AI_OPENAI_MODEL=|^AI_OPENAI_BASE_URL=/ {print $1 "=" $2}'  # 仍是 fake 时先看这三项是否进了容器
-docker compose --env-file .env.prod -f compose.prod.yml exec server \
-  npx tsx src/cli/sync-ai-catalog.ts  # 环境已正确时重新同步目录；不输出 API Key
+  env | awk -F= '/^AI_TEXT_PROVIDER=|^AI_OPENAI_MODEL=|^AI_OPENAI_BASE_URL=/ {print $1 "=" $2}'  # 仅核对旧目录初始化参数；实际路由以数据库模型与厂商为准
 ```
 
 如果厂商不是 OpenAI-compatible，不能只填地址，需要后续增加独立 Provider 适配器。

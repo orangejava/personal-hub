@@ -5,7 +5,7 @@ import React from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import { fetchAdminDashboardStats } from '@/services/admin';
 
-/** 运营概览：内容/用户/访问 mock 统计 */
+/** 运营概览：展示服务端聚合的内容、用户和访问统计。 */
 const Dashboard: React.FC = () => {
   const { data, loading, error, run } = useRequest(fetchAdminDashboardStats);
   const stats = data;

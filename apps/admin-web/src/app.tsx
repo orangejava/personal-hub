@@ -3,7 +3,7 @@ import { SettingDrawer } from '@ant-design/pro-components';
 import type { MenuItem } from '@personal-hub/shared-types';
 import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
 import { history, Link } from '@umijs/max';
-import { Button, message } from 'antd';
+import { Alert, Button } from 'antd';
 import React from 'react';
 import { ErrorBoundary, Footer } from '@/components';
 import { AvatarDropdown } from '@/components/RightContent/AvatarDropdown';
@@ -94,7 +94,6 @@ export async function getInitialState(): Promise<InitialState> {
   const { user: currentUser, restoreFailed } = await fetchUserInfo();
   if (restoreFailed) {
     state.sessionRestoreFailed = true;
-    message.error('无法恢复登录态，当前登录可能仍有效，请稍后刷新');
   }
   if (currentUser) {
     state.currentUser = currentUser;
@@ -185,6 +184,13 @@ export const layout: RunTimeLayoutConfig = ({
     childrenRender: (children) => (
       <>
         <ThemeRuntimeSync />
+        {initialState?.sessionRestoreFailed && (
+          <Alert
+            type="error"
+            showIcon
+            title="无法恢复登录态，当前登录可能仍有效，请稍后刷新"
+          />
+        )}
         <PageTransition routeKey={history.location.pathname}>
           {children}
         </PageTransition>

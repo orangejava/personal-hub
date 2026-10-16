@@ -2,6 +2,7 @@ import { App, ConfigProvider, theme } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { publicDefaultSettings } from '@/config/publicDefaultSettings';
 import { DEFAULT_TABLE_PAGINATION } from '@/constants/tablePagination';
+import { setRequestErrorReporter } from '@/utils/requestFeedback';
 import {
   getWorkspaceThemeSettings,
   subscribeThemeRuntime,
@@ -13,6 +14,15 @@ function resolveTheme() {
   const colorPrimary =
     workspaceSettings.colorPrimary ?? publicDefaultSettings.colorPrimary;
   return { isDark, colorPrimary };
+}
+
+function RequestFeedbackBridge() {
+  const { message } = App.useApp();
+  useEffect(() => {
+    setRequestErrorReporter((content) => message.error(content));
+    return () => setRequestErrorReporter(undefined);
+  }, [message]);
+  return null;
 }
 
 /**
@@ -44,7 +54,10 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
         },
       }}
     >
-      <App>{children}</App>
+      <App>
+        <RequestFeedbackBridge />
+        {children}
+      </App>
     </ConfigProvider>
   );
 };

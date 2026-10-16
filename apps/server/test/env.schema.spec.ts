@@ -63,13 +63,13 @@ describe('validateEnv', () => {
     expect(env.CORS_ORIGIN).toEqual([]);
   });
 
-  it('requires complete OpenAI-compatible settings when real AI is enabled', () => {
+  it('允许数据库凭据部署不配置旧的全局 OpenAI 三项', () => {
     expect(() =>
       validateEnv({
         ...validEnvironment,
         AI_TEXT_PROVIDER: 'openai_compatible',
       }),
-    ).toThrow();
+    ).not.toThrow();
 
     const env = validateEnv({
       ...validEnvironment,

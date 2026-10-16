@@ -134,7 +134,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（post-launch / React-first / 长期全栈）           | ✅ 已完成                              |
 | [prd/module-prd-index.md](./prd/module-prd-index.md)                                                   | 大模块 PRD 细化索引                                        | ✅ 已完成                              |
 | [prd/post-launch/README.md](./prd/post-launch/README.md)                                               | 首版上线后优化 PRD 索引                                    | 🟢 当前主线                            |
-| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 🟢 下一步                             |
+| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A 代码已落地，待联调；B–E 待开发 |
 | [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md)           | 主题、性能与 UI 总纲：主题剩余 UI、加载速度、Loading、页面交互优化 | 🟢 下一步                             |
 | [prd/post-launch/performance-dashboard-prd.md](./prd/post-launch/performance-dashboard-prd.md)         | 性能与接口响应面板、性能基线、首轮入口体积优化             | 🟢 下一步                             |
 | [../apps/user-web/docs/prd/home-showcase-prd.md](../apps/user-web/docs/prd/home-showcase-prd.md)       | 首页滚动改版、项目作品矩阵、动效库选型                     | 🟢 下一步                             |

@@ -8,7 +8,7 @@ import {
   SaveOutlined,
   StopOutlined,
 } from '@ant-design/icons';
-import { App, Button, Card, Input, Select, Space, Statistic, Tabs, Tag } from 'antd';
+import { Alert, App, Button, Card, Input, Select, Space, Statistic, Tabs, Tag } from 'antd';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AiGenerationStatus,
@@ -227,6 +227,9 @@ const AiTextPage: React.FC = () => {
             />
           )}
           <div className="ph-ai-text-hint">{generation.scenarioHint}</div>
+          {!modelState.loading && !modelState.error && !modelState.hasModels && (
+            <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用文本模型" />
+          )}
 
           <Input.TextArea
             autoSize={{ minRows: 9, maxRows: 16 }}

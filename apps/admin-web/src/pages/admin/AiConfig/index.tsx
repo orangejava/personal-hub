@@ -11,6 +11,7 @@ import type {
 
 import {
   App,
+  Alert,
   Card,
   Drawer,
   Form,
@@ -26,43 +27,69 @@ import {
 import React, { useEffect, useMemo, useState } from 'react';
 import { ErrorState, PageContainer, SectionSkeleton } from '@/components/shared';
 import {
+  createAdminAiProviderConfig,
   createAdminAiModelConfig,
   fetchAdminAiConfig,
   moveAdminAiToolSort,
   updateAdminAiBrandingConfig,
   updateAdminAiModelConfig,
   updateAdminAiNavigationItem,
+  testAdminAiProvider,
   updateAdminAiProviderConfig,
   updateAdminAiToolConfig,
   updateAdminAiToolStatus,
 } from '@/services/admin';
 import AiConfigSummaryCards from './SummaryCards';
+import ModelEntitlements, { modelAllowedForRole, roleLabels } from './ModelEntitlements';
 import { aiToolTypeOptions, navGroupLabels, toolStatusLabels } from './constants';
+import './index.less';
+
+/** 模型能力只对应库里的 AiToolCode。WebUI / LoRA 不是模型列。 */
+const modelToolTypeOptions = aiToolTypeOptions.filter(
+  (item) =>
+    item.value === 'chat' ||
+    item.value === 'text' ||
+    item.value === 'image' ||
+    item.value === 'video',
+);
+
+const modalityOptions = [
+  { label: '文本', value: 'text' },
+  { label: '图片', value: 'image' },
+  { label: '视频', value: 'video' },
+  { label: '多模态', value: 'multimodal' },
+];
+
+/** 密钥列只显示是否已保存，不展示掩码。 */
+function providerKeyStatus(hasKey: boolean): string {
+  return hasKey ? '已配置' : '未配置';
+}
 
 /** 后台 AI 配置：品牌、导航、厂商、模型和工具均写库。 */
 const AiConfig: React.FC = () => {
   const { message } = App.useApp();
-  const [providerForm] = Form.useForm<
-    AdminAiProviderConfig & { apiKey?: string }
-  >();
+  const [providerForm] = Form.useForm<AdminAiProviderConfig & { apiKey?: string }>();
   const [brandingForm] = Form.useForm<AdminAiBrandingConfig>();
   const [modelForm] = Form.useForm<AdminAiModelConfig>();
   const [toolForm] = Form.useForm<AdminAiToolConfig>();
-  const [section, setSection] = useState<'branding' | 'navigation' | 'providers' | 'models' | 'tools'>('branding');
+  const [section, setSection] = useState<
+    'branding' | 'navigation' | 'providers' | 'models' | 'tools' | 'entitlements'
+  >('branding');
   const [savingToolCode, setSavingToolCode] = useState<string>();
   const [movingToolCode, setMovingToolCode] = useState<string>();
-  const [editingProvider, setEditingProvider] =
-    useState<AdminAiProviderConfig | null>(null);
-  const [editingBranding, setEditingBranding] =
-    useState<AdminAiBrandingConfig | null>(null);
+  const [editingProvider, setEditingProvider] = useState<AdminAiProviderConfig | null>(null);
+  const [creatingProvider, setCreatingProvider] = useState(false);
+  const [editingBranding, setEditingBranding] = useState<AdminAiBrandingConfig | null>(null);
   const [editingModel, setEditingModel] = useState<AdminAiModelConfig | null>(null);
   const [creatingModel, setCreatingModel] = useState(false);
+  const [authorizationModel, setAuthorizationModel] = useState<AdminAiModelConfig>();
   const [editingTool, setEditingTool] = useState<AdminAiToolConfig | null>(null);
   const [savingProvider, setSavingProvider] = useState(false);
   const [savingBranding, setSavingBranding] = useState(false);
   const [savingModel, setSavingModel] = useState(false);
   const [savingTool, setSavingTool] = useState(false);
   const [savingNavId, setSavingNavId] = useState<string>();
+  const [testingId, setTestingId] = useState<string>();
   const { data, loading, error, run } = useRequest(fetchAdminAiConfig);
 
   const enabledProviderCount = useMemo(
@@ -82,13 +109,11 @@ const AiConfig: React.FC = () => {
     return (data?.models ?? [])
       .filter(
         (model) =>
-          model.enabled &&
-          model.visibleToUser &&
-          model.toolTypes.includes(editingTool.code),
+          model.enabled && model.visibleToUser && model.toolTypes.includes(editingTool.code),
       )
       .map((model) => ({
         label: `${model.displayName} · ${model.providerName}`,
-        value: model.modelId,
+        value: model.id,
       }));
   }, [data?.models, editingTool]);
   const providerOptions = useMemo(
@@ -108,10 +133,14 @@ const AiConfig: React.FC = () => {
   }, [editingBranding, brandingForm]);
 
   useEffect(() => {
+    if (creatingProvider) {
+      providerForm.setFieldsValue({ enabled: true, sourceFiled: false });
+      return;
+    }
     if (editingProvider) {
       providerForm.setFieldsValue({ ...editingProvider, apiKey: undefined });
     }
-  }, [editingProvider, providerForm]);
+  }, [creatingProvider, editingProvider, providerForm]);
 
   useEffect(() => {
     if (creatingModel) {
@@ -119,15 +148,21 @@ const AiConfig: React.FC = () => {
         enabled: true,
         visibleToUser: true,
         isDefault: false,
+        defaultToolTypes: [],
+        modality: 'text',
         contextTokens: 8192,
-        inputPricePer1k: 0,
-        outputPricePer1k: 0,
+        maxOutputTokens: 2048,
+        inputPricePer1k: 1,
+        outputPricePer1k: 2,
         toolTypes: ['chat'],
       });
       return;
     }
     if (editingModel) {
-      modelForm.setFieldsValue(editingModel);
+      modelForm.setFieldsValue({
+        ...editingModel,
+        defaultToolTypes: editingModel.defaultToolTypes ?? [],
+      });
     }
   }, [creatingModel, editingModel, modelForm]);
 
@@ -172,10 +207,7 @@ const AiConfig: React.FC = () => {
    * 阶段 5 先只开放状态字段，用于验证后台配置能影响用户端工具入口；
    * 默认模型、计费和排序后续接真实后端时再扩展表单。
    */
-  const handleToolStatusChange = async (
-    code: AdminAiToolConfig['code'],
-    status: AiToolStatus,
-  ) => {
+  const handleToolStatusChange = async (code: AdminAiToolConfig['code'], status: AiToolStatus) => {
     setSavingToolCode(code);
     try {
       await updateAdminAiToolStatus(code, { status });
@@ -187,17 +219,29 @@ const AiConfig: React.FC = () => {
   };
 
   const openProviderDrawer = (provider: AdminAiProviderConfig) => {
+    setCreatingProvider(false);
     setEditingProvider(provider);
+  };
+
+  const openCreateProviderDrawer = () => {
+    setEditingProvider(null);
+    setCreatingProvider(true);
   };
 
   const closeProviderDrawer = () => {
     setEditingProvider(null);
+    setCreatingProvider(false);
     providerForm.resetFields();
   };
 
   const openModelDrawer = (model: AdminAiModelConfig) => {
     setCreatingModel(false);
     setEditingModel(model);
+  };
+
+  const openCreateModelDrawer = () => {
+    setEditingModel(null);
+    setCreatingModel(true);
   };
 
   const closeModelDrawer = () => {
@@ -216,27 +260,50 @@ const AiConfig: React.FC = () => {
   };
 
   /**
-   * 保存 AI 厂商基础配置。
-   *
-   * API Key 在 mock 阶段也按真实产品处理成只写字段；
-   * 留空表示不修改，接口响应只展示脱敏后的 `apiKeyMasked`。
+   * 保存 AI 厂商配置。密钥留空表示不轮换；失败提示由全局 errorHandler 读 error.message。
    */
   const handleProviderSave = async () => {
-    if (!editingProvider) return;
+    if (!editingProvider && !creatingProvider) return;
     const values = await providerForm.validateFields();
+    const apiKey = typeof values.apiKey === 'string' ? values.apiKey.trim() : '';
     setSavingProvider(true);
     try {
-      await updateAdminAiProviderConfig(editingProvider.id, {
+      const mutation = {
         name: values.name,
         baseUrl: values.baseUrl,
-        apiKey: values.apiKey,
         enabled: values.enabled,
-      });
+        remark: values.remark,
+        sourceFiled: values.sourceFiled,
+        filingNote: values.filingNote,
+        ...(apiKey ? { apiKey } : {}),
+      };
+      if (creatingProvider) {
+        await createAdminAiProviderConfig({ ...mutation, code: values.code });
+      } else if (editingProvider) {
+        await updateAdminAiProviderConfig(editingProvider.id, mutation);
+      }
       await run();
-      message.success('AI 厂商配置已保存');
+      message.success(creatingProvider ? 'AI 厂商已新增' : 'AI 厂商配置已保存');
       closeProviderDrawer();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('安全上下文')) {
+        message.error(error.message);
+      }
     } finally {
       setSavingProvider(false);
+    }
+  };
+
+  /** 厂商行或模型行的连接测试。模型行把模型 ID 交给同一个接口。 */
+  const handleProviderTest = async (providerId: string, modelId?: string) => {
+    setTestingId(modelId ?? providerId);
+    try {
+      const result = await testAdminAiProvider(providerId, modelId);
+      message.success(result.message);
+    } catch {
+      return;
+    } finally {
+      setTestingId(undefined);
     }
   };
 
@@ -258,45 +325,77 @@ const AiConfig: React.FC = () => {
     }
   };
 
-  /**
-   * 保存 AI 模型基础配置。
-   *
-   * 阶段 5 先开放用户端会直接感知的字段：启用、可见、默认、名称、上下文和计费；
-   * 厂商、模型 ID、支持工具仍只展示，避免 mock 阶段引入复杂迁移。
-   */
+  /** 新增或编辑模型，失败提示交给全局 errorHandler。 */
+  const openModelAuthorization = (model: AdminAiModelConfig) => {
+    setAuthorizationModel(model);
+    setSection('entitlements');
+  };
+
+  const renderModelRoles = (_: unknown, model: AdminAiModelConfig) => {
+    const roles = (data?.entitlements ?? []).filter((row) => modelAllowedForRole(row, model.id));
+    if (!roles.length)
+      return (
+        <Tag color="warning">{model.isDefault ? '默认模型未配置角色授权' : '未配置角色授权'}</Tag>
+      );
+    return (
+      <Space wrap>
+        {roles.map((row) => (
+          <Tag key={row.roleId}>{roleLabels[row.roleCode] ?? row.roleCode}</Tag>
+        ))}
+      </Space>
+    );
+  };
+
   const handleModelSave = async () => {
     const values = await modelForm.validateFields();
     setSavingModel(true);
     try {
+      let createdModel: AdminAiModelConfig | undefined;
       if (creatingModel) {
-        await createAdminAiModelConfig({
+        createdModel = await createAdminAiModelConfig({
           modelId: values.modelId,
           displayName: values.displayName,
           providerCode: values.providerCode,
           toolTypes: values.toolTypes,
           enabled: values.enabled,
           visibleToUser: values.visibleToUser,
-          isDefault: values.isDefault,
+          isDefault: Boolean(values.defaultToolTypes?.length),
+          defaultToolTypes: values.defaultToolTypes ?? [],
           contextTokens: values.contextTokens,
+          maxOutputTokens: values.maxOutputTokens,
+          modality: values.modality,
+          fixedPlatformCost: values.fixedPlatformCost,
           inputPricePer1k: values.inputPricePer1k,
           outputPricePer1k: values.outputPricePer1k,
         });
       } else if (editingModel) {
         await updateAdminAiModelConfig(editingModel.id, {
           displayName: values.displayName,
+          modelId: values.modelId,
+          toolTypes: values.toolTypes,
+          modality: values.modality,
           enabled: values.enabled,
           visibleToUser: values.visibleToUser,
-          isDefault: values.isDefault,
+          defaultToolTypes:
+            values.enabled && values.visibleToUser ? (values.defaultToolTypes ?? []) : [],
           contextTokens: values.contextTokens,
+          ...(values.maxOutputTokens == null ? {} : { maxOutputTokens: values.maxOutputTokens }),
+          fixedPlatformCost: values.fixedPlatformCost ?? null,
           inputPricePer1k: values.inputPricePer1k,
           outputPricePer1k: values.outputPricePer1k,
         });
       }
-      await run();
-      message.success(creatingModel ? 'AI 模型已新增' : 'AI 模型配置已保存');
+      // 写入成功即结束创建态，刷新失败也不能让重试重复创建模型。
       closeModelDrawer();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存失败');
+      if (createdModel) {
+        openModelAuthorization(createdModel);
+        message.success('模型已创建，请配置访问权限');
+      } else {
+        message.success('AI 模型配置已保存');
+      }
+      await run();
+    } catch {
+      return;
     } finally {
       setSavingModel(false);
     }
@@ -333,7 +432,7 @@ const AiConfig: React.FC = () => {
     try {
       await updateAdminAiToolConfig(editingTool.code, {
         status: values.status,
-        defaultModelId: values.defaultModelId,
+        defaultModelId: values.defaultModelId ?? null,
         tokenCostLabel: values.tokenCostLabel,
         guestTrialEnabled: values.guestTrialEnabled,
         sort: values.sort,
@@ -352,10 +451,7 @@ const AiConfig: React.FC = () => {
    * 阶段 5 先采用相邻上移/下移，用户端 `/api/ai/home` 会按排序后的
    * mock 配置返回工具卡片，后续接真实后端时可替换为拖拽排序。
    */
-  const handleToolMove = async (
-    code: AdminAiToolConfig['code'],
-    direction: 'up' | 'down',
-  ) => {
+  const handleToolMove = async (code: AdminAiToolConfig['code'], direction: 'up' | 'down') => {
     setMovingToolCode(code);
     try {
       await moveAdminAiToolSort(code, direction);
@@ -379,23 +475,36 @@ const AiConfig: React.FC = () => {
         onEditBranding={openBrandingDrawer}
       />
 
-      <Card style={{ marginTop: 16 }}>
-        <Segmented
-          value={section}
-          onChange={(value) => setSection(value as typeof section)}
-          options={[
-            { label: '品牌设置', value: 'branding' },
-            { label: 'AI 导航', value: 'navigation' },
-            { label: '厂商管理', value: 'providers' },
-            { label: '模型管理', value: 'models' },
-            { label: '工具配置', value: 'tools' },
-          ]}
-          style={{ marginBottom: 16 }}
-        />
+      <Card className="ai-config-card" style={{ marginTop: 16 }}>
+        <div className="ai-config-sections">
+          <Segmented
+            value={section}
+            onChange={(value) => setSection(value as typeof section)}
+            options={[
+              { label: '品牌设置', value: 'branding' },
+              { label: 'AI 导航', value: 'navigation' },
+              { label: '厂商管理', value: 'providers' },
+              { label: '模型管理', value: 'models' },
+              { label: '模型访问权限', value: 'entitlements' },
+              { label: '工具配置', value: 'tools' },
+            ]}
+          />
+        </div>
+        {section === 'entitlements' && (
+          <ModelEntitlements
+            entitlements={data?.entitlements ?? []}
+            models={data?.models ?? []}
+            onSaved={run}
+            focusModel={authorizationModel}
+            onClearFocus={() => setAuthorizationModel(undefined)}
+          />
+        )}
 
         {section === 'branding' && (
           <ProTable<AdminAiBrandingConfig>
+            className="ai-config-table"
             rowKey="brandName"
+            scroll={{ x: 720 }}
             search={false}
             pagination={false}
             dataSource={data?.branding ? [data.branding] : []}
@@ -423,7 +532,9 @@ const AiConfig: React.FC = () => {
 
         {section === 'navigation' && (
           <ProTable<AdminAiNavigationItem>
+            className="ai-config-table"
             rowKey="id"
+            scroll={{ x: 1200 }}
             search={false}
             pagination={false}
             dataSource={[...(data?.navigation ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)}
@@ -505,15 +616,26 @@ const AiConfig: React.FC = () => {
 
         {section === 'providers' && (
           <ProTable<AdminAiProviderConfig>
+            className="ai-config-table"
             rowKey="code"
+            scroll={{ x: 1080 }}
             search={false}
             pagination={false}
+            toolBarRender={() => [
+              <Button key="create" type="primary" onClick={openCreateProviderDrawer}>
+                新增厂商
+              </Button>,
+            ]}
             dataSource={data?.providers ?? []}
             columns={[
               { title: '厂商标识', dataIndex: 'code' },
               { title: '展示名称', dataIndex: 'name' },
               { title: 'Base URL', dataIndex: 'baseUrl', ellipsis: true },
-              { title: 'API Key', dataIndex: 'apiKeyMasked' },
+              {
+                title: 'API Key',
+                dataIndex: 'hasKey',
+                render: (_, record) => providerKeyStatus(record.hasKey),
+              },
               {
                 title: '启用状态',
                 dataIndex: 'enabled',
@@ -532,6 +654,15 @@ const AiConfig: React.FC = () => {
                 valueType: 'option',
                 render: (_, record) => [
                   <Button
+                    key="test"
+                    size="small"
+                    type="link"
+                    loading={testingId === record.id}
+                    onClick={() => void handleProviderTest(record.id)}
+                  >
+                    测试
+                  </Button>,
+                  <Button
                     key="edit"
                     size="small"
                     type="link"
@@ -547,9 +678,16 @@ const AiConfig: React.FC = () => {
 
         {section === 'models' && (
           <ProTable<AdminAiModelConfig>
+            className="ai-config-table"
             rowKey="id"
+            scroll={{ x: 1500 }}
             search={false}
             pagination={false}
+            toolBarRender={() => [
+              <Button key="create" type="primary" onClick={openCreateModelDrawer}>
+                新增模型
+              </Button>,
+            ]}
             dataSource={data?.models ?? []}
             columns={[
               {
@@ -563,6 +701,7 @@ const AiConfig: React.FC = () => {
                 ),
               },
               { title: '厂商', dataIndex: 'providerName' },
+              { title: '已授权角色', render: renderModelRoles },
               {
                 title: '支持工具',
                 dataIndex: 'toolTypes',
@@ -573,16 +712,16 @@ const AiConfig: React.FC = () => {
                 title: '状态',
                 dataIndex: 'enabled',
                 render: (_, record) => (
-                  <Space>
+                  <Space wrap>
                     <Tag color={record.enabled ? 'success' : 'default'}>
                       {record.enabled ? '可用' : '停用'}
                     </Tag>
-                    {record.visibleToUser ? (
-                      <Tag color="blue">用户可见</Tag>
-                    ) : (
-                      <Tag>后台可见</Tag>
-                    )}
-                    {record.isDefault ? <Tag color="gold">默认</Tag> : null}
+                    {record.visibleToUser ? <Tag color="blue">用户可见</Tag> : <Tag>后台可见</Tag>}
+                    {record.defaultToolTypes?.map((tool) => (
+                      <Tag key={tool} color="gold">
+                        {tool} 默认
+                      </Tag>
+                    ))}
                   </Space>
                 ),
               },
@@ -592,24 +731,51 @@ const AiConfig: React.FC = () => {
                 render: (_, record) => `${record.contextTokens.toLocaleString()} tokens`,
               },
               {
-                title: '价格',
+                title: '平台消耗',
                 dataIndex: 'price',
                 render: (_, record) =>
-                  `输入 ¥${record.inputPricePer1k}/1K，输出 ¥${record.outputPricePer1k}/1K`,
+                  `输入 ${record.inputPricePer1k}/1K，输出 ${record.outputPricePer1k}/1K`,
               },
               {
                 title: '操作',
                 valueType: 'option',
-                render: (_, record) => [
-                  <Button
-                    key="edit"
-                    size="small"
-                    type="link"
-                    onClick={() => openModelDrawer(record)}
-                  >
-                    编辑
-                  </Button>,
-                ],
+                width: 230,
+                render: (_, record) => {
+                  const provider = data?.providers.find(
+                    (item) => item.code === record.providerCode,
+                  );
+                  return [
+                    <Button
+                      key="authorize"
+                      size="small"
+                      type="link"
+                      onClick={() => openModelAuthorization(record)}
+                    >
+                      配置访问权限
+                    </Button>,
+                    <Button
+                      key="test"
+                      size="small"
+                      type="link"
+                      disabled={!provider}
+                      loading={testingId === record.id}
+                      onClick={() => {
+                        if (!provider) return;
+                        void handleProviderTest(provider.id, record.id);
+                      }}
+                    >
+                      测试
+                    </Button>,
+                    <Button
+                      key="edit"
+                      size="small"
+                      type="link"
+                      onClick={() => openModelDrawer(record)}
+                    >
+                      编辑
+                    </Button>,
+                  ];
+                },
               },
             ]}
           />
@@ -617,7 +783,9 @@ const AiConfig: React.FC = () => {
 
         {section === 'tools' && (
           <ProTable<AdminAiToolConfig>
+            className="ai-config-table"
             rowKey="code"
+            scroll={{ x: 1100 }}
             search={false}
             pagination={false}
             dataSource={[...(data?.tools ?? [])].sort((a, b) => a.sort - b.sort)}
@@ -645,9 +813,7 @@ const AiConfig: React.FC = () => {
                         value={record.status}
                         loading={savingToolCode === record.code}
                         disabled={savingToolCode === record.code}
-                        onChange={(value) =>
-                          handleToolStatusChange(record.code, value)
-                        }
+                        onChange={(value) => handleToolStatusChange(record.code, value)}
                       />
                     </Space>
                   );
@@ -656,7 +822,8 @@ const AiConfig: React.FC = () => {
               {
                 title: '默认模型',
                 dataIndex: 'defaultModelId',
-                renderText: (value) => value || '待配置',
+                renderText: (value) =>
+                  data?.models.find((model) => model.id === value)?.displayName ?? '待配置',
               },
               { title: '计费说明', dataIndex: 'tokenCostLabel' },
               {
@@ -764,16 +931,37 @@ const AiConfig: React.FC = () => {
             </Button>
           </Space>
         }
-        open={Boolean(editingProvider)}
+        open={creatingProvider || Boolean(editingProvider)}
         size="large"
-        title="编辑厂商配置"
+        title={creatingProvider ? '新增厂商' : '编辑厂商配置'}
         onClose={closeProviderDrawer}
       >
-        {editingProvider && (
+        {(creatingProvider || editingProvider) && (
           <Form form={providerForm} layout="vertical">
-            <Form.Item label="厂商标识">
-              <Input disabled value={editingProvider.code} />
-            </Form.Item>
+            {creatingProvider ? (
+              <Form.Item
+                label="厂商标识"
+                name="code"
+                rules={[
+                  { required: true, message: '请输入厂商标识' },
+                  {
+                    pattern: /^[a-z][a-z0-9_-]{1,39}$/,
+                    message: '使用 2-40 位小写字母、数字、下划线或短横线，并以字母开头',
+                  },
+                ]}
+              >
+                <Input maxLength={40} placeholder="例如 my-provider" />
+              </Form.Item>
+            ) : (
+              <Form.Item label="厂商标识">
+                <Input disabled value={editingProvider?.code} />
+              </Form.Item>
+            )}
+            {creatingProvider && (
+              <Form.Item label="厂商类型">
+                <Input disabled value="OpenAI-compatible" />
+              </Form.Item>
+            )}
             <Form.Item
               label="展示名称"
               name="name"
@@ -784,15 +972,31 @@ const AiConfig: React.FC = () => {
             <Form.Item
               label="Base URL"
               name="baseUrl"
-              rules={[{ required: true, message: '请输入 Base URL' }]}
+              rules={[
+                { required: true, message: '请输入 Base URL' },
+                { pattern: /^https?:\/\//, message: '请输入 http(s) 地址' },
+              ]}
             >
               <Input placeholder="https://api.example.com" />
             </Form.Item>
-            <Form.Item label="当前 API Key">
-              <Input disabled value={editingProvider.apiKeyMasked} />
+            {!creatingProvider && (
+              <Form.Item label="API Key">
+                <Input disabled value={providerKeyStatus(editingProvider?.hasKey ?? false)} />
+              </Form.Item>
+            )}
+            <Form.Item label={creatingProvider ? 'API Key' : '新 API Key'} name="apiKey">
+              <Input.Password
+                placeholder={creatingProvider ? '可稍后配置' : '留空表示不修改当前 Key'}
+              />
             </Form.Item>
-            <Form.Item label="新 API Key" name="apiKey">
-              <Input.Password placeholder="留空表示不修改当前 Key" />
+            <Form.Item label="备注" name="remark">
+              <Input.TextArea maxLength={500} placeholder="仅管理端可见" rows={3} />
+            </Form.Item>
+            <Form.Item label="已备案模型来源" name="sourceFiled" valuePropName="checked">
+              <Switch checkedChildren="已备案" unCheckedChildren="未备案" />
+            </Form.Item>
+            <Form.Item label="备案说明" name="filingNote">
+              <Input maxLength={200} placeholder="备案号或说明，不返回给用户端" />
             </Form.Item>
             <Form.Item label="启用厂商" name="enabled" valuePropName="checked">
               <Switch checkedChildren="启用" unCheckedChildren="停用" />
@@ -818,6 +1022,13 @@ const AiConfig: React.FC = () => {
       >
         {(creatingModel || editingModel) && (
           <Form form={modelForm} layout="vertical">
+            <Alert
+              type="info"
+              showIcon
+              title="模型配置与访问权限"
+              description="此处管理模型属性与运行状态。角色授权由「模型访问权限」统一管理；新建模型保存后将进入授权配置。"
+              style={{ marginBottom: 16 }}
+            />
             {creatingModel ? (
               <>
                 <Form.Item
@@ -841,26 +1052,39 @@ const AiConfig: React.FC = () => {
                 >
                   <Select
                     mode="multiple"
-                    options={aiToolTypeOptions}
+                    options={modelToolTypeOptions}
                     placeholder="选择工具类型"
                   />
+                </Form.Item>
+                <Form.Item label="能力类型" name="modality">
+                  <Select options={modalityOptions} placeholder="选择能力类型" />
                 </Form.Item>
               </>
             ) : (
               <>
-                <Form.Item label="模型 ID">
-                  <Input disabled value={editingModel?.modelId} />
+                <Form.Item
+                  label="模型 ID"
+                  name="modelId"
+                  rules={[{ required: true, message: '请输入模型 ID' }]}
+                >
+                  <Input placeholder="例如 qwen-max" />
                 </Form.Item>
                 <Form.Item label="厂商">
                   <Input disabled value={editingModel?.providerName} />
                 </Form.Item>
-                <Form.Item label="支持工具">
+                <Form.Item
+                  label="支持工具"
+                  name="toolTypes"
+                  rules={[{ required: true, message: '请选择至少一个支持工具' }]}
+                >
                   <Select
-                    disabled
                     mode="multiple"
-                    options={aiToolTypeOptions}
-                    value={editingModel?.toolTypes}
+                    options={modelToolTypeOptions}
+                    placeholder="选择工具类型"
                   />
+                </Form.Item>
+                <Form.Item label="能力类型" name="modality">
+                  <Select options={modalityOptions} placeholder="选择能力类型" />
                 </Form.Item>
               </>
             )}
@@ -877,8 +1101,17 @@ const AiConfig: React.FC = () => {
             <Form.Item label="用户可见" name="visibleToUser" valuePropName="checked">
               <Switch checkedChildren="可见" unCheckedChildren="隐藏" />
             </Form.Item>
-            <Form.Item label="设为默认模型" name="isDefault" valuePropName="checked">
-              <Switch checkedChildren="默认" unCheckedChildren="普通" />
+            <Form.Item
+              label="作为以下工具的默认模型"
+              name="defaultToolTypes"
+              extra="仅选择模型支持的工具；每个工具独立保存默认模型。"
+            >
+              <Select
+                mode="multiple"
+                options={modelToolTypeOptions}
+                allowClear
+                placeholder="不设为默认"
+              />
             </Form.Item>
             <Form.Item
               label="上下文 Tokens"
@@ -887,19 +1120,25 @@ const AiConfig: React.FC = () => {
             >
               <InputNumber min={1} precision={0} style={{ width: '100%' }} />
             </Form.Item>
+            <Form.Item label="最大输出 Tokens" name="maxOutputTokens">
+              <InputNumber min={1} precision={0} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item label="固定平台消耗" name="fixedPlatformCost">
+              <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+            </Form.Item>
             <Form.Item
-              label="输入价格（¥ / 1K Tokens）"
+              label="输入消耗（平台额度 / 1K Tokens）"
               name="inputPricePer1k"
               rules={[{ required: true, message: '请输入输入价格' }]}
             >
-              <InputNumber min={0} precision={6} style={{ width: '100%' }} />
+              <InputNumber min={0} precision={0} style={{ width: '100%' }} />
             </Form.Item>
             <Form.Item
-              label="输出价格（¥ / 1K Tokens）"
+              label="输出消耗（平台额度 / 1K Tokens）"
               name="outputPricePer1k"
               rules={[{ required: true, message: '请输入输出价格' }]}
             >
-              <InputNumber min={0} precision={6} style={{ width: '100%' }} />
+              <InputNumber min={0} precision={0} style={{ width: '100%' }} />
             </Form.Item>
           </Form>
         )}
@@ -952,11 +1191,7 @@ const AiConfig: React.FC = () => {
               <Select
                 allowClear
                 options={toolModelOptions}
-                placeholder={
-                  toolModelOptions.length > 0
-                    ? '选择默认模型'
-                    : '当前工具暂无可用模型'
-                }
+                placeholder={toolModelOptions.length > 0 ? '选择默认模型' : '当前工具暂无可用模型'}
               />
             </Form.Item>
             <Form.Item

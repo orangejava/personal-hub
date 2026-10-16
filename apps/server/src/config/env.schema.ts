@@ -55,87 +55,79 @@ export function parseCorsOriginList(raw: string): string[] {
  * 服务只从受控环境变量读取基础设施与密钥配置。
  * 业务可运营配置后续进入 PostgreSQL，避免把它们混入部署密钥。
  */
-export const envSchema = z
-  .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    /** 仅填写受控反向代理的 IP/CIDR；默认不信任转发头。 */
-    TRUST_PROXY_CIDRS: z.string().default(''),
-    PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-    DATABASE_URL: z.url(),
-    REDIS_URL: z.url(),
-    REDIS_KEY_PREFIX: z.string().min(1).default('ph:dev'),
-    /**
-     * 允许带 Cookie 调用 refresh/logout 的前端 Origin 列表。
-     * 空列表表示不额外放行（生产同站可留空），鉴权回退 `PUBLIC_APP_ORIGIN`。
-     * 与 `PUBLIC_APP_ORIGIN` 分离：后者还用于拼验证/重置邮件里的用户端链接。
-     */
-    CORS_ORIGIN: z
-      .string()
-      .default(DEFAULT_CORS_ORIGIN)
-      .transform((value, ctx) => {
-        try {
-          return parseCorsOriginList(value);
-        } catch (error) {
-          ctx.addIssue({
-            code: 'custom',
-            message: error instanceof Error ? error.message : String(error),
-          });
-          return z.NEVER;
-        }
-      }),
-    /** 验证邮箱、重置密码邮件里的用户端根地址，不要写成管理端 */
-    PUBLIC_APP_ORIGIN: z
-      .url()
-      .default(DEFAULT_PUBLIC_APP_ORIGIN)
-      .transform((value) => value.replace(/\/$/, '')),
-    /** 当前公网访问协议是否支持 Secure Cookie；HTTP 首版必须显式设为 false。 */
-    COOKIE_SECURE: z.preprocess(parseBooleanEnv, z.boolean().default(false)),
-    JWT_ACCESS_SECRET: z.string().min(32),
-    JWT_REFRESH_SECRET: z.string().min(32),
-    MINIO_ENDPOINT: z.string().min(1),
-    MINIO_ACCESS_KEY: z.string().min(1),
-    MINIO_SECRET_KEY: z.string().min(1),
-    MINIO_BUCKET: z.string().min(3),
-    /**
-     * SMTP 可同时支持本地 Mailpit 和真实邮件服务。
-     * 不配置用户名/密码时，默认连接本地 Mailpit；生产 QQ SMTP 等服务必须配置认证。
-     */
-    SMTP_HOST: z.string().min(1).default('localhost'),
-    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
-    SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-    SMTP_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-    SMTP_SECURE: z.preprocess(parseBooleanEnv, z.boolean().default(false)),
-    MAILPIT_HOST: z.string().min(1).default('localhost'),
-    MAILPIT_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
-    MAIL_FROM: z.string().min(1).default('Personal Hub <noreply@localhost>'),
-    /** Chat/Text Provider：默认 Fake；有 Key 时才切到 OpenAI 兼容协议。 */
-    AI_TEXT_PROVIDER: z.enum(['fake', 'openai_compatible']).default('fake'),
-    AI_OPENAI_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
-    AI_OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-    AI_OPENAI_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
-    AI_OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(60000),
-    /** 容器启动时写入发布标记。不配则不记，重复启动同一个值不会多插一行。 */
-    GIT_SHA: z.preprocess(emptyToUndefined, z.string().min(1).max(64).optional()),
-  })
-  .superRefine((env, ctx) => {
-    if (env.AI_TEXT_PROVIDER !== 'openai_compatible') {
-      return;
-    }
-    const requiredFields = [
-      ['AI_OPENAI_BASE_URL', env.AI_OPENAI_BASE_URL],
-      ['AI_OPENAI_API_KEY', env.AI_OPENAI_API_KEY],
-      ['AI_OPENAI_MODEL', env.AI_OPENAI_MODEL],
-    ] as const;
-    for (const [field, value] of requiredFields) {
-      if (!value) {
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  /** 仅填写受控反向代理的 IP/CIDR；默认不信任转发头。 */
+  TRUST_PROXY_CIDRS: z.string().default(''),
+  PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  DATABASE_URL: z.url(),
+  REDIS_URL: z.url(),
+  REDIS_KEY_PREFIX: z.string().min(1).default('ph:dev'),
+  /**
+   * 允许带 Cookie 调用 refresh/logout 的前端 Origin 列表。
+   * 空列表表示不额外放行（生产同站可留空），鉴权回退 `PUBLIC_APP_ORIGIN`。
+   * 与 `PUBLIC_APP_ORIGIN` 分离：后者还用于拼验证/重置邮件里的用户端链接。
+   */
+  CORS_ORIGIN: z
+    .string()
+    .default(DEFAULT_CORS_ORIGIN)
+    .transform((value, ctx) => {
+      try {
+        return parseCorsOriginList(value);
+      } catch (error) {
         ctx.addIssue({
           code: 'custom',
-          path: [field],
-          message: `${field} 在 AI_TEXT_PROVIDER=openai_compatible 时必填`,
+          message: error instanceof Error ? error.message : String(error),
         });
+        return z.NEVER;
       }
-    }
-  });
+    }),
+  /** 验证邮箱、重置密码邮件里的用户端根地址，不要写成管理端 */
+  PUBLIC_APP_ORIGIN: z
+    .url()
+    .default(DEFAULT_PUBLIC_APP_ORIGIN)
+    .transform((value) => value.replace(/\/$/, '')),
+  /** 当前公网访问协议是否支持 Secure Cookie；HTTP 首版必须显式设为 false。 */
+  COOKIE_SECURE: z.preprocess(parseBooleanEnv, z.boolean().default(false)),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
+  MINIO_ENDPOINT: z.string().min(1),
+  MINIO_ACCESS_KEY: z.string().min(1),
+  MINIO_SECRET_KEY: z.string().min(1),
+  MINIO_BUCKET: z.string().min(3),
+  /**
+   * SMTP 可同时支持本地 Mailpit 和真实邮件服务。
+   * 不配置用户名/密码时，默认连接本地 Mailpit；生产 QQ SMTP 等服务必须配置认证。
+   */
+  SMTP_HOST: z.string().min(1).default('localhost'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  SMTP_USER: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SMTP_PASSWORD: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  SMTP_SECURE: z.preprocess(parseBooleanEnv, z.boolean().default(false)),
+  MAILPIT_HOST: z.string().min(1).default('localhost'),
+  MAILPIT_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  MAIL_FROM: z.string().min(1).default('Personal Hub <noreply@localhost>'),
+  /** 兼容旧部署/seed 参数；运行时按所选模型的厂商路由。 */
+  AI_TEXT_PROVIDER: z.enum(['fake', 'openai_compatible']).default('fake'),
+  AI_OPENAI_BASE_URL: z.preprocess(emptyToUndefined, z.string().url().optional()),
+  AI_OPENAI_API_KEY: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AI_OPENAI_MODEL: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  AI_OPENAI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(60000),
+  /** 容器启动时写入发布标记。不配则不记，重复启动同一个值不会多插一行。 */
+  GIT_SHA: z.preprocess(emptyToUndefined, z.string().min(1).max(64).optional()),
+  /**
+   * 凭据主密钥：32 字节随机数的 base64。未配置时拒绝保存新密钥，环境变量回退仍可调用。
+   */
+  AI_CREDENTIAL_ENCRYPTION_KEY: z.preprocess(
+    emptyToUndefined,
+    z
+      .string()
+      .refine((value) => Buffer.from(value, 'base64').length === 32, {
+        message: 'AI_CREDENTIAL_ENCRYPTION_KEY 必须是 32 字节密钥的 base64',
+      })
+      .optional(),
+  ),
+});
 
 export type Env = z.infer<typeof envSchema>;
 

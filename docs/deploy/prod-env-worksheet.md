@@ -91,11 +91,11 @@ openssl rand -hex 32
 | 是否 SSL           | `true`（465）                                                      | `true`                   |
 | 发件人 `MAIL_FROM` | 与 QQ 邮箱地址一致                                                 | `<你的完整 QQ 邮箱地址>` |
 
-### AI 文本（首版可直接接真实 AI）
+### AI 文本（后台配置优先）
 
-Compose 已将下面变量注入 `server` 和 `server-worker`。默认仍使用内置演示；确认厂商兼容
-OpenAI Chat Completions SSE 后，填写全部变量并取消 `.env.prod.example` 中对应注释。修改后还要按
-`production-runbook.md` §7.4 重建容器并执行 `sync-ai-catalog.ts`，这样用户端/后台目录才会显示真实文本模型：
+后台配置厂商 API Key 时，`.env.prod` 必须配置 `AI_CREDENTIAL_ENCRYPTION_KEY`（`openssl rand -base64 32`），并在 HTTPS 下访问管理端。Compose 会将主密钥注入 `server` 和 `server-worker`；已有凭据依赖原主密钥，不能直接更换。
+
+厂商 Base URL、API Key 和模型名称可在后台配置，不必填写下面的旧目录变量。只有保留环境变量凭据回退，或明确运行旧目录同步脚本时才填写；`sync-ai-catalog.ts` 会重设 Chat/Text 默认模型，后台配置模式不要运行：
 
 | 变量                   | 说明                                 | 我的值                       |
 | ---------------------- | ------------------------------------ | ---------------------------- |
@@ -105,7 +105,7 @@ OpenAI Chat Completions SSE 后，填写全部变量并取消 `.env.prod.example
 | `AI_OPENAI_MODEL`      | 厂商模型名                           |                              |
 | `AI_OPENAI_TIMEOUT_MS` | 请求超时毫秒数，默认 `60000`         | `60000`                      |
 
-AI 厂商名称、Base URL、API Key 和模型名目前尚未提供；缺任何一项都不能进行真实 AI 联测。
+实际调用以模型所属厂商、模型状态、角色授权和各工具默认模型为准。
 
 ---
 

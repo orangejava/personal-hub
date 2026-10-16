@@ -263,7 +263,10 @@ export const adminAiConfigData: AdminAiConfigData = {
       code: 'aliyun_bailian',
       name: '阿里云百炼',
       baseUrl: 'https://dashscope.aliyuncs.com',
-      apiKeyMasked: 'sk-***bailian',
+      hasKey: true,
+      remark: '',
+      sourceFiled: false,
+      filingNote: '',
       enabled: true,
       updatedAt: '2026-07-01T10:00:00Z',
     },
@@ -272,7 +275,10 @@ export const adminAiConfigData: AdminAiConfigData = {
       code: 'openai',
       name: 'OpenAI',
       baseUrl: 'https://api.openai.com',
-      apiKeyMasked: 'sk-***openai',
+      hasKey: true,
+      remark: '',
+      sourceFiled: false,
+      filingNote: '',
       enabled: true,
       updatedAt: '2026-07-02T10:00:00Z',
     },
@@ -281,7 +287,10 @@ export const adminAiConfigData: AdminAiConfigData = {
       code: 'anthropic',
       name: 'Anthropic',
       baseUrl: 'https://api.anthropic.com',
-      apiKeyMasked: 'sk-***claude',
+      hasKey: true,
+      remark: '',
+      sourceFiled: false,
+      filingNote: '',
       enabled: false,
       updatedAt: '2026-06-28T10:00:00Z',
     },
@@ -527,13 +536,6 @@ export function appendAuditLog(
   return row;
 }
 
-function maskAiProviderApiKey(apiKey: string): string {
-  const trimmed = apiKey.trim();
-  if (!trimmed) return '';
-  if (trimmed.length <= 8) return `${trimmed.slice(0, 2)}***`;
-  return `${trimmed.slice(0, 3)}***${trimmed.slice(-4)}`;
-}
-
 /** 更新 AI 品牌配置，阶段 5 用内存态模拟系统配置保存。 */
 export function updateAdminAiBrandingConfig(
   input: AdminAiBrandingMutationInput,
@@ -577,7 +579,16 @@ export function updateAdminAiProviderConfig(
     provider.baseUrl = input.baseUrl.trim() || provider.baseUrl;
   }
   if (typeof input.apiKey === 'string' && input.apiKey.trim()) {
-    provider.apiKeyMasked = maskAiProviderApiKey(input.apiKey);
+    provider.hasKey = true;
+  }
+  if (typeof input.remark === 'string') {
+    provider.remark = input.remark;
+  }
+  if (typeof input.sourceFiled === 'boolean') {
+    provider.sourceFiled = input.sourceFiled;
+  }
+  if (typeof input.filingNote === 'string') {
+    provider.filingNote = input.filingNote;
   }
   if (typeof input.enabled === 'boolean') {
     provider.enabled = input.enabled;

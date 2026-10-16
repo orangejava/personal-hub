@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Put, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AiToolStatus, DataScope } from '@prisma/client';
 import type { Request } from 'express';
@@ -7,12 +7,16 @@ import { RequireIdempotency } from '../../common/idempotency/require-idempotency
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import type { RequestAuthContext } from '../../common/types/request-id';
 import { AiService } from './ai.service';
+import { AiCredentialService } from './ai-credential.service';
 import {
+  CreateProviderDto,
+  CreateModelDto,
   PatchBrandingDto,
   PatchModelDto,
   PatchNavigationDto,
   PatchProviderDto,
   PatchToolDto,
+  TestProviderDto,
   PutEntitlementDto,
   SortNavigationDto,
 } from './dto/ai.dto';
@@ -21,7 +25,16 @@ import {
 @ApiBearerAuth()
 @Controller('admin/ai')
 export class AdminAiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly credentials: AiCredentialService,
+  ) {}
+
+  @Get('credential-key')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  credentialKey() {
+    return this.credentials.publicKey();
+  }
 
   @Get('config')
   @RequirePermission('ai:provider:manage', DataScope.ALL)
@@ -62,10 +75,7 @@ export class AdminAiController {
   @Patch('navigation/:id')
   @RequirePermission('ai:tool:manage', DataScope.ALL)
   @RequireIdempotency()
-  patchNavigation(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: PatchNavigationDto,
-  ) {
+  patchNavigation(@Param('id', new ParseUUIDPipe()) id: string, @Body() body: PatchNavigationDto) {
     return this.ai.patchNavigation(id, body);
   }
 
@@ -76,7 +86,34 @@ export class AdminAiController {
     @Param('providerId', new ParseUUIDPipe()) providerId: string,
     @Body() body: PatchProviderDto,
   ) {
-    return this.ai.patchProvider(providerId, body);
+    return this.ai.patchProvider(providerId, {
+      ...body,
+      apiKey: body.encryptedApiKey
+        ? this.credentials.decryptRequest(body.encryptedApiKey)
+        : undefined,
+    });
+  }
+
+  @Post('providers')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  @RequireIdempotency()
+  createProvider(@Body() body: CreateProviderDto) {
+    return this.ai.createProvider({
+      ...body,
+      apiKey: body.encryptedApiKey
+        ? this.credentials.decryptRequest(body.encryptedApiKey)
+        : undefined,
+    });
+  }
+
+  @Post('providers/:providerId/test')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  @RequireIdempotency()
+  testProvider(
+    @Param('providerId', new ParseUUIDPipe()) providerId: string,
+    @Body() body: TestProviderDto,
+  ) {
+    return this.ai.testProvider(providerId, body.modelId);
   }
 
   @Patch('models/:modelId')
@@ -84,6 +121,13 @@ export class AdminAiController {
   @RequireIdempotency()
   patchModel(@Param('modelId', new ParseUUIDPipe()) modelId: string, @Body() body: PatchModelDto) {
     return this.ai.patchModel(modelId, body);
+  }
+
+  @Post('models')
+  @RequirePermission('ai:model:manage', DataScope.ALL)
+  @RequireIdempotency()
+  createModel(@Body() body: CreateModelDto) {
+    return this.ai.createModel(body);
   }
 
   @Patch('tools/:toolId')

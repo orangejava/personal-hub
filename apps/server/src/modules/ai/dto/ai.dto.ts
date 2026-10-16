@@ -1,19 +1,24 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
+  IsNotEmpty,
   IsEnum,
   IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  IsUrl,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
   ValidateNested,
+  ValidateIf,
 } from 'class-validator';
-import { AiFeedback, AiNavStatus, AiToolCode } from '@prisma/client';
+import { AiFeedback, AiModality, AiNavStatus, AiToolCode } from '@prisma/client';
 
 export class PageQueryDto {
   @IsOptional()
@@ -290,6 +295,28 @@ export class UsageQueryDto extends PageQueryDto {
   toolType?: AiToolCode;
 }
 
+export class EncryptedCredentialDto {
+  @IsString()
+  @MaxLength(80)
+  keyId!: string;
+
+  @IsString()
+  @MaxLength(120)
+  ephemeralPublicKey!: string;
+
+  @IsString()
+  @MaxLength(64)
+  salt!: string;
+
+  @IsString()
+  @MaxLength(24)
+  iv!: string;
+
+  @IsString()
+  @MaxLength(4096)
+  ciphertext!: string;
+}
+
 export class PatchProviderDto {
   @IsOptional()
   @IsString()
@@ -310,52 +337,240 @@ export class PatchProviderDto {
   @MaxLength(500)
   baseUrl?: string;
 
-  /** 只写：非空时标记该厂商已配置环境变量密钥，明文不入库。 */
+  /** 只写密文信封；不传表示不轮换。明文 apiKey 会被全局白名单校验拒绝。 */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EncryptedCredentialDto)
+  encryptedApiKey?: EncryptedCredentialDto;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)
-  apiKey?: string;
-}
+  remark?: string;
 
-export class PatchModelDto {
+  @IsOptional()
+  @IsBoolean()
+  sourceFiled?: boolean;
+
   @IsOptional()
   @IsString()
-  @MaxLength(120)
-  displayName?: string;
+  @MaxLength(200)
+  filingNote?: string;
+}
+
+export class CreateProviderDto {
+  @IsString()
+  @Matches(/^[a-z][a-z0-9_-]{1,39}$/)
+  code!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/\S/)
+  @MaxLength(80)
+  label!: string;
+
+  @IsString()
+  @Matches(/^openai-compatible$/)
+  providerType!: 'openai-compatible';
+
+  @IsString()
+  @IsNotEmpty()
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @MaxLength(500)
+  baseUrl!: string;
 
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 
   @IsOptional()
-  @IsBoolean()
-  userVisible?: boolean;
+  @ValidateNested()
+  @Type(() => EncryptedCredentialDto)
+  encryptedApiKey?: EncryptedCredentialDto;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  remark?: string;
 
   @IsOptional()
   @IsBoolean()
-  visibleToUser?: boolean;
+  sourceFiled?: boolean;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  filingNote?: string;
+}
+
+/** 连接测试。modelId 是模型行 ID，不是厂商的 modelKey。 */
+export class TestProviderDto {
+  @IsOptional()
+  @IsUUID()
+  modelId?: string;
+}
+
+export class CreateModelDto {
+  @IsOptional()
+  @IsArray()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.toUpperCase() : item))
+      : value,
+  )
+  @IsEnum(AiToolCode, { each: true })
+  defaultToolTypes?: AiToolCode[];
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  modelId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(40)
+  providerCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  displayName!: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.trim().toUpperCase() : item))
+      : value,
+  )
+  @IsEnum(AiToolCode, { each: true })
+  toolTypes!: AiToolCode[];
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsEnum(AiModality)
+  modality?: AiModality;
+
   @IsBoolean()
-  isDefault?: boolean;
+  enabled!: boolean;
+
+  @IsBoolean()
+  visibleToUser!: boolean;
+
+  @IsBoolean()
+  isDefault!: boolean;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  contextTokens!: number;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  contextTokens?: number;
+  maxOutputTokens?: number;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
+  @Min(0)
+  fixedPlatformCost?: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  inputPricePer1k!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  outputPricePer1k!: number;
+}
+
+export class PatchModelDto {
+  @ValidateIf((_, value) => value !== undefined)
+  @IsArray()
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.toUpperCase() : item))
+      : value,
+  )
+  @IsEnum(AiToolCode, { each: true })
+  defaultToolTypes?: AiToolCode[];
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @MaxLength(120)
+  displayName?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  userVisible?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  visibleToUser?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsBoolean()
+  isDefault?: boolean;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  contextTokens?: number;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @Type(() => Number)
+  @IsInt()
   @Min(0)
   inputPricePer1k?: number;
 
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @Type(() => Number)
-  @IsNumber()
+  @IsInt()
   @Min(0)
   outputPricePer1k?: number;
+
+  /** 厂商侧模型名。与路径上的模型行 ID 不是同一个字段。 */
+  @ValidateIf((_, value) => value !== undefined)
+  @IsString()
+  @MaxLength(120)
+  modelId?: string;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+  @IsEnum(AiModality)
+  modality?: AiModality;
+
+  @ValidateIf((_, value) => value !== undefined)
+  @IsArray()
+  @ArrayMinSize(1)
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((item) => (typeof item === 'string' ? item.trim().toUpperCase() : item))
+      : value,
+  )
+  @IsEnum(AiToolCode, { each: true })
+  toolTypes?: AiToolCode[];
+
+  @ValidateIf((_, value) => value !== undefined)
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxOutputTokens?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  fixedPlatformCost?: number | null;
 }
 
 export class PatchToolDto {
@@ -375,7 +590,7 @@ export class PatchToolDto {
 
   @IsOptional()
   @IsUUID()
-  defaultModelId?: string;
+  defaultModelId?: string | null;
 
   @IsOptional()
   @IsString()
@@ -465,6 +680,7 @@ export class PutEntitlementDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1)
   maxConcurrent?: number;
 
   @IsOptional()

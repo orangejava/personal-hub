@@ -169,6 +169,12 @@ enum AiOwnerType {
   ANONYMOUS
 }
 
+/// 凭据归属。与 AiOwnerType 分开：系统密钥没有用户，也不能写成匿名主体。
+enum AiCredentialOwnerType {
+  SYSTEM
+  USER
+}
+
 enum AiModality {
   TEXT
   IMAGE
@@ -326,6 +332,7 @@ model User {
   quotaAccount            AiQuotaAccount?
   quotaReservations       AiQuotaReservation[]
   usageRecords            AiUsageRecord[]
+  providerCredentials     AiProviderCredential[]
   generationJobs          AiGenerationJob[]
   aiAssets                AiAsset[]
   aiTemplates             AiTemplate[]
@@ -991,12 +998,42 @@ model AiProvider {
   extraHeaders Json?      @map("extra_headers")
   healthStatus String?    @map("health_status") @db.VarChar(40)
   lastErrorCode String?   @map("last_error_code") @db.VarChar(80)
+  /// 目录备注。不是密钥，只出现在管理端配置。
+  remark       String?    @db.VarChar(500)
+  /// 是否已记录外部模型来源备案。公开接口不返回。
+  sourceFiled  Boolean    @default(false) @map("source_filed")
+  /// 备案说明或备案号。公开接口不返回。
+  filingNote   String?    @map("filing_note") @db.VarChar(200)
   version      Int        @default(1)
   createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   models       AiModel[]
+  credentials  AiProviderCredential[]
 
   @@map("ai_providers")
+}
+
+/// 系统 Key 与用户 Key 共用。明文不入库；部分唯一约束在迁移 SQL 中。
+model AiProviderCredential {
+  id           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerType    AiCredentialOwnerType  @map("owner_type")
+  userId       String?                @map("user_id") @db.Uuid
+  providerId   String?                @map("provider_id") @db.Uuid
+  providerType String?                @map("provider_type") @db.VarChar(40)
+  baseUrl      String?                @map("base_url") @db.VarChar(500)
+  /// base64(密文 || 16 字节 GCM tag)。接口、日志和幂等响应都不返回。
+  ciphertext   String                 @db.Text
+  nonce        String                 @db.VarChar(48)
+  keyVersion   Int                    @default(1) @map("key_version")
+  enabled      Boolean                @default(true)
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider     AiProvider?            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  user         User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, ownerType])
+  @@index([userId])
+  @@map("ai_provider_credentials")
 }
 
 model AiModel {

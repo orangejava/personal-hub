@@ -534,17 +534,22 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | PATCH        | `/admin/ai/navigation/sort`       | 批量排序，必填幂等键        |
 | PATCH        | `/admin/ai/navigation/:id`        | 更新显隐/状态/文案，必填幂等键和 `version`；冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT` |
 | GET          | `/admin/ai/stats`                 | 只读 BFF 统计，支持时间范围 |
-| GET/POST     | `/admin/ai/providers`             | 资源管理；Key 只写不回显    |
-| PATCH/DELETE | `/admin/ai/providers/:providerId` | 更新/删除；`apiKey` 只写，密文进 `ai_provider_credentials`，不进 `ai_providers` |
+| GET          | `/admin/ai/credential-key`        | 管理员读取 P-256 请求加密公钥；需 `ai:provider:manage` |
+| POST         | `/admin/ai/providers`             | 新增 OpenAI-compatible 厂商；必填幂等键，重复 code 为 409 |
+| PATCH        | `/admin/ai/providers/:providerId` | 更新/禁用；必填幂等键；只接收 `encryptedApiKey` 密文信封，拒绝明文 `apiKey`，解密后再加密写入 `ai_provider_credentials` |
 | POST         | `/admin/ai/providers/:providerId/test` | `ai:provider:manage`。连接测试，不写用量、不预占额度，日志不含密钥 |
-| GET/POST     | `/admin/ai/models`                | 模型资源管理                |
-| PATCH/DELETE | `/admin/ai/models/:modelId`       | 更新/删除                   |
+| POST         | `/admin/ai/models`                | 新增模型，需 `ai:model:manage`、幂等键；同厂商模型标识重复返回 409 |
+| PATCH        | `/admin/ai/models/:modelId`       | 更新/停用模型，需 `ai:model:manage`、幂等键 |
 | GET/POST     | `/admin/ai/tools`                 | 工具展示与启用配置          |
 | PATCH/DELETE | `/admin/ai/tools/:toolId`         | 更新/删除                   |
 | GET/POST     | `/admin/ai/templates`             | 系统模板管理                |
 | PATCH/DELETE | `/admin/ai/templates/:templateId` | 更新/删除系统模板           |
 | GET/PUT      | `/admin/ai/entitlements`          | 角色/套餐额度和模型权益     |
 | POST         | `/admin/ai/quota-adjustments`     | `ai:entitlement:manage` 且 `DataScope.ALL`，必填幂等键。body `{ userId, direction: GRANT\|DEDUCT, amount, reason }`，`amount` 为正整数。`DEDUCT` 会使 `availableAmount` < 0 时整笔拒绝，错误码 `AI_QUOTA_ADJUSTMENT_REJECTED`，不写账本 |
+
+阶段 A 模型契约：创建/编辑支持 `defaultToolTypes`（`chat`/`text`/`image`/`video` 数组），查询返回各工具默认范围；`isDefault` 为兼容摘要。工具 `defaultModelId` 使用模型行 UUID，传 `null` 清空。模型停用、隐藏或取消支持工具时同步清除不适用的默认关系。价格按整数平台单位，PATCH 校验合并后的最终状态，`fixedPlatformCost: null` 清空固定消耗。
+
+角色授权独立于模型新增：PUT `/admin/ai/entitlements` 使用 `{ roleId, allowedModelIds }`，需要 `ai:entitlement:manage`、ALL 范围及幂等键。空数组表示不限制，否则为显式白名单；新建模型不修改白名单。返回 `{ id, roleId, maxConcurrent, allowedModelIds }`，避免直接序列化数据库 BigInt 字段。
 
 ### 5.4 领域错误码目录
 
@@ -555,7 +560,7 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 | Content                | `CONTENT_NOT_FOUND`、`CONTENT_INVALID_STATE`、`CONTENT_PUBLISH_VALIDATION_FAILED`、`CONTENT_VERSION_CONFLICT`、`CONTENT_IMPORT_RESTRICTION_ACTIVE` |
 | Category / Tag         | `CATEGORY_NOT_FOUND`、`CATEGORY_IN_USE`、`CATEGORY_CYCLE_DETECTED`、`TAG_IN_USE`                                                                   |
 | File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`            |
-| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_QUOTA_ADJUSTMENT_REJECTED`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND` |
+| AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_QUOTA_ADJUSTMENT_REJECTED`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`、`AI_CREDENTIAL_KEY_MISSING`、`AI_CREDENTIAL_INVALID`、`AI_PROVIDER_CODE_EXISTS`、`AI_PROVIDER_KEY_MISSING`、`AI_PROVIDER_TEST_FAILED` |
 | Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
 | System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
 | Metrics                | `METRICS_INVALID`、`METRICS_RATE_LIMITED` |

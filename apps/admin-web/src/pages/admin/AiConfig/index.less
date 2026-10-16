@@ -1,0 +1,46 @@
+.ai-config-card {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+
+  .ant-card-body {
+    min-width: 0;
+  }
+
+  .ai-config-table {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.ai-config-sections {
+  max-width: 100%;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+
+  .ant-segmented {
+    min-width: max-content;
+  }
+}
+
+// 管理端通用表格样式禁用了滚动；AI 配置的宽表需要在表格内显示滑轨。
+.ai-config-card .ai-config-table .ant-table-wrapper,
+.ai-config-card .ai-config-table.ant-table-wrapper {
+  overflow: visible !important;
+}
+
+.ai-config-card .ai-config-table .ant-table-content,
+.ai-config-card .ai-config-table.ant-table-wrapper .ant-table-content {
+  overflow-x: scroll !important;
+  overflow-y: hidden !important;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: auto;
+  scrollbar-color: var(--ph-scrollbar-thumb) transparent;
+}
+
+.ai-config-card .ai-config-table .ant-table-content::-webkit-scrollbar,
+.ai-config-card .ai-config-table.ant-table-wrapper .ant-table-content::-webkit-scrollbar {
+  height: 10px;
+}

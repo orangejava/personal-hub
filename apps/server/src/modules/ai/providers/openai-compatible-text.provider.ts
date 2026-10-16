@@ -1,6 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { DomainHttpException } from '../../../common/errors/domain-http.exception';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../../config/env.schema';
+import { AiCredentialService } from '../ai-credential.service';
+import { FakeChatProvider } from './fake-chat.provider';
 import type { AiChatProvider, ChatDelta, ChatProviderInput } from './ai-provider.types';
 
 function takeSseBlock(buffer: string): { block?: string; rest: string } {
@@ -62,25 +65,52 @@ export function parseOpenAiSseBlock(block: string): ChatDelta | 'done' | null {
 }
 
 /**
- * OpenAI Chat Completions 兼容协议。Key 只从环境变量读取，前端永远碰不到。
- * 未配置 Key 时模块工厂会回落 Fake，本类不会被选中。
+ * OpenAI Chat Completions 兼容协议。
+ * 密钥优先用该厂商已启用的系统凭据，没有再读 authEnvKey。只有 Fake 厂商使用演示实现。
  */
 @Injectable()
 export class OpenAiCompatibleTextProvider implements AiChatProvider {
   private readonly logger = new Logger(OpenAiCompatibleTextProvider.name);
 
-  constructor(private readonly config: ConfigService<Env, true>) {}
+  constructor(
+    private readonly config: ConfigService<Env, true>,
+    private readonly credentials: AiCredentialService,
+    private readonly fake: FakeChatProvider,
+  ) {}
 
   async *stream(input: ChatProviderInput): AsyncIterable<ChatDelta> {
-    const baseUrl = (
-      this.config.get('AI_OPENAI_BASE_URL', { infer: true }) ?? 'https://api.openai.com/v1'
-    ).replace(/\/$/, '');
-    const apiKey = this.config.get('AI_OPENAI_API_KEY', { infer: true });
-    const model = this.config.get('AI_OPENAI_MODEL', { infer: true }) ?? input.modelKey;
-    const timeoutMs = this.config.get('AI_OPENAI_TIMEOUT_MS', { infer: true });
-    if (!apiKey) {
-      throw new Error('未配置 AI_OPENAI_API_KEY');
+    if (input.providerCode === 'fake') {
+      yield* this.fake.stream(input);
+      return;
     }
+    if (!input.providerId) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_MODEL_NOT_AVAILABLE',
+        '模型未绑定厂商',
+      );
+    }
+    const secret = await this.credentials.resolveSystemSecret(
+      {
+        id: input.providerId,
+        code: input.providerCode ?? 'openai-compatible',
+        baseUrl: input.baseUrl ?? this.config.get('AI_OPENAI_BASE_URL', { infer: true }) ?? null,
+        authEnvKey: input.authEnvKey === undefined ? 'AI_OPENAI_API_KEY' : input.authEnvKey,
+        timeoutMs: input.timeoutMs ?? this.config.get('AI_OPENAI_TIMEOUT_MS', { infer: true }),
+      },
+      { require: true },
+    );
+    if (!secret) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_PROVIDER_KEY_MISSING',
+        '厂商未配置可用凭据',
+      );
+    }
+    const baseUrl = secret.baseUrl;
+    const apiKey = secret.apiKey;
+    const model = input.modelKey;
+    const timeoutMs = secret.timeoutMs;
 
     const timeout = AbortSignal.timeout(timeoutMs);
     const signal = AbortSignal.any([input.signal, timeout]);
@@ -92,6 +122,7 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       },
       body: JSON.stringify({
         model,
+        max_tokens: input.maxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
         messages: [
@@ -103,7 +134,7 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
     });
     if (!response.ok || !response.body) {
       const text = await response.text().catch(() => '');
-      this.logger.warn(`上游 ${response.status}: ${text.slice(0, 200)}`);
+      this.logger.warn(`上游 ${response.status}: ${redactSecret(text, apiKey).slice(0, 200)}`);
       throw new Error(`OPENAI_COMPATIBLE_${response.status}`);
     }
 
@@ -152,4 +183,12 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       reader.releaseLock();
     }
   }
+}
+
+/** 上游错误体有时会回显密钥，日志里先抹掉。 */
+function redactSecret(text: string, secret: string): string {
+  if (!secret) {
+    return text;
+  }
+  return text.split(secret).join('[redacted]');
 }

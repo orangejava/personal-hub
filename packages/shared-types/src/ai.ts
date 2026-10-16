@@ -40,6 +40,8 @@ export interface AiModel {
   toolTypes: AiToolType[];
   enabled: boolean;
   isDefault?: boolean;
+  /** 各工具独立的默认关系；空数组表示没有默认工具。 */
+  defaultToolTypes?: AiToolType[];
   description?: string;
 }
 

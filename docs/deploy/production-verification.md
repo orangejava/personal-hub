@@ -189,7 +189,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 
 测试对象使用明显的临时前缀，避免误删业务文件。
 
-## 9. OpenRouter 文本 AI
+## 9. 文本 AI
 
 确认非敏感配置已经注入：
 
@@ -216,9 +216,7 @@ docker compose --env-file .env.prod -f compose.prod.yml exec server \
 docker compose --env-file .env.prod -f compose.prod.yml logs --tail=200 server
 ```
 
-如果页面仍显示内置演示模型，确认 `AI_TEXT_PROVIDER` 为
-`openai_compatible`、模型 ID 来自 OpenRouter 当前模型列表，然后执行 runbook §7.4 的
-`sync-ai-catalog.ts`。这一步只同步 AI 目录，不会输出 API Key 或重跑完整 seed。
+如果页面仍显示内置演示模型，先在管理端检查厂商和模型已启用、模型对用户可见、角色已获模型权限，以及 Chat/Text 各自默认模型。只有明确使用旧环境变量目录模式时，才参考 runbook §7.4 运行 `sync-ai-catalog.ts`；它会重设 Chat/Text 默认模型。
 
 ## 10. Worker 和异步任务
 

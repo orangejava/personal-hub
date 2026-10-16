@@ -40,6 +40,8 @@
 
 ## 4. 已有文档
 
+- [ai-provider-credential-transport.md](./ai-provider-credential-transport.md)：API Key 请求加密、数据库加密与手动验证。
+
 - [nest-http-adapter-comparison.md](./nest-http-adapter-comparison.md)：Nest Fastify/Express 技术比较、AI 流式/并发 API 边界与已完成迁移记录。
 - [nest-stage0-retrospective.md](./nest-stage0-retrospective.md)：Nest 阶段 0 问题复盘与排障过程；面试题见 [`../interview/`](../interview/README.md)。
 - [nest-server-bootstrap.md](./nest-server-bootstrap.md)：NestJS + Express 阶段 0、配置校验、基础设施和健康检查。
