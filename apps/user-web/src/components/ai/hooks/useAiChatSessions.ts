@@ -3,7 +3,7 @@ import type {
   AiConversationSettings,
   AiMessage,
 } from '@personal-hub/shared-types';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createAiSession, deleteAiSession, updateAiSession } from '@/services/ai';
 
 const defaultSessionSettings: AiConversationSettings = {
@@ -31,16 +31,30 @@ export function useAiChatSessions({
 }: UseAiChatSessionsOptions) {
   const [sessions, setSessions] = useState<AiConversation[]>(initialSessions);
   const [activeSessionId, setActiveSessionId] = useState<string>();
+  const selectionVersionRef = useRef(0);
+  const locallyCreatedIdsRef = useRef(new Set<string>());
+  const deletedIdsRef = useRef(new Set<string>());
+  const routeSessionIdRef = useRef(initialSessionId);
   const [messagesBySession, setMessagesBySession] = useState<
     Record<string, AiMessage[]>
   >({});
 
   useEffect(() => {
-    setSessions(initialSessions);
+    // 首屏请求可能晚于新会话创建返回；保留本页刚创建的会话及消息摘要。
+    setSessions((current) => [
+      ...current.filter((session) => locallyCreatedIdsRef.current.has(session.id)),
+      ...initialSessions.filter((session) => !locallyCreatedIdsRef.current.has(session.id) && !deletedIdsRef.current.has(session.id)),
+    ]);
   }, [initialSessions]);
 
   useEffect(() => {
+    // 真正的路由变更应生效；同一路由首屏列表迟到不能抢走手动选择。
+    if (routeSessionIdRef.current !== initialSessionId) {
+      routeSessionIdRef.current = initialSessionId;
+      selectionVersionRef.current = 0;
+    }
     if (
+      selectionVersionRef.current !== 0 ||
       !initialSessionId ||
       !initialSessions.some((session) => session.id === initialSessionId)
     ) {
@@ -93,15 +107,26 @@ export function useAiChatSessions({
     [currentSessionId, messagesBySession],
   );
 
+  const selectSession = useCallback((sessionId: string) => {
+    selectionVersionRef.current += 1;
+    setActiveSessionId(sessionId);
+  }, []);
+
   const createNewSession = useCallback(async (settings?: AiConversationSettings) => {
+    const selectionVersion = ++selectionVersionRef.current;
     const res = await createAiSession({
       title: '新对话',
       settings: { ...defaultSessionSettings, ...settings },
     });
+    if (!res?.id) {
+      throw new Error('创建对话失败，请稍后重试');
+    }
     const session = res;
+    locallyCreatedIdsRef.current.add(session.id);
     setSessions((current) => [session, ...current.filter((item) => item.id !== session.id)]);
     setMessagesBySession((current) => ({ ...current, [session.id]: [] }));
-    setActiveSessionId(session.id);
+    // 用户在请求期间选了其他会话时，新会话仍保存，但不能抢回当前视图。
+    if (selectionVersionRef.current === selectionVersion) setActiveSessionId(session.id);
     return session.id;
   }, []);
 
@@ -138,15 +163,19 @@ export function useAiChatSessions({
     [],
   );
 
-  const deleteSession = useCallback((sessionId: string) => {
+  const deleteSession = useCallback(async (sessionId: string) => {
+    // 服务端可能因生成中或网络失败拒绝删除，成功前保留可操作的会话。
+    await deleteAiSession(sessionId);
+    deletedIdsRef.current.add(sessionId);
+    locallyCreatedIdsRef.current.delete(sessionId);
     setSessions((current) => current.filter((session) => session.id !== sessionId));
     setMessagesBySession((current) => {
       const next = { ...current };
       delete next[sessionId];
       return next;
     });
+    selectionVersionRef.current += 1;
     setActiveSessionId((current) => (current === sessionId ? undefined : current));
-    deleteAiSession(sessionId);
   }, []);
 
   const updateCurrentMessages = useCallback(
@@ -251,7 +280,7 @@ export function useAiChatSessions({
     sessions,
     currentSessionId,
     currentMessages,
-    setActiveSessionId,
+    setActiveSessionId: selectSession,
     createNewSession,
     renameSession,
     updateSessionSettings,

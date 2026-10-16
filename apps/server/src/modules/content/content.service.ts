@@ -13,6 +13,7 @@ import {
   RoleCode,
 } from '@prisma/client';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
+import { shanghaiDate } from '../../common/time/shanghai-date';
 import { AuthService } from '../auth/auth.service';
 import { deriveMarkdown } from './content-markdown';
 import { deriveRichText } from './content-rich-text';
@@ -1424,8 +1425,7 @@ export class ContentService {
     if (subjectHash === 'skip-view') {
       return;
     }
-    const viewDate = new Date();
-    viewDate.setHours(0, 0, 0, 0);
+    const viewDate = shanghaiDate(new Date());
     try {
       await this.prisma.contentViewDay.create({
         data: { contentId, subjectHash, viewDate },

@@ -101,6 +101,12 @@ export async function consumeAiSse(
   }
   const decoder = new TextDecoder();
   let buffer = '';
+  let terminalReceived = false;
+  const dispatch = (payload: SsePayload) => {
+    if (terminalReceived) return;
+    terminalReceived = payload.type === 'DONE' || payload.type === 'ERROR';
+    onEvent(payload);
+  };
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -120,14 +126,15 @@ export async function consumeAiSse(
         buffer = next.rest;
         const payload = parseAiSseBlock(next.block);
         if (payload) {
-          onEvent(payload);
+          dispatch(payload);
         }
       }
     }
     const tail = parseAiSseBlock(buffer);
     if (tail) {
-      onEvent(tail);
+      dispatch(tail);
     }
+    if (!terminalReceived) throw new Error('AI 响应连接已中断，请重试');
   } catch (error) {
     await reader.cancel().catch(() => undefined);
     throw error;
@@ -543,10 +550,19 @@ export async function fetchAiMessages(sessionId: string) {
   if (!isLoggedIn()) {
     return [];
   }
-  const page = await request<{ list: AiMessage[] }>(
-    `/api/v1/app/ai/sessions/${sessionId}/messages`,
-  );
-  return page.list;
+  const messages: AiMessage[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await request<{ list: AiMessage[]; hasMore?: boolean; nextCursor?: string | null }>(
+      `/api/v1/app/ai/sessions/${sessionId}/messages`,
+      { params: cursor ? { cursor } : undefined },
+    );
+    messages.push(...page.list);
+    if (!page.hasMore) break;
+    if (!page.nextCursor || page.nextCursor === cursor) throw new Error('AI 历史分页游标异常');
+    cursor = page.nextCursor;
+  } while (cursor);
+  return messages;
 }
 
 export async function streamAiChat(input: {

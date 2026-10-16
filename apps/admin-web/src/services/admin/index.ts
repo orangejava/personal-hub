@@ -187,7 +187,7 @@ function nestMenusToConfig(trees: AdminMenuNode[]): AdminMenuConfig {
 }
 
 export async function fetchAdminDashboardStats() {
-  return request<AdminDashboardStats>('/api/admin/dashboard/stats');
+  return request<AdminDashboardStats>('/api/v1/admin/dashboard/overview');
 }
 
 export async function fetchAdminAiConfig() {

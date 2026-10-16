@@ -13,6 +13,7 @@ interface UseAiChatOptions {
   ensureSession?: () => Promise<string>;
   onMessagesChange?: (messages: AiMessage[], sessionId: string) => void;
   onComplete?: (messages: AiMessage[], tokenCount: number) => void;
+  onError?: (message: string) => void;
 }
 
 function isPlaceholderSessionId(sessionId?: string) {
@@ -37,12 +38,44 @@ function createMessage(
 }
 
 function messageListSignature(messages: AiMessage[]): string {
-  return messages
-    .map(
-      (message) =>
-        `${message.id}:${message.status}:${message.createdAt}:${message.feedback ?? ''}:${message.feedbackAt ?? ''}`,
-    )
-    .join('|');
+  return JSON.stringify(messages);
+}
+
+const MAX_CONCURRENT_CHATS = 3;
+
+interface ActiveChatRun {
+  assistantId: string;
+  serverMessageId?: string;
+  controller: AbortController;
+  scheduler: AiStreamRenderScheduler<SsePayload>;
+  stopRequested?: boolean;
+}
+
+/** 保留尚未入库的失败提问，且不让服务端未收尾的快照回退本地终态。 */
+function mergeHistory(local: AiMessage[], remote: AiMessage[]): AiMessage[] {
+  const byId = new Map(local.map((message) => [message.id, message]));
+  const merged = remote.map((message) => {
+    const previous = byId.get(message.id);
+    if (!previous) return message;
+    if (message.status === 'generating' && previous.status !== 'generating') return previous;
+    if (message.status === 'failed' && !message.content && previous.content) {
+      return { ...message, content: previous.content };
+    }
+    return message;
+  });
+  const remoteIds = new Set(remote.map((message) => message.id));
+  return [
+    ...merged,
+    ...local.filter((message) => message.id.startsWith('msg-') && !remoteIds.has(message.id)),
+  ];
+}
+
+/** 停止请求失败由全局请求层提示；保留流和名额，允许用户重试停止。 */
+function requestRunStop(run: ActiveChatRun) {
+  if (!run.serverMessageId) return;
+  void stopAiMessage(run.serverMessageId).catch(() => {
+    run.stopRequested = false;
+  });
 }
 
 /**
@@ -55,104 +88,140 @@ export function useAiChat({
   ensureSession,
   onMessagesChange,
   onComplete,
+  onError,
 }: UseAiChatOptions) {
   const [messages, setMessages] = useState<AiMessage[]>(initialMessages);
-  // SSE 回调可能连续到达，用 ref 保留最新快照，避免把副作用放进 state updater。
-  const messagesRef = useRef(initialMessages);
+  // 每条流只写自己的会话快照，切换视图不会改变流的归属。
+  const messagesBySessionRef = useRef(new Map<string, AiMessage[]>([[sessionId, initialMessages]]));
   const [boundSessionId, setBoundSessionId] = useState(sessionId);
-  const [streamingMessageId, setStreamingMessageId] = useState<string>();
-  const abortRef = useRef<AbortController | undefined>(undefined);
-  const serverMessageIdRef = useRef<string | undefined>(undefined);
-  const streamSessionIdRef = useRef(sessionId);
-  const streamRunRef = useRef(0);
-  const renderSchedulerRef = useRef<AiStreamRenderScheduler<SsePayload> | undefined>(undefined);
-  const lastInitialMessagesSignatureRef = useRef(messageListSignature(initialMessages));
+  const selectedSessionIdRef = useRef(sessionId);
+  const [, setActiveRevision] = useState(0);
+  const activeRunsRef = useRef(new Map<string, ActiveChatRun>());
+  const creatingSessionRef = useRef(false);
+  const creatingForSessionRef = useRef<string | undefined>(undefined);
+  const lifecycleRef = useRef(0);
+  const revisionsRef = useRef(new Map<string, number>());
+  const lastInitialMessagesSignatureRef = useRef(
+    new Map([[sessionId, messageListSignature(initialMessages)]]),
+  );
 
   const initialMessagesSignature = messageListSignature(initialMessages);
+  selectedSessionIdRef.current = sessionId;
 
-  // 切会话必须在渲染期清空气泡，等 effect 会闪一帧旧消息。
+  // 渲染期切换可避免闪现上一会话气泡；旧会话的流仍在后台继续。
   if (sessionId !== boundSessionId) {
-    // 首次创建会话会把占位 ID 替换成当前流的真实 ID，此时既不能取消流，也不能清空已生成的气泡。
-    const isInitialSessionBinding =
-      isPlaceholderSessionId(boundSessionId) && streamSessionIdRef.current === sessionId;
-    if (!isInitialSessionBinding) {
-      streamRunRef.current += 1;
-      renderSchedulerRef.current?.cancel();
-      renderSchedulerRef.current = undefined;
-      abortRef.current?.abort();
-      abortRef.current = undefined;
-      messagesRef.current = initialMessages;
-      setMessages(initialMessages);
-      setStreamingMessageId(undefined);
-      serverMessageIdRef.current = undefined;
-    }
+    const cached = messagesBySessionRef.current.get(sessionId);
+    const next = activeRunsRef.current.has(sessionId)
+      ? (cached ?? initialMessages)
+      : initialMessages.length
+        ? mergeHistory(cached ?? [], initialMessages)
+        : (cached ?? initialMessages);
+    messagesBySessionRef.current.set(sessionId, next);
+    setMessages(next);
     setBoundSessionId(sessionId);
-    streamSessionIdRef.current = sessionId;
-    lastInitialMessagesSignatureRef.current = initialMessagesSignature;
+    lastInitialMessagesSignatureRef.current.set(sessionId, initialMessagesSignature);
   }
 
   const commitMessages = useCallback(
     (targetSessionId: string, updater: AiMessage[] | ((current: AiMessage[]) => AiMessage[])) => {
-      const currentMessages = messagesRef.current;
+      const currentMessages = messagesBySessionRef.current.get(targetSessionId) ?? [];
       const nextMessages = typeof updater === 'function' ? updater(currentMessages) : updater;
-      messagesRef.current = nextMessages;
-      setMessages(nextMessages);
+      messagesBySessionRef.current.set(targetSessionId, nextMessages);
+      revisionsRef.current.set(
+        targetSessionId,
+        (revisionsRef.current.get(targetSessionId) ?? 0) + 1,
+      );
+      if (selectedSessionIdRef.current === targetSessionId) setMessages(nextMessages);
       onMessagesChange?.(nextMessages, targetSessionId);
       return nextMessages;
     },
     [onMessagesChange],
   );
 
-  const abortLocal = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = undefined;
-  }, []);
+  const getSessionRevision = useCallback((id: string) => revisionsRef.current.get(id) ?? 0, []);
+  const applyHistory = useCallback(
+    (id: string, remote: AiMessage[], revision: number) => {
+      // 请求期间即使生成已开始并结束，版本变化也能识别出过期快照。
+      if (activeRunsRef.current.has(id) || getSessionRevision(id) !== revision) return;
+      commitMessages(id, (local) => mergeHistory(local, remote));
+    },
+    [commitMessages, getSessionRevision],
+  );
+
+  const refreshActive = useCallback(() => setActiveRevision((current) => current + 1), []);
+  const isSessionGenerating = useCallback(
+    (targetSessionId: string) => activeRunsRef.current.has(targetSessionId),
+    [],
+  );
+  const activeRun = activeRunsRef.current.get(sessionId);
+  const isGenerating = Boolean(activeRun);
+  const isCreatingSession =
+    creatingSessionRef.current && creatingForSessionRef.current === sessionId;
 
   const sendMessage = useCallback(
     async (content: string) => {
+      const lifecycle = lifecycleRef.current;
       const normalized = content.trim();
-      if (!normalized || streamingMessageId) {
-        return;
+      if (
+        !normalized ||
+        activeRunsRef.current.has(sessionId) ||
+        (isPlaceholderSessionId(sessionId) && creatingSessionRef.current)
+      ) {
+        return false;
       }
-      let resolvedSessionId = sessionId;
+      if (activeRunsRef.current.size + Number(creatingSessionRef.current) >= MAX_CONCURRENT_CHATS) {
+        throw new Error('最多同时生成 3 条对话，请等待一条完成后重试');
+      }
+      let resolvedSessionId: string = sessionId;
       if (isPlaceholderSessionId(resolvedSessionId)) {
         if (!ensureSession) {
-          return;
+          throw new Error('无法创建对话，请刷新页面后重试');
         }
-        resolvedSessionId = await ensureSession();
-        messagesRef.current = [];
-        setMessages([]);
+        creatingSessionRef.current = true;
+        creatingForSessionRef.current = sessionId;
+        refreshActive();
+        try {
+          resolvedSessionId = await ensureSession();
+        } finally {
+          creatingSessionRef.current = false;
+          creatingForSessionRef.current = undefined;
+          if (lifecycleRef.current === lifecycle) refreshActive();
+        }
+        if (lifecycleRef.current !== lifecycle) return false;
+        messagesBySessionRef.current.set(resolvedSessionId, []);
       }
-      streamSessionIdRef.current = resolvedSessionId;
       const userMessage = createMessage(resolvedSessionId, 'user', normalized);
       const assistant = createMessage(resolvedSessionId, 'assistant', '', 'generating');
-      const streamRun = streamRunRef.current + 1;
-      streamRunRef.current = streamRun;
       commitMessages(resolvedSessionId, (current) => [...current, userMessage, assistant]);
-      serverMessageIdRef.current = undefined;
-      setStreamingMessageId(assistant.id);
       const controller = new AbortController();
-      abortRef.current = controller;
-      const scheduler = createAiStreamRenderScheduler<SsePayload>(
+      const run = {} as ActiveChatRun;
+      run.assistantId = assistant.id;
+      run.controller = controller;
+      run.scheduler = createAiStreamRenderScheduler<SsePayload>(
         (chunk) => {
-          if (streamRunRef.current !== streamRun) return;
+          if (activeRunsRef.current.get(resolvedSessionId) !== run) return;
           commitMessages(resolvedSessionId, (current) =>
             current.map((item) =>
-              item.id === (serverMessageIdRef.current ?? assistant.id)
+              item.id === (run.serverMessageId ?? assistant.id)
                 ? { ...item, content: `${item.content}${chunk}` }
                 : item,
             ),
           );
         },
         (event) => {
-          if (streamRunRef.current !== streamRun) return;
+          if (activeRunsRef.current.get(resolvedSessionId) !== run) return;
           const tokenCount = (event.usage?.inputTokens ?? 0) + (event.usage?.outputTokens ?? 0);
           const next = commitMessages(resolvedSessionId, (current) =>
             current.map((item) =>
-              item.id === (serverMessageIdRef.current ?? assistant.id)
+              item.id === (run.serverMessageId ?? assistant.id)
                 ? {
                     ...item,
-                    status: event.type === 'ERROR' ? ('failed' as const) : ('done' as const),
+                    status:
+                      event.type === 'ERROR'
+                        ? 'failed'
+                        : event.status === 'stopped'
+                          ? 'stopped'
+                          : 'done',
                     tokenCount,
                     content:
                       event.type === 'ERROR' && !item.content
@@ -163,27 +232,30 @@ export function useAiChat({
                 : item,
             ),
           );
+          activeRunsRef.current.delete(resolvedSessionId);
+          refreshActive();
           if (event.code !== 'AI_STREAM_CLIENT_FAILED') {
-            onComplete?.(next, tokenCount);
+            void Promise.resolve()
+              .then(() => onComplete?.(next, tokenCount))
+              .catch(() => undefined);
           }
-          renderSchedulerRef.current = undefined;
-          setStreamingMessageId(undefined);
-          streamRunRef.current += 1;
         },
       );
-      renderSchedulerRef.current = scheduler;
+      activeRunsRef.current.set(resolvedSessionId, run);
+      refreshActive();
       void streamAiChat({
         sessionId: resolvedSessionId,
         content: normalized,
         modelId,
         signal: controller.signal,
         onEvent: (event) => {
-          if (streamRunRef.current !== streamRun) return;
+          if (activeRunsRef.current.get(resolvedSessionId) !== run) return;
           if (event.type === 'STARTED') {
             const assistantMessageId = event.assistantMessageId;
             if (assistantMessageId) {
-              serverMessageIdRef.current = assistantMessageId;
-              setStreamingMessageId(assistantMessageId);
+              run.serverMessageId = assistantMessageId;
+              if (run.stopRequested) requestRunStop(run);
+              refreshActive();
             }
             commitMessages(resolvedSessionId, (current) =>
               current.map((item) => {
@@ -198,48 +270,40 @@ export function useAiChat({
             );
           }
           if (event.type === 'DELTA' && event.content) {
-            scheduler.enqueue(event.content);
+            run.scheduler.enqueue(event.content);
           }
           if (event.type === 'DONE' || event.type === 'ERROR') {
-            scheduler.finish(event);
+            run.scheduler.finish(event);
           }
         },
       }).catch((error: unknown) => {
-        if (streamRunRef.current !== streamRun) return;
-        scheduler.finish({
+        if (activeRunsRef.current.get(resolvedSessionId) !== run) return;
+        run.scheduler.finish({
           type: 'ERROR',
           message: error instanceof Error ? error.message : '生成失败',
           code: 'AI_STREAM_CLIENT_FAILED',
         });
       });
+      return true;
     },
-    [commitMessages, ensureSession, modelId, onComplete, sessionId, streamingMessageId],
+    [commitMessages, ensureSession, modelId, onComplete, refreshActive, sessionId],
   );
 
   const stopGenerating = useCallback(() => {
-    const messageId = serverMessageIdRef.current ?? streamingMessageId;
-    renderSchedulerRef.current?.flush();
-    renderSchedulerRef.current?.cancel();
-    renderSchedulerRef.current = undefined;
-    streamRunRef.current += 1;
-    abortLocal();
-    if (messageId && !messageId.startsWith('msg-')) {
-      void stopAiMessage(messageId);
-    }
-    commitMessages(streamSessionIdRef.current ?? sessionId, (current) =>
-      current.map((message) =>
-        message.id === messageId || message.id === streamingMessageId
-          ? { ...message, status: 'stopped' }
-          : message,
-      ),
-    );
-    setStreamingMessageId(undefined);
-  }, [abortLocal, commitMessages, sessionId, streamingMessageId]);
+    const run = activeRunsRef.current.get(sessionId);
+    if (!run || run.stopRequested) return;
+    run.scheduler.flush();
+    if (activeRunsRef.current.get(sessionId) !== run) return;
+    // STARTED 前先记下停止意图；收到真实 ID 后再请求服务端停止。
+    run.stopRequested = true;
+    requestRunStop(run);
+  }, [sessionId]);
 
   const regenerate = useCallback(
     (messageId?: string) => {
-      if (streamingMessageId) {
-        return;
+      if (activeRunsRef.current.has(sessionId)) return;
+      if (activeRunsRef.current.size + Number(creatingSessionRef.current) >= MAX_CONCURRENT_CHATS) {
+        throw new Error('最多同时生成 3 条对话，请等待一条完成后重试');
       }
       const lastAssistant = messageId
         ? messages.find((item) => item.id === messageId && item.role === 'assistant')
@@ -247,63 +311,74 @@ export function useAiChat({
       if (!lastAssistant || lastAssistant.id.startsWith('msg-')) {
         return;
       }
-      const regenerateSessionId =
-        lastAssistant.sessionId || streamSessionIdRef.current || sessionId;
-      streamSessionIdRef.current = regenerateSessionId;
-      const streamRun = streamRunRef.current + 1;
-      streamRunRef.current = streamRun;
+      const regenerateSessionId = lastAssistant.sessionId || sessionId;
       commitMessages(regenerateSessionId, (current) =>
         current.map((item) =>
           item.id === lastAssistant.id ? { ...item, content: '', status: 'generating' } : item,
         ),
       );
-      serverMessageIdRef.current = undefined;
-      setStreamingMessageId(lastAssistant.id);
       const controller = new AbortController();
-      abortRef.current = controller;
-      const scheduler = createAiStreamRenderScheduler<SsePayload>(
+      const run = {} as ActiveChatRun;
+      run.assistantId = lastAssistant.id;
+      run.controller = controller;
+      run.scheduler = createAiStreamRenderScheduler<SsePayload>(
         (chunk) => {
-          if (streamRunRef.current !== streamRun) return;
+          if (activeRunsRef.current.get(regenerateSessionId) !== run) return;
           commitMessages(regenerateSessionId, (current) =>
             current.map((item) =>
-              item.id === (serverMessageIdRef.current ?? lastAssistant.id)
+              item.id === (run.serverMessageId ?? lastAssistant.id)
                 ? { ...item, content: `${item.content}${chunk}` }
                 : item,
             ),
           );
         },
         (event) => {
-          if (streamRunRef.current !== streamRun) return;
-          commitMessages(regenerateSessionId, (current) =>
+          if (activeRunsRef.current.get(regenerateSessionId) !== run) return;
+          const next = commitMessages(regenerateSessionId, (current) =>
             current.map((item) =>
-              item.id === (serverMessageIdRef.current ?? lastAssistant.id)
+              item.id === (run.serverMessageId ?? lastAssistant.id)
                 ? {
                     ...item,
-                    status: event.type === 'ERROR' ? 'failed' : 'done',
+                    status:
+                      event.type === 'ERROR'
+                        ? 'failed'
+                        : event.status === 'stopped'
+                          ? 'stopped'
+                          : 'done',
                     content:
-                      event.type === 'ERROR' && !item.content
-                        ? (event.message ?? event.code ?? '生成失败')
-                        : item.content,
+                      event.type === 'ERROR' && !run.serverMessageId
+                        ? lastAssistant.content
+                        : event.type === 'ERROR' && !item.content
+                          ? (event.message ?? event.code ?? '生成失败')
+                          : item.content,
                     errorCode: event.type === 'ERROR' ? event.code : undefined,
                   }
                 : item,
             ),
           );
-          renderSchedulerRef.current = undefined;
-          setStreamingMessageId(undefined);
-          streamRunRef.current += 1;
+          activeRunsRef.current.delete(regenerateSessionId);
+          refreshActive();
+          if (event.type === 'ERROR') onError?.(event.message ?? '重新生成失败，请稍后重试');
+          if (event.code !== 'AI_STREAM_CLIENT_FAILED') {
+            const tokens = (event.usage?.inputTokens ?? 0) + (event.usage?.outputTokens ?? 0);
+            void Promise.resolve()
+              .then(() => onComplete?.(next, tokens))
+              .catch(() => undefined);
+          }
         },
       );
-      renderSchedulerRef.current = scheduler;
+      activeRunsRef.current.set(regenerateSessionId, run);
+      refreshActive();
       void regenerateAiMessage(
         lastAssistant.id,
         (event) => {
-          if (streamRunRef.current !== streamRun) return;
+          if (activeRunsRef.current.get(regenerateSessionId) !== run) return;
           if (event.type === 'STARTED') {
             const assistantMessageId = event.assistantMessageId;
             if (assistantMessageId) {
-              serverMessageIdRef.current = assistantMessageId;
-              setStreamingMessageId(assistantMessageId);
+              run.serverMessageId = assistantMessageId;
+              if (run.stopRequested) requestRunStop(run);
+              refreshActive();
             }
             if (assistantMessageId && assistantMessageId !== lastAssistant.id) {
               commitMessages(regenerateSessionId, (current) =>
@@ -314,53 +389,52 @@ export function useAiChat({
             }
           }
           if (event.type === 'DELTA' && event.content) {
-            scheduler.enqueue(event.content);
+            run.scheduler.enqueue(event.content);
           }
           if (event.type === 'DONE' || event.type === 'ERROR') {
-            scheduler.finish(event);
+            run.scheduler.finish(event);
           }
         },
         controller.signal,
       ).catch((error: unknown) => {
-        if (streamRunRef.current !== streamRun) return;
-        scheduler.finish({
+        if (activeRunsRef.current.get(regenerateSessionId) !== run) return;
+        run.scheduler.finish({
           type: 'ERROR',
           message: error instanceof Error ? error.message : '生成失败',
           code: 'AI_STREAM_CLIENT_FAILED',
         });
       });
     },
-    [commitMessages, messages, sessionId, streamingMessageId],
+    [commitMessages, messages, onComplete, onError, refreshActive, sessionId],
   );
 
-  // 这里只处理组件卸载；会话切换由上面的 sessionId 分支精确判断，避免首次绑定误杀新流。
+  // 离开页面才关闭当前页面持有的流；会话切换不触发清理。
   useEffect(() => {
     return () => {
-      streamRunRef.current += 1;
-      renderSchedulerRef.current?.cancel();
-      renderSchedulerRef.current = undefined;
-      abortLocal();
+      lifecycleRef.current += 1;
+      for (const run of activeRunsRef.current.values()) {
+        run.scheduler.cancel();
+        run.controller.abort();
+      }
+      activeRunsRef.current.clear();
     };
-  }, [abortLocal]);
+  }, []);
 
   useEffect(() => {
-    if (streamingMessageId) {
-      return;
-    }
-    if (boundSessionId !== sessionId) {
-      return;
-    }
-    if (lastInitialMessagesSignatureRef.current === initialMessagesSignature) {
-      return;
-    }
-    lastInitialMessagesSignatureRef.current = initialMessagesSignature;
-    messagesRef.current = initialMessages;
+    if (activeRunsRef.current.has(sessionId) || boundSessionId !== sessionId) return;
+    if (lastInitialMessagesSignatureRef.current.get(sessionId) === initialMessagesSignature) return;
+    lastInitialMessagesSignatureRef.current.set(sessionId, initialMessagesSignature);
+    messagesBySessionRef.current.set(sessionId, initialMessages);
     setMessages(initialMessages);
-  }, [boundSessionId, initialMessages, initialMessagesSignature, sessionId, streamingMessageId]);
+  }, [boundSessionId, initialMessages, initialMessagesSignature, sessionId]);
 
   return {
     messages,
-    isGenerating: Boolean(streamingMessageId),
+    isCreatingSession,
+    isGenerating,
+    isSessionGenerating,
+    getSessionRevision,
+    applyHistory,
     sendMessage,
     stopGenerating,
     regenerate,

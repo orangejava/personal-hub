@@ -89,9 +89,10 @@ export class AiRuntimeService {
     );
   }
 
-  async acquireConversation(conversationId: string): Promise<void> {
+  async acquireConversation(conversationId: string): Promise<string> {
     const key = `ai:conversation:${conversationId}`;
-    const ok = await this.redis.getClient().set(key, '1', 'EX', 120, 'NX');
+    const token = randomUUID();
+    const ok = await this.redis.getClient().set(key, token, 'EX', 120, 'NX');
     if (ok !== 'OK') {
       throw new DomainHttpException(
         HttpStatus.CONFLICT,
@@ -99,10 +100,31 @@ export class AiRuntimeService {
         '该会话已有生成进行中',
       );
     }
+    return token;
   }
 
-  async releaseConversation(conversationId: string): Promise<void> {
-    await this.redis.del(`ai:conversation:${conversationId}`);
+  /** 续租和释放都校验持有者，避免过期的旧请求误删新请求的锁。 */
+  async renewConversation(conversationId: string, token: string): Promise<void> {
+    const renewed = await this.redis
+      .getClient()
+      .eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], 120) end return 0",
+        1,
+        `ai:conversation:${conversationId}`,
+        token,
+      );
+    if (renewed !== 1) throw new Error('AI_CONVERSATION_LOCK_LOST');
+  }
+
+  async releaseConversation(conversationId: string, token: string): Promise<void> {
+    await this.redis
+      .getClient()
+      .eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+        1,
+        `ai:conversation:${conversationId}`,
+        token,
+      );
   }
 
   async hitRateLimit(key: string, limit: number, windowSeconds: number): Promise<void> {

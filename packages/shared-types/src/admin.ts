@@ -87,7 +87,7 @@ export interface AdminFileRecord {
 export interface AdminDashboardStats {
   contentTotal: number;
   userTotal: number;
-  visitToday: number;
+  contentReadersToday: number;
   publishedThisWeek: number;
 }
 
