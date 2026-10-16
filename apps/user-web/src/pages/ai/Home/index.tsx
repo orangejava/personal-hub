@@ -14,6 +14,7 @@ import { AiPageHeader, AiTemplateCard } from '@/components/ai';
 import AiLayout from '@/layouts/AiLayout';
 import { fetchAiHome } from '@/services/ai';
 import ResultState from '@/components/shared/ResultState';
+import SiteFiling from '@/components/shared/SiteFiling';
 
 const toolStatusMeta: Record<AiToolStatus, { color: string; text: string }> = {
   enabled: { color: 'blue', text: '可用' },
@@ -275,6 +276,7 @@ const AiHome: React.FC = () => {
           </Card>
         </>
       )}
+      <SiteFiling />
     </AiLayout>
   );
 };

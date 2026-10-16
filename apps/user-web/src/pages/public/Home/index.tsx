@@ -4,6 +4,7 @@ import { MotionRoot } from '@/components/motion';
 import { useDocumentGrows } from '@/hooks/useDocumentGrows';
 import { useViewportBand } from '@/hooks/useViewportBand';
 import PublicLayout from '@/layouts/PublicLayout';
+import SiteFiling from '@/components/shared/SiteFiling';
 import {
   DEFAULT_AI_TOOLS,
   DEFAULT_TECH_STACK,
@@ -98,6 +99,7 @@ const Home: React.FC = () => {
           <HomeBlock minHeight={220}>
             <EndingSection />
           </HomeBlock>
+          <SiteFiling />
         </div>
       </MotionRoot>
     </PublicLayout>

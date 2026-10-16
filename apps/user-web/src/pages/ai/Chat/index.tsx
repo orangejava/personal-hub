@@ -82,9 +82,7 @@ const AiChatPage: React.FC = () => {
     deleteSession,
     updateCurrentMessages,
     updateMessagesForSession,
-    syncSessionAfterMessagesChange,
     syncSessionAfterMessagesChangeFor,
-    setSessionMessages,
   } = useAiChatSessions({
     initialSessions,
     initialMessages: EMPTY_CHAT_MESSAGES,
@@ -158,7 +156,9 @@ const AiChatPage: React.FC = () => {
 
   const handleCreateSessionFromHistory = () => {
     setConversationDrawerOpen(false);
-    void handleCreateSession();
+    void handleCreateSession().catch((error: unknown) => {
+      messageApi.error(error instanceof Error ? error.message : '创建对话失败，请稍后重试');
+    });
   };
 
   const handleSelectSession = (sessionId: string) => {
@@ -167,13 +167,24 @@ const AiChatPage: React.FC = () => {
   };
 
   const handleDeleteSession = (sessionId: string, title: string) => {
+    if (isSessionGenerating(sessionId)) {
+      messageApi.info('该对话仍在生成，请停止或等待完成后再删除');
+      return;
+    }
+    const confirmDelete = async () => {
+      if (isSessionGenerating(sessionId)) {
+        messageApi.info('该对话仍在生成，请停止或等待完成后再删除');
+        throw new Error('会话仍在生成');
+      }
+      await deleteSession(sessionId);
+    };
     modal.confirm({
       title: '删除对话',
       content: `确定删除“${title}”吗？`,
       okText: '删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
-      onOk: () => deleteSession(sessionId),
+      onOk: confirmDelete,
     });
   };
 
@@ -191,7 +202,17 @@ const AiChatPage: React.FC = () => {
     },
     [consumeQuota],
   );
-  const { messages, isGenerating, sendMessage, stopGenerating, regenerate } = useAiChat({
+  const {
+    messages,
+    isCreatingSession,
+    isGenerating,
+    isSessionGenerating,
+    getSessionRevision,
+    applyHistory,
+    sendMessage,
+    stopGenerating,
+    regenerate,
+  } = useAiChat({
     initialMessages: currentMessages,
     sessionId: currentSessionId,
     modelId: activeModelId,
@@ -200,6 +221,7 @@ const AiChatPage: React.FC = () => {
     ensureSession: handleCreateSession,
     onMessagesChange: handleMessagesChange,
     onComplete: handleChatComplete,
+    onError: (text) => messageApi.error(text),
   });
   const authRestoreFailed = Boolean(initialState?.sessionRestoreFailed);
   const isAuthenticated = Boolean(initialState?.currentUser);
@@ -282,7 +304,7 @@ const AiChatPage: React.FC = () => {
   }, []);
 
   const submitMessage = useCallback(
-    (message: string) => {
+    async (message: string) => {
       if (guestBlocked) {
         setGuestPrompt((current) => current + 1);
         return;
@@ -299,10 +321,16 @@ const AiChatPage: React.FC = () => {
               .map((attachment) => `${attachment.name}（${attachment.typeLabel}）`)
               .join('、')}\n\n`
           : '';
-      sendMessage(`${referencePrefix}${attachmentPrefix}${normalized}`);
-      setValue('');
+      try {
+        const accepted = await sendMessage(`${referencePrefix}${attachmentPrefix}${normalized}`);
+        if (accepted) {
+          setValue((current) => (current === message ? '' : current));
+        }
+      } catch (error) {
+        messageApi.error(error instanceof Error ? error.message : '发送失败，请稍后重试');
+      }
     },
-    [attachments, guestBlocked, references, sendMessage],
+    [attachments, guestBlocked, messageApi, references, sendMessage],
   );
 
   const clearComposer = useCallback(() => {
@@ -322,7 +350,11 @@ const AiChatPage: React.FC = () => {
       setGuestPrompt((current) => current + 1);
       return;
     }
-    regenerate(messageId);
+    try {
+      regenerate(messageId);
+    } catch (error) {
+      messageApi.error(error instanceof Error ? error.message : '重新生成失败，请稍后重试');
+    }
   };
 
   useEffect(() => {
@@ -359,22 +391,17 @@ const AiChatPage: React.FC = () => {
   }, [quotedContent]);
 
   useEffect(() => {
-    if (!currentSessionId || !isLoggedIn()) {
+    if (!currentSessionId || !isLoggedIn() || isSessionGenerating(currentSessionId)) {
       setMessagesLoading(false);
       return;
     }
     let cancelled = false;
+    const revision = getSessionRevision(currentSessionId);
     setMessagesLoading(true);
     fetchAiMessages(currentSessionId)
       .then((res) => {
-        if (cancelled) return;
-        const nextMessages = res ?? [];
-        // 新建会话后立刻发送时，服务端消息还是空的，不能把本地气泡盖掉。
-        if (nextMessages.length === 0) {
-          return;
-        }
-        setSessionMessages(currentSessionId, nextMessages);
-        syncSessionAfterMessagesChange(nextMessages);
+        if (cancelled || isSessionGenerating(currentSessionId)) return;
+        applyHistory(currentSessionId, res ?? [], revision);
       })
       .catch(() => {
         // 全局请求层已负责错误提示；这里仅避免 effect 里留下未处理 Promise。
@@ -385,7 +412,7 @@ const AiChatPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [currentSessionId, setSessionMessages, syncSessionAfterMessagesChange]);
+  }, [currentSessionId, isGenerating, isSessionGenerating, getSessionRevision, applyHistory]);
 
   const messageAutoScrollKey = useMemo(
     () =>
@@ -533,7 +560,7 @@ const AiChatPage: React.FC = () => {
         composer={
           <div className="ph-ai-sender-bar">
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-              <AiGenerationStatus active={isGenerating} />
+              <AiGenerationStatus active={isCreatingSession || isGenerating} />
               {!modelState.loading && !modelState.error && !modelState.hasModels && (
                 <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用对话模型" />
               )}
@@ -562,7 +589,7 @@ const AiChatPage: React.FC = () => {
                   ) : undefined
                 }
                 loading={isGenerating}
-                submitDisabled={submitDisabled}
+                submitDisabled={submitDisabled || isCreatingSession}
                 model={{
                   value: activeModelId,
                   options: modelState.options,

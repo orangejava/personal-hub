@@ -854,7 +854,7 @@ export function getDashboardStats(): AdminDashboardStats {
   return {
     contentTotal: 128,
     userTotal: adminUsers.length,
-    visitToday: 342,
+    contentReadersToday: 342,
     publishedThisWeek: 6,
   };
 }

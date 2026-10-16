@@ -30,6 +30,7 @@
 - [features/nest-ai-domain.md](./features/nest-ai-domain.md)：AI 额度预占、SSE 停止、导航配置、鉴权媒体与 OpenAI 适配层。
 - [features/ai-provider-credential-transport.md](./features/ai-provider-credential-transport.md)：AI Provider Key 请求加密、落库加密与验证。
 - [features/ai-chat-sse-boundaries.md](./features/ai-chat-sse-boundaries.md)：AI 对话 SSE 接收、前端分帧渲染与故障定位。
+- [features/admin-aggregation-and-ai-first-send.md](./features/admin-aggregation-and-ai-first-send.md)：后台聚合统计口径、上海日期与 AI 首次发送失败处理。
 - [features/nest-review-remediation-concurrency.md](./features/nest-review-remediation-concurrency.md)：正式 Review 中的并发、任务租约、幂等和内容权限修复。
 - [features/user-web-mobile-responsive.md](./features/user-web-mobile-responsive.md)：用户端响应式布局、移动端导航与小册阅读器适配。
 - [features/performance-dashboard.md](./features/performance-dashboard.md)：本机性能面板、两套统计窗口和入口包边界。

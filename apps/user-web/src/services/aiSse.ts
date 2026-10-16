@@ -7,6 +7,7 @@ export interface SsePayload {
   assistantMessageId?: string;
   code?: string;
   message?: string;
+  status?: 'done' | 'stopped';
   usage?: { inputTokens?: number; outputTokens?: number; platformCost?: number };
 }
 

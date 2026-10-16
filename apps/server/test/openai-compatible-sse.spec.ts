@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
-import { parseOpenAiSseBlock } from '../src/modules/ai/providers/openai-compatible-text.provider';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  OpenAiCompatibleTextProvider,
+  parseOpenAiSseBlock,
+} from '../src/modules/ai/providers/openai-compatible-text.provider';
 
 describe('OpenAI 兼容 SSE 解析', () => {
   it('解析增量文本', () => {
@@ -48,5 +51,61 @@ describe('OpenAI 兼容 SSE 解析', () => {
     expect(() => parseOpenAiSseBlock('data: {"error":{"message":"rate limited"}}')).toThrow(
       'AI_UPSTREAM_ERROR',
     );
+  });
+});
+
+describe('OpenAI 兼容流终态', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('上游 EOF 缺少 DONE 时不会把半条回复当成功', async () => {
+    const encoder = new TextEncoder();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                encoder.encode('data: {"choices":[{"delta":{"content":"半条回复"}}]}\n\n'),
+              );
+              controller.close();
+            },
+          }),
+        ),
+      ),
+    );
+    const config = {
+      get: (key: string) =>
+        key === 'AI_OPENAI_TIMEOUT_MS'
+          ? 1000
+          : key === 'AI_OPENAI_API_KEY'
+            ? 'test-key'
+            : undefined,
+    };
+    const credentials = {
+      resolveSystemSecret: vi.fn().mockResolvedValue({
+        apiKey: 'test-key',
+        baseUrl: 'https://example.com/v1',
+        timeoutMs: 1000,
+      }),
+    };
+    const provider = new OpenAiCompatibleTextProvider(
+      config as never,
+      credentials as never,
+      {} as never,
+    );
+    const received: string[] = [];
+    const consume = async () => {
+      for await (const chunk of provider.stream({
+        providerId: 'provider',
+        providerCode: 'openai-compatible',
+        modelKey: 'test',
+        messages: [{ role: 'user', content: 'test' }],
+        signal: new AbortController().signal,
+      }))
+        received.push(chunk.content);
+    };
+    await expect(consume()).rejects.toThrow('AI_UPSTREAM_STREAM_INTERRUPTED');
+    expect(received).toEqual(['半条回复']);
   });
 });

@@ -876,6 +876,7 @@ model ContentViewDay {
   content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@id([contentId, subjectHash, viewDate])
+  @@index([viewDate, subjectHash])
   @@map("content_view_days")
 }
 

@@ -7,6 +7,7 @@ import {
   AiFinishReason,
   AiGenerationJobStatus,
   AiMessageRole,
+  type AiMessage as DbAiMessage,
   AiMessageStatus,
   AiModality,
   AiNavStatus,
@@ -354,11 +355,24 @@ export class AiService {
 
   async deleteSession(owner: { type: AiOwnerType; id: string }, sessionId: string) {
     await this.requireSession(owner, sessionId);
-    await this.prisma.aiConversation.update({
-      where: { id: sessionId },
-      data: { deletedAt: new Date() },
-    });
-    return { id: sessionId, deleted: true };
+    const token = await this.runtime.acquireConversation(sessionId);
+    try {
+      const session = await this.requireSession(owner, sessionId);
+      if (session.activeMessageId) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_GENERATION_IN_PROGRESS',
+          '该对话仍在生成，请停止或等待完成后再删除',
+        );
+      }
+      await this.prisma.aiConversation.update({
+        where: { id: sessionId },
+        data: { deletedAt: new Date() },
+      });
+      return { id: sessionId, deleted: true };
+    } finally {
+      await this.runtime.releaseConversation(sessionId, token);
+    }
   }
 
   async listMessages(owner: { type: AiOwnerType; id: string }, sessionId: string, cursor?: string) {
@@ -367,12 +381,17 @@ export class AiService {
       where: {
         conversationId: sessionId,
         isCurrentVariant: true,
-        ...(cursor ? { id: { lt: cursor } } : {}),
       },
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-      take: 100,
+      take: 101,
     });
-    return { list: list.map(mapMessage), nextCursor: null, hasMore: false };
+    const page = list.slice(0, 100);
+    return {
+      list: page.map(mapMessage),
+      nextCursor: list.length > 100 ? page.at(-1)!.id : null,
+      hasMore: list.length > 100,
+    };
   }
 
   async streamChat(input: {
@@ -383,10 +402,12 @@ export class AiService {
     response: Response;
     ipHash?: string;
     toolCode?: AiToolCode;
+    /** 内部重新生成入口：复用原问题，直到新消息事务提交才隐藏旧回答。 */
+    regenerateFrom?: { assistantId: string; userMessageId: string };
   }) {
     const toolCode = input.toolCode ?? AiToolCode.CHAT;
     await this.assertToolAvailable(toolCode, input.owner);
-    const session = await this.requireSession(input.owner, input.sessionId);
+    let session = await this.requireSession(input.owner, input.sessionId);
     if (session.activeMessageId) {
       throw new DomainHttpException(
         HttpStatus.CONFLICT,
@@ -401,7 +422,7 @@ export class AiService {
         '访客输入最多 2000 字',
       );
     }
-    await this.runtime.acquireConversation(session.id);
+    const conversationToken = await this.runtime.acquireConversation(session.id);
     let assistantId = '';
     let userSlotAcquired = false;
     let userSlotToken: string | undefined;
@@ -411,6 +432,48 @@ export class AiService {
     let messageFinalized = false;
     let providerStreamCompleted = false;
     let reservationId: string | undefined;
+    let originalMessage: DbAiMessage | null = null;
+    // 离页/断网会关闭响应；普通切换会话保持 SSE 连接，不会触发这里。
+    const stopDisconnectedRun = () => {
+      if (!input.response.writableEnded && assistantId) {
+        void this.runtime.requestStop(assistantId).catch((error: unknown) => {
+          this.logger.warn(`断连停止失败 ${assistantId}: ${String(error)}`);
+        });
+      }
+    };
+    input.response.on('close', stopDisconnectedRun);
+    const conversationHeartbeat = setInterval(() => {
+      void this.runtime.renewConversation(session.id, conversationToken).catch((error: unknown) => {
+        this.logger.warn(`会话锁续租失败 ${session.id}: ${String(error)}`);
+        if (assistantId) void this.runtime.requestStop(assistantId).catch(() => undefined);
+      });
+    }, 60_000);
+    let resourcesReleased = false;
+    // 先释放服务端名额再发终态，避免客户端立即重试遇到上一条尚未释放的锁。
+    const releaseResources = async () => {
+      if (resourcesReleased) return;
+      resourcesReleased = true;
+      input.response.off('close', stopDisconnectedRun);
+      clearInterval(conversationHeartbeat);
+      this.runtime.finish(assistantId);
+      if (userSlotHeartbeat) {
+        clearInterval(userSlotHeartbeat);
+      }
+      const cleanup = [this.runtime.releaseConversation(session.id, conversationToken)];
+      if (input.owner.userId && userSlotAcquired && userSlotToken) {
+        cleanup.push(this.runtime.releaseUserSlot(input.owner.userId, userSlotToken));
+      }
+      const results = await Promise.allSettled(cleanup);
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          this.logger.error(
+            `Chat 运行时资源清理失败 ${assistantId || session.id}: ${
+              result.reason instanceof Error ? result.reason.message : result.reason
+            }`,
+          );
+        }
+      }
+    };
     let failureContext:
       | {
           userMessageId: string;
@@ -419,6 +482,31 @@ export class AiService {
         }
       | undefined;
     try {
+      // 删除与发送共用锁；必须拿锁后重新确认，不能使用等待前的未删除快照。
+      session = await this.requireSession(input.owner, input.sessionId);
+      if (session.activeMessageId) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_GENERATION_IN_PROGRESS',
+          '该会话已有生成进行中',
+        );
+      }
+      if (input.regenerateFrom) {
+        originalMessage = await this.prisma.aiMessage.findFirst({
+          where: {
+            id: input.regenerateFrom.assistantId,
+            conversationId: session.id,
+            isCurrentVariant: true,
+          },
+        });
+        if (!originalMessage)
+          throw new DomainHttpException(
+            HttpStatus.CONFLICT,
+            'AI_VARIANT_CHANGED',
+            '该回答已被替换，请刷新后重试',
+          );
+      }
+      if (input.response.destroyed) return;
       if (input.owner.userId) {
         const ent = await this.entitlement(input.owner.userId);
         userSlotToken = await this.runtime.acquireUserSlot(input.owner.userId, ent.maxConcurrent);
@@ -469,35 +557,68 @@ export class AiService {
           )
         : null;
       const { userMessage, assistant } = await this.prisma.$transaction(async (tx) => {
-        const userMessage = await tx.aiMessage.create({
-          data: {
-            conversationId: session.id,
-            role: AiMessageRole.USER,
-            status: AiMessageStatus.DONE,
-            content: input.body.content,
-            inputTokens: estimatedInputTokens,
-            requestId: input.requestId,
-            references: excerpt
-              ? {
-                  create: {
-                    contentId: input.body.contentId,
-                    titleSnapshot: excerpt.title,
-                    excerptSnapshot: excerpt.excerpt,
-                  },
-                }
-              : undefined,
-          },
-        });
+        const userMessage = input.regenerateFrom
+          ? await tx.aiMessage.findUniqueOrThrow({
+              where: { id: input.regenerateFrom.userMessageId },
+            })
+          : await tx.aiMessage.create({
+              data: {
+                conversationId: session.id,
+                role: AiMessageRole.USER,
+                status: AiMessageStatus.DONE,
+                content: input.body.content,
+                inputTokens: estimatedInputTokens,
+                requestId: input.requestId,
+                references: excerpt
+                  ? {
+                      create: {
+                        contentId: input.body.contentId,
+                        titleSnapshot: excerpt.title,
+                        excerptSnapshot: excerpt.excerpt,
+                      },
+                    }
+                  : undefined,
+              },
+            });
         const assistant = await tx.aiMessage.create({
           data: {
             conversationId: session.id,
             role: AiMessageRole.ASSISTANT,
+            parentMessageId: userMessage.id,
             status: AiMessageStatus.STREAMING,
             modelId: model.id,
             modelKeySnapshot: model.modelKey,
             reservationId,
             requestId: input.requestId,
-            variantGroupId: undefined,
+            variantGroupId: originalMessage
+              ? (originalMessage.variantGroupId ?? originalMessage.id)
+              : undefined,
+            // 变体沿用原回答的位置，刷新后仍紧随原问题，不移动到对话末尾。
+            createdAt: new Date(
+              Math.max(
+                originalMessage?.createdAt.getTime() ?? 0,
+                userMessage.createdAt.getTime() + 1,
+              ),
+            ),
+          },
+        });
+        if (input.regenerateFrom) {
+          await tx.aiMessage.update({
+            where: { id: input.regenerateFrom.assistantId },
+            data: { isCurrentVariant: false },
+          });
+        }
+        await tx.aiConversation.update({
+          where: { id: session.id },
+          data: {
+            activeMessageId: assistant.id,
+            messageCount: { increment: input.regenerateFrom ? 0 : 2 },
+            lastMessageAt: new Date(),
+            lastMessagePreview: input.body.content.slice(0, 200),
+            title:
+              session.titleSource === AiTitleSource.AUTO && session.messageCount === 0
+                ? input.body.content.slice(0, 20)
+                : undefined,
           },
         });
         return { userMessage, assistant };
@@ -508,19 +629,6 @@ export class AiService {
         assistantMessageId: assistant.id,
         reservationId,
       };
-      await this.prisma.aiConversation.update({
-        where: { id: session.id },
-        data: {
-          activeMessageId: assistant.id,
-          messageCount: { increment: 2 },
-          lastMessageAt: new Date(),
-          lastMessagePreview: input.body.content.slice(0, 200),
-          title:
-            session.titleSource === AiTitleSource.AUTO && session.messageCount === 0
-              ? input.body.content.slice(0, 20)
-              : undefined,
-        },
-      });
       beginSse(input.response);
       streamStarted = true;
       writeSse(input.response, {
@@ -531,42 +639,53 @@ export class AiService {
         assistantMessageId: assistant.id,
       });
       const signal = this.runtime.begin(assistant.id);
+      if (input.response.destroyed) await this.runtime.requestStop(assistant.id);
       const history = await this.prisma.aiMessage.findMany({
-        where: { conversationId: session.id, isCurrentVariant: true },
-        orderBy: { createdAt: 'asc' },
-        take: session.contextLimit + 4,
+        where: {
+          conversationId: session.id,
+          isCurrentVariant: true,
+          createdAt: { lte: userMessage.createdAt },
+          NOT: { id: { in: [assistant.id, userMessage.id] } },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: Math.max(0, session.contextLimit - 1),
       });
-      const promptMessages = history
-        .filter((row) => row.id !== assistant.id)
-        .map((row) => ({
-          role: row.role === AiMessageRole.ASSISTANT ? ('assistant' as const) : ('user' as const),
-          content:
-            row.id === userMessage.id && excerpt
-              ? `${row.content}\n\n引用：${excerpt.title}\n${excerpt.excerpt}`
-              : row.content,
-        }));
+      const promptMessages = [...history.reverse(), userMessage].map((row) => ({
+        role: row.role === AiMessageRole.ASSISTANT ? ('assistant' as const) : ('user' as const),
+        content:
+          row.id === userMessage.id && excerpt
+            ? `${row.content}\n\n引用：${excerpt.title}\n${excerpt.excerpt}`
+            : row.content,
+      }));
       let output = '';
       let providerUsage: { inputTokens: number; outputTokens: number } | undefined;
-      for await (const delta of this.chatProvider.stream({
-        modelKey: model.modelKey,
-        providerId: model.provider.id,
-        providerCode: model.provider.code,
-        baseUrl: model.provider.baseUrl,
-        authEnvKey: model.provider.authEnvKey,
-        timeoutMs: model.provider.timeoutMs,
-        maxOutputTokens: model.maxOutputTokens,
-        systemPrompt: session.systemPrompt,
-        messages: promptMessages,
-        signal,
-      })) {
-        if (await this.runtime.isStopped(assistant.id)) {
-          break;
+      try {
+        if (!(await this.runtime.isStopped(assistant.id))) {
+          for await (const delta of this.chatProvider.stream({
+            modelKey: model.modelKey,
+            providerId: model.provider.id,
+            providerCode: model.provider.code,
+            baseUrl: model.provider.baseUrl,
+            authEnvKey: model.provider.authEnvKey,
+            timeoutMs: model.provider.timeoutMs,
+            maxOutputTokens: model.maxOutputTokens,
+            systemPrompt: session.systemPrompt,
+            messages: promptMessages,
+            signal,
+          })) {
+            if (await this.runtime.isStopped(assistant.id)) {
+              break;
+            }
+            if (delta.usage) {
+              providerUsage = delta.usage;
+            }
+            output += delta.content;
+            writeSse(input.response, { type: 'DELTA', content: delta.content });
+          }
         }
-        if (delta.usage) {
-          providerUsage = delta.usage;
-        }
-        output += delta.content;
-        writeSse(input.response, { type: 'DELTA', content: delta.content });
+      } catch (error) {
+        // 真实 Provider 的 AbortError 也是正常停止，保留已收到文本并走统一结算。
+        if (!(await this.runtime.isStopped(assistant.id))) throw error;
       }
       providerStreamCompleted = true;
       const stopped = await this.runtime.isStopped(assistant.id);
@@ -645,12 +764,14 @@ export class AiService {
           }`,
         );
       }
+      await releaseResources();
       writeSse(input.response, {
         type: 'DONE',
         requestId: input.requestId,
         sessionId: session.id,
         userMessageId: userMessage.id,
         assistantMessageId: assistant.id,
+        status: stopped ? 'stopped' : 'done',
         usage: { inputTokens, outputTokens, platformCost: cost },
       });
       input.response.end();
@@ -696,6 +817,7 @@ export class AiService {
           }`,
         );
       }
+      await releaseResources();
       if (streamStarted && !input.response.writableEnded) {
         writeSse(input.response, {
           type: 'ERROR',
@@ -714,24 +836,7 @@ export class AiService {
       }
       throw error;
     } finally {
-      this.runtime.finish(assistantId);
-      if (userSlotHeartbeat) {
-        clearInterval(userSlotHeartbeat);
-      }
-      const cleanup = [this.runtime.releaseConversation(session.id)];
-      if (input.owner.userId && userSlotAcquired && userSlotToken) {
-        cleanup.push(this.runtime.releaseUserSlot(input.owner.userId, userSlotToken));
-      }
-      const results = await Promise.allSettled(cleanup);
-      for (const result of results) {
-        if (result.status === 'rejected') {
-          this.logger.error(
-            `Chat 运行时资源清理失败 ${assistantId || session.id}: ${
-              result.reason instanceof Error ? result.reason.message : result.reason
-            }`,
-          );
-        }
-      }
+      await releaseResources();
     }
   }
 
@@ -774,7 +879,8 @@ export class AiService {
     if (
       !message ||
       message.conversation.ownerType !== owner.type ||
-      message.conversation.ownerId !== owner.id
+      message.conversation.ownerId !== owner.id ||
+      message.conversation.deletedAt
     ) {
       throw new DomainHttpException(
         HttpStatus.NOT_FOUND,
@@ -786,14 +892,21 @@ export class AiService {
       where: {
         conversationId: message.conversationId,
         role: AiMessageRole.USER,
-        createdAt: { lte: message.createdAt },
+        // 新消息按父 ID 关联；旧记录优先按同次请求关联，避免时间戳精度丢失选错问题。
+        ...(message.parentMessageId
+          ? { id: message.parentMessageId }
+          : message.requestId
+            ? { requestId: message.requestId }
+            : { createdAt: { lt: new Date(message.createdAt.getTime() + 1) } }),
       },
       orderBy: { createdAt: 'desc' },
     });
-    await this.prisma.aiMessage.update({
-      where: { id: messageId },
-      data: { isCurrentVariant: false },
-    });
+    if (!parentUser)
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_GENERATION_NOT_FOUND',
+        '原问题不存在',
+      );
     await this.streamChat({
       owner,
       sessionId: message.conversationId,
@@ -801,6 +914,7 @@ export class AiService {
       requestId,
       response,
       ipHash,
+      regenerateFrom: { assistantId: messageId, userMessageId: parentUser.id },
     });
   }
 

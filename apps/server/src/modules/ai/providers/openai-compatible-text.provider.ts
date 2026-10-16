@@ -172,14 +172,17 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       // 上游最后一帧常常不带空行，循环结束后还要把尾巴解析掉。
       if (buffer.trim()) {
         const parsed = parseOpenAiSseBlock(buffer);
-        if (parsed && parsed !== 'done') {
+        if (parsed === 'done') return;
+        if (parsed) {
           yield parsed;
         }
       }
+      throw new Error('AI_UPSTREAM_STREAM_INTERRUPTED');
     } catch (error) {
       await reader.cancel().catch(() => undefined);
       throw error;
     } finally {
+      await reader.cancel().catch(() => undefined);
       reader.releaseLock();
     }
   }

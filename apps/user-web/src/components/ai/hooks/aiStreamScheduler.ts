@@ -3,7 +3,7 @@ export interface AiStreamRenderScheduler<T> {
   finish(result: T): void;
   /** 立即提交已经收到但尚未绘制的文本，停止生成时使用。 */
   flush(): void;
-  /** 取消后续绘制，避免旧会话的流回写当前页面。 */
+  /** 停止或离开页面时取消该条流的后续绘制。 */
   cancel(): void;
 }
 

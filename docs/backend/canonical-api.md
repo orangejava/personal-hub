@@ -442,9 +442,9 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 - SSE 使用 `@SkipResponseEnvelope`，成功不是 `{ data }` 信封。
 - `sessionId`、`userMessageId`、`assistantMessageId` 和 `requestId` 均由服务端生成；前端仅可使用尚未收到 `STARTED` 前的临时 UI 键。
-- 停止只认显式 `POST .../stop` 或 `.../cancel`；关页不自动 stop，未结算预占靠 5 分钟 TTL 释放。
+- Chat 显式 `POST .../stop` 返回停止请求状态，最终通过 SSE `DONE.status`（`done` / `stopped`）确认；关页或断网关闭 Chat 响应时服务端也请求停止，页面内切换会话不关闭连接。图片/视频仍使用显式 cancel。
 - 额度不足 `409 AI_QUOTA_INSUFFICIENT`；并发/RPM `429 AI_CONCURRENCY_LIMITED`；会话互斥 `409 AI_GENERATION_IN_PROGRESS`。
-- 重新生成保留旧回复，使用 `variantGroupId` 关联候选，默认展示最新候选。
+- 重新生成保留旧回复，使用 `variantGroupId` 关联候选；通过额度/并发校验后在事务中替换当前候选，复用原问题并保留原回答排序位置。生成中删除会话返回 `409 AI_GENERATION_IN_PROGRESS`。历史消息按 `createdAt/id` 正序游标分页，每页最多 100 条，返回 `list/nextCursor/hasMore`。
 - 图片/视频走 Outbox + `server-worker`，HTTP 进程不消费队列；测试可直调 `AiService.processJob`。
 - 任务 `assets[].fileUrl` 指向 `/api/v1/app/ai/assets/:assetId/content`，不把 `memory://` 暴露给浏览器。
 - 文本 Provider 默认 Fake；`AI_TEXT_PROVIDER=openai_compatible` 且配置了 Key 时走 OpenAI Chat Completions 适配层。
@@ -470,9 +470,11 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 ### 5.1 用户、角色与审计
 
+运营概览返回 `{ contentTotal, userTotal, contentReadersToday, publishedThisWeek }`。内容总数含未删除小册，用户总数含所有注册状态；今日内容读者按上海自然日的 `content_view_days.subject_hash` 跨内容去重，是账号/IP 标识的近似人数，不代表全站访客；本周发布按上海时间本周一零点以来的首次发布时间统计未删除内容。历史浏览日期不会因新口径自动回填。
+
 | 方法         | 路径                                       | 权限                                 |
 | ------------ | ------------------------------------------ | ------------------------------------ |
-| GET          | `/admin/dashboard`                         | `dashboard:read`                     |
+| GET          | `/admin/dashboard/overview`                | `dashboard:read` ALL                 |
 | GET          | `/admin/users`                             | `user:read` ALL                      |
 | GET          | `/admin/users/:userId`                     | `user:read` ALL                      |
 | PATCH        | `/admin/users/:userId/status`              | `user:status:update` ALL             |
