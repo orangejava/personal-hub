@@ -44,6 +44,7 @@ RUN pnpm --filter user-web build
 RUN PUBLIC_PATH=/admin/ pnpm --filter admin-web build
 
 FROM nginx:1.27-alpine
-COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
+ARG NGINX_CONFIG=default.conf
+COPY deploy/nginx/${NGINX_CONFIG} /etc/nginx/conf.d/default.conf
 COPY --from=web-build /app/apps/user-web/dist /usr/share/nginx/html
 COPY --from=web-build /app/apps/admin-web/dist /usr/share/nginx/html/admin

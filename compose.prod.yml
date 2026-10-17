@@ -146,11 +146,18 @@ services:
         # 静态前端在构建期固化跳转 Origin；生产同站时两个应用都必须指向公网根地址。
         UMI_APP_USER_WEB_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
         UMI_APP_ADMIN_WEB_ORIGIN: ${PUBLIC_APP_ORIGIN:?set in env file}
+        # 申请证书阶段临时传入 default-http-only.conf；默认使用最终 HTTPS 配置。
+        NGINX_CONFIG: ${NGINX_CONFIG:-default.conf}
     depends_on:
       server:
         condition: service_healthy
     ports:
       - '80:80'
+      - '443:443'
+    volumes:
+      # 证书与 ACME challenge 由宿主机 Certbot 管理，容器只读使用。
+      - /etc/letsencrypt:/etc/nginx/certs:ro
+      - /var/lib/letsencrypt:/var/www/certbot:ro
     networks:
       - proxy
     restart: unless-stopped
