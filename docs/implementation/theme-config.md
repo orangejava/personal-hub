@@ -1,7 +1,7 @@
 # 阶段 A：主题剩余 UI
 
-> 状态：代码已落在 `theme-config`
-> 最后更新：2026-10-10
+> 状态：已完成并验收（原 `theme-config` worktree 已清理）
+> 最后更新：2026-10-16
 > 依据：[theme-ui-performance-prd.md](../prd/post-launch/theme-ui-performance-prd.md) §3
 
 ## 1. 目标与范围

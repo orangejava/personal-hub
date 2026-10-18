@@ -1,6 +1,6 @@
 # PRD 文档索引
 
-> 最后更新：2026-09-23
+> 最后更新：2026-10-16
 > 说明：本目录存放**可直接指导开发**的 PRD。首版上线后的当前开发主线见 **post-launch**；历史 React-first 与长期全栈契约分别保留在既有目录。
 
 ---
@@ -27,9 +27,9 @@
 | 文档 | Worktree | 状态 |
 | --- | --- | --- |
 | [post-launch/ai-admin-operations-prd.md](./post-launch/ai-admin-operations-prd.md) | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 🟢 下一步 |
-| [post-launch/theme-ui-performance-prd.md](./post-launch/theme-ui-performance-prd.md) | 主题、性能与 UI 总纲；阶段 A 由 `theme-config` 落地 | 🟢 下一步 |
-| [post-launch/performance-dashboard-prd.md](./post-launch/performance-dashboard-prd.md) | `perf-dashboard`：性能与接口响应面板、性能基线、首轮入口体积优化 | 一期已落地，待合并；二期未做 |
-| [../../apps/user-web/docs/prd/home-showcase-prd.md](../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase`：首页滚动改版、项目作品矩阵（用户端单应用 PRD） | 🟢 下一步 |
+| [post-launch/theme-ui-performance-prd.md](./post-launch/theme-ui-performance-prd.md) | 主题、性能与 UI 总纲；由 `theme-config` 落地 | ✅ 当前范围已完成并验收 |
+| [post-launch/performance-dashboard-prd.md](./post-launch/performance-dashboard-prd.md) | `perf-dashboard`：性能与接口响应面板、性能基线、入口体积优化与 Nest 汇总 | ✅ 已完成并验收 |
+| [../../apps/user-web/docs/prd/home-showcase-prd.md](../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase`：首页滚动改版、项目作品矩阵（用户端单应用 PRD） | ✅ 已完成并验收 |
 
 ---
 

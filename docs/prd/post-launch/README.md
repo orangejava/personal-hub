@@ -1,7 +1,7 @@
 # 上线后优化 PRD
 
 > 状态：当前开发主线
-> 最后更新：2026-10-03
+> 最后更新：2026-10-16
 > 关系：首版已上线后，本目录承接可直接开工的跨端优化 PRD。历史 React-first 阶段 PRD 仍在 `apps/*/docs/prd/` 与 `docs/prd/react-first/`；长期后端契约仍在 `docs/prd/long-term/`。
 
 ## 放置边界
@@ -15,19 +15,19 @@
 - 已落地实现说明：放 `apps/<name>/docs/implementation/` 或 `apps/server/docs/implementation/`
 - 远期想法：放 `docs/product/phase-2/`
 
-## 当前 Worktree
+## 当前与已完成 Worktree
 
-「主题、性能与 UI」这条线拆成三个 worktree，加上 AI 后台，一共四个，可以并行。
+`perf-dashboard`、`home-showcase`、`theme-config` 已完成生产验收，关联 worktree 已清理；当前只保留
+`ai-admin` 继续开发。
 
-| 文档 | Worktree | 内容 | 计划评分 |
+| 文档 | Worktree | 内容 | 当前状态 |
 | --- | --- | --- | --- |
-| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A 91；阶段 A–E 91。充值等后置不计入本期 |
-| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) | 总纲，拆到下面三个 | 主题剩余 UI、加载速度、Loading、公开页与交互优化 | 阶段 A 见下行。Loading 与其余页面后置，不计入本期 |
-| [performance-dashboard-prd.md](./performance-dashboard-prd.md) | `perf-dashboard` | 总纲阶段 B：性能与接口响应面板、性能基线、首轮入口体积优化 | 一期 93。二期 Nest 汇总后置，不计入本期 |
-| [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase` | 总纲阶段 C 的首页部分：首页滚动改版、项目作品矩阵 | 不含首页性能区块 91。性能区块等面板合并后再做，不计入本期 |
-| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §3 | `theme-config` | 总纲阶段 A：后台主题表单、导航位置、Logo / favicon / SEO | 92 |
+| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、发放和签到 | 开发中；充值等后置 |
+| [performance-dashboard-prd.md](./performance-dashboard-prd.md) | `perf-dashboard` | 性能与接口响应面板、性能基线、入口体积优化、Nest 汇总 | ✅ 已完成并验收 |
+| [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase` | 首页滚动改版、项目作品矩阵 | ✅ 已完成并验收 |
+| [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §3–§6 | `theme-config` | 主题、Loading / Skeleton、内容中心、小册阅读、AI 工作台、登录表单 | ✅ 已完成并验收 |
 
-总纲阶段 B 的 Loading / Skeleton（§4.3）和阶段 C 的其余页面（内容中心、小册阅读、AI 工作台、登录表单）等上面三个合并后再排。
+总纲当前范围已完成验收；后续新增体验优化需求另立 PRD 并排期。
 
 ## 启动前骨架（在 main 上先做，状态：已落地，提交 `a70ab11`）
 
@@ -55,11 +55,11 @@
 - 入口体积优化（汇总导出改为直接引入）：留给 `perf-dashboard`，用面板记录优化前后
 - Prisma 新表：`perf-dashboard` 二期和 `ai-admin` 各自建
 
-**main 上的顺序**：启动前骨架 → 从 `main` 建四条 worktree。域名、HTTPS、Nginx gzip 与缓存独立后置，不阻塞 worktree；实施时见 [domain-https.md](../../deploy/domain-https.md)。
+**main 上的顺序**：已完成 worktree 验收收口 → 手机端 AI 发送和会话顶栏收口 → HTTPS、Nginx gzip 与缓存。HTTPS 实施见 [domain-https.md](../../deploy/domain-https.md)。
 
 ## 开发顺序
 
-四个 worktree 可以并行，合并顺序如下：
+以下为已完成 worktree 的合并顺序记录，当前不再创建或复用这三个 worktree：
 
 1. `perf-dashboard` 一期最先合并，留下改版前的性能基线。
 2. `home-showcase` 在它之后合并，这样面板能显示改版前后对比。

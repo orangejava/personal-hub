@@ -1,10 +1,10 @@
 # 性能与接口响应面板 PRD
 
-> 状态：一期已在 `main`。二期已接上报、Redis 分钟桶、小时落库和 `/status` 全站视图。告警和按人统计仍不做
-> 最后更新：2026-10-09
+> 状态：一期与二期已完成并验收；已接上报、Redis 分钟桶、小时落库和 `/status` 全站视图。告警和按人统计仍不做
+> 最后更新：2026-10-16
 > 落地记录：[performance-dashboard.md](../../../apps/user-web/docs/implementation/performance-dashboard.md)
-> Worktree：`perf-dashboard`（开工前依赖 `main` 上的「启动前骨架」，见 [README.md](./README.md)）
-> 计划评分（plan-review，百分制，2026-10-02）：一期 93，可以开工。二期 Nest 汇总后置，不计入本期。
+> Worktree：`perf-dashboard`（已完成并清理；开工前依赖 `main` 上的「启动前骨架」，见 [README.md](./README.md)）
+> 计划评分（plan-review，百分制，2026-10-02）：一期 93；二期已在后续实现中完成并验收。
 > 关系：落实 [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §4.1「先建立基线」与 §4.4「性能优化前后有可对比记录」。首页与项目页改版见 [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md)。
 
 ## 1. 目标
@@ -184,7 +184,7 @@ p95 分档：≤ 300 ms 良好，300–800 ms 待改进，> 800 ms 差（本项�
 
 ## 7. 二期：Nest 汇总（全站数据）
 
-二期开工前，必须按 [`fullstack-impact`](../../../.agents/skills/fullstack-impact/SKILL.md) 另出一份文件级计划并确认。下面只定范围。
+二期已按 [`fullstack-impact`](../../../.agents/skills/fullstack-impact/SKILL.md) 的文件级影响面要求落地并验收；下面保留已实现范围。
 
 ### 7.1 上报
 

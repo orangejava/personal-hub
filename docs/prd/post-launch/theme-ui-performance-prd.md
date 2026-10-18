@@ -1,8 +1,8 @@
 # 主题、性能与 UI 优化 PRD
 
-> 状态：下一步开发计划
-> 最后更新：2026-10-02
-> Worktree：拆为 `theme-config`（阶段 A）、`perf-dashboard`（阶段 B 基线与面板）、`home-showcase`（阶段 C 首页）。见 [README.md](./README.md)
+> 状态：阶段 A `theme-config`、阶段 B `perf-dashboard`、阶段 C 首页 `home-showcase` 均已完成并验收；新增体验优化需求另立 PRD 排期
+> 最后更新：2026-10-16
+> Worktree：原拆为 `theme-config`（阶段 A）、`perf-dashboard`（阶段 B 基线与面板）、`home-showcase`（阶段 C 首页）；三个 worktree 已完成并清理。见 [README.md](./README.md)
 > 计划评分（plan-review，百分制，2026-10-02）：阶段 A（`theme-config`）92，可以开工。阶段 B 的 Loading / Skeleton 与阶段 C 的其余页面后置，不计入本期。性能面板与首页改版的分数见各自 PRD。
 > 关系：承接 `apps/user-web/docs/prd/theme-navigation-config-prd.md` 的后置项，并新增加载速度、Loading 和页面交互优化范围。
 
@@ -244,14 +244,14 @@ SEO 只走运行时 Helmet，不在构建期写死。`app.tsx` 的 `rootContaine
 
 ## 8. 验收总清单
 
-- [ ] 后台主题配置可保存并应用到前台
-- [ ] Logo / favicon / SEO 配置可用
-- [ ] 公开导航支持顶部 / 左侧 / 右侧
-- [ ] 首页首屏加载有明显 Loading 或 Skeleton
-- [ ] 内容中心加载和筛选体验稳定
-- [ ] 小册阅读移动端不横向溢出
-- [ ] AI 工作台移动端输入区可用
-- [ ] 登录注册表单错误态清晰
-- [ ] 桌面和移动端浏览器验收通过
-- [ ] 控制台无本次新增错误
-- [ ] 性能优化前后有记录
+- [x] 后台主题配置可保存并应用到前台
+- [x] Logo / favicon / SEO 配置可用
+- [x] 公开导航支持顶部 / 左侧 / 右侧
+- [x] 首页首屏加载有明显 Loading 或 Skeleton
+- [x] 内容中心加载和筛选体验稳定
+- [x] 小册阅读移动端不横向溢出
+- [x] AI 工作台移动端输入区可用
+- [x] 登录注册表单错误态清晰
+- [x] 桌面和移动端浏览器验收通过
+- [x] 控制台无本次新增错误
+- [x] 性能优化前后有记录

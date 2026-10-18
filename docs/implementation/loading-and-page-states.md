@@ -1,7 +1,7 @@
 # Loading 与页面等待态
 
-> 状态：代码已落在 `theme-config`，待生产验收
-> 最后更新：2026-10-10
+> 状态：代码已落在 `theme-config`，已完成生产验收
+> 最后更新：2026-10-16
 > 依据：[theme-ui-performance-prd.md](../prd/post-launch/theme-ui-performance-prd.md) §4.3、§5.3–§5.6
 
 ## 1. 目标与范围
@@ -47,4 +47,4 @@
 
 管理端 `tsc --noEmit` 已通过。用户端同命令仍有 `motion/react`、`web-vitals` 的既有声明错误，不在本次改动文件里。
 
-生产验收步骤由交付说明给出。总览勾选等生产通过后再改。
+生产验收已完成；总纲状态已同步更新。

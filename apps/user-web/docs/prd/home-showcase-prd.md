@@ -1,8 +1,8 @@
 # 首页滚动改版与项目作品矩阵 PRD
 
-> 状态：本期已落地（含首页性能摘要）
-> 最后更新：2026-10-10
-> Worktree：`home-showcase`
+> 状态：本期已完成并验收（含首页性能摘要）
+> 最后更新：2026-10-16
+> Worktree：`home-showcase`（已完成并清理）
 > 计划评分（plan-review，百分制，2026-10-02）：不含首页性能区块为 91，可以开工。首页性能区块等 `perf-dashboard` 合并并变基后再做，不计入本期。
 > 关系：落实 [theme-ui-performance-prd.md](../../../../docs/prd/post-launch/theme-ui-performance-prd.md) §5.2「首页」，并重做 `/projects`。性能数据来自 [performance-dashboard-prd.md](../../../../docs/prd/post-launch/performance-dashboard-prd.md)。开工前依赖 `main` 上的「启动前骨架」，见 [post-launch/README.md](../../../../docs/prd/post-launch/README.md)。
 
