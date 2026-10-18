@@ -1,12 +1,205 @@
 # 域名、HTTPS 与 Nginx 压缩缓存
 
-> 状态：Nginx/Compose HTTPS 配置已落在 main；当前生产仍是公网 IP + HTTP，待服务器申请证书后切换并验收。
-> 最后更新：2026-10-17
+> 状态：Nginx/Compose HTTPS 配置已落在 main；生产证书已申请并完成 HTTPS、健康接口和基础跳转验证，仍需按第 5 节完成应用链路、移动端和续期演练验收。
+> 最后更新：2026-10-18
 > 主域名：personalhub.center；www.personalhub.center 只做跳转，不作为业务 Origin。
 > 前提：域名已实名，ICP 备案已通过（2026-09）。证书和私钥不进 Git。
 
 本手册只覆盖域名切换、证书、Nginx、生产环境变量和验收。生产发布的通用命令仍以
 production-runbook.md 为准。
+
+## 0. HTTPS 与证书操作速查
+
+本节是生产服务器执行入口，适合证书申请、HTTPS 切换和日常续期时直接查阅。命令旁已标明执行位置：
+
+- **本机**：自己的 Mac/Linux 终端，用于从公网验证 DNS、HTTP、HTTPS 和证书；
+- **服务器**：SSH 登录 `111.231.13.252` 后的 `/opt/personal-hub` 终端，用于 Docker、Certbot 和 Nginx；
+- 不要复制终端提示符 `deploy@VM-0-9-ubuntu:/opt/personal-hub$`，它不是命令的一部分。
+
+### 0.1 固定信息和文件位置
+
+| 项目 | 当前值 |
+| --- | --- |
+| 主域名 | `personalhub.center` |
+| www 域名 | `www.personalhub.center`，只跳转到主域名 |
+| 服务器公网 IPv4 | `111.231.13.252` |
+| SSH 账号和端口 | `deploy` / `22` |
+| 证书目录 | `/etc/letsencrypt/live/personalhub.center/` |
+| ACME webroot | `/var/lib/letsencrypt` |
+| 生产项目目录 | `/opt/personal-hub` |
+| 生产环境文件 | `/opt/personal-hub/.env.prod` |
+
+证书和私钥只保存在服务器 `/etc/letsencrypt`，不复制到 Git、不放进 Docker 镜像，也不要粘贴到聊天或工单。
+
+### 0.2 首次申请证书前：本机检查 DNS 和 80 端口
+
+以下命令在**本机**执行：
+
+~~~bash
+dig +short personalhub.center A
+dig +short www.personalhub.center A
+curl -sS -I http://personalhub.center/
+curl -sS -I http://www.personalhub.center/
+nc -vz -w 5 personalhub.center 80
+~~~
+
+DNS 应指向 `111.231.13.252`（如果前面使用 CDN/WAF，则应指向已确认的代理地址）。80 端口必须能连接，HTTP
+响应可以是 `200`、`301` 或 `404`，但不能超时或拒绝连接。腾讯云 Lighthouse 防火墙必须放行 TCP 80 和 443，
+服务器 UFW 如果启用，也必须放行这两个端口。
+
+### 0.3 首次申请证书：服务器命令
+
+先登录服务器（本机执行）：
+
+~~~bash
+ssh -p 22 deploy@111.231.13.252
+~~~
+
+登录后，以下命令均在**服务器**执行：
+
+~~~bash
+cd /opt/personal-hub
+sudo apt update
+sudo apt install -y certbot
+sudo mkdir -p /var/lib/letsencrypt/.well-known/acme-challenge
+sudo chmod 755 /var/lib/letsencrypt /var/lib/letsencrypt/.well-known /var/lib/letsencrypt/.well-known/acme-challenge
+
+NGINX_CONFIG=default-http-only.conf docker compose --env-file .env.prod -f compose.prod.yml build nginx
+NGINX_CONFIG=default-http-only.conf docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate nginx
+
+printf 'personal-hub-acme-check\n' | sudo tee \
+  /var/lib/letsencrypt/.well-known/acme-challenge/personal-hub-check >/dev/null
+~~~
+
+回到**本机**确认 challenge 正文，而不是只看状态码：
+
+~~~bash
+curl -fsS http://personalhub.center/.well-known/acme-challenge/personal-hub-check
+curl -fsS http://www.personalhub.center/.well-known/acme-challenge/personal-hub-check
+~~~
+
+两条都必须只输出 `personal-hub-acme-check`，不能返回前端 HTML、301/302 或其他内容。确认通过后，回到**服务器**申请：
+
+~~~bash
+sudo certbot certonly --webroot \
+  --webroot-path /var/lib/letsencrypt \
+  --domain personalhub.center \
+  --domain www.personalhub.center \
+  --email '<长期可收件的证书邮箱>' \
+  --agree-tos \
+  --no-eff-email \
+  --deploy-hook '/usr/bin/docker compose --env-file /opt/personal-hub/.env.prod -f /opt/personal-hub/compose.prod.yml exec -T nginx nginx -s reload'
+~~~
+
+`--deploy-hook` 必须以可执行文件开始，不能写成 `cd /opt/personal-hub && ...`。命令中的
+`compose.prod.yml` 与 `exec` 之间必须有空格，不能粘成 `compose.prod.ymlexec`。
+
+申请成功后，在**服务器**确认证书：
+
+~~~bash
+sudo test -s /etc/letsencrypt/live/personalhub.center/fullchain.pem
+sudo test -s /etc/letsencrypt/live/personalhub.center/privkey.pem
+sudo openssl x509 -in /etc/letsencrypt/live/personalhub.center/fullchain.pem \
+  -noout -subject -issuer -dates -ext subjectAltName
+~~~
+
+`subjectAltName` 必须同时包含 `personalhub.center` 和 `www.personalhub.center`。
+
+### 0.4 证书签发后切换最终 HTTPS
+
+证书文件存在后，在**服务器**执行：
+
+~~~bash
+cd /opt/personal-hub
+docker compose --env-file .env.prod -f compose.prod.yml config --quiet
+docker compose --env-file .env.prod -f compose.prod.yml build nginx
+docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps nginx nginx -t
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d postgres redis server
+docker compose --env-file .env.prod -f compose.prod.yml ps
+~~~
+
+如果本次发布包含 AI 合并代码或 Prisma migration，确认 `server` 为 `Up (healthy)` 后继续执行：
+
+~~~bash
+docker compose --env-file .env.prod -f compose.prod.yml exec server \
+  npx prisma migrate deploy
+docker compose --env-file .env.prod -f compose.prod.yml up --build -d server-worker nginx
+~~~
+
+如果本次发布没有数据库迁移，确认 `server` 健康后可以直接执行最后一条启动 `server-worker nginx` 的命令。
+数据库备份、迁移前置检查和失败恢复仍以 `production-runbook.md` 为准。
+
+在**本机**验证：
+
+~~~bash
+curl -sS -I http://personalhub.center/
+curl -sS -I http://www.personalhub.center/
+curl -sS -I https://www.personalhub.center/
+curl -sS -o /dev/null -w 'live=%{http_code}\n' https://personalhub.center/api/v1/health/live
+curl -sS -o /dev/null -w 'ready=%{http_code}\n' https://personalhub.center/api/v1/health/ready
+~~~
+
+预期：HTTP 跳转到主域名 HTTPS，`www` HTTPS 跳转到主域名，`live` 和 `ready` 都返回 `200`。
+
+### 0.5 后续证书续期：日常只执行这些命令
+
+证书通常有效期约 90 天，不需要手工购买或复制证书。Certbot timer 会自动尝试续期；首次切换完成后，在**服务器**执行：
+
+~~~bash
+sudo systemctl status certbot.timer
+sudo systemctl list-timers 'certbot*'
+sudo certbot certificates
+sudo grep -R -n -E 'webroot_path|deploy_hook|authenticator' /etc/letsencrypt/renewal/
+sudo certbot renew --dry-run
+~~~
+
+`certbot.timer` 通常应显示 `active (waiting)`。如果系统没有该服务，执行
+`systemctl list-unit-files | grep -i certbot` 查找发行版实际提供的定时器，不要同时创建 cron 和 systemd timer。
+`dry-run` 成功后，日常不需要重复执行 `certbot certonly`。证书实际续期后，Certbot 会执行已保存的 deploy hook，
+让 Nginx reload 新证书。需要手动确认当前证书和续期日志时，在**服务器**执行：
+
+~~~bash
+sudo journalctl -u certbot.service --since '-24 hours' --no-pager
+sudo openssl x509 -in /etc/letsencrypt/live/personalhub.center/fullchain.pem \
+  -noout -dates -ext subjectAltName
+cd /opt/personal-hub
+docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -t
+docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -s reload
+~~~
+
+证书续期不需要重新构建应用镜像，也不需要数据库迁移。续期前如果想单独检查证书剩余时间，可执行：
+
+~~~bash
+sudo openssl x509 -in /etc/letsencrypt/live/personalhub.center/fullchain.pem \
+  -noout -dates -ext subjectAltName
+~~~
+
+如果自动 hook 没有 reload 成功，先检查 `certbot.service` 日志，再单独执行上面的 `nginx -t` 和 `nginx -s reload`。
+不要手工复制证书文件；Certbot 的 `/etc/letsencrypt/live/...` 符号链接会指向最新证书。
+
+### 0.6 当前切换完成后的最小检查
+
+如果已经完成证书申请和 HTTPS 切换，至少完成以下三步：
+
+1. 本机执行第 0.4 节的 5 条 curl，确认跳转和健康接口；
+2. 本机浏览器打开主站、`/admin/`，完成登录、refresh、运营概览和手机端 AI 发送；
+3. 服务器执行第 0.5 节的 `certbot renew --dry-run`，确认自动续期链路没有失败。
+
+完整的功能验收、gzip、静态缓存和故障排查见第 5 节及后续章节。
+
+## 当前状态与验证边界
+
+如果以下命令已经在**自己的电脑**上返回 `200`，说明 HTTPS 入口、证书和 Nginx 到 Nest 的健康检查链路已经可用：
+
+~~~bash
+curl -sS -o /dev/null -w 'live=%{http_code}\n' \
+  https://personalhub.center/api/v1/health/live
+curl -sS -o /dev/null -w 'ready=%{http_code}\n' \
+  https://personalhub.center/api/v1/health/ready
+~~~
+
+这还不等于整站发布验收完成。登录 Cookie、refresh、管理端、上传、AI SSE、手机端交互、静态资源缓存和证书自动续期
+仍需按第 5 节逐项验证。健康接口通过后不要重复申请证书；先检查证书有效期和 `certbot renew --dry-run`。
 
 ## 1. 切换前确认
 
@@ -593,6 +786,86 @@ sudo openssl x509 -in /etc/letsencrypt/live/personalhub.center/fullchain.pem \
 
 subjectAltName 必须包含 personalhub.center 和 www.personalhub.center。
 
+### 3.4 本次证书申请排障记录
+
+以下问题都曾在本次切换中出现，后续遇到相同现象时按对应处理，不要绕过 HTTP-01 验证直接改用临时配置。
+
+#### `Unable to find deploy-hook command cd in the PATH`
+
+`--deploy-hook` 会被 Certbot 当作可执行命令检查，不能把 `cd`、`&&` 等 Shell 语句直接放在 hook 的第一个位置。
+使用 Docker Compose 的绝对路径和绝对配置文件路径：
+
+~~~bash
+sudo certbot certonly --webroot \
+  --webroot-path /var/lib/letsencrypt \
+  --domain personalhub.center \
+  --domain www.personalhub.center \
+  --email '<长期可收件的证书邮箱>' \
+  --agree-tos \
+  --no-eff-email \
+  --deploy-hook '/usr/bin/docker compose --env-file /opt/personal-hub/.env.prod -f /opt/personal-hub/compose.prod.yml exec -T nginx nginx -s reload'
+~~~
+
+这里的 hook 不能写成 `cd /opt/personal-hub && ...`。如果申请时不需要立即 reload，也可以先省略
+`--deploy-hook`，证书签发成功后手动执行第 6 节的 Nginx 检查和 reload。
+
+#### `reader size limit exceeded`，或 ACME 地址返回前端 HTML
+
+这通常不是 Let's Encrypt 本身的问题，而是 CA 请求 challenge 文件时拿到了前端 `index.html`，而不是一个很短的 token。
+出现这种情况时，不能只看 HTTP 状态码；必须检查响应正文：
+
+~~~bash
+for host in personalhub.center www.personalhub.center; do
+  curl -4 --max-time 10 -sS \
+    "http://${host}/.well-known/acme-challenge/personal-hub-check"
+  printf '\n'
+done
+~~~
+
+两次都必须只输出 `personal-hub-acme-check`。如果返回 HTML，按以下顺序处理：
+
+1. 在服务器重新构建 HTTP-only 镜像，不能只执行普通 `up`：
+
+   ~~~bash
+   cd /opt/personal-hub
+   NGINX_CONFIG=default-http-only.conf docker compose --env-file .env.prod -f compose.prod.yml build nginx
+   NGINX_CONFIG=default-http-only.conf docker compose --env-file .env.prod -f compose.prod.yml up -d --force-recreate nginx
+   ~~~
+
+2. 确认宿主机文件和容器内文件都存在：
+
+   ~~~bash
+   sudo ls -l /var/lib/letsencrypt/.well-known/acme-challenge/personal-hub-check
+   docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx \
+     cat /var/www/certbot/.well-known/acme-challenge/personal-hub-check
+   ~~~
+
+3. 确认实际加载的镜像和挂载包含 challenge 配置。`nginx -T` 没有输出相关 location，或容器内 `cat` 报文件不存在，
+   都表示镜像、Compose 或挂载仍是旧版本：
+
+   ~~~bash
+   docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -T 2>&1 \
+     | grep -A8 -B2 'acme-challenge'
+   docker inspect personal-hub-prod-nginx-1 \
+     --format '{{range .Mounts}}{{println .Type .Source "->" .Destination .RW}}{{end}}'
+   ~~~
+
+   预期必须出现 `/var/lib/letsencrypt -> /var/www/certbot`。如果 `docker inspect` 没有任何挂载，说明服务器上的
+   `compose.prod.yml` 不是包含 webroot 挂载的版本，应先按第 4.2 节更新代码，再重复构建和强制重建。
+
+#### `--deploy-hook` 命令被粘连
+
+命令中的 `compose.prod.yml` 与 `exec` 之间必须有空格：
+
+~~~text
+正确：... -f /opt/personal-hub/compose.prod.yml exec -T nginx ...
+错误：... -f /opt/personal-hub/compose.prod.ymlexec -T nginx ...
+~~~
+
+多行命令每行末尾的反斜杠 `\` 也必须保留。终端中显示的
+`deploy@VM-0-9-ubuntu:/opt/personal-hub$` 是提示符，不是命令，不能复制进去，否则会出现
+`No such file or directory` 或 `command not found`。
+
 ## 4. 发布 HTTPS 配置
 
 ### 4.1 发布前本地检查
@@ -706,7 +979,53 @@ docker compose --env-file .env.prod -f compose.prod.yml run --rm --no-deps nginx
 
 如果本次包含 Prisma migration，先按 production-runbook.md 的 migration 顺序执行，确认 server ready 后再启动 worker 和 Nginx。
 
+### 4.4 应用容器启动失败时先修复再迁移
+
+HTTPS 配置正确并不代表应用容器已经能启动。若 `docker compose ps` 显示 `server` 为
+`Restarting (1)`，`docker compose exec server npx prisma migrate deploy` 会报
+`Container ... is restarting, wait until the container is running`，先看应用日志：
+
+~~~bash
+docker compose --env-file .env.prod -f compose.prod.yml logs \
+  --timestamps --no-log-prefix --tail=300 server
+docker inspect personal-hub-prod-server-1 \
+  --format 'status={{.State.Status}} exit={{.State.ExitCode}} error={{.State.Error}} oom={{.State.OOMKilled}}'
+~~~
+
+本次实际原因是 `AI_CREDENTIAL_ENCRYPTION_KEY` 不是 32 字节密钥的 Base64。修复时：
+
+1. 如果数据库中已经保存过 Provider/API 密钥，必须找回原来的有效主密钥；不能随意换新密钥，否则旧凭据无法解密。
+2. 如果尚未保存 AI 凭据，在服务器生成新值并写入 `.env.prod`：
+
+   ~~~bash
+   openssl rand -base64 32
+   sudoedit /opt/personal-hub/.env.prod
+   ~~~
+
+   配置格式为 `AI_CREDENTIAL_ENCRYPTION_KEY=<完整 Base64 值>`，不要加引号或换行。
+3. 可只验证解码后的字节数，不输出密钥内容：
+
+   ~~~bash
+   cd /opt/personal-hub
+   key="$(grep '^AI_CREDENTIAL_ENCRYPTION_KEY=' .env.prod | sed 's/^AI_CREDENTIAL_ENCRYPTION_KEY=//')"
+   printf '%s' "$key" | base64 -d 2>/dev/null | wc -c
+   ~~~
+
+   结果必须是 `32`。然后执行 `chmod 600 .env.prod`、`config --quiet`，重建并强制重建 `server`，确认状态为
+   `Up (healthy)` 后，才执行 `npx prisma migrate deploy`。迁移成功后再启动 `server-worker` 和最终 HTTPS Nginx。
+
 ## 5. 验收清单
+
+建议按下面顺序验收，前一层失败时先修复，不要继续向后判断：
+
+1. **公网入口**：DNS、TCP 80/443、HTTP 到 HTTPS、www 到主域名。
+2. **证书**：证书链、有效期、SAN 是否同时包含两个域名。
+3. **应用链路**：live/ready、登录 Cookie、refresh、管理端、上传、邮件和 AI SSE。
+4. **前端资源**：index 不缓存、带哈希资源长期缓存、JS/CSS gzip、SSE 不被缓冲。
+5. **运维闭环**：Certbot timer、dry-run、续期 hook、续期后 Nginx reload。
+
+除非特别标注，下面的 curl、openssl 和浏览器步骤都在**自己的电脑**执行；Docker、Certbot、systemctl 和
+`docker compose` 步骤在**生产服务器**执行。
 
 ### 5.1 跳转与证书
 
@@ -781,45 +1100,82 @@ docs/prd/post-launch/performance-dashboard-prd.md §3 或 /status 的生产基�
 「Analyze page load」。切换前后使用相同网络环境、页面状态和设备档位，至少记录 Performance、LCP、INP、CLS、
 传输体积和主要建议；不要把登录态不同或缓存状态不同的两次分数直接对比。
 
-## 6. 证书自动续期
+### 5.4 一次完整的发布后验收路径
 
-证书有效期通常约 90 天。Certbot 安装完成后，先确认系统定时器存在、启用并知道其下次运行时间：
+按以下顺序执行并记录结果：
 
-~~~bash
-sudo systemctl status certbot.timer
-sudo systemctl list-timers 'certbot*'
-~~~
+1. **DNS 和跳转**
 
-`certbot.timer` 应显示 `active (waiting)`，`list-timers` 应有下一次触发时间。若服务名不是 `certbot.timer`，
-执行 `systemctl list-unit-files | grep -i certbot` 找到发行版实际提供的定时器；不要额外创建 cron，避免两个任务同时续期。
+   ~~~bash
+   dig +short personalhub.center A
+   dig +short www.personalhub.center A
+   curl -sS -I http://personalhub.center/
+   curl -sS -I http://www.personalhub.center/
+   curl -sS -I https://www.personalhub.center/
+   ~~~
 
-先做演练，不要等到临近过期才第一次测试：
+   两个 A 记录应指向 `111.231.13.252`；HTTP 请求应跳转到 `https://personalhub.center/...`；HTTPS 的 `www` 请求
+   应跳转到不带 `www` 的主域名。若 DNS 使用 CDN/WAF，A 记录显示 CDN IP 也可能是正常的，但必须确认 80/443
+   请求最终到达本项目的 Nginx。
 
-~~~bash
-sudo certbot renew --dry-run
-~~~
+2. **证书和 TLS**
 
-dry-run 成功必须看到所有证书的模拟续期成功，并且没有 Nginx reload 失败。它使用 Let's Encrypt 测试环境，不会
-消耗正式证书配额。
+   ~~~bash
+   echo | openssl s_client -connect personalhub.center:443 \
+     -servername personalhub.center 2>/dev/null \
+     | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+   ~~~
 
-证书实际更新后，certbot 会执行申请时保存的 deploy hook，通知 Nginx reload。检查日志和证书时间：
+   `subjectAltName` 必须包含 `personalhub.center` 和 `www.personalhub.center`，`notAfter` 必须晚于当前日期。
+   浏览器打开两个域名时不能出现证书告警，主域名最终显示 HTTPS。
 
-~~~bash
-sudo journalctl -u certbot.service --since '-24 hours' --no-pager
-docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -t
-~~~
+3. **服务和 API**（服务器先确认容器，电脑再从公网访问）
 
-如果 certbot.timer 不存在，再按服务器发行版安装 certbot 的 systemd timer；不要用临时手工复制证书替代自动续期。
+   ~~~bash
+   # 服务器
+   docker compose --env-file .env.prod -f compose.prod.yml ps
+   docker compose --env-file .env.prod -f compose.prod.yml logs --tail=100 server server-worker nginx
+   ~~~
 
-为避免 deploy hook 因容器不在运行而失败，可单独验证 reload 命令：
+   `server` 应为 `Up (healthy)`，Postgres/Redis 应为 healthy，worker 和 Nginx 应为 `Up`。然后在本机执行：
 
-~~~bash
-cd /opt/personal-hub
-docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -t
-docker compose --env-file .env.prod -f compose.prod.yml exec -T nginx nginx -s reload
-~~~
+   ~~~bash
+   curl -sS -o /dev/null -w 'live=%{http_code}\n' \
+     https://personalhub.center/api/v1/health/live
+   curl -sS -o /dev/null -w 'ready=%{http_code}\n' \
+     https://personalhub.center/api/v1/health/ready
+   ~~~
 
-两条均成功后，续期时才可无中断加载新证书。无需为免费证书手工续费；只需保持 DNS、80 端口、webroot 和定时器可用。
+   预期都是 `200`。如果出现 502，先看 Nginx 和 server 日志；如果出现 403，检查请求 Origin、Cookie、
+   `CORS_ORIGIN` 和 `PUBLIC_APP_ORIGIN`，不要先扩大为全网白名单。
+
+4. **真实用户链路**
+
+   - 无痕窗口打开主站，注册或登录，刷新页面后确认仍保持登录。
+   - 在开发者工具 Network 中找到 refresh 请求，确认 URL 为 HTTPS，Cookie 带 `Secure`，没有 CORS 或 mixed content 错误。
+   - 进入 `/admin/`，登录并打开运营概览、主题配置和一个列表页；确认没有持续 401/403/5xx。
+   - 上传一个可删除的测试文件，确认上传、预览和删除完成。
+   - 打开 AI 对话，分别在桌面宽度和手机宽度发送消息；确认消息进入当前会话、SSE 逐步返回、切换历史会话后旧会话仍能继续生成。
+   - 检查验证或重置邮件链接以 `https://personalhub.center` 开头。
+
+5. **前端资源与响应行为**
+
+   ~~~bash
+   # 先从首页 HTML 中找一个实际的哈希 JS 文件，再替换下面的路径
+   curl -sS -I https://personalhub.center/
+   curl -sS -I https://personalhub.center/<实际哈希-js-文件>
+   ~~~
+
+   首页应有 `Cache-Control: no-cache`；哈希 JS/CSS 应有 `public, max-age=31536000, immutable` 和
+   `Content-Encoding: gzip`。AI SSE 请求不应等待到结束才一次性返回；若出现这种情况，检查 Nginx 的
+   `proxy_buffering off` 和 API location 的 `gzip off`。
+
+## 6. 证书续期章节说明
+
+证书续期的实际操作已经集中到文档最前面的 **第 0.5 节《后续证书续期：日常只执行这些命令》**，避免首次切换完成后还要
+在文档后部查找命令。第 0.5 节包含定时器检查、证书信息、续期演练、deploy hook、Nginx reload 和续期后的确认方式。
+
+本节只保留章节位置说明；遇到 Certbot、ACME challenge、Nginx 挂载或 `deploy-hook` 错误时，查看第 3.4 节的排障记录。
 
 ## 7. 切换失败时回滚
 

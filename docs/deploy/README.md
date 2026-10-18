@@ -13,7 +13,7 @@
 | [production-verification.md](./production-verification.md) | 上线后的真实环境验收：服务、登录、邮件、COS、AI、Worker、备份 | 部署完成后 |
 | [prod-startup-order.md](./prod-startup-order.md) | 首次上线检查清单 | 第一次上线时 |
 | [tencent-cloud-prep.md](./tencent-cloud-prep.md) | 腾讯云：COS、SMTP、域名、HTTPS | 控制台准备时 |
-| [domain-https.md](./domain-https.md) | **下一步（main）**：域名与备案已完成后，切 HTTPS，开启 Nginx gzip 与静态资源缓存 | 切域名时 |
+| [domain-https.md](./domain-https.md) | **HTTPS 已切换，持续验收**：证书、Nginx、gzip、静态资源缓存、应用链路和证书续期 | 切换后验收、排障和续期时 |
 | [public-image-assets.md](./public-image-assets.md) | 首页和项目页占位图如何随用户端构建上生产 | 发布带这些图的前端时 |
 | [nest-compose-strategy.md](./nest-compose-strategy.md) | Compose 拓扑、COS、Worker、备份与发布原则 | 了解架构时 |
 | [old/README.md](./old/README.md) | 阶段 A 和旧部署方案索引 | 追溯历史时 |
@@ -30,10 +30,11 @@
 4. [server-command-reference.md](./server-command-reference.md) — 不确定服务器命令含义时查阅
 5. [prod-startup-order.md](./prod-startup-order.md) — 再按序启动
 6. [tencent-cloud-prep.md](./tencent-cloud-prep.md) — COS / SMTP / 域名证书
-7. [production-runbook.md](./production-runbook.md) — 首次上线和服务器命令
-8. [production-verification.md](./production-verification.md) — 上线后的真实环境验收
-9. [../engineering/dev-local.md](../engineering/dev-local.md) — 本地开发命令
-10. [nest-compose-strategy.md](./nest-compose-strategy.md) — 拓扑与发布原则
+7. [domain-https.md](./domain-https.md) — 域名、证书、HTTPS、gzip、缓存与切换验收
+8. [production-runbook.md](./production-runbook.md) — 首次上线和服务器命令
+9. [production-verification.md](./production-verification.md) — 上线后的真实环境验收
+10. [../engineering/dev-local.md](../engineering/dev-local.md) — 本地开发命令
+11. [nest-compose-strategy.md](./nest-compose-strategy.md) — 拓扑与发布原则
 
 Nest 本地启动不使用旧 PM2 文档：按 [`apps/server/README.md`](../../apps/server/README.md) 运行 `compose.dev.yml` 与 `pnpm dev:server`；生产服务器命令统一见 [production-runbook.md](./production-runbook.md)。
 
