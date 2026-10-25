@@ -56,6 +56,8 @@ const AiChatPage: React.FC = () => {
   const [renameTitle, setRenameTitle] = useState('');
   const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
   const [guestPrompt, setGuestPrompt] = useState(0);
+  // 首次发送会先创建会话；页面级状态让手机端立即进入提交中，避免重复点击。
+  const [submittingMessage, setSubmittingMessage] = useState(false);
   const { band, chatHistoryDrawer } = useViewportBand();
   const [settingsBySession, setSettingsBySession] = useState<
     Record<string, AiChatAdvancedSettingsValue>
@@ -305,6 +307,7 @@ const AiChatPage: React.FC = () => {
 
   const submitMessage = useCallback(
     async (message: string) => {
+      if (submittingMessage) return;
       if (guestBlocked) {
         setGuestPrompt((current) => current + 1);
         return;
@@ -322,15 +325,18 @@ const AiChatPage: React.FC = () => {
               .join('、')}\n\n`
           : '';
       try {
+        setSubmittingMessage(true);
         const accepted = await sendMessage(`${referencePrefix}${attachmentPrefix}${normalized}`);
         if (accepted) {
           setValue((current) => (current === message ? '' : current));
         }
       } catch (error) {
         messageApi.error(error instanceof Error ? error.message : '发送失败，请稍后重试');
+      } finally {
+        setSubmittingMessage(false);
       }
     },
-    [attachments, guestBlocked, messageApi, references, sendMessage],
+    [attachments, guestBlocked, messageApi, references, sendMessage, submittingMessage],
   );
 
   const clearComposer = useCallback(() => {
@@ -560,7 +566,7 @@ const AiChatPage: React.FC = () => {
         composer={
           <div className="ph-ai-sender-bar">
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-              <AiGenerationStatus active={isCreatingSession || isGenerating} />
+              <AiGenerationStatus active={submittingMessage || isCreatingSession || isGenerating} />
               {!modelState.loading && !modelState.error && !modelState.hasModels && (
                 <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用对话模型" />
               )}
@@ -589,7 +595,7 @@ const AiChatPage: React.FC = () => {
                   ) : undefined
                 }
                 loading={isGenerating}
-                submitDisabled={submitDisabled || isCreatingSession}
+                submitDisabled={submitDisabled || submittingMessage || isCreatingSession}
                 model={{
                   value: activeModelId,
                   options: modelState.options,

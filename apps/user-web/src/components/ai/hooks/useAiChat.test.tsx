@@ -68,6 +68,30 @@ describe('useAiChat', () => {
     );
   });
 
+  it('父页面尚未更新会话 ID 时，首次发送立即显示临时消息', async () => {
+    vi.mocked(streamAiChat).mockImplementation(() => new Promise<void>(() => undefined));
+    const { result, rerender } = renderHook(
+      ({ sessionId }: { sessionId?: string }) =>
+        useAiChat({
+          initialMessages: [],
+          sessionId,
+          ensureSession: async () => SESSION_ID,
+        }),
+      { initialProps: { sessionId: undefined as string | undefined } },
+    );
+
+    await act(async () => {
+      expect(await result.current.sendMessage('第一次提问')).toBe(true);
+    });
+    expect(result.current.messages).toEqual([
+      expect.objectContaining({ sessionId: SESSION_ID, role: 'user', content: '第一次提问' }),
+      expect.objectContaining({ sessionId: SESSION_ID, role: 'assistant', status: 'generating' }),
+    ]);
+
+    rerender({ sessionId: SESSION_ID });
+    expect(result.current.messages[0]).toMatchObject({ content: '第一次提问' });
+  });
+
   it('切换到另一条已有会话时旧流继续写入原会话', async () => {
     let requestAborted = false;
     let emit!: (event: { type: 'DELTA' | 'DONE'; content?: string }) => void;

@@ -47,7 +47,7 @@ const Booklets: React.FC = () => {
                   </Tag>
                 ) : r.importRestriction === 'PRIVATE_UNTIL_LICENSED' ? (
                   <Tag color="orange" style={{ marginLeft: 8 }}>
-                    待审公开
+                    公开前需提交审核
                   </Tag>
                 ) : null}
               </>

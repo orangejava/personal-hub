@@ -6,6 +6,7 @@
 import type { PublicThemeSettings } from '@/types/app';
 
 const STORAGE_KEY = 'ph.prefs.v1';
+const MAX_READING_PROGRESS_ENTRIES = 100;
 
 /** 单篇/小册阅读进度 */
 export interface LocalReadingProgress {
@@ -15,6 +16,10 @@ export interface LocalReadingProgress {
   scrollY: number;
   /** 0–100 阅读百分比 */
   percent: number;
+  /** PDF 按页恢复；旧的滚动记录没有该字段时仍按 scrollY 兼容。 */
+  page?: number;
+  totalPages?: number;
+  kind?: 'scroll' | 'page';
   updatedAt: string;
 }
 
@@ -80,9 +85,45 @@ export function setReadingProgress(
     chapterId: progress.chapterId,
     scrollY: Math.max(0, Math.round(progress.scrollY)),
     percent: Math.min(100, Math.max(0, Math.round(progress.percent))),
+    page:
+      typeof progress.page === 'number' ? Math.max(1, Math.round(progress.page)) : undefined,
+    totalPages:
+      typeof progress.totalPages === 'number'
+        ? Math.max(1, Math.round(progress.totalPages))
+        : undefined,
+    kind: progress.kind,
     updatedAt: progress.updatedAt ?? new Date().toISOString(),
   };
+  // 阅读记录只用于恢复最近内容的位置，不能随着长期使用无限占用同一份偏好存储。
+  const overflow = Object.entries(reading)
+    .sort(([, left], [, right]) => left.updatedAt.localeCompare(right.updatedAt))
+    .slice(0, Math.max(0, Object.keys(reading).length - MAX_READING_PROGRESS_ENTRIES));
+  overflow.forEach(([id]) => {
+    delete reading[id];
+  });
   writeAll({ ...all, reading });
+}
+
+/** 阅读检查点按约四分之一屏保存，并限制极端屏幕的写入频率。 */
+export function getReadingCheckpointDistance(viewportHeight: number): number {
+  return Math.min(240, Math.max(160, Math.round(viewportHeight * 0.25)));
+}
+
+/** 判断当前快照是否已经跨过需要落盘的阅读检查点。 */
+export function shouldPersistReadingProgress(
+  previous: LocalReadingProgress | undefined,
+  next: LocalReadingProgress,
+  viewportHeight: number,
+  atBoundary = false,
+): boolean {
+  if (!previous) return true;
+  if (next.chapterId !== previous.chapterId) return true;
+  if (next.kind === 'page' || previous.kind === 'page') {
+    return next.page !== previous.page || next.totalPages !== previous.totalPages;
+  }
+  // 顶部/底部只保证位置发生变化时落盘，避免滚动回弹事件连续改写 localStorage。
+  if (atBoundary) return next.scrollY !== previous.scrollY || next.percent !== previous.percent;
+  return Math.abs(next.scrollY - previous.scrollY) >= getReadingCheckpointDistance(viewportHeight);
 }
 
 /**

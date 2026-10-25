@@ -102,11 +102,15 @@ export async function unfavoriteContent(id: string) {
 export async function saveReadingProgress(data: ReadingProgress) {
   return request('/api/v1/app/reading-records/' + data.contentId, {
     method: 'PUT',
+    // 页面隐藏或刷新时仍需完成最后一次进度写入；默认 XHR 不支持 keepalive。
+    adapter: 'fetch',
+    fetchOptions: { keepalive: true },
+    // 离开页面时的后台同步失败只保留本地进度，不触发全局提示或登录跳转。
+    skipErrorHandler: true,
     data: {
       contentProgressPercent: data.percent,
       chapterId: data.chapterId ?? null,
     },
-    skipErrorHandler: true,
   });
 }
 

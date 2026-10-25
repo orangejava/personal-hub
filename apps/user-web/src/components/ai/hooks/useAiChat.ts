@@ -188,6 +188,11 @@ export function useAiChat({
           if (lifecycleRef.current === lifecycle) refreshActive();
         }
         if (lifecycleRef.current !== lifecycle) return false;
+        // createNewSession 会异步更新父页面的 currentSessionId。先把当前 hook 的选择引用
+        // 指向真实 ID，确保第一次点击发送时临时消息立即进入可见会话，而不是等下一次点击。
+        if (selectedSessionIdRef.current === sessionId) {
+          selectedSessionIdRef.current = resolvedSessionId;
+        }
         messagesBySessionRef.current.set(resolvedSessionId, []);
       }
       const userMessage = createMessage(resolvedSessionId, 'user', normalized);

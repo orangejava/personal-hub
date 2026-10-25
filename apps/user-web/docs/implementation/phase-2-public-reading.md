@@ -36,6 +36,15 @@
 - 本地小册：`src/scripts/sync-local-booklets.ts` 同时扫描 `content-local/booklets/<小册名>/` 与 `content-local/<小册名>/`，解析 `meta.json` + 章节 md，生成 `mock/data/local-booklets.generated.ts`（gitignore），并接入 `package.json` 的 `prepare` 脚本保证全新克隆可跑。
 - 本地小册已合并进 `/api/contents` 列表和 `/api/contents/:id` 详情，内容中心筛选小册后可直接看到同步结果。
 
+### 4.1 统一阅读进度检查点
+
+- `useReadingProgressCheckpoint` 统一管理滚动类阅读器的本地检查点与离开时收口：每次滚动只更新内存，只有相对上次落盘位置达到约四分之一视口（最小 160px、最大 240px）才写 `localStorage`。
+- Markdown、富文本、Word 和小册使用滚动偏移恢复；切章、隐藏、刷新、路由离开与卸载无视阈值强制保存最后快照。
+- 内容详情在路由 ID 改变但新请求尚未返回时，先屏蔽上一条详情和章节请求结果，防止回顶滚动覆盖旧内容进度或跳入旧小册章节。
+- PDF 通过 `IntersectionObserver` 保存主要可见页和总页数，按页恢复，避免不同宽度/缩放下像素偏移失效；超长页也在上一页离开视口时更新页码。若恢复目标之前的页面加载或渲染失败，则放弃自动恢复并继续采集实际可见页。
+- 已登录用户只在离开类事件将最终 `percent`（小册另带 `chapterId`）同步至既有阅读记录接口；滚动检查点不触发服务端请求。
+- 离开页面时的进度同步属于后台尽力写入，失败保留本地快照并静默处理，不触发全局错误提示或 401 登录跳转。小册只有取得当前书目的章节索引后才计算整本百分比，避免把章内比例误写为整本进度。
+
 ## 5. 权限与异常
 - 公开页无需登录；接口 404 / 详情缺失 → `ErrorState`；空列表 → `EmptyState`。
 - 本地小册未同步时显示引导（执行 `pnpm sync:booklets`）。

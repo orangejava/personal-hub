@@ -75,7 +75,7 @@ const Booklets: React.FC = () => {
                       {item.reviewStatus === 'PENDING' ? (
                         <Tag color="processing">待审核</Tag>
                       ) : item.importRestriction === 'PRIVATE_UNTIL_LICENSED' ? (
-                        <Tag color="orange">待审公开</Tag>
+                        <Tag color="orange">公开前需提交审核</Tag>
                       ) : null}
                       <span style={{ marginLeft: 8, opacity: 0.65 }}>{item.author}</span>
                     </Card>

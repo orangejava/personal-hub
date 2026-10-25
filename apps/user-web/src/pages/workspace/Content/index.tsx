@@ -58,13 +58,13 @@ function hasPublishAll(grants?: Array<{ code: string; dataScope: string }>) {
   return Boolean(grants?.some((item) => item.code === 'content:publish' && item.dataScope === 'ALL'));
 }
 
-/** 待审核优先于待审公开：编辑者排队 vs 仅版权闸尚未允许公开。 */
+/** 待审核优先于版权闸：后者尚未提交后台审核，不能误称为审核队列中的项目。 */
 function restrictionTag(item: Pick<ContentItem, 'reviewStatus' | 'importRestriction'>) {
   if (item.reviewStatus === 'PENDING') {
     return <Tag color="processing">待审核</Tag>;
   }
   if (item.importRestriction === 'PRIVATE_UNTIL_LICENSED') {
-    return <Tag color="orange">待审公开</Tag>;
+    return <Tag color="orange">公开前需提交审核</Tag>;
   }
   if (item.reviewStatus === 'REJECTED') {
     return <Tag color="error">已驳回</Tag>;

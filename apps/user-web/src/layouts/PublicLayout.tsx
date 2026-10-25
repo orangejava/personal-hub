@@ -14,6 +14,7 @@ import { usePublicTheme } from '@/hooks/usePublicTheme';
 import { useViewportBand } from '@/hooks/useViewportBand';
 import { setThemePreference } from '@/utils/clientPreferences';
 import { getPageTransitionKey } from '@/utils/pageTransitionKey';
+import { scrollPageToTop } from '@/utils/scroll';
 import { hideClosedAiMenu, isPublicReaderPath } from '@/layouts/publicNav';
 
 function PublicBrand({
@@ -118,6 +119,11 @@ const PublicLayout: React.FC<{
   useEffect(() => {
     if (!compactNavigation) setMobileMenuOpen(false);
   }, [compactNavigation]);
+
+  // 首页是一个长滚动落地页。从阅读页通过站内「首页」返回时不沿用阅读页的滚动位置。
+  useEffect(() => {
+    if (location.pathname === '/') scrollPageToTop();
+  }, [location.pathname]);
 
   const main = (
     <main

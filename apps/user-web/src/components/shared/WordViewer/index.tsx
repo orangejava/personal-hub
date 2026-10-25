@@ -5,13 +5,16 @@ import SectionSkeleton from '../SectionSkeleton';
 
 type WordViewerProps = {
   url: string;
+  onReady?: () => void;
 };
 
 /** Word（.docx）在线预览 */
-const WordViewer: React.FC<WordViewerProps> = ({ url }) => {
+const WordViewer: React.FC<WordViewerProps> = ({ url, onReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const onReadyRef = useRef(onReady);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -32,6 +35,7 @@ const WordViewer: React.FC<WordViewerProps> = ({ url }) => {
           className: 'ph-word-docx',
           inWrapper: true,
         });
+        if (!cancelled) onReadyRef.current?.();
       } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : '加载失败');

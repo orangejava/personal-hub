@@ -9,14 +9,18 @@ import {
   UnorderedListOutlined,
   VerticalAlignTopOutlined,
 } from '@ant-design/icons';
-import { useRequest } from '@/hooks/useRequest';
-import { useViewportBand } from '@/hooks/useViewportBand';
-import { useParams, history, useModel } from '@umijs/max';
-import { Button, Drawer, Menu, Progress, message } from 'antd';
+import type { BookletChapter as BookletChapterType } from '@personal-hub/shared-types';
+import { ContentType } from '@personal-hub/shared-types';
+import { history, useModel, useParams } from '@umijs/max';
+import { Button, Drawer, Menu, message, Progress } from 'antd';
 import clsx from 'clsx';
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { usePublicTheme } from '@/hooks/usePublicTheme';
-import PublicLayout from '@/layouts/PublicLayout';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import BookletChapterFooter from '@/components/shared/BookletChapterFooter';
 import EllipsisTooltip from '@/components/shared/EllipsisTooltip';
 import ErrorState from '@/components/shared/ErrorState';
@@ -25,22 +29,25 @@ import ReaderActionBar from '@/components/shared/ReaderActionBar';
 import ScrollBackTop from '@/components/shared/ScrollBackTop';
 import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import TocPanel from '@/components/shared/TocPanel';
+import { usePublicTheme } from '@/hooks/usePublicTheme';
+import { useReadingProgressCheckpoint } from '@/hooks/useReadingProgressCheckpoint';
+import { useRequest } from '@/hooks/useRequest';
+import { useViewportBand } from '@/hooks/useViewportBand';
+import PublicLayout from '@/layouts/PublicLayout';
 import { fetchBookletChapters, fetchChapter } from '@/services/booklet';
 import {
   favoriteContent,
   fetchContentDetail,
   fetchContentList,
+  saveReadingProgress,
   unfavoriteContent,
 } from '@/services/content';
-import { copyToClipboard } from '@/utils/copyToClipboard';
 import {
-  calcScrollPercent,
   getReadingProgress,
-  setReadingProgress,
+  type LocalReadingProgress,
 } from '@/utils/clientPreferences';
+import { copyToClipboard } from '@/utils/copyToClipboard';
 import { scrollChildIntoCenter, scrollPageToTop } from '@/utils/scroll';
-import type { BookletChapter as BookletChapterType } from '@personal-hub/shared-types';
-import { ContentType } from '@personal-hub/shared-types';
 
 type CollapsibleSidebarProps = {
   title: string;
@@ -101,7 +108,15 @@ type BookletListSidebarProps = {
 
 /** 最左侧小册列表：切章时不随 chapterId 重渲染 */
 const BookletListSidebar = React.memo<BookletListSidebarProps>(
-  ({ bookletId, collapsed, bookletList, menuTheme, menuRef, onToggle, onBookletClick }) => (
+  ({
+    bookletId,
+    collapsed,
+    bookletList,
+    menuTheme,
+    menuRef,
+    onToggle,
+    onBookletClick,
+  }) => (
     <CollapsibleSidebar
       title="小册列表"
       width={240}
@@ -192,7 +207,9 @@ const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
   const toggleFavorite = async () => {
     if (!initialState?.currentUser) {
       message.info('登录后可以收藏内容');
-      history.push(`/user/login?redirect=${encodeURIComponent(window.location.pathname)}`);
+      history.push(
+        `/user/login?redirect=${encodeURIComponent(window.location.pathname)}`,
+      );
       return;
     }
     const next = !liked;
@@ -239,7 +256,11 @@ const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
           {
             key: 'favorite',
             label: liked ? '已收藏' : '收藏',
-            icon: liked ? <HeartFilled style={{ color: '#ff4d4f' }} /> : <HeartOutlined />,
+            icon: liked ? (
+              <HeartFilled style={{ color: '#ff4d4f' }} />
+            ) : (
+              <HeartOutlined />
+            ),
             onClick: () => void toggleFavorite(),
           },
         ]}
@@ -254,14 +275,17 @@ const MobileReaderControls: React.FC<MobileReaderControlsProps> = ({
             key: 'copy',
             label: '复制当前章节链接',
             icon: <CopyOutlined />,
-            onClick: () => void copyToClipboard(window.location.href, '链接已复制'),
+            onClick: () =>
+              void copyToClipboard(window.location.href, '链接已复制'),
           },
           {
             key: 'quote',
             label: '引用到 AI',
             icon: <RobotOutlined />,
             onClick: () =>
-              history.push(`/ai/chat?contentId=${encodeURIComponent(bookletId)}&mode=quote`),
+              history.push(
+                `/ai/chat?contentId=${encodeURIComponent(bookletId)}&mode=quote`,
+              ),
           },
           {
             key: 'top',
@@ -371,16 +395,6 @@ const ChapterListSidebar = React.memo<ChapterListSidebarProps>(
   ),
 );
 
-/** 将当前窗口滚动位置写入本地阅读进度 */
-function persistChapterProgress(bookletId: string, chapterId: string) {
-  const scrollY = window.scrollY;
-  setReadingProgress(bookletId, {
-    chapterId,
-    scrollY,
-    percent: calcScrollPercent(scrollY),
-  });
-}
-
 function scrollSidebarItemByIndex(body: HTMLElement | null, itemIndex: number) {
   if (!body || itemIndex < 0) return;
   const items = body.querySelectorAll<HTMLElement>('.ant-menu-item');
@@ -403,6 +417,7 @@ function readArticleScrollRatio(): number {
 /** 小册章节阅读：全宽四栏 + 可折叠侧栏 */
 const BookletChapter: React.FC = () => {
   const { menuTheme } = usePublicTheme();
+  const { initialState } = useModel('@@initialState');
   const params = useParams<{ id: string; chapterId: string }>();
   const bookletId = params.id!;
   const chapterId = params.chapterId!;
@@ -410,10 +425,10 @@ const BookletChapter: React.FC = () => {
   const [listCollapsed, setListCollapsed] = useState(true);
   const [chapterCollapsed, setChapterCollapsed] = useState(false);
   const restoredRef = useRef<string | null>(null);
+  /** 只有当前路由章节完成正文渲染和位置恢复后，才允许采集它的滚动位置。 */
+  const progressReadyChapterRef = useRef<string | null>(null);
   /** 只有这次进入文档的第一屏才用已保存的滚动位置。 */
   const resumeScrollOnEntryRef = useRef(true);
-  /** goTo 已经记下离开前的位置，章节切换的滚动清理不要再写成 0。 */
-  const savedOnLeaveRef = useRef(false);
   const listMenuRef = useRef<HTMLDivElement>(null);
   const chapterMenuRef = useRef<HTMLDivElement>(null);
   const lastChapterRef = useRef<BookletChapterType | null>(null);
@@ -453,7 +468,18 @@ const BookletChapter: React.FC = () => {
       }
     : undefined;
   const chapters = bookData?.chapters ?? [];
-
+  const syncBookletProgress = useCallback(
+    async (progress: LocalReadingProgress) => {
+      if (!initialState?.currentUser) return;
+      await saveReadingProgress({
+        contentId: bookletId,
+        chapterId: progress.chapterId,
+        percent: progress.percent,
+        updatedAt: progress.updatedAt,
+      });
+    },
+    [bookletId, initialState?.currentUser],
+  );
   const {
     data: chapter,
     loading: chapterLoading,
@@ -470,25 +496,10 @@ const BookletChapter: React.FC = () => {
   const displayChapter = chapter ?? lastChapterRef.current;
   // 书目和章节是两次请求。正文出来之前只留这一层，不要先骨架、再空白、再换一套。
   const waitingForChapter =
-    !bookError && !chapterError && !displayChapter && (bookLoading || chapterLoading);
-
-  useEffect(() => {
-    let frame = 0;
-    const update = () => setScrollRatio(readArticleScrollRatio());
-    const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-    };
-  }, [chapterId, displayChapter?.id]);
-
+    !bookError &&
+    !chapterError &&
+    !displayChapter &&
+    (bookLoading || chapterLoading);
   const currentIndex = chapters.findIndex((c) => c.id === chapterId);
   const prev = currentIndex > 0 ? chapters[currentIndex - 1] : undefined;
   const next =
@@ -500,6 +511,71 @@ const BookletChapter: React.FC = () => {
       ? Math.round(((currentIndex + scrollRatio) / chapters.length) * 100)
       : 0;
 
+  const readCurrentChapterProgress = useCallback(() => {
+    const restoreKey = `${bookletId}:${chapterId}`;
+    if (
+      chapter?.id !== chapterId ||
+      progressReadyChapterRef.current !== restoreKey ||
+      currentIndex < 0
+    ) {
+      return undefined;
+    }
+    const scrollY = window.scrollY;
+    const chapterRatio = readArticleScrollRatio();
+    const percent = Math.round(((currentIndex + chapterRatio) / chapters.length) * 100);
+    return { chapterId, scrollY, percent, kind: 'scroll' as const };
+  }, [bookletId, chapter?.id, chapterId, chapters.length, currentIndex]);
+
+  const {
+    report: reportBookletProgress,
+    flushSnapshot: flushBookletProgressSnapshot,
+  } = useReadingProgressCheckpoint({
+    contentId: bookletId,
+    enabled: Boolean(chapterId),
+    sync: initialState?.currentUser ? syncBookletProgress : undefined,
+    readLatest: readCurrentChapterProgress,
+  });
+
+  const reportCurrentChapterProgress = useCallback(
+    (atBoundary = false) => {
+      const progress = readCurrentChapterProgress();
+      if (progress) reportBookletProgress(progress, { atBoundary });
+    },
+    [readCurrentChapterProgress, reportBookletProgress],
+  );
+
+  useEffect(() => {
+    const restoreKey = `${bookletId}:${chapterId}`;
+    if (
+      chapter?.id !== chapterId ||
+      progressReadyChapterRef.current !== restoreKey
+    )
+      return;
+    let frame = 0;
+    const update = () => {
+      setScrollRatio(readArticleScrollRatio());
+      frame = 0;
+    };
+    const onScroll = () => {
+      const maxScroll =
+        document.documentElement.scrollHeight - window.innerHeight;
+      // 立即采集快照；动画帧只更新界面进度，路由离开不依赖它完成。
+      reportCurrentChapterProgress(
+        window.scrollY <= 0 || window.scrollY >= maxScroll - 2,
+      );
+      if (frame) return;
+      frame = requestAnimationFrame(update);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [bookletId, chapter?.id, chapterId, reportCurrentChapterProgress]);
+
   const { data: bookletListData } = useRequest(() =>
     fetchContentList({ type: ContentType.Booklet, page: 1, pageSize: 100 }),
   );
@@ -509,34 +585,17 @@ const BookletChapter: React.FC = () => {
 
   const goTo = (nextChapterId: string) => {
     if (nextChapterId === chapterId) return;
-    persistChapterProgress(bookletId, chapterId);
-    savedOnLeaveRef.current = true;
+    reportCurrentChapterProgress();
+    flushBookletProgressSnapshot();
     resumeScrollOnEntryRef.current = false;
     history.push(`/content/booklets/${bookletId}/chapters/${nextChapterId}`);
   };
 
-  useEffect(() => {
-    let ticking = false;
-    const onScroll = () => {
-      if (savedOnLeaveRef.current || ticking) return;
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        if (!savedOnLeaveRef.current) {
-          persistChapterProgress(bookletId, chapterId);
-        }
-        ticking = false;
-      });
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      if (savedOnLeaveRef.current) {
-        savedOnLeaveRef.current = false;
-        return;
-      }
-      persistChapterProgress(bookletId, chapterId);
-    };
-  }, [bookletId, chapterId]);
+  // 浏览器前进/后退等非按钮切章也要收口旧章节；此时只能提交滚动事件采集的快照。
+  useEffect(
+    () => () => flushBookletProgressSnapshot(),
+    [chapterId, flushBookletProgressSnapshot],
+  );
 
   useLayoutEffect(() => {
     const previous = window.history.scrollRestoration;
@@ -547,7 +606,8 @@ const BookletChapter: React.FC = () => {
   }, []);
 
   useLayoutEffect(() => {
-    if (chapterLoading || !chapter) return;
+    // useRequest 在路由变化时会暂留旧章节；不能让旧正文消耗新章节的恢复机会。
+    if (chapterLoading || chapter?.id !== chapterId) return;
     const restoreKey = `${bookletId}:${chapterId}`;
     if (restoredRef.current === restoreKey) return;
     restoredRef.current = restoreKey;
@@ -562,9 +622,10 @@ const BookletChapter: React.FC = () => {
     const apply = () => {
       if (shouldRestore && progress) {
         window.scrollTo({ top: progress.scrollY, left: 0, behavior: 'auto' });
-        return;
+      } else {
+        scrollPageToTop();
       }
-      scrollPageToTop();
+      progressReadyChapterRef.current = restoreKey;
     };
     apply();
     const timer = window.setTimeout(apply, 50);
@@ -613,16 +674,24 @@ const BookletChapter: React.FC = () => {
   return (
     <PublicLayout fullWidth>
       {bookError && (
-        <div className="ph-container" style={{ padding: 'var(--ph-page-padding)' }}>
+        <div
+          className="ph-container"
+          style={{ padding: 'var(--ph-page-padding)' }}
+        >
           <ErrorState title="小册不存在或加载失败" onRetry={reloadBook} />
         </div>
       )}
       {chapterError && (
-        <div className="ph-container" style={{ padding: 'var(--ph-page-padding)' }}>
+        <div
+          className="ph-container"
+          style={{ padding: 'var(--ph-page-padding)' }}
+        >
           <ErrorState title="章节加载失败" onRetry={reloadChapter} />
         </div>
       )}
-      {waitingForChapter && <SectionSkeleton variant="article" rows={16} fill />}
+      {waitingForChapter && (
+        <SectionSkeleton variant="article" rows={16} fill />
+      )}
       {booklet && !waitingForChapter && (
         <div className="ph-booklet-reader">
           <BookletListSidebar
@@ -665,7 +734,9 @@ const BookletChapter: React.FC = () => {
 
               <aside className="ph-booklet-toc">
                 <div className="ph-booklet-toc-sticky">
-                  {hasToc && displayChapter?.toc ? <TocPanel items={displayChapter.toc} /> : null}
+                  {hasToc && displayChapter?.toc ? (
+                    <TocPanel items={displayChapter.toc} />
+                  ) : null}
                 </div>
               </aside>
             </div>

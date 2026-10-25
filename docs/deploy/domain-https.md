@@ -1,6 +1,6 @@
 # 域名、HTTPS 与 Nginx 压缩缓存
 
-> 状态：Nginx/Compose HTTPS 配置已落在 main；生产证书已申请并完成 HTTPS、健康接口和基础跳转验证，仍需按第 5 节完成应用链路、移动端和续期演练验收。
+> 状态：Nginx/Compose HTTPS 配置已落在 main；生产证书、HTTPS、应用链路、移动端、gzip、静态缓存、Lighthouse 和续期验收均已完成。本文保留为后续续期、排障和回滚手册。
 > 最后更新：2026-10-18
 > 主域名：personalhub.center；www.personalhub.center 只做跳转，不作为业务 Origin。
 > 前提：域名已实名，ICP 备案已通过（2026-09）。证书和私钥不进 Git。

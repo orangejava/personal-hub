@@ -328,6 +328,8 @@
   min-height: 0;
   overflow: auto;
   padding-top: 12px;
+  position: relative;
+  background: var(--ph-ai-bg);
 }
 
 .ph-ai-workspace-messages-inner {
@@ -494,7 +496,7 @@
 .ph-ai-chat-toolbar {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: 3;
   min-height: 48px;
   display: flex;
   align-items: center;
@@ -504,6 +506,7 @@
   padding: 4px 12px;
   border-bottom: 1px solid var(--ph-ai-border);
   background: var(--ph-ai-panel-bg);
+  isolation: isolate;
 }
 
 .ph-ai-chat-toolbar-actions {
@@ -1684,6 +1687,32 @@
   .ph-ai-generation-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* 数字对应 viewport-bands.json 的 phoneMax（767）：移动端会话顶栏与消息滚动区共用一个容器。 */
+@media (max-width: 767px) {
+  .ph-ai-chat-shell,
+  .ph-ai-workspace-main {
+    min-height: 0;
+  }
+
+  .ph-ai-workspace-main {
+    gap: 8px;
+  }
+
+  .ph-ai-workspace-messages {
+    padding-top: 0;
+  }
+
+  .ph-ai-chat-toolbar {
+    min-height: 52px;
+    padding-inline: 8px;
+  }
+
+  .ph-ai-message-list {
+    min-height: 0;
+    padding: 16px 12px 20px;
   }
 }
 

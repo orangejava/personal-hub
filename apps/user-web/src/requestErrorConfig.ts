@@ -56,7 +56,8 @@ function readNestErrorMessage(error: unknown): string | undefined {
  * 请求错误处理
  * Canonical：HTTP 2xx 由拦截器解包为业务对象 T；失败 throw。
  * Umi 4 没有 dataField；useRequest 二次拆 data 在 `@/hooks/useRequest` 覆盖。
- * skipErrorHandler 仅留给启动拉取、登录冷却等要自己画 UI 的调用。
+ * skipErrorHandler 仅留给启动拉取、登录冷却等自行处理失败的调用，
+ * 以及离开页面时不能打断导航的尽力型后台同步。
  */
 export const errorConfig: RequestConfig = {
   errorConfig: {

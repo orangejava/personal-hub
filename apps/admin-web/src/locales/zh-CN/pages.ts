@@ -143,7 +143,7 @@ export default {
   'admin.reviews.status.REJECTED': '已驳回',
   'admin.reviews.status.CANCELED': '已取消',
   'admin.reviews.importRestriction': '导入限制',
-  'admin.reviews.pendingPublic': '待审公开',
+  'admin.reviews.pendingPublic': '导入版权闸待审核',
   'admin.reviews.rejectReason': '驳回原因',
   'admin.reviews.submittedAt': '提交时间',
   'admin.reviews.approve': '通过',

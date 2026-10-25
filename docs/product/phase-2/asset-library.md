@@ -1,7 +1,7 @@
 # 素材库
 
-> 状态：已确认要做，未排期，**不是当前开发依据**
-> 最后更新：2026-10-09
+> 状态：背景想法；当前可执行需求以 [post-launch/ai-asset-library-prd.md](../../prd/post-launch/ai-asset-library-prd.md) 为准
+> 最后更新：2026-10-19
 > 来源：`home-showcase` 首页与项目页改版期间的讨论
 > 相关：[file-policies.md](./file-policies.md)、[workspace-pages.md](./workspace-pages.md)（个人文件库仍待讨论）、[content-booklet-file-prd.md](../../prd/long-term/content-booklet-file-prd.md)（文件域契约）
 
@@ -28,9 +28,9 @@
 ## 不做
 
 - 不做图片编辑（裁剪、滤镜、压缩参数）。
-- 不做公开的素材浏览页。素材库只在管理端。
-- 不替代 AI 资产页面。用户自己的 AI 图仍按归属在用户端查看；素材库只读、不改归属。
-- 不在第一版接视频、PDF 等非图片文件。
+- 不做公开的素材浏览页。后台素材库只在管理端；用户素材库只在登录后的 `/workspace/assets` 工作区。
+- 后台素材库不替代用户素材库。用户自己的 AI 图片、视频、文本和附件按归属在工作区查看，不能混入后台运营素材列表。
+- 当前可执行 PRD 已扩展到图片、视频、文本和普通附件，具体边界以 [ai-asset-library-prd.md](../../prd/post-launch/ai-asset-library-prd.md) 为准。
 
 ## 分两步
 
@@ -75,5 +75,5 @@
 ## 待讨论
 
 - 引用关系怎么存：配置里反查，还是新建引用表。
-- 素材库是否也给普通用户开放「我的文件」，和 [workspace-pages.md](./workspace-pages.md) 的个人文件库合并。
+- 用户素材库 `/workspace/assets` 与 [workspace-pages.md](./workspace-pages.md) 的个人文件库如何长期合并，待实现阶段确认。
 - 删除素材时，被引用的图如何提示，是否只允许软删。
