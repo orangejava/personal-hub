@@ -11,5 +11,6 @@
 | [implementation/phase-4-review-fixes.md](./implementation/phase-4-review-fixes.md) | 阶段 4 审阅修复 |
 | [implementation/phase-4-5-planning.md](./implementation/phase-4-5-planning.md) | 4.5 规划 |
 | [implementation/phase-4-5-experience-deepening.md](./implementation/phase-4-5-experience-deepening.md) | 4.5 体验深化 |
-| [implementation/system-config-hub.md](./implementation/system-config-hub.md) | 系统配置中心（站点 / 首页 / 内容中心 / 关于我 / 项目） |
+| [implementation/vitest-upgrade-2026-10.md](./implementation/vitest-upgrade-2026-10.md) | Vitest 4 升级原因、验证与影响范围 |
+| [implementation/system-config-hub.md](./implementation/system-config-hub.md) | 系统配置中心（站点 / 首页 / 内容中心 / 关于我 / 项目 / 文件上传） |
 | [content-review-and-uploads.md](../../../docs/implementation/content/content-review-and-uploads.md) | 内容审核与上传任务（跨端） |

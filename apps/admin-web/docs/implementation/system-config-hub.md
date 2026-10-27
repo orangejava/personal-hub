@@ -5,7 +5,7 @@
 
 ## 1. 目标与范围
 
-把后台「系统配置」做成按公开页面拆开的入口中心：站点、首页、内容中心、关于我、项目。侧栏分组改名为「系统管理」，内容管理下不再挂首页配置。主题配置和 AI 管理保持并列，不收进中心。
+把后台「系统配置」做成按职责拆开的入口中心：站点、首页、内容中心、关于我、项目和文件上传。文件上传子页维护小册 ZIP 默认 50 MiB 的可配上限。
 
 ## 2. 页面与入口
 
@@ -17,6 +17,7 @@
 | `/admin/system/content` | 卡片样式 / 阅读宽度 / 面包屑 / Hero 排版 | 否 |
 | `/admin/system/about` | 关于我 Markdown | 否 |
 | `/admin/system/projects` | 项目页标题与简介 | 否 |
+| `/admin/system/files` | 小册 ZIP 上传大小（MiB） | 否 |
 | `/admin/homepage` | 重定向到首页配置子页 | — |
 | `/admin/system/theme` | 主题配置 | 是 |
 
@@ -25,6 +26,8 @@
 ## 3. 接口与数据流
 
 仍走 M3：`GET/PUT /api/v1/admin/system-configs/:group` + `Idempotency-Key` + version。公开前台 `GET /api/v1/public/site-config` 已组装 `about` / `layout`；`mapPublicSiteConfig` 现在会带上这两块，页面读 `initialState.systemConfig`。
+
+文件上传配置继续使用私有 `file.policies`，保存时同步更新 `TEMPORARY_IMPORT` 与 `BOOKLET_SOURCE` 的 `maxBytes`，同时保留 MIME 白名单。上传接口按 COS Multipart 的能力计算分片大小，分批获取签名 URL；签名过期或上传失败会重新签名。会话保留 24 小时，单次签名有效 15 分钟。
 
 `site.layout` 增加 `projectsTitle`、`projectsIntro`。旧 JSON 缺字段时 `parseGroupValue` 用默认值补齐。
 

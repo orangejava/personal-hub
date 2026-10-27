@@ -32,6 +32,7 @@ export default [
       { path: '/admin/system/about', name: '关于我配置', component: './admin/SystemAbout' },
       { path: '/admin/system/projects', name: '项目配置', component: './admin/SystemProjects' },
       { path: '/admin/system/metrics', name: '性能汇总', component: './admin/SystemMetrics' },
+      { path: '/admin/system/files', name: '文件上传配置', component: './admin/SystemFiles' },
       { path: '/admin/system/theme', name: '主题配置', hideInMenu: true, component: './admin/SystemTheme' },
       { path: '/admin/logs', name: '操作日志', component: './admin/Logs' },
     ],

@@ -21,29 +21,29 @@
 
 ## 2. Auth：`/auth`
 
-| 方法   | 路径                         | 鉴权                | 说明                                                             |
-| ------ | ---------------------------- | ------------------- | ---------------------------------------------------------------- |
-| POST   | `/auth/register`             | 公开                | 注册 `PENDING_VERIFICATION` member，发送验证邮件                 |
-| POST   | `/auth/verify-email`         | 公开                | 消费一次性验证 Token 并激活账号                                  |
-| POST   | `/auth/resend-verification`  | 公开                | 重新发送验证邮件，统一响应避免枚举                               |
-| POST   | `/auth/captcha-challenges`   | 公开（限流）        | 在登录风险状态下创建 5 分钟一次性 SVG/算术验证码                 |
-| POST   | `/auth/login`                | 公开                | Web 登录；可能要求验证码或返回 MFA challenge                     |
-| POST   | `/auth/login/mfa`            | MFA challenge       | 校验 TOTP/恢复码后创建会话，写 Refresh Cookie，返回 Access Token |
-| POST   | `/auth/refresh`              | Refresh Cookie      | 轮换 Web Refresh Token，返回 Access Token                        |
+| 方法   | 路径                         | 鉴权                          | 说明                                                             |
+| ------ | ---------------------------- | ----------------------------- | ---------------------------------------------------------------- |
+| POST   | `/auth/register`             | 公开                          | 注册 `PENDING_VERIFICATION` member，发送验证邮件                 |
+| POST   | `/auth/verify-email`         | 公开                          | 消费一次性验证 Token 并激活账号                                  |
+| POST   | `/auth/resend-verification`  | 公开                          | 重新发送验证邮件，统一响应避免枚举                               |
+| POST   | `/auth/captcha-challenges`   | 公开（限流）                  | 在登录风险状态下创建 5 分钟一次性 SVG/算术验证码                 |
+| POST   | `/auth/login`                | 公开                          | Web 登录；可能要求验证码或返回 MFA challenge                     |
+| POST   | `/auth/login/mfa`            | MFA challenge                 | 校验 TOTP/恢复码后创建会话，写 Refresh Cookie，返回 Access Token |
+| POST   | `/auth/refresh`              | Refresh Cookie                | 轮换 Web Refresh Token，返回 Access Token                        |
 | POST   | `/auth/logout`               | Refresh Cookie / Access Token | 撤销当前会话并清 Cookie；Cookie 优先，没有再用 Bearer            |
-| POST   | `/auth/forgot-password`      | 公开                | 发送一次性重置邮件，统一 `202` 响应                              |
-| POST   | `/auth/reset-password`       | 公开                | 使用重置 Token 更新密码并撤销旧会话                              |
-| GET    | `/auth/me`                   | 登录                | 当前身份、单角色、资料、权益摘要                                 |
-| GET    | `/auth/permissions`          | 登录                | 有效动作权限、独立数据范围、按权限过滤后的菜单                   |
-| GET    | `/auth/sessions`             | 登录                | 当前账号会话列表，含 `isCurrent`                                 |
-| DELETE | `/auth/sessions/:sessionId`  | own / all           | 撤销指定非当前会话                                               |
-| POST   | `/auth/sessions/revoke-all`  | 登录                | 撤销本人全部会话；可选保留当前会话                               |
-| POST   | `/auth/change-password`      | 登录                | 当前密码 + 新密码；成功后撤销全部会话并递增 `authVersion`        |
-| POST   | `/auth/change-email`         | 登录                | 需当前密码；创建新邮箱验证请求                                   |
-| POST   | `/auth/confirm-email-change` | 公开                | 消费新邮箱验证 Token，更新邮箱并撤销其他会话                     |
-| POST   | `/auth/mfa/totp/setup`       | admin / super_admin | 创建待确认的 TOTP 绑定信息                                       |
-| POST   | `/auth/mfa/totp/confirm`     | admin / super_admin | 校验动态码，启用 TOTP 并仅此一次返回恢复码                       |
-| POST   | `/auth/mfa/totp/disable`     | admin / super_admin | 校验当前密码和动态码后停用 TOTP                                  |
+| POST   | `/auth/forgot-password`      | 公开                          | 发送一次性重置邮件，统一 `202` 响应                              |
+| POST   | `/auth/reset-password`       | 公开                          | 使用重置 Token 更新密码并撤销旧会话                              |
+| GET    | `/auth/me`                   | 登录                          | 当前身份、单角色、资料、权益摘要                                 |
+| GET    | `/auth/permissions`          | 登录                          | 有效动作权限、独立数据范围、按权限过滤后的菜单                   |
+| GET    | `/auth/sessions`             | 登录                          | 当前账号会话列表，含 `isCurrent`                                 |
+| DELETE | `/auth/sessions/:sessionId`  | own / all                     | 撤销指定非当前会话                                               |
+| POST   | `/auth/sessions/revoke-all`  | 登录                          | 撤销本人全部会话；可选保留当前会话                               |
+| POST   | `/auth/change-password`      | 登录                          | 当前密码 + 新密码；成功后撤销全部会话并递增 `authVersion`        |
+| POST   | `/auth/change-email`         | 登录                          | 需当前密码；创建新邮箱验证请求                                   |
+| POST   | `/auth/confirm-email-change` | 公开                          | 消费新邮箱验证 Token，更新邮箱并撤销其他会话                     |
+| POST   | `/auth/mfa/totp/setup`       | admin / super_admin           | 创建待确认的 TOTP 绑定信息                                       |
+| POST   | `/auth/mfa/totp/confirm`     | admin / super_admin           | 校验动态码，启用 TOTP 并仅此一次返回恢复码                       |
+| POST   | `/auth/mfa/totp/disable`     | admin / super_admin           | 校验当前密码和动态码后停用 TOTP                                  |
 
 `POST /auth/register`：
 
@@ -290,18 +290,18 @@ Web 登录、MFA 登录完成或刷新成功：
 
 ### 4.2 我的内容
 
-| 方法   | 路径                               | 权限                                  | 说明                                  |
-| ------ | ---------------------------------- | ------------------------------------- | ------------------------------------- |
-| GET    | `/app/contents`                    | `content:read`                        | 我的内容/回收站列表；`lifecycle=DRAFT | PUBLISHED | ARCHIVED`、`includeDeleted=true` 仅查询本人 OWN 或授权 ALL 范围内的内容 |
-| POST   | `/app/contents`                    | `content:create`，必填幂等键          | 创建草稿                              |
-| GET    | `/app/contents/:contentId`         | `content:read` OWN/ALL                | 工作区详情，含编辑源数据              |
-| GET    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL       | PRIVATE 内容指定读者列表              |
-| PUT    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL，必填幂等键 | 用 `{ emails: string[] }` 完整替换指定读者，最多 50 个启用账号 |
-| PATCH  | `/app/contents/:contentId`         | `content:update` OWN/ALL              | 更新元信息/正文                       |
-| POST   | `/app/contents/:contentId/publish` | `content:publish` OWN/ALL，必填幂等键 | OWN：提交审核（内容保持 `DRAFT`，列表 `reviewStatus=PENDING`）；ALL：校验、快照、即时发布。可选 `{ requestedVisibility, copyrightNote }` |
-| POST   | `/app/contents/:contentId/archive` | `content:publish` OWN/ALL             | 归档                                  |
-| DELETE | `/app/contents/:contentId`         | `content:delete` OWN/ALL              | 软删除                                |
-| POST   | `/app/contents/:contentId/restore` | `content:restore` OWN/ALL             | 30 天内恢复                           |
+| 方法   | 路径                                     | 权限                                  | 说明                                                                                                                                                                                                        |
+| ------ | ---------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/app/contents`                          | `content:read`                        | 我的内容/回收站列表；`lifecycle=DRAFT                                                                                                                                                                       | PUBLISHED | ARCHIVED`、`includeDeleted=true` 仅查询本人 OWN 或授权 ALL 范围内的内容 |
+| POST   | `/app/contents`                          | `content:create`，必填幂等键          | 创建草稿                                                                                                                                                                                                    |
+| GET    | `/app/contents/:contentId`               | `content:read` OWN/ALL                | 工作区详情，含编辑源数据                                                                                                                                                                                    |
+| GET    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL              | PRIVATE 内容指定读者列表                                                                                                                                                                                    |
+| PUT    | `/app/contents/:contentId/access-grants` | `content:update` OWN/ALL，必填幂等键  | 用 `{ emails: string[] }` 完整替换指定读者，最多 50 个启用账号                                                                                                                                              |
+| PATCH  | `/app/contents/:contentId`               | `content:update` OWN/ALL              | 更新元信息/正文                                                                                                                                                                                             |
+| POST   | `/app/contents/:contentId/publish`       | `content:publish` OWN/ALL，必填幂等键 | OWN：提交审核（内容保持 `DRAFT`，列表 `reviewStatus=PENDING`）；ALL：校验、快照、即时发布。可选 `{ requestedVisibility, copyrightNote, sourceNotice }`；`sourceNotice` 保存在内容主表并可通过后台关键字检索，不返回给公开接口 |
+| POST   | `/app/contents/:contentId/archive`       | `content:publish` OWN/ALL             | 归档                                                                                                                                                                                                        |
+| DELETE | `/app/contents/:contentId`               | `content:delete` OWN/ALL              | 软删除                                                                                                                                                                                                      |
+| POST   | `/app/contents/:contentId/restore`       | `content:restore` OWN/ALL             | 30 天内恢复                                                                                                                                                                                                 |
 
 内容 payload 按类型互斥：
 
@@ -365,64 +365,66 @@ Web 登录、MFA 登录完成或刷新成功：
 
 ### 4.4 上传和小册导入
 
-| 方法 | 路径                                | 权限                                 | 说明                                 |
-| ---- | ----------------------------------- | ------------------------------------ | ------------------------------------ |
-| POST | `/app/uploads`                      | 登录，必填幂等键                     | 创建单 PUT 或 Multipart 上传会话     |
-| POST | `/app/uploads/:uploadId/complete`   | 登录，必填幂等键，高风险 7 天         | 校验对象前缀魔数与流式 SHA-256，创建 READY FileAsset |
-| GET    | `/app/upload-tasks`                 | 登录                                 | 文件与小册导入按 `createdAt` 真分页；不接受 `mimeKind`；可选 `taskKind=booklet\|pdf\|word\|zip` 服务端过滤；`hasActiveBookletImports` 表示存在 `QUEUED`/`VALIDATING`/`IMPORTING` |
-| GET    | `/app/files`                        | 登录                                 | 当前用户上传任务文件分页；默认不按 MIME 裁剪；`hiddenFromTaskList=false`；已挂导入任务的源文件由 booklet-imports 展示 |
-| DELETE | `/app/files/:fileId`                | 登录且为上传者                       | 从上传任务列表隐藏，不删文件与内容 |
-| GET    | `/app/files/:fileId/download-url`   | own / all                            | 校验后签发短时 URL                   |
-| POST   | `/app/booklet-imports`              | `booklet:import` OWN/ALL，必填幂等键，高风险 7 天 | 基于 ZIP FileAsset 创建导入任务      |
-| GET    | `/app/booklet-imports`              | `booklet:import` OWN                 | 当前用户导入任务分页；排除已隐藏条目 |
-| GET    | `/app/booklet-imports/:jobId`       | own / all                            | 轮询导入任务                         |
-| POST   | `/app/booklet-imports/:jobId/retry` | own / all，必填幂等键，高风险 7 天   | 重试同一条失败任务，不新建内容       |
-| DELETE | `/app/booklet-imports/:jobId`       | own                                  | 从上传任务列表隐藏，不删草稿与源 ZIP |
+| 方法   | 路径                                | 权限                                              | 说明                                                                                                                                                                             |
+| ------ | ----------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/app/uploads`                      | 登录，必填幂等键                                  | 创建单 PUT 或 Multipart 上传会话                                                                                                                                                 |
+| POST   | `/app/uploads/:uploadId/renew`      | 登录，必填幂等键                                  | 续期上传会话并刷新单 PUT 签名 URL                                                                                                                                                |
+| GET    | `/app/uploads/:uploadId/parts`      | 登录                                              | 按 `startPart` / `count`（最多 100）分批签发 Multipart URL                                                                                                                       |
+| POST   | `/app/uploads/:uploadId/complete`   | 登录，必填幂等键，高风险 7 天                     | 校验对象前缀魔数与流式 SHA-256，创建 READY FileAsset                                                                                                                             |
+| GET    | `/app/upload-tasks`                 | 登录                                              | 文件与小册导入按 `createdAt` 真分页；不接受 `mimeKind`；可选 `taskKind=booklet\|pdf\|word\|zip` 服务端过滤；`hasActiveBookletImports` 表示存在 `QUEUED`/`VALIDATING`/`IMPORTING` |
+| GET    | `/app/files`                        | 登录                                              | 当前用户上传任务文件分页；默认不按 MIME 裁剪；`hiddenFromTaskList=false`；已挂导入任务的源文件由 booklet-imports 展示                                                            |
+| DELETE | `/app/files/:fileId`                | 登录且为上传者                                    | 从上传任务列表隐藏，不删文件与内容                                                                                                                                               |
+| GET    | `/app/files/:fileId/download-url`   | own / all                                         | 校验后签发短时 URL                                                                                                                                                               |
+| POST   | `/app/booklet-imports`              | `booklet:import` OWN/ALL，必填幂等键，高风险 7 天 | 基于 ZIP FileAsset 创建导入任务                                                                                                                                                  |
+| GET    | `/app/booklet-imports`              | `booklet:import` OWN                              | 当前用户导入任务分页；排除已隐藏条目                                                                                                                                             |
+| GET    | `/app/booklet-imports/:jobId`       | own / all                                         | 轮询导入任务                                                                                                                                                                     |
+| POST   | `/app/booklet-imports/:jobId/retry` | own / all，必填幂等键，高风险 7 天                | 重试同一条失败任务，不新建内容                                                                                                                                                   |
+| DELETE | `/app/booklet-imports/:jobId`       | own                                               | 从上传任务列表隐藏，不删草稿与源 ZIP                                                                                                                                             |
 
-上传小于等于 20 MiB 时返回单 PUT 签名 URL；超过时返回 S3 Multipart 分片计划。导入任务不在 HTTP 请求中同步解压。
+上传会话有效 24 小时，预签名 URL 有效 15 分钟。小于等于 20 MiB 使用单 PUT，超过时按 COS Multipart 分片计划按需获取签名 URL；COS 单片最大 5 GB、最多 10,000 片。小册 ZIP 默认 50 MiB，系统管理员可在系统配置页调整业务上限。导入任务不在 HTTP 请求中同步解压。
 
 ### 4.5 AI
 
-| 方法         | 路径                                     | 说明                                          |
-| ------------ | ---------------------------------------- | --------------------------------------------- |
-| GET          | `/app/ai/home`                           | 工具、可见模型、权益、模板、品牌和近期活动聚合 |
-| GET          | `/app/ai/navigation`                     | 登录用户可见的 AI 左侧导航                  |
-| GET          | `/app/ai/models`                         | 当前用户可选模型                              |
-| GET/POST     | `/app/ai/templates`                      | 系统模板与我的私有模板列表/创建               |
-| PATCH/DELETE | `/app/ai/templates/:templateId`          | 仅更新/删除私有模板                           |
-| GET/POST     | `/app/ai/sessions`                       | 会话列表/创建                                 |
-| PATCH/DELETE | `/app/ai/sessions/:sessionId`            | 重命名/软删除会话                             |
-| GET          | `/app/ai/sessions/:sessionId/messages`   | cursor 加载历史消息                           |
-| POST         | `/app/ai/sessions/:sessionId/messages`   | SSE 发送 Chat 消息，必填幂等键                |
-| POST         | `/app/ai/messages/:messageId/stop`       | 显式停止当前流，必填幂等键                    |
-| POST         | `/app/ai/messages/:messageId/regenerate` | SSE 生成新 variant，必填幂等键                |
-| PATCH        | `/app/ai/messages/:messageId/feedback`   | 反馈                                          |
-| POST         | `/app/ai/text-generations`               | SSE 文本生成，必填幂等键                      |
-| POST         | `/app/ai/image-generations`              | `202` 创建图片任务，必填幂等键                |
-| GET          | `/app/ai/image-generations/:jobId`       | 轮询图片任务，响应含 `assets`                 |
-| POST         | `/app/ai/image-generations/:jobId/cancel` | 取消图片任务，必填幂等键                     |
-| POST         | `/app/ai/video-generations`              | `202` 创建视频任务，必填幂等键                |
-| GET          | `/app/ai/video-generations/:jobId`       | 轮询视频任务，响应含 `assets`                 |
-| POST         | `/app/ai/video-generations/:jobId/cancel` | 取消视频任务，必填幂等键                     |
-| GET          | `/app/ai/generation-jobs`                | 当前用户生成任务历史，支持工具/状态筛选         |
-| GET/POST     | `/app/ai/assets`                         | AI 资产列表/创建元数据                        |
-| GET          | `/app/ai/assets/:assetId/content`        | 鉴权二进制媒体；跳过 JSON 信封                |
-| PATCH/DELETE | `/app/ai/assets/:assetId`                | 移动、软删除、恢复、永久删除                  |
-| GET/POST     | `/app/ai/asset-folders`                  | 资产文件夹列表/创建                           |
-| PATCH/DELETE | `/app/ai/asset-folders/:folderId`        | 重命名/删除空文件夹                           |
-| GET          | `/app/ai/credentials`                    | 当前用户凭据列表：类型、地址、`hasKey`、是否启用；不返回密钥 |
-| PUT          | `/app/ai/credentials`                    | 写入或轮换自己的 Key，`apiKey` 只写，必填幂等键 |
-| DELETE       | `/app/ai/credentials/:id`                | 只删自己的 `USER` 凭据                       |
-| POST         | `/app/ai/credentials/test`               | 只测自己的凭据；不写用量、不预占额度           |
-| GET          | `/app/ai/checkins`                       | 登录用户读签到月历。`?month=yyyy-mm`，省略则为上海当月。返回今日日期、是否已签、连续天数、该月已签日期。只读，不发放 |
-| POST         | `/app/ai/checkins`                       | 登录用户签到，必填幂等键；当天重复请求回放       |
-| GET          | `/app/ai/entitlement`                    | 当前角色/套餐权益和用量                       |
-| GET          | `/app/ai/membership`                     | 套餐展示、额度摘要和用量概览                    |
-| GET          | `/app/ai/profile-summary`                | AI 个人中心摘要                               |
-| GET          | `/app/ai/creation-center`                | 任务/资产/草稿汇总                            |
-| GET          | `/app/ai/publish-drafts`                 | 内容草稿列表                                  |
-| GET          | `/app/ai/tutorials`                      | 入门教程列表                                  |
-| GET          | `/app/usage`                             | 用量明细分页，支持时间范围和工具筛选            |
+| 方法         | 路径                                      | 说明                                                                                                                 |
+| ------------ | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| GET          | `/app/ai/home`                            | 工具、可见模型、权益、模板、品牌和近期活动聚合                                                                       |
+| GET          | `/app/ai/navigation`                      | 登录用户可见的 AI 左侧导航                                                                                           |
+| GET          | `/app/ai/models`                          | 当前用户可选模型                                                                                                     |
+| GET/POST     | `/app/ai/templates`                       | 系统模板与我的私有模板列表/创建                                                                                      |
+| PATCH/DELETE | `/app/ai/templates/:templateId`           | 仅更新/删除私有模板                                                                                                  |
+| GET/POST     | `/app/ai/sessions`                        | 会话列表/创建                                                                                                        |
+| PATCH/DELETE | `/app/ai/sessions/:sessionId`             | 重命名/软删除会话                                                                                                    |
+| GET          | `/app/ai/sessions/:sessionId/messages`    | cursor 加载历史消息                                                                                                  |
+| POST         | `/app/ai/sessions/:sessionId/messages`    | SSE 发送 Chat 消息，必填幂等键                                                                                       |
+| POST         | `/app/ai/messages/:messageId/stop`        | 显式停止当前流，必填幂等键                                                                                           |
+| POST         | `/app/ai/messages/:messageId/regenerate`  | SSE 生成新 variant，必填幂等键                                                                                       |
+| PATCH        | `/app/ai/messages/:messageId/feedback`    | 反馈                                                                                                                 |
+| POST         | `/app/ai/text-generations`                | SSE 文本生成，必填幂等键                                                                                             |
+| POST         | `/app/ai/image-generations`               | `202` 创建图片任务，必填幂等键                                                                                       |
+| GET          | `/app/ai/image-generations/:jobId`        | 轮询图片任务，响应含 `assets`                                                                                        |
+| POST         | `/app/ai/image-generations/:jobId/cancel` | 取消图片任务，必填幂等键                                                                                             |
+| POST         | `/app/ai/video-generations`               | `202` 创建视频任务，必填幂等键                                                                                       |
+| GET          | `/app/ai/video-generations/:jobId`        | 轮询视频任务，响应含 `assets`                                                                                        |
+| POST         | `/app/ai/video-generations/:jobId/cancel` | 取消视频任务，必填幂等键                                                                                             |
+| GET          | `/app/ai/generation-jobs`                 | 当前用户生成任务历史，支持工具/状态筛选                                                                              |
+| GET/POST     | `/app/ai/assets`                          | AI 资产列表/创建元数据                                                                                               |
+| GET          | `/app/ai/assets/:assetId/content`         | 鉴权二进制媒体；跳过 JSON 信封                                                                                       |
+| PATCH/DELETE | `/app/ai/assets/:assetId`                 | 移动、软删除、恢复、永久删除                                                                                         |
+| GET/POST     | `/app/ai/asset-folders`                   | 资产文件夹列表/创建                                                                                                  |
+| PATCH/DELETE | `/app/ai/asset-folders/:folderId`         | 重命名/删除空文件夹                                                                                                  |
+| GET          | `/app/ai/credentials`                     | 当前用户凭据列表：类型、地址、`hasKey`、是否启用；不返回密钥                                                         |
+| PUT          | `/app/ai/credentials`                     | 写入或轮换自己的 Key，`apiKey` 只写，必填幂等键                                                                      |
+| DELETE       | `/app/ai/credentials/:id`                 | 只删自己的 `USER` 凭据                                                                                               |
+| POST         | `/app/ai/credentials/test`                | 只测自己的凭据；不写用量、不预占额度                                                                                 |
+| GET          | `/app/ai/checkins`                        | 登录用户读签到月历。`?month=yyyy-mm`，省略则为上海当月。返回今日日期、是否已签、连续天数、该月已签日期。只读，不发放 |
+| POST         | `/app/ai/checkins`                        | 登录用户签到，必填幂等键；当天重复请求回放                                                                           |
+| GET          | `/app/ai/entitlement`                     | 当前角色/套餐权益和用量                                                                                              |
+| GET          | `/app/ai/membership`                      | 套餐展示、额度摘要和用量概览                                                                                         |
+| GET          | `/app/ai/profile-summary`                 | AI 个人中心摘要                                                                                                      |
+| GET          | `/app/ai/creation-center`                 | 任务/资产/草稿汇总                                                                                                   |
+| GET          | `/app/ai/publish-drafts`                  | 内容草稿列表                                                                                                         |
+| GET          | `/app/ai/tutorials`                       | 入门教程列表                                                                                                         |
+| GET          | `/app/usage`                              | 用量明细分页，支持时间范围和工具筛选                                                                                 |
 
 Chat/Text SSE 事件：
 
@@ -453,16 +455,16 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 匿名接口位于 `/public/ai/*`，只允许 Chat/Text：
 
-| 方法 | 路径                              | 说明                |
-| ---- | --------------------------------- | ------------------- |
-| GET  | `/public/ai/home`                 | 访客可见工具与模型  |
-| GET  | `/public/ai/navigation`           | 匿名可见的 AI 左侧导航 |
-| GET  | `/public/ai/models`               | 访客可选模型        |
-| GET  | `/public/ai/tutorials`            | 公开教程列表        |
-| POST | `/public/ai/sessions`             | 创建访客会话        |
-| POST | `/public/ai/chat`                 | SSE 访客 Chat；body 支持 `content`、可选 `sessionId` 与 `modelId` |
-| POST | `/public/ai/text-generations`     | SSE 访客文本生成    |
-| POST | `/public/ai/messages/:messageId/stop` | 停止访客生成    |
+| 方法 | 路径                                  | 说明                                                              |
+| ---- | ------------------------------------- | ----------------------------------------------------------------- |
+| GET  | `/public/ai/home`                     | 访客可见工具与模型                                                |
+| GET  | `/public/ai/navigation`               | 匿名可见的 AI 左侧导航                                            |
+| GET  | `/public/ai/models`                   | 访客可选模型                                                      |
+| GET  | `/public/ai/tutorials`                | 公开教程列表                                                      |
+| POST | `/public/ai/sessions`                 | 创建访客会话                                                      |
+| POST | `/public/ai/chat`                     | SSE 访客 Chat；body 支持 `content`、可选 `sessionId` 与 `modelId` |
+| POST | `/public/ai/text-generations`         | SSE 访客文本生成                                                  |
+| POST | `/public/ai/messages/:messageId/stop` | 停止访客生成                                                      |
 
 匿名主体 Cookie：`ph_ai_anon`（HMAC 签名，密钥 `JWT_REFRESH_SECRET`）。登录时读取 Cookie 认领未过期历史，失败不阻断登录。图片必须登录。
 
@@ -472,21 +474,21 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 运营概览返回 `{ contentTotal, userTotal, contentReadersToday, publishedThisWeek }`。内容总数含未删除小册，用户总数含所有注册状态；今日内容读者按上海自然日的 `content_view_days.subject_hash` 跨内容去重，是账号/IP 标识的近似人数，不代表全站访客；本周发布按上海时间本周一零点以来的首次发布时间统计未删除内容。历史浏览日期不会因新口径自动回填。
 
-| 方法         | 路径                                       | 权限                                 |
-| ------------ | ------------------------------------------ | ------------------------------------ |
-| GET          | `/admin/dashboard/overview`                | `dashboard:read` ALL                 |
-| GET          | `/admin/users`                             | `user:read` ALL                      |
-| GET          | `/admin/users/:userId`                     | `user:read` ALL                      |
-| PATCH        | `/admin/users/:userId/status`              | `user:status:update` ALL             |
-| PUT          | `/admin/users/:userId/role`                | `user:role:assign` ALL               |
-| GET          | `/admin/users/:userId/sessions`            | `user:session:read` ALL              |
-| POST         | `/admin/users/:userId/sessions/revoke-all` | `user:session:revoke` ALL            |
-| GET/POST     | `/admin/roles`                             | `role:read` / `role:manage`          |
-| PATCH/DELETE | `/admin/roles/:roleId`                     | `role:manage`                        |
-| PUT          | `/admin/roles/:roleCode/permissions`      | `role:permission:manage`，必填幂等键；body `{ permissions, version }`，`version` 为列表返回的乐观锁；冲突 `409 ROLE_VERSION_CONFLICT` |
-| GET          | `/admin/permissions`                       | `role:read`                          |
-| GET          | `/admin/audit-logs`                        | `audit:read` ALL                     |
-| GET          | `/admin/audit-logs/:logId`                 | `audit:read` ALL                     |
+| 方法         | 路径                                       | 权限                                                                                                                                  |
+| ------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| GET          | `/admin/dashboard/overview`                | `dashboard:read` ALL                                                                                                                  |
+| GET          | `/admin/users`                             | `user:read` ALL                                                                                                                       |
+| GET          | `/admin/users/:userId`                     | `user:read` ALL                                                                                                                       |
+| PATCH        | `/admin/users/:userId/status`              | `user:status:update` ALL                                                                                                              |
+| PUT          | `/admin/users/:userId/role`                | `user:role:assign` ALL                                                                                                                |
+| GET          | `/admin/users/:userId/sessions`            | `user:session:read` ALL                                                                                                               |
+| POST         | `/admin/users/:userId/sessions/revoke-all` | `user:session:revoke` ALL                                                                                                             |
+| GET/POST     | `/admin/roles`                             | `role:read` / `role:manage`                                                                                                           |
+| PATCH/DELETE | `/admin/roles/:roleId`                     | `role:manage`                                                                                                                         |
+| PUT          | `/admin/roles/:roleCode/permissions`       | `role:permission:manage`，必填幂等键；body `{ permissions, version }`，`version` 为列表返回的乐观锁；冲突 `409 ROLE_VERSION_CONFLICT` |
+| GET          | `/admin/permissions`                       | `role:read`                                                                                                                           |
+| GET          | `/admin/audit-logs`                        | `audit:read` ALL                                                                                                                      |
+| GET          | `/admin/audit-logs/:logId`                 | `audit:read` ALL                                                                                                                      |
 
 - 用户首版只有一个角色；`super_admin` 受不可降级/不可禁用/至少保留一名 active 约束。
 - 禁用用户、改角色、改权限必须使现有 Token 下一次受保护请求失效。
@@ -496,58 +498,58 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 ### 5.2 内容、分类、标签与文件
 
-| 方法         | 路径                                        | 权限                                                  | 说明                           |
-| ------------ | ------------------------------------------- | ----------------------------------------------------- | ------------------------------ |
-| GET          | `/admin/contents`                           | `content:read` ALL                                    | 跨作者列表和筛选               |
-| GET          | `/admin/contents/:contentId`                | `content:read` ALL                                    | 后台详情                       |
-| POST         | `/admin/contents/:contentId/publish`        | `content:publish` ALL，必填幂等键                     | 代发布（即时，不进审核队列） |
-| POST         | `/admin/contents/:contentId/archive`        | `content:publish` ALL                                 | 代归档                         |
-| PATCH        | `/admin/contents/:contentId/featured`       | `content:featured` ALL，必填幂等键                    | 设置精选                       |
-| POST         | `/admin/contents/:contentId/restore`        | `content:restore` ALL，必填幂等键                     | 恢复软删除内容                 |
-| DELETE       | `/admin/contents/:contentId/purge`          | `content:purge` ALL；仅 super_admin，必填幂等键和原因 | 永久删除                       |
-| POST         | `/admin/contents/:contentId/import-license` | `content:publish` ALL，必填幂等键                     | 内部清闸实现；UI 走内容审核。必填授权说明 |
-| GET          | `/admin/content-reviews`                    | `content:publish` ALL                                 | 审核队列；`?status=&page=&pageSize=` |
+| 方法         | 路径                                        | 权限                                                  | 说明                                                              |
+| ------------ | ------------------------------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| GET          | `/admin/contents`                           | `content:read` ALL                                    | 跨作者列表；`keyword` 匹配标题、摘要和来源说明                    |
+| GET          | `/admin/contents/:contentId`                | `content:read` ALL                                    | 后台详情                                                          |
+| POST         | `/admin/contents/:contentId/publish`        | `content:publish` ALL，必填幂等键                     | 代发布（即时，不进审核队列）；可选 `sourceNotice`                 |
+| POST         | `/admin/contents/:contentId/archive`        | `content:publish` ALL                                 | 代归档                                                            |
+| PATCH        | `/admin/contents/:contentId/featured`       | `content:featured` ALL，必填幂等键                    | 设置精选                                                          |
+| POST         | `/admin/contents/:contentId/restore`        | `content:restore` ALL，必填幂等键                     | 恢复软删除内容                                                    |
+| DELETE       | `/admin/contents/:contentId/purge`          | `content:purge` ALL；仅 super_admin，必填幂等键和原因 | 永久删除                                                          |
+| POST         | `/admin/contents/:contentId/import-license` | `content:publish` ALL，必填幂等键                     | 内部清闸实现；UI 走内容审核。必填授权说明                         |
+| GET          | `/admin/content-reviews`                    | `content:publish` ALL                                 | 审核队列；`?status=&page=&pageSize=`                              |
 | POST         | `/admin/content-reviews/:reviewId/approve`  | `content:publish` ALL，必填幂等键                     | 通过并发布；导入且目标为公开/登录时 body `{ copyrightNote }` 必填 |
-| POST         | `/admin/content-reviews/:reviewId/reject`   | `content:publish` ALL，必填幂等键                     | 驳回，body `{ reason }` 必填   |
-| GET/POST     | `/admin/categories`                         | `category:manage` ALL                                 | 分类树/创建                    |
-| PATCH/DELETE | `/admin/categories/:categoryId`             | `category:manage` ALL                                 | 更新/删除                      |
-| PATCH        | `/admin/categories/sort`                    | `category:manage` ALL，必填幂等键                     | 同父节点批量排序               |
-| GET/POST     | `/admin/tags`                               | `tag:manage` ALL                                      | 标签列表/后台创建              |
-| DELETE       | `/admin/tags/:tagId`                        | `tag:manage` ALL                                      | 被引用时返回冲突和关联数       |
-| GET          | `/admin/files`                              | `file:read` ALL                                       | 文件资产列表                   |
-| DELETE       | `/admin/files/:fileId`                      | `file:delete` ALL，必填幂等键                         | 逻辑删除并异步引用检查         |
-| DELETE       | `/admin/files`                              | `file:delete` ALL，必填幂等键                         | 批量删除，返回逐项结果         |
+| POST         | `/admin/content-reviews/:reviewId/reject`   | `content:publish` ALL，必填幂等键                     | 驳回，body `{ reason }` 必填                                      |
+| GET/POST     | `/admin/categories`                         | `category:manage` ALL                                 | 分类树/创建                                                       |
+| PATCH/DELETE | `/admin/categories/:categoryId`             | `category:manage` ALL                                 | 更新/删除                                                         |
+| PATCH        | `/admin/categories/sort`                    | `category:manage` ALL，必填幂等键                     | 同父节点批量排序                                                  |
+| GET/POST     | `/admin/tags`                               | `tag:manage` ALL                                      | 标签列表/后台创建                                                 |
+| DELETE       | `/admin/tags/:tagId`                        | `tag:manage` ALL                                      | 被引用时返回冲突和关联数                                          |
+| GET          | `/admin/files`                              | `file:read` ALL                                       | 文件资产列表                                                      |
+| DELETE       | `/admin/files/:fileId`                      | `file:delete` ALL，必填幂等键                         | 逻辑删除并异步引用检查                                            |
+| DELETE       | `/admin/files`                              | `file:delete` ALL，必填幂等键                         | 批量删除，返回逐项结果                                            |
 
 导入版权限制状态仅为 `NONE` 或 `PRIVATE_UNTIL_LICENSED`。ZIP 导入创建的内容固定为后者。`import-license` 仍作为内部清闸路径保留（同一事务写授权说明、操作者、审计和 `ContentVersion`），审核通过或所有者/管理员直接发布且目标可见性为 `PUBLIC`/`LOGIN` 时复用该逻辑。编辑者（`content:publish` OWN）发布只创建 `ContentReview`（`PENDING`），内容保持 `DRAFT`，不能自己公开。
 
 ### 5.3 系统、菜单与 AI 配置
 
-| 方法         | 路径                              | 说明                        |
-| ------------ | --------------------------------- | --------------------------- |
-| GET          | `/admin/system-configs`           | 类型化配置；`?group=` 可选，不传返回全部 |
-| PUT          | `/admin/system-configs/:group`    | 同组原子更新，必填幂等键    |
-| GET/POST     | `/admin/menus`                    | 完整树/新增菜单项           |
-| PATCH/DELETE | `/admin/menus/:menuId`            | 单项更新/删除               |
-| PATCH        | `/admin/menus/sort`               | 批量排序                    |
-| GET          | `/admin/menu-route-options`       | 前端受控 routeKey 清单      |
-| GET          | `/admin/ai/config`                | 只读 BFF 聚合               |
-| PATCH        | `/admin/ai/branding`              | 写 `system_configs.ai.branding`，必填幂等键 |
-| GET          | `/admin/ai/navigation`            | AI 左侧导航（含隐藏项）     |
-| PATCH        | `/admin/ai/navigation/sort`       | 批量排序，必填幂等键        |
-| PATCH        | `/admin/ai/navigation/:id`        | 更新显隐/状态/文案，必填幂等键和 `version`；冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT` |
-| GET          | `/admin/ai/stats`                 | 只读 BFF 统计，支持时间范围 |
-| GET          | `/admin/ai/credential-key`        | 管理员读取 P-256 请求加密公钥；需 `ai:provider:manage` |
-| POST         | `/admin/ai/providers`             | 新增 OpenAI-compatible 厂商；必填幂等键，重复 code 为 409 |
-| PATCH        | `/admin/ai/providers/:providerId` | 更新/禁用；必填幂等键；只接收 `encryptedApiKey` 密文信封，拒绝明文 `apiKey`，解密后再加密写入 `ai_provider_credentials` |
-| POST         | `/admin/ai/providers/:providerId/test` | `ai:provider:manage`。连接测试，不写用量、不预占额度，日志不含密钥 |
-| POST         | `/admin/ai/models`                | 新增模型，需 `ai:model:manage`、幂等键；同厂商模型标识重复返回 409 |
-| PATCH        | `/admin/ai/models/:modelId`       | 更新/停用模型，需 `ai:model:manage`、幂等键 |
-| GET/POST     | `/admin/ai/tools`                 | 工具展示与启用配置          |
-| PATCH/DELETE | `/admin/ai/tools/:toolId`         | 更新/删除                   |
-| GET/POST     | `/admin/ai/templates`             | 系统模板管理                |
-| PATCH/DELETE | `/admin/ai/templates/:templateId` | 更新/删除系统模板           |
-| GET/PUT      | `/admin/ai/entitlements`          | 角色/套餐额度和模型权益     |
-| POST         | `/admin/ai/quota-adjustments`     | `ai:entitlement:manage` 且 `DataScope.ALL`，必填幂等键。body `{ userId, direction: GRANT\|DEDUCT, amount, reason }`，`amount` 为正整数。`DEDUCT` 会使 `availableAmount` < 0 时整笔拒绝，错误码 `AI_QUOTA_ADJUSTMENT_REJECTED`，不写账本 |
+| 方法         | 路径                                   | 说明                                                                                                                                                                                                                                    |
+| ------------ | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET          | `/admin/system-configs`                | 类型化配置；`?group=` 可选，不传返回全部                                                                                                                                                                                                |
+| PUT          | `/admin/system-configs/:group`         | 同组原子更新，必填幂等键                                                                                                                                                                                                                |
+| GET/POST     | `/admin/menus`                         | 完整树/新增菜单项                                                                                                                                                                                                                       |
+| PATCH/DELETE | `/admin/menus/:menuId`                 | 单项更新/删除                                                                                                                                                                                                                           |
+| PATCH        | `/admin/menus/sort`                    | 批量排序                                                                                                                                                                                                                                |
+| GET          | `/admin/menu-route-options`            | 前端受控 routeKey 清单                                                                                                                                                                                                                  |
+| GET          | `/admin/ai/config`                     | 只读 BFF 聚合                                                                                                                                                                                                                           |
+| PATCH        | `/admin/ai/branding`                   | 写 `system_configs.ai.branding`，必填幂等键                                                                                                                                                                                             |
+| GET          | `/admin/ai/navigation`                 | AI 左侧导航（含隐藏项）                                                                                                                                                                                                                 |
+| PATCH        | `/admin/ai/navigation/sort`            | 批量排序，必填幂等键                                                                                                                                                                                                                    |
+| PATCH        | `/admin/ai/navigation/:id`             | 更新显隐/状态/文案，必填幂等键和 `version`；冲突 `409 SYSTEM_CONFIG_VERSION_CONFLICT`                                                                                                                                                   |
+| GET          | `/admin/ai/stats`                      | 只读 BFF 统计，支持时间范围                                                                                                                                                                                                             |
+| GET          | `/admin/ai/credential-key`             | 管理员读取 P-256 请求加密公钥；需 `ai:provider:manage`                                                                                                                                                                                  |
+| POST         | `/admin/ai/providers`                  | 新增 OpenAI-compatible 厂商；必填幂等键，重复 code 为 409                                                                                                                                                                               |
+| PATCH        | `/admin/ai/providers/:providerId`      | 更新/禁用；必填幂等键；只接收 `encryptedApiKey` 密文信封，拒绝明文 `apiKey`，解密后再加密写入 `ai_provider_credentials`                                                                                                                 |
+| POST         | `/admin/ai/providers/:providerId/test` | `ai:provider:manage`。连接测试，不写用量、不预占额度，日志不含密钥                                                                                                                                                                      |
+| POST         | `/admin/ai/models`                     | 新增模型，需 `ai:model:manage`、幂等键；同厂商模型标识重复返回 409                                                                                                                                                                      |
+| PATCH        | `/admin/ai/models/:modelId`            | 更新/停用模型，需 `ai:model:manage`、幂等键                                                                                                                                                                                             |
+| GET/POST     | `/admin/ai/tools`                      | 工具展示与启用配置                                                                                                                                                                                                                      |
+| PATCH/DELETE | `/admin/ai/tools/:toolId`              | 更新/删除                                                                                                                                                                                                                               |
+| GET/POST     | `/admin/ai/templates`                  | 系统模板管理                                                                                                                                                                                                                            |
+| PATCH/DELETE | `/admin/ai/templates/:templateId`      | 更新/删除系统模板                                                                                                                                                                                                                       |
+| GET/PUT      | `/admin/ai/entitlements`               | 角色/套餐额度和模型权益                                                                                                                                                                                                                 |
+| POST         | `/admin/ai/quota-adjustments`          | `ai:entitlement:manage` 且 `DataScope.ALL`，必填幂等键。body `{ userId, direction: GRANT\|DEDUCT, amount, reason }`，`amount` 为正整数。`DEDUCT` 会使 `availableAmount` < 0 时整笔拒绝，错误码 `AI_QUOTA_ADJUSTMENT_REJECTED`，不写账本 |
 
 阶段 A 模型契约：创建/编辑支持 `defaultToolTypes`（`chat`/`text`/`image`/`video` 数组），查询返回各工具默认范围；`isDefault` 为兼容摘要。工具 `defaultModelId` 使用模型行 UUID，传 `null` 清空。模型停用、隐藏或取消支持工具时同步清除不适用的默认关系。价格按整数平台单位，PATCH 校验合并后的最终状态，`fixedPlatformCost: null` 清空固定消耗。
 
@@ -557,25 +559,25 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 
 所有失败仍使用统一 `{ error, requestId }` 信封；以下是模块实现前必须写入 DTO/OpenAPI 并覆盖 HTTP E2E 的最小错误码目录：
 
-| 领域                   | 代表错误码                                                                                                                                         |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Content                | `CONTENT_NOT_FOUND`、`CONTENT_INVALID_STATE`、`CONTENT_PUBLISH_VALIDATION_FAILED`、`CONTENT_VERSION_CONFLICT`、`CONTENT_IMPORT_RESTRICTION_ACTIVE` |
-| Category / Tag         | `CATEGORY_NOT_FOUND`、`CATEGORY_IN_USE`、`CATEGORY_CYCLE_DETECTED`、`TAG_IN_USE`                                                                   |
-| File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`            |
+| 领域                   | 代表错误码                                                                                                                                                                                                                                                                                           |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content                | `CONTENT_NOT_FOUND`、`CONTENT_INVALID_STATE`、`CONTENT_PUBLISH_VALIDATION_FAILED`、`CONTENT_VERSION_CONFLICT`、`CONTENT_IMPORT_RESTRICTION_ACTIVE`                                                                                                                                                   |
+| Category / Tag         | `CATEGORY_NOT_FOUND`、`CATEGORY_IN_USE`、`CATEGORY_CYCLE_DETECTED`、`TAG_IN_USE`                                                                                                                                                                                                                     |
+| File / Upload / Import | `FILE_NOT_FOUND`、`FILE_NOT_READY`、`FILE_VALIDATION_FAILED`、`UPLOAD_EXPIRED`、`BOOKLET_IMPORT_FAILED`、`BOOKLET_IMPORT_NOT_RETRYABLE`                                                                                                                                                              |
 | AI                     | `AI_MODEL_NOT_AVAILABLE`、`AI_TOOL_UNAVAILABLE`、`AI_QUOTA_INSUFFICIENT`、`AI_QUOTA_ADJUSTMENT_REJECTED`、`AI_CONCURRENCY_LIMITED`、`AI_GENERATION_NOT_FOUND`、`AI_CREDENTIAL_KEY_MISSING`、`AI_CREDENTIAL_INVALID`、`AI_PROVIDER_CODE_EXISTS`、`AI_PROVIDER_KEY_MISSING`、`AI_PROVIDER_TEST_FAILED` |
-| Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                     |
-| System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT` |
-| Metrics                | `METRICS_INVALID`、`METRICS_RATE_LIMITED` |
+| Admin / Audit          | `RBAC_PERMISSION_DENIED`、`RBAC_DATA_SCOPE_DENIED`、`ADMIN_PROTECTED_ACCOUNT`、`ADMIN_LAST_SUPER_ADMIN`、`AUDIT_LOG_NOT_FOUND`                                                                                                                                                                       |
+| System / Menu          | `SYSTEM_CONFIG_NOT_FOUND`、`SYSTEM_CONFIG_INVALID`、`SYSTEM_CONFIG_VERSION_CONFLICT`、`MENU_NOT_FOUND`、`MENU_INVALID`、`MENU_CYCLE_DETECTED`、`MENU_HAS_CHILDREN`、`MENU_ROUTE_KEY_UNAVAILABLE`、`MENU_CORE_PROTECTED`、`MENU_INVALID_EXTERNAL_URL`、`MENU_VERSION_CONFLICT`                        |
+| Metrics                | `METRICS_INVALID`、`METRICS_RATE_LIMITED`                                                                                                                                                                                                                                                            |
 
 ## 5.5 性能汇总：`/metrics`
 
 匿名。成功仍是 `{ data }`，失败仍是 `{ error }`。不上报用户标识、完整 URL 或查询串。
 
-| 方法 | 路径 | 鉴权 | 说明 |
-| --- | --- | --- | --- |
-| GET | `/metrics/sampling` | 公开 | `{ sampleRate }`，0 到 1。浏览器未取得配置时不上报；新页面按最新比例判断，0 表示停用 |
-| POST | `/metrics/web-vitals` | 公开，按 IP 每分钟 60 次 | body `{ route, samples: [{ metric, value }] }`。`metric` 只允许 `TTFB` `FCP` `LCP` `CLS` `INP`。非法字段 `422 METRICS_INVALID`，超限 `429 METRICS_RATE_LIMITED` |
-| GET | `/metrics/overview?range=24h\|7d\|30d` | 公开 | 聚合 p50 / p95。`/api/v1/admin/**` 不出现。认证接口的 `label` 为「认证」 |
+| 方法 | 路径                                   | 鉴权                     | 说明                                                                                                                                                            |
+| ---- | -------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET  | `/metrics/sampling`                    | 公开                     | `{ sampleRate }`，0 到 1。浏览器未取得配置时不上报；新页面按最新比例判断，0 表示停用                                                                            |
+| POST | `/metrics/web-vitals`                  | 公开，按 IP 每分钟 60 次 | body `{ route, samples: [{ metric, value }] }`。`metric` 只允许 `TTFB` `FCP` `LCP` `CLS` `INP`。非法字段 `422 METRICS_INVALID`，超限 `429 METRICS_RATE_LIMITED` |
+| GET  | `/metrics/overview?range=24h\|7d\|30d` | 公开                     | 聚合 p50 / p95。`/api/v1/admin/**` 不出现。认证接口的 `label` 为「认证」                                                                                        |
 
 分钟计数先进入 Redis（保留 48 小时），worker 启动时及每 5 分钟重试已结束的小时。小时行、日累计与完成水位在同一事务提交后才删除 Redis 副本。小时行默认保留 90 天，日行保留；概览和发布对比依据实际清理边界补读日行，已清理的边界日期按 UTC 整日近似。保留天数和抽样比例在后台配置组 `ops.metrics`，不进入公开站点配置。容器环境变量 `GIT_SHA` 有值时，启动记一条发布标记。
 

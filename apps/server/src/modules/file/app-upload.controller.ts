@@ -1,10 +1,10 @@
-import { Body, Controller, Param, ParseUUIDPipe, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CurrentAuth } from '../../common/decorators/current-auth.decorator';
 import { RequireIdempotency } from '../../common/idempotency/require-idempotency.decorator';
 import type { RequestAuthContext } from '../../common/types/request-id';
-import { CompleteUploadDto, CreateUploadDto } from './dto/file.dto';
+import { CompleteUploadDto, CreateUploadDto, UploadPartsQueryDto } from './dto/file.dto';
 import { FileService } from './file.service';
 
 @ApiTags('App Uploads')
@@ -15,8 +15,30 @@ export class AppUploadController {
 
   @Post('uploads')
   @RequireIdempotency()
-  create(@Body() body: CreateUploadDto, @CurrentAuth() auth: RequestAuthContext, @Req() request: Request) {
+  create(
+    @Body() body: CreateUploadDto,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Req() request: Request,
+  ) {
     return this.files.createUpload(auth, body, headerKey(request));
+  }
+
+  @Post('uploads/:uploadId/renew')
+  @RequireIdempotency()
+  renew(
+    @Param('uploadId', new ParseUUIDPipe()) uploadId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
+    return this.files.renewUpload(auth, uploadId);
+  }
+
+  @Get('uploads/:uploadId/parts')
+  parts(
+    @Param('uploadId', new ParseUUIDPipe()) uploadId: string,
+    @Query() query: UploadPartsQueryDto,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
+    return this.files.signUploadParts(auth, uploadId, query.startPart, query.count);
   }
 
   @Post('uploads/:uploadId/complete')

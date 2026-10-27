@@ -19,6 +19,7 @@ import { DataScope } from '@prisma/client';
 import { sanitizeFileName, sniffMimeType } from './file-magic';
 import {
   isDeniedMime,
+  multipartPlan,
   resolveFilePolicy,
   shouldUseMultipart,
   type FilePurposePolicy,
@@ -31,6 +32,7 @@ import type {
 } from './dto/file.dto';
 
 const UPLOAD_TTL_SECONDS = 15 * 60;
+const UPLOAD_SESSION_TTL_SECONDS = 24 * 60 * 60;
 const DOWNLOAD_TTL_SECONDS = 10 * 60;
 const FILE_MAGIC_PREFIX_BYTES = 64;
 const WORD_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -40,7 +42,7 @@ type UploadTaskQueryRow = {
   id: string;
   originalName: string;
   mimeType: string | null;
-  size: number | null;
+  size: bigint | null;
   purpose: string | null;
   status: string;
   progress: number | null;
@@ -121,12 +123,24 @@ export class FileService {
       include: { file: true },
     });
     if (existing) {
+      if (
+        existing.completedAt ||
+        existing.expiresAt.getTime() <= Date.now() ||
+        existing.file.status !== FileAssetStatus.UPLOADING
+      ) {
+        throw new DomainHttpException(
+          HttpStatus.GONE,
+          'UPLOAD_EXPIRED',
+          '上传会话已失效，请重新创建上传',
+        );
+      }
       return this.toUploadResponse(
         existing.id,
         existing.file,
         existing.uploadMode,
         existing.objectKey,
         existing.uploadId,
+        existing.expiresAt,
       );
     }
 
@@ -140,7 +154,13 @@ export class FileService {
       dto.mimeType,
       UPLOAD_TTL_SECONDS,
     );
-    const expiresAt = new Date(Date.now() + UPLOAD_TTL_SECONDS * 1000);
+    const expiresAt = new Date(Date.now() + UPLOAD_SESSION_TTL_SECONDS * 1000);
+    const legacyParts = await this.legacyPartLinks(
+      signed.mode,
+      objectKey,
+      signed.multipartUploadId,
+      dto.size,
+    );
 
     const created = await this.prisma.$transaction(async (tx) => {
       const file = await tx.fileAsset.create({
@@ -151,7 +171,7 @@ export class FileService {
           objectKey,
           storageProvider: StorageProviderKind.MINIO,
           mimeType: dto.mimeType.toLowerCase(),
-          size: dto.size,
+          size: BigInt(dto.size),
           purpose: dto.purpose,
           status: FileAssetStatus.UPLOADING,
         },
@@ -177,10 +197,89 @@ export class FileService {
       objectKey,
       uploadUrl: signed.uploadUrl ?? null,
       multipartUploadId: signed.multipartUploadId ?? null,
-      parts: signed.parts ?? null,
+      // 兼容刷新前仍打开的旧前端；大上传仍由新接口按批签名。
+      parts: legacyParts,
       partSize: signed.partSize ?? null,
       expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  async renewUpload(auth: { userId: string }, uploadId: string) {
+    const session = await this.prisma.uploadSession.findFirst({
+      where: { id: uploadId, uploaderId: auth.userId },
+      include: { file: true },
+    });
+    if (!session || session.completedAt) {
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'FILE_NOT_FOUND',
+        '上传会话不存在或已完成',
+      );
+    }
+    if (
+      session.expiresAt.getTime() <= Date.now() ||
+      session.file.status !== FileAssetStatus.UPLOADING
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.GONE,
+        'UPLOAD_EXPIRED',
+        '上传会话已过期，请重新选择文件上传',
+      );
+    }
+    const expiresAt = new Date(Date.now() + UPLOAD_SESSION_TTL_SECONDS * 1000);
+    await this.prisma.uploadSession.update({ where: { id: uploadId }, data: { expiresAt } });
+    return this.toUploadResponse(
+      session.id,
+      session.file,
+      session.uploadMode,
+      session.objectKey,
+      session.uploadId,
+      expiresAt,
+    );
+  }
+
+  async signUploadParts(
+    auth: { userId: string },
+    uploadId: string,
+    startPart: number,
+    count: number,
+  ) {
+    const session = await this.prisma.uploadSession.findFirst({
+      where: { id: uploadId, uploaderId: auth.userId },
+      include: { file: true },
+    });
+    if (
+      !session ||
+      session.completedAt ||
+      session.uploadMode !== UploadMode.MULTIPART ||
+      !session.uploadId
+    ) {
+      throw new DomainHttpException(HttpStatus.NOT_FOUND, 'FILE_NOT_FOUND', '分片上传会话不存在');
+    }
+    if (
+      session.expiresAt.getTime() <= Date.now() ||
+      session.file.status !== FileAssetStatus.UPLOADING
+    ) {
+      throw new DomainHttpException(
+        HttpStatus.GONE,
+        'UPLOAD_EXPIRED',
+        '上传会话已过期，请重新选择文件上传',
+      );
+    }
+    const { partCount } = multipartPlan(Number(session.file.size));
+    if (startPart + count - 1 > partCount) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'FILE_VALIDATION_FAILED',
+        '分片范围超出上传计划',
+      );
+    }
+    return this.storage.createSignedUploadParts(
+      session.objectKey,
+      session.uploadId,
+      Array.from({ length: count }, (_, index) => startPart + index),
+      UPLOAD_TTL_SECONDS,
+    );
   }
 
   async completeUpload(auth: { userId: string }, uploadId: string, parts?: CompletedPart[]) {
@@ -232,7 +331,7 @@ export class FileService {
         '对象尚未上传完成',
       );
     }
-    if (head.size !== session.file.size) {
+    if (BigInt(head.size) !== session.file.size) {
       throw new DomainHttpException(
         HttpStatus.UNPROCESSABLE_ENTITY,
         'FILE_VALIDATION_FAILED',
@@ -386,7 +485,7 @@ export class FileService {
         id: item.id,
         originalName: item.originalName,
         mimeType: item.mimeType,
-        size: item.size,
+        size: Number(item.size),
         purpose: item.purpose,
         status: item.status,
         createdAt: item.createdAt.toISOString(),
@@ -490,6 +589,7 @@ export class FileService {
     return {
       list: list.map((item) => ({
         ...item,
+        size: item.size === null ? null : Number(item.size),
         createdAt: item.createdAt.toISOString(),
       })),
       total: Number(totals[0]?.total ?? 0),
@@ -567,7 +667,7 @@ export class FileService {
             id: item.id,
             name: item.originalName,
             mimeType: item.mimeType,
-            size: item.size,
+            size: Number(item.size),
             url: (await this.signReadyObject(item.objectKey)) ?? '',
             createdAt: item.createdAt.toISOString(),
             usage: mapUsage(item.purpose),
@@ -664,16 +764,25 @@ export class FileService {
 
   private async toUploadResponse(
     uploadId: string,
-    file: { id: string; objectKey: string; size: number; mimeType: string },
+    file: { id: string; objectKey: string; size: bigint; mimeType: string },
     mode: UploadMode,
     objectKey: string,
     multipartUploadId: string | null,
+    expiresAt: Date,
   ) {
     const signed = await this.storage.createSignedUpload(
       objectKey,
-      file.size,
+      Number(file.size),
       file.mimeType,
       UPLOAD_TTL_SECONDS,
+      multipartUploadId ?? undefined,
+    );
+    const resolvedMultipartId = multipartUploadId ?? signed.multipartUploadId ?? null;
+    const legacyParts = await this.legacyPartLinks(
+      signed.mode,
+      objectKey,
+      resolvedMultipartId,
+      Number(file.size),
     );
     return {
       uploadId,
@@ -681,18 +790,36 @@ export class FileService {
       mode: mode === UploadMode.MULTIPART ? 'MULTIPART' : 'SINGLE',
       objectKey,
       uploadUrl: signed.uploadUrl ?? null,
-      multipartUploadId: multipartUploadId ?? signed.multipartUploadId ?? null,
-      parts: signed.parts ?? null,
+      multipartUploadId: resolvedMultipartId,
+      parts: legacyParts,
       partSize: signed.partSize ?? null,
-      expiresAt: new Date(Date.now() + UPLOAD_TTL_SECONDS * 1000).toISOString(),
+      expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /** 仅为旧版页面的小型分片会话返回旧格式链接，避免一次签出海量 URL。 */
+  private async legacyPartLinks(
+    mode: 'SINGLE' | 'MULTIPART',
+    objectKey: string,
+    uploadId: string | null | undefined,
+    size: number,
+  ) {
+    if (mode !== 'MULTIPART' || !uploadId) return null;
+    const { partCount } = multipartPlan(size);
+    if (partCount > 100) return null;
+    return this.storage.createSignedUploadParts(
+      objectKey,
+      uploadId,
+      Array.from({ length: partCount }, (_, index) => index + 1),
+      UPLOAD_TTL_SECONDS,
+    );
   }
 
   private toFilePublic(file: {
     id: string;
     originalName: string;
     mimeType: string;
-    size: number;
+    size: bigint;
     purpose: FilePurpose;
     status: FileAssetStatus;
   }) {
@@ -700,7 +827,7 @@ export class FileService {
       id: file.id,
       originalName: file.originalName,
       mimeType: file.mimeType,
-      size: file.size,
+      size: Number(file.size),
       purpose: file.purpose,
       status: file.status,
     };

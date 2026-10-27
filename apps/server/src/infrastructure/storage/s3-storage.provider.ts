@@ -16,14 +16,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.schema';
 import { shouldUseMultipart } from '../../modules/file/file-policy';
+import { multipartPlan } from '../../modules/file/file-policy';
 import type {
   CompletedPart,
   ObjectHead,
+  SignedUploadPart,
   SignedUploadSession,
   StorageProvider,
 } from './storage.types';
-
-const PART_SIZE = 8 * 1024 * 1024;
 
 @Injectable()
 export class S3StorageProvider implements StorageProvider {
@@ -114,37 +114,25 @@ export class S3StorageProvider implements StorageProvider {
     size: number,
     contentType: string,
     expiresInSeconds: number,
+    multipartUploadId?: string,
   ): Promise<SignedUploadSession> {
     if (shouldUseMultipart(size)) {
-      const created = await this.client.send(
-        new CreateMultipartUploadCommand({
-          Bucket: this.bucket,
-          Key: key,
-          ContentType: contentType,
-        }),
-      );
-      const uploadId = created.UploadId;
+      // 先验证分片计划；非法大小不能在 S3 留下无人认领的 multipart 会话。
+      const { partSize } = multipartPlan(size);
+      const created = multipartUploadId
+        ? undefined
+        : await this.client.send(
+            new CreateMultipartUploadCommand({
+              Bucket: this.bucket,
+              Key: key,
+              ContentType: contentType,
+            }),
+          );
+      const uploadId = multipartUploadId ?? created?.UploadId;
       if (!uploadId) {
         throw new Error('S3 未返回 multipart uploadId');
       }
-      const partCount = Math.max(1, Math.ceil(size / PART_SIZE));
-      const parts = await Promise.all(
-        Array.from({ length: partCount }, async (_, index) => {
-          const partNumber = index + 1;
-          const url = await getSignedUrl(
-            this.client,
-            new UploadPartCommand({
-              Bucket: this.bucket,
-              Key: key,
-              UploadId: uploadId,
-              PartNumber: partNumber,
-            }),
-            { expiresIn: expiresInSeconds },
-          );
-          return { partNumber, url };
-        }),
-      );
-      return { mode: 'MULTIPART', multipartUploadId: uploadId, partSize: PART_SIZE, parts };
+      return { mode: 'MULTIPART', multipartUploadId: uploadId, partSize };
     }
 
     const uploadUrl = await getSignedUrl(
@@ -157,6 +145,29 @@ export class S3StorageProvider implements StorageProvider {
       { expiresIn: expiresInSeconds },
     );
     return { mode: 'SINGLE', uploadUrl };
+  }
+
+  async createSignedUploadParts(
+    key: string,
+    multipartUploadId: string,
+    partNumbers: number[],
+    expiresInSeconds: number,
+  ): Promise<SignedUploadPart[]> {
+    return Promise.all(
+      partNumbers.map(async (partNumber) => ({
+        partNumber,
+        url: await getSignedUrl(
+          this.client,
+          new UploadPartCommand({
+            Bucket: this.bucket,
+            Key: key,
+            UploadId: multipartUploadId,
+            PartNumber: partNumber,
+          }),
+          { expiresIn: expiresInSeconds },
+        ),
+      })),
+    );
   }
 
   async completeMultipartUpload(

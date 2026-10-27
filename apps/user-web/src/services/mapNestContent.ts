@@ -30,6 +30,7 @@ export interface NestContentListItem {
   type: NestContentType;
   title: string;
   summary: string;
+  sourceNotice?: string | null;
   coverUrl: string | null;
   category: { slug: string; name: string } | null;
   tags: Array<{ slug: string; name: string }>;
@@ -141,6 +142,7 @@ export function mapNestContentItem(
     title: row.title,
     type: TYPE_FROM_NEST[row.type] ?? ContentType.Markdown,
     summary: row.summary ?? '',
+    sourceNotice: row.sourceNotice,
     cover: row.coverUrl ?? undefined,
     categorySlug: row.category?.slug,
     categoryName: row.category?.name,

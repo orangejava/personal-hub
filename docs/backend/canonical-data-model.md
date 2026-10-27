@@ -55,15 +55,15 @@
 
 ### 2.3 会话和凭证
 
-| 表                          | 核心字段                                                                                                                                    | 说明                                                          |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| 表                          | 核心字段                                                                                                                                                 | 说明                                                          |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `auth_sessions`             | `user_id`、设备/浏览器摘要、`ip_hash`、`ip_masked`、`last_active_at`、`expires_at`、`revoked_at`、`revoked_reason`、`auth_version`、`permission_version` | 一个客户端会话                                                |
-| `refresh_tokens`            | `session_id`、`token_hash`、`expires_at`、`rotated_at`、`revoked_at`、`replaced_by_token_id`                                                | 只保存加 pepper 的哈希，并可追踪轮换链                        |
-| `email_verification_tokens` | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                        | 24 小时一次性验证                                             |
-| `password_reset_tokens`     | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                        | 30 分钟一次性重置                                             |
-| `email_change_requests`     | `user_id`、`new_email`、`token_hash`、`expires_at`、`consumed_at`                                                                           | 需当前密码后创建                                              |
-| `totp_factors`              | `user_id` 唯一、`secret_ciphertext`、`enabled_at`、`last_used_at`、`disabled_at`                                                            | admin / super_admin 自愿启用的 TOTP；密钥使用独立应用密钥加密 |
-| `totp_recovery_codes`       | `factor_id`、`code_hash`、`consumed_at`                                                                                                     | 一次性恢复码；永不保存明文                                    |
+| `refresh_tokens`            | `session_id`、`token_hash`、`expires_at`、`rotated_at`、`revoked_at`、`replaced_by_token_id`                                                             | 只保存加 pepper 的哈希，并可追踪轮换链                        |
+| `email_verification_tokens` | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                                     | 24 小时一次性验证                                             |
+| `password_reset_tokens`     | `user_id`、`token_hash`、`expires_at`、`consumed_at`                                                                                                     | 30 分钟一次性重置                                             |
+| `email_change_requests`     | `user_id`、`new_email`、`token_hash`、`expires_at`、`consumed_at`                                                                                        | 需当前密码后创建                                              |
+| `totp_factors`              | `user_id` 唯一、`secret_ciphertext`、`enabled_at`、`last_used_at`、`disabled_at`                                                                         | admin / super_admin 自愿启用的 TOTP；密钥使用独立应用密钥加密 |
+| `totp_recovery_codes`       | `factor_id`、`code_hash`、`consumed_at`                                                                                                                  | 一次性恢复码；永不保存明文                                    |
 
 建议索引：
 
@@ -98,13 +98,13 @@ users(email_normalized) UNIQUE
 
 ### 3.2 内容主表及版本
 
-| 表                 | 核心字段                                                                                                                                                                                                                                                                          |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `contents`         | `type`、`title`、`summary`、`author_id`、`category_id`、`status`、`visibility`、`source_type`、`import_source`、`import_restriction`、`cover_file_id`、`primary_file_id`、`external_url`、`is_featured`、`view_count`、`search_document`、`published_at`、`deleted_at`、`version` |
-| `content_bodies`   | `content_id` 唯一、`markdown_source`、`editor_document` JSONB、`rendered_html`、`toc` JSONB、`render_version`                                                                                                                                                                     |
-| `content_versions` | `content_id`、`snapshot_reason`、源正文/HTML/目录快照、`created_by`、`created_at`                                                                                                                                                                                                 |
-| `content_chapters` | `content_id`、`title`、`chapter_order`、`object_key`、`toc`、字数/阅读时间、`version`                                                                                                                                                                                             |
-| `content_reviews`  | `content_id`、`requester_id`、`reviewer_id`、`status`（`PENDING`/`APPROVED`/`REJECTED`/`CANCELED`）、`requested_visibility`、`copyright_note`、`reject_reason`、`decided_at`                                                                                                          |
+| 表                 | 核心字段                                                                                                                                                                                                                                                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contents`         | `type`、`title`、`summary`、`source_notice`、`author_id`、`category_id`、`status`、`visibility`、`source_type`、`import_source`、`import_restriction`、`cover_file_id`、`primary_file_id`、`external_url`、`is_featured`、`view_count`、`search_document`、`published_at`、`deleted_at`、`version` |
+| `content_bodies`   | `content_id` 唯一、`markdown_source`、`editor_document` JSONB、`rendered_html`、`toc` JSONB、`render_version`                                                                                                                                                                                      |
+| `content_versions` | `content_id`、`snapshot_reason`、源正文/HTML/目录快照、`created_by`、`created_at`                                                                                                                                                                                                                  |
+| `content_chapters` | `content_id`、`title`、`chapter_order`、`object_key`、`toc`、字数/阅读时间、`version`                                                                                                                                                                                                              |
+| `content_reviews`  | `content_id`、`requester_id`、`reviewer_id`、`status`（`PENDING`/`APPROVED`/`REJECTED`/`CANCELED`）、`requested_visibility`、`copyright_note`、`reject_reason`、`decided_at`                                                                                                                       |
 
 `contents.type`：
 
@@ -124,11 +124,11 @@ MARKDOWN | RICH_TEXT | BOOKLET | PDF | WORD | LINK | PROJECT
 
 `content_access_grants` 保存 PRIVATE 内容的指定读者：
 
-| 字段 | 说明 |
-| --- | --- |
-| `content_id` + `user_id` | 复合主键，同一内容不能重复授权同一账号 |
-| `granted_by` | 执行授权的作者或具备 `content:update ALL` 的管理员 |
-| `created_at` | 授权时间 |
+| 字段                     | 说明                                               |
+| ------------------------ | -------------------------------------------------- |
+| `content_id` + `user_id` | 复合主键，同一内容不能重复授权同一账号             |
+| `granted_by`             | 执行授权的作者或具备 `content:update ALL` 的管理员 |
+| `created_at`             | 授权时间                                           |
 
 - 无授权记录表示仅作者可见；不新增 `SHARED` 可见性枚举。
 - 内容删除时级联删除授权；可见性改为非 PRIVATE 时在同一业务事务清空授权。
@@ -172,7 +172,7 @@ content_access_grants(user_id, created_at)
 | `original_name`                 | 清理后的展示名                                                                      |
 | `object_key`                    | 唯一对象定位；不保存长期可访问 URL                                                  |
 | `storage_provider`              | `MINIO` / `COS`                                                                     |
-| `mime_type` / `size` / `sha256` | 校验与去重基础                                                                      |
+| `mime_type` / `size` / `sha256` | 校验与去重基础；`size` 为 BIGINT 以支持大文件                                       |
 | `purpose`                       | `AVATAR`、`COVER`、`CONTENT_FILE`、`BOOKLET_SOURCE`、`TEMPORARY_IMPORT`、`AI_ASSET` |
 | `status`                        | `UPLOADING`、`PENDING_VALIDATION`、`READY`、`FAILED`、`DELETED`                     |
 | `scan_status`                   | 为后续杀毒扫描预留                                                                  |
@@ -183,23 +183,24 @@ content_access_grants(user_id, created_at)
 | 表                    | 核心字段                                                                                                                        |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `upload_sessions`     | `uploader_id`、`file_id`、`upload_mode` (`SINGLE` / `MULTIPART`)、`object_key`、`expires_at`、`completed_at`、`idempotency_key` |
-| `booklet_import_jobs` | `requester_id`、`source_file_id`、`content_id`、`status`、进度/计数、警告、错误码、`idempotency_key`、`heartbeat_at`、时间                      |
+| `booklet_import_jobs` | `requester_id`、`source_file_id`、`content_id`、`status`、进度/计数、警告、错误码、`idempotency_key`、`heartbeat_at`、时间      |
 | `migration_runs`      | CLI 迁移源指纹、操作者、结果摘要、时间                                                                                          |
 
 - ZIP 导入创建 BOOKLET 后默认为 `DRAFT + PRIVATE` 并写 `import_restriction=PRIVATE_UNTIL_LICENSED`。源 ZIP 只在内容/章节数据库提交成功后才 `moveObject` 归档；失败任务重试仍读原对象。
+- `file_assets.size` 使用 BIGINT（Prisma `BigInt`），以支持超过 2 GiB 的配置上传；API JSON 仍返回安全整数范围内的 number。
 - 工作区统一任务列表是查询契约，不是新表：`GET /app/upload-tasks` 按 `createdAt` 合并当前用户的文件与导入任务并真分页，默认 `pageSize=10`，不接受 `mimeKind`，可选 `taskKind=booklet|pdf|word|zip`。
 - 异步任务状态和 FileAsset 生命周期是业务事实；独立 `server-worker` 扫 `outbox_events` 投递 BullMQ，HTTP `server` 不消费队列。
 
 ## 5. 配置、菜单、审计和 Outbox
 
-| 表                    | 核心字段                                                                                                                      |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `system_configs`      | `key`、`group`、JSONB `value`、`is_public`、`version`、`updated_by`                                                           |
+| 表                    | 核心字段                                                                                                                                                                         |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `system_configs`      | `key`、`group`、JSONB `value`、`is_public`、`version`、`updated_by`                                                                                                              |
 | `menus`               | `scope`、`type`、`name`、`locale_key`、`icon`、`parent_id`、`route_key`、`external_url`、`open_in_new_tab`、`sort_order`、`visible`、`enabled`、`is_system`、`remark`、`version` |
-| `menu_permissions`    | `menu_id`、`permission_id` 复合唯一                                                                                           |
-| `audit_logs`          | `category`、`action`、`actor_id`、目标、`request_id`、`ip_hash`、结果、白名单 `detail`、`expires_at`                          |
-| `outbox_events`       | `aggregate_type`、`aggregate_id`、`event_type`、JSON `payload`、`occurred_at`、`dispatched_at`、失败信息                      |
-| `idempotency_records` | 主体、方法、路径 hash、key、请求指纹、`state`（`PROCESSING` 占位 / `COMPLETED` 回放）、响应状态/JSON、`completed_at`、`updated_at` 心跳、`expires_at` |
+| `menu_permissions`    | `menu_id`、`permission_id` 复合唯一                                                                                                                                              |
+| `audit_logs`          | `category`、`action`、`actor_id`、目标、`request_id`、`ip_hash`、结果、白名单 `detail`、`expires_at`                                                                             |
+| `outbox_events`       | `aggregate_type`、`aggregate_id`、`event_type`、JSON `payload`、`occurred_at`、`dispatched_at`、失败信息                                                                         |
+| `idempotency_records` | 主体、方法、路径 hash、key、请求指纹、`state`（`PROCESSING` 占位 / `COMPLETED` 回放）、响应状态/JSON、`completed_at`、`updated_at` 心跳、`expires_at`                            |
 
 `system_configs` 的 `value` 为经过 DTO 校验的 JSON，示例 key：
 
@@ -227,14 +228,14 @@ ai.branding
 
 ### 6.1 配置和权益
 
-| 表                | 核心字段                                                                                       |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| `ai_providers`             | `code`、`label`、`base_url`、`enabled`、`auth_env_key`（仅环境变量名）、`remark`、`source_filed`、`filing_note`；不存 API Key。备案三列只出现在管理端 |
-| `ai_provider_credentials`  | `owner_type`（`SYSTEM` / `USER`）、`user_id`、`provider_id`、`provider_type`、`base_url`、`ciphertext`、`nonce`、`key_version`、`enabled`。系统 Key 与用户 Key 共用此表。接口不返回密文、nonce |
-| `ai_models`       | `provider_id`、厂商 `model_key`、工具类型、可见/试用/默认、上下文限制、平台定价规则、`version` |
-| `ai_tools`        | `code`、展示信息、状态、排序、登录要求                                                         |
-| `ai_entitlements` | `role_id` 或套餐标识、可用模型/工具、额度规则、并发/频率阈值、`verification_grant_amount`      |
-| `ai_templates`    | `owner_id` 可空、`is_system`、工具类型、Prompt、状态、`deleted_at`                             |
+| 表                        | 核心字段                                                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ai_providers`            | `code`、`label`、`base_url`、`enabled`、`auth_env_key`（仅环境变量名）、`remark`、`source_filed`、`filing_note`；不存 API Key。备案三列只出现在管理端                                          |
+| `ai_provider_credentials` | `owner_type`（`SYSTEM` / `USER`）、`user_id`、`provider_id`、`provider_type`、`base_url`、`ciphertext`、`nonce`、`key_version`、`enabled`。系统 Key 与用户 Key 共用此表。接口不返回密文、nonce |
+| `ai_models`               | `provider_id`、厂商 `model_key`、工具类型、可见/试用/默认、上下文限制、平台定价规则、`version`                                                                                                 |
+| `ai_tools`                | `code`、展示信息、状态、排序、登录要求                                                                                                                                                         |
+| `ai_entitlements`         | `role_id` 或套餐标识、可用模型/工具、额度规则、并发/频率阈值、`verification_grant_amount`                                                                                                      |
+| `ai_templates`            | `owner_id` 可空、`is_system`、工具类型、Prompt、状态、`deleted_at`                                                                                                                             |
 
 - 管理员和用户写入的 API Key 只加密存放在 `ai_provider_credentials`，不写入 `ai_providers` 或 `system_configs`。尚无系统凭据时，调用回退 `auth_env_key` 指向的环境变量。接口只表示已配置或未配置，不回显明文或脱敏片段。详见 [post-launch/ai-admin-operations-prd.md](../prd/post-launch/ai-admin-operations-prd.md)。
 - 登录用户默认不能改选模型（`userCanPickModel` 默认关闭）：即使用户自备 Key，仍用系统当前默认模型。开关打开后，只能在系统已启用且 `userVisible` 的模型里选择，不能填写任意模型名。请求仍需经过 entitlement、额度、并发和频率校验。

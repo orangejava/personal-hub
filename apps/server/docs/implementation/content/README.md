@@ -8,15 +8,16 @@
 
 ## 切片一览
 
-| 刀 | 内容 | 状态 |
-| --- | --- | --- |
-| 4.1 | Prisma：分类/标签/内容主表/正文/版本/章节/收藏/进度；`search_document` GIN；seed 分类与样例 | ✅ |
-| 4.2 | 公开读：`/public/contents`、`meta`、`featured`、详情、章节索引；可见性 SQL；可选登录 | ✅ |
-| 4.3 | 工作区：草稿 CRUD、发布/归档/软删恢复；Markdown / LINK / PROJECT / RICH_TEXT 草稿 | ✅ |
-| 4.4 | 收藏、阅读进度、去重阅读计数、工作台内容统计 | ✅ |
-| 4.5 | 后台跨作者列表、精选、分类/标签 CRUD、软删与 purge | ✅ |
-| 内容审核 | `ContentReview` + 审核 API 已落地；管理端 UI 见 [content-review-and-uploads.md](../../../../docs/implementation/content/content-review-and-uploads.md) | ✅ |
-| 私密授权 | `ContentAccessGrant` + 作者/指定读者公开阅读；实现说明见 [private-access-and-ai-session.md](../../../../docs/implementation/content/private-access-and-ai-session.md) | ✅ |
+| 刀                 | 内容                                                                                                                                                                  | 状态 |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 4.1                | Prisma：分类/标签/内容主表/正文/版本/章节/收藏/进度；`search_document` GIN；seed 分类与样例                                                                           | ✅   |
+| 4.2                | 公开读：`/public/contents`、`meta`、`featured`、详情、章节索引；可见性 SQL；可选登录                                                                                  | ✅   |
+| 4.3                | 工作区：草稿 CRUD、发布/归档/软删恢复；Markdown / LINK / PROJECT / RICH_TEXT 草稿                                                                                     | ✅   |
+| 4.4                | 收藏、阅读进度、去重阅读计数、工作台内容统计                                                                                                                          | ✅   |
+| 4.5                | 后台跨作者列表、精选、分类/标签 CRUD、软删与 purge                                                                                                                    | ✅   |
+| 内容审核           | `ContentReview` + 审核 API 已落地；管理端 UI 见 [content-review-and-uploads.md](../../../../docs/implementation/content/content-review-and-uploads.md)                | ✅   |
+| 私密授权           | `ContentAccessGrant` + 作者/指定读者公开阅读；实现说明见 [private-access-and-ai-session.md](../../../../docs/implementation/content/private-access-and-ai-session.md) | ✅   |
+| 来源说明与批量操作 | `contents.source_notice` 发布保存/后台搜索；工作区和管理台列表使用逐项权限校验批量操作                                                                                | ✅   |
 
 ## 调用链
 
@@ -51,6 +52,8 @@
 - 写入资源的 OWN/ALL 范围以各自动作权限为准；永久删除额外要求 `content:purge` ALL 和 `SUPER_ADMIN`。内容、分类和标签的受保护写接口均要求幂等键。
 - 编辑者公开发布进入审核；`approve`/`reject` 在事务内用 `PENDING` 条件更新抢占，任意并发只有一个终态。导入公开须非空白版权说明。
 - 工作区 PATCH 忽略 `isFeatured`。
+- 来源说明 `sourceNotice` 保存于内容主表并纳入后台关键字检索；公开列表、详情和收藏响应不返回它。它不是 `copyrightNote`，不会解除导入版权闸。
+- 内容列表批量发布、归档、精选和删除，以及审核批量通过/驳回，前端逐项调用现有单条接口；每条仍经过既有权限和状态校验，并报告失败 ID。需要版权说明的审核项目必须逐条处理。
 - PRIVATE 授权名单由 `PUT /app/contents/:id/access-grants` 完整替换；非 PRIVATE 自动清空，版权闸未解除时禁止添加读者。
 
 ## 明确不做（已迁到文件域或二期）

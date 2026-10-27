@@ -8,7 +8,7 @@ import {
   ContentVisibilityLabel,
 } from '@personal-hub/shared-types';
 import { useIntl } from '@umijs/max';
-import { App, Button, Form, Input, Modal, Tag } from 'antd';
+import { App, Button, Form, Input, Modal, Space, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import { PageContainer } from '@/components/shared';
 import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
@@ -16,6 +16,8 @@ import {
   DEFAULT_TABLE_PAGINATION,
   DEFAULT_TABLE_SEARCH,
 } from '@/constants/tablePagination';
+import { settleBatch } from '@/utils/settleBatch';
+import { needsReviewCopyrightNote } from '@/utils/contentBatchPolicy';
 import {
   approveAdminContentReview,
   fetchAdminContentReviews,
@@ -45,15 +47,6 @@ function reviewStatusLabel(
   return format(`admin.reviews.status.${status}`);
 }
 
-/** 导入内容首次允许公开/登录可见时，通过审核必须填写版权说明。 */
-function needsCopyrightNote(item: ContentReviewItem): boolean {
-  return (
-    item.content.importRestriction === 'PRIVATE_UNTIL_LICENSED' &&
-    (item.requestedVisibility === 'PUBLIC' ||
-      item.requestedVisibility === 'LOGIN')
-  );
-}
-
 function nestTypeLabel(type: string): string {
   const mapped = NEST_TYPE_TO_CONTENT[type];
   return mapped ? ContentTypeLabel[mapped] : type;
@@ -73,9 +66,20 @@ const ContentReviews: React.FC = () => {
   const tablePlaceholder = useAdminTablePlaceholder(format('admin.reviews.empty'));
   const actionRef = useRef<ActionType>(null);
   const [operatingId, setOperatingId] = useState<string>();
+  const [batchRunning, setBatchRunning] = useState(false);
+  const batchRunningRef = useRef(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const reviewRecordsRef = useRef(new Map<string, ContentReviewItem>());
+  // 表格跨页时 selectedRows 只覆盖当前数据源，批量操作必须以受控的 ID 集合为准。
+  const selectedReviews = selectedRowKeys
+    .map((key) => reviewRecordsRef.current.get(String(key)))
+    .filter((item): item is ContentReviewItem => item !== undefined);
+  const [batchApproveOpen, setBatchApproveOpen] = useState(false);
+  const [batchRejectOpen, setBatchRejectOpen] = useState(false);
   const [approveItem, setApproveItem] = useState<ContentReviewItem>();
   const [rejectItem, setRejectItem] = useState<ContentReviewItem>();
   const [approveForm] = Form.useForm<{ copyrightNote: string }>();
+  const [batchApproveForm] = Form.useForm<{ copyrightNote: string }>();
   const [rejectForm] = Form.useForm<{ reason: string }>();
   const reload = () => actionRef.current?.reload();
 
@@ -83,7 +87,7 @@ const ContentReviews: React.FC = () => {
     item: ContentReviewItem,
     copyrightNote?: string,
   ) => {
-    if (operatingId) return;
+    if (operatingId || batchRunningRef.current) return;
     setOperatingId(item.id);
     try {
       await approveAdminContentReview(item.id, copyrightNote);
@@ -97,7 +101,7 @@ const ContentReviews: React.FC = () => {
   };
 
   const handleReject = async (item: ContentReviewItem, reason: string) => {
-    if (operatingId) return;
+    if (operatingId || batchRunningRef.current) return;
     setOperatingId(item.id);
     try {
       await rejectAdminContentReview(item.id, reason);
@@ -111,7 +115,7 @@ const ContentReviews: React.FC = () => {
   };
 
   const openApprove = (item: ContentReviewItem) => {
-    if (needsCopyrightNote(item)) {
+    if (needsReviewCopyrightNote(item)) {
       setApproveItem(item);
       return;
     }
@@ -125,9 +129,95 @@ const ContentReviews: React.FC = () => {
   };
 
   const submitReject = async () => {
-    if (!rejectItem) return;
     const values = await rejectForm.validateFields();
-    await handleReject(rejectItem, values.reason);
+    if (rejectItem) {
+      await handleReject(rejectItem, values.reason);
+      return;
+    }
+    if (!batchRejectOpen) return;
+    if (batchRunningRef.current) return;
+    batchRunningRef.current = true;
+    setBatchRunning(true);
+    try {
+      const results = await settleBatch(selectedReviews, (item) =>
+        rejectAdminContentReview(item.id, values.reason),
+      );
+      const succeeded = results.filter((result) => result.status === 'fulfilled').length;
+      const failed = results.length - succeeded;
+      if (succeeded) {
+        message.success(format('admin.reviews.batchRejectedCount', { count: String(succeeded) }));
+      }
+      if (failed) {
+        const failedIds = selectedReviews
+          .filter((_, index) => results[index]?.status === 'rejected')
+          .map((item) => item.id);
+        message.warning(
+          format('admin.reviews.batchRejectFailed', {
+            count: String(failed),
+            ids: `${failedIds.slice(0, 5).join(', ')}${failedIds.length > 5 ? '…' : ''}`,
+          }),
+        );
+      }
+      setBatchRejectOpen(false);
+      setSelectedRowKeys([]);
+      rejectForm.resetFields();
+      reload();
+    } finally {
+      batchRunningRef.current = false;
+      setBatchRunning(false);
+    }
+  };
+
+  const approveSelected = async (copyrightNote?: string) => {
+    if (batchRunningRef.current) return;
+    const eligible = selectedReviews.filter((item) => item.status === 'PENDING');
+    if (!eligible.length) return;
+    batchRunningRef.current = true;
+    setBatchRunning(true);
+    try {
+      const results = await settleBatch(eligible, (item) =>
+        approveAdminContentReview(item.id, needsReviewCopyrightNote(item) ? copyrightNote : undefined),
+      );
+      const succeeded = results.filter((result) => result.status === 'fulfilled').length;
+      const failed = results.length - succeeded;
+      if (succeeded) {
+        message.success(format('admin.reviews.batchApprovedCount', { count: String(succeeded) }));
+      }
+      if (failed) {
+        const failedIds = eligible
+          .filter((_, index) => results[index]?.status === 'rejected')
+          .map((item) => item.id);
+        message.warning(
+          format('admin.reviews.batchApproveFailed', {
+            count: String(failed),
+            ids: `${failedIds.slice(0, 5).join(', ')}${failedIds.length > 5 ? '…' : ''}`,
+          }),
+        );
+      }
+      setSelectedRowKeys([]);
+      setBatchApproveOpen(false);
+      batchApproveForm.resetFields();
+      reload();
+    } finally {
+      batchRunningRef.current = false;
+      setBatchRunning(false);
+    }
+  };
+
+  const openBatchApprove = () => {
+    if (batchRunningRef.current) return;
+    if (selectedReviews.some((item) => item.status === 'PENDING' && needsReviewCopyrightNote(item))) {
+      batchApproveForm.resetFields();
+      setBatchApproveOpen(true);
+      return;
+    }
+    void approveSelected();
+  };
+
+  const submitBatchApprove = async () => {
+    if (batchRunningRef.current) return;
+    const values = await batchApproveForm.validateFields();
+    await approveSelected(values.copyrightNote.trim());
   };
 
   return (
@@ -135,6 +225,47 @@ const ContentReviews: React.FC = () => {
       <ProTable<ContentReviewItem>
         actionRef={actionRef}
         rowKey="id"
+        rowSelection={{
+          selectedRowKeys,
+          preserveSelectedRowKeys: true,
+          onChange: (keys, rows) => {
+            rows.forEach((item) => {
+              reviewRecordsRef.current.set(item.id, item);
+            });
+            setSelectedRowKeys(keys);
+          },
+          getCheckboxProps: (record) => ({
+            disabled: batchRunning || record.status !== 'PENDING',
+          }),
+        }}
+        tableAlertOptionRender={() => (
+          <Space>
+            <Button
+              size="small"
+              onClick={openBatchApprove}
+              loading={batchRunning}
+              disabled={batchRunning || !selectedReviews.some((item) => item.status === 'PENDING')}
+            >
+              {format('admin.reviews.batchApprove')}
+            </Button>
+            <Button
+              size="small"
+              danger
+              loading={batchRunning}
+              disabled={batchRunning}
+              onClick={() => setBatchRejectOpen(true)}
+            >
+              {format('admin.reviews.batchReject')}
+            </Button>
+            <a
+              onClick={() => {
+                setSelectedRowKeys([]);
+              }}
+            >
+              {format('admin.reviews.clearSelection')}
+            </a>
+          </Space>
+        )}
         pagination={DEFAULT_TABLE_PAGINATION}
         search={DEFAULT_TABLE_SEARCH}
         {...tablePlaceholder}
@@ -143,6 +274,9 @@ const ContentReviews: React.FC = () => {
             current: params.current,
             pageSize: params.pageSize,
             status: params.status as string | undefined,
+          });
+          res.list.forEach((item) => {
+            reviewRecordsRef.current.set(item.id, item);
           });
           return {
             data: res.list ?? [],
@@ -265,6 +399,45 @@ const ContentReviews: React.FC = () => {
         ]}
       />
       <Modal
+        title={format('admin.reviews.batchApproveTitle')}
+        open={batchApproveOpen}
+        onCancel={() => {
+          if (batchRunningRef.current) return;
+          setBatchApproveOpen(false);
+          batchApproveForm.resetFields();
+        }}
+        onOk={() => void submitBatchApprove()}
+        confirmLoading={batchRunning}
+        cancelButtonProps={{ disabled: batchRunning }}
+        maskClosable={!batchRunning}
+        destroyOnHidden
+      >
+        <p style={{ marginBottom: 12 }}>
+          {format('admin.reviews.batchApproveDescription', {
+            count: String(selectedReviews.filter(needsReviewCopyrightNote).length),
+          })}
+        </p>
+        <Form form={batchApproveForm} layout="vertical">
+          <Form.Item
+            name="copyrightNote"
+            label={format('admin.reviews.copyrightNote')}
+            rules={[
+              {
+                required: true,
+                whitespace: true,
+                message: format('admin.reviews.copyrightRequired'),
+              },
+            ]}
+          >
+            <Input.TextArea
+              rows={4}
+              maxLength={500}
+              placeholder={format('admin.reviews.copyrightPlaceholder')}
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
         title={format('admin.reviews.approveTitle')}
         open={!!approveItem}
         onCancel={() => {
@@ -272,7 +445,7 @@ const ContentReviews: React.FC = () => {
           approveForm.resetFields();
         }}
         onOk={() => void submitApprove()}
-        confirmLoading={!!operatingId}
+        confirmLoading={!!operatingId || batchRunning}
         destroyOnHidden
       >
         <p style={{ marginBottom: 12 }}>
@@ -303,13 +476,17 @@ const ContentReviews: React.FC = () => {
       </Modal>
       <Modal
         title={format('admin.reviews.rejectTitle')}
-        open={!!rejectItem}
+        open={!!rejectItem || batchRejectOpen}
         onCancel={() => {
+          if (batchRunningRef.current) return;
           setRejectItem(undefined);
+          setBatchRejectOpen(false);
           rejectForm.resetFields();
         }}
         onOk={() => void submitReject()}
-        confirmLoading={!!operatingId}
+        confirmLoading={!!operatingId || batchRunning}
+        cancelButtonProps={{ disabled: batchRunning }}
+        maskClosable={!batchRunning}
         destroyOnHidden
       >
         <Form form={rejectForm} layout="vertical">

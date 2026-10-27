@@ -40,6 +40,9 @@
 
 ## 4. 已有文档
 
+- [content-booklet-zip-upload.md](./content-booklet-zip-upload.md)：小册 ZIP 编码兼容、大文件分片上传、签名续期与安全上限。
+- [content-bulk-operations-and-source-notice.md](./content-bulk-operations-and-source-notice.md)：内容来源说明持久化、可检索字段与批量操作的权限边界。
+
 - [ai-provider-credential-transport.md](./ai-provider-credential-transport.md)：API Key 请求加密、数据库加密与手动验证。
 
 - [nest-http-adapter-comparison.md](./nest-http-adapter-comparison.md)：Nest Fastify/Express 技术比较、AI 流式/并发 API 边界与已完成迁移记录。

@@ -13,6 +13,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { FilePurpose } from '@prisma/client';
+import { MAX_COS_OBJECT_BYTES } from '../file-policy';
 
 export class CreateUploadDto {
   @IsEnum(FilePurpose)
@@ -29,7 +30,7 @@ export class CreateUploadDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(500 * 1024 * 1024)
+  @Max(MAX_COS_OBJECT_BYTES)
   size!: number;
 }
 
@@ -50,6 +51,19 @@ export class CompleteUploadDto {
   @ValidateNested({ each: true })
   @Type(() => CompletedPartDto)
   parts?: CompletedPartDto[];
+}
+
+export class UploadPartsQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  startPart!: number;
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  count!: number;
 }
 
 export class AdminFileQueryDto {

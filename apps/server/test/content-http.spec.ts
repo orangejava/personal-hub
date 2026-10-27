@@ -4,12 +4,20 @@ import argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { ContentType, DataScope, ImportRestriction, RoleCode, UserStatus } from '@prisma/client';
+import {
+  ContentType,
+  DataScope,
+  ImportRestriction,
+  Prisma,
+  RoleCode,
+  UserStatus,
+} from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { GenericContainer } from 'testcontainers';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { configureHttpApp } from '../src/bootstrap';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
+import { ContentRepository } from '../src/modules/content/content.repository';
 import { runBaselineSeed } from '../prisma/seed';
 
 const serverDirectory = resolve(__dirname, '..');
@@ -233,6 +241,70 @@ describe('Content HTTP', () => {
     expect(memberDetail.data?.markdownSource).toContain('只有登录能看');
   });
 
+  it('发布时保存来源说明，并允许后台按来源说明关键字查找', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-source-notice-content' },
+      body: {
+        type: 'MARKDOWN',
+        title: '来源说明检索用例',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 来源说明测试\n\n正文。',
+      },
+    });
+    const published = await json<{ sourceNotice: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'publish-source-notice-content' },
+        body: {
+          requestedVisibility: 'PUBLIC',
+          sourceNotice: '网络下载，侵权联系',
+        },
+      },
+    );
+    expect(published.data?.sourceNotice).toBe('网络下载，侵权联系');
+
+    const found = await json<{ list: Array<{ id: string; sourceNotice?: string | null }> }>(
+      '/api/v1/admin/contents?keyword=%E4%BE%B5%E6%9D%83%E8%81%94%E7%B3%BB',
+      { token: ownerToken },
+    );
+    expect(found.data?.list.some((item) => item.id === created.data?.id)).toBe(true);
+    expect(found.data?.list.find((item) => item.id === created.data?.id)?.sourceNotice).toBe(
+      '网络下载，侵权联系',
+    );
+
+    const archived = await json<{ sourceNotice: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/archive`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'archive-source-notice-content' },
+      },
+    );
+    expect(archived.data?.sourceNotice).toBe('网络下载，侵权联系');
+
+    const republished = await json<{ sourceNotice: string | null }>(
+      `/api/v1/app/contents/${created.data?.id}/publish`,
+      {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'republish-source-notice-content' },
+      },
+    );
+    expect(republished.data?.sourceNotice).toBe('网络下载，侵权联系');
+
+    const publicList = await json<{ list: Array<{ id: string; sourceNotice?: string }> }>(
+      `/api/v1/public/contents?keyword=${encodeURIComponent('来源说明检索用例')}`,
+    );
+    const publicItem = publicList.data?.list.find((item) => item.id === created.data?.id);
+    expect(publicItem).toBeTruthy();
+    expect(publicItem).not.toHaveProperty('sourceNotice');
+  });
+
   it('私有内容公开路径 404；标签 AND 与中文 keyword 可用', async () => {
     const created = await json<{ id: string }>('/api/v1/app/contents', {
       method: 'POST',
@@ -269,7 +341,7 @@ describe('Content HTTP', () => {
     );
     expect(andMiss.data?.total).toBe(0);
     const keyword = await json<{ total: number }>(
-      `/api/v1/public/contents?keyword=${encodeURIComponent('知识')}`,
+      `/api/v1/public/contents?keyword=${encodeURIComponent('中文检索标题知识库')}`,
     );
     expect((keyword.data?.total ?? 0) >= 1).toBe(true);
   });
@@ -631,6 +703,83 @@ describe('Content HTTP', () => {
     expect(publish.body.error?.code).toBe('CONTENT_PUBLISH_VALIDATION_FAILED');
   });
 
+  it('编辑者不能将缺少主文件的 PDF 提交审核', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-pdf-without-primary-file' },
+      body: {
+        type: 'MARKDOWN',
+        title: '尚未上传主文件的 PDF',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 草稿\n\n正文。',
+      },
+    });
+    expect(created.data?.id).toBeTruthy();
+    // 新建接口已禁止这种 PDF；模拟升级前遗留或文件关联丢失的草稿，检查发布入口自身的校验。
+    await prisma.content.update({
+      where: { id: created.data?.id },
+      data: { type: ContentType.PDF, primaryFileId: null },
+    });
+
+    const publish = await raw(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'publish-pdf-without-primary-file' },
+    });
+    expect(publish.status).toBe(422);
+    expect(publish.body.error?.code).toBe('CONTENT_PUBLISH_VALIDATION_FAILED');
+    expect(await prisma.contentReview.count({ where: { contentId: created.data?.id } })).toBe(0);
+  });
+
+  it('编辑者提交审核时应按锁内最新正文重新校验', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-review-stale-body' },
+      body: {
+        type: 'MARKDOWN',
+        title: '提交期间正文变化',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 原正文\n\n可发布内容。',
+      },
+    });
+    const contentId = created.data?.id;
+    expect(contentId).toBeTruthy();
+
+    const contents = app.get(ContentRepository);
+    const asTransaction = contents.asTransaction.bind(contents);
+    let changed = false;
+    const transactionSpy = vi
+      .spyOn(contents, 'asTransaction')
+      .mockImplementation(
+        async <T>(fn: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> => {
+          changed = true;
+          // 固定在预校验完成之后、事务取得内容锁之前修改正文，避免靠并发时序碰运气。
+          await prisma.contentBody.update({
+            where: { contentId: contentId! },
+            data: { markdownSource: null },
+          });
+          return asTransaction(fn);
+        },
+      );
+    try {
+      const publish = await raw(`/api/v1/app/contents/${contentId}/publish`, {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'publish-review-stale-body' },
+      });
+      expect(changed).toBe(true);
+      expect(publish.status).toBe(422);
+      expect(publish.body.error?.code).toBe('CONTENT_PUBLISH_VALIDATION_FAILED');
+      expect(await prisma.contentReview.count({ where: { contentId } })).toBe(0);
+    } finally {
+      transactionSpy.mockRestore();
+    }
+  });
+
   it('拒绝不属于内容的章节进度，并在写入前校验分类父节点和重复标签', async () => {
     const [publicContent, loginContent] = await Promise.all([
       prisma.content.findFirstOrThrow({ where: { title: '公开 Nest 文章' }, select: { id: true } }),
@@ -853,6 +1002,109 @@ describe('Content HTTP', () => {
     expect(
       (await prisma.content.findUniqueOrThrow({ where: { id: created.data?.id } })).status,
     ).toBe('PUBLISHED');
+  });
+
+  it('编辑者改可见性并重复提交时，管理员并发通过不会反向锁死', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-review-lock-order' },
+      body: {
+        type: 'MARKDOWN',
+        title: '审核锁序文章',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 审核锁序\n\n正文。',
+      },
+    });
+    await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'submit-review-lock-order-first' },
+      body: { requestedVisibility: 'PUBLIC' },
+    });
+    const review = await prisma.contentReview.findFirstOrThrow({
+      where: { contentId: created.data?.id, status: 'PENDING' },
+    });
+
+    const [resubmitted, approved] = await Promise.all([
+      raw(`/api/v1/app/contents/${created.data?.id}/publish`, {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'submit-review-lock-order-second' },
+        body: { requestedVisibility: 'LOGIN', sourceNotice: '已取得授权' },
+      }),
+      raw(`/api/v1/admin/content-reviews/${review.id}/approve`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-review-lock-order' },
+      }),
+    ]);
+
+    expect([201, 409]).toContain(resubmitted.status);
+    if (resubmitted.status === 409) {
+      expect(resubmitted.body.error?.code).toBe('CONTENT_STATE_CHANGED');
+    }
+    expect(approved.status).toBe(201);
+    expect(
+      (await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status,
+    ).toBe('APPROVED');
+    expect(
+      await prisma.contentReview.count({
+        where: { contentId: created.data?.id, status: 'PENDING' },
+      }),
+    ).toBe(0);
+  });
+
+  it('管理员直接发布与审核通过并发时只发布一次且不会死锁', async () => {
+    const created = await json<{ id: string }>('/api/v1/app/contents', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'create-direct-approve-race' },
+      body: {
+        type: 'MARKDOWN',
+        title: '直接发布与审核并发文章',
+        categorySlug: 'frontend',
+        visibility: 'PRIVATE',
+        markdownSource: '# 并发\n\n正文。',
+      },
+    });
+    await json(`/api/v1/app/contents/${created.data?.id}/publish`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'submit-direct-approve-race' },
+      body: { requestedVisibility: 'PUBLIC' },
+    });
+    const review = await prisma.contentReview.findFirstOrThrow({
+      where: { contentId: created.data?.id, status: 'PENDING' },
+    });
+
+    const [published, approved] = await Promise.all([
+      raw(`/api/v1/admin/contents/${created.data?.id}/publish`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'direct-publish-approve-race' },
+        body: { requestedVisibility: 'PUBLIC' },
+      }),
+      raw(`/api/v1/admin/content-reviews/${review.id}/approve`, {
+        method: 'POST',
+        token: ownerToken,
+        headers: { 'Idempotency-Key': 'approve-direct-publish-race' },
+      }),
+    ]);
+
+    expect([published.status, approved.status].sort()).toEqual([201, 409]);
+    expect(
+      (await prisma.content.findUniqueOrThrow({ where: { id: created.data?.id } })).status,
+    ).toBe('PUBLISHED');
+    expect(
+      await prisma.contentVersion.count({
+        where: { contentId: created.data?.id, snapshotReason: 'PUBLISH_SNAPSHOT' },
+      }),
+    ).toBe(1);
+    expect(
+      (await prisma.contentReview.findUniqueOrThrow({ where: { id: review.id } })).status,
+    ).toMatch(/^(APPROVED|CANCELED)$/);
   });
 
   it('并发通过与驳回只有一个终态', async () => {

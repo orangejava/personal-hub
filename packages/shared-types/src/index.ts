@@ -8,6 +8,7 @@ export * from './user';
 export * from './permission';
 export * from './auth';
 export * from './content';
+export * from './content-batch-policy';
 export * from './booklet';
 export * from './workspace';
 export * from './system';

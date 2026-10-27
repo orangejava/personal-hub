@@ -27,6 +27,7 @@
 - [features/admin-system-config-hub.md](./features/admin-system-config-hub.md)：后台系统配置中心、菜单隐藏与公开 mapper。
 - [features/nest-content-domain.md](./features/nest-content-domain.md)：内容域可见性、UPPER_SNAKE 映射与公开读。
 - [features/nest-file-booklet.md](./features/nest-file-booklet.md)：预签名上传、purpose 与 Outbox 导入。
+- [features/content-booklet-zip-upload.md](./features/content-booklet-zip-upload.md)：小册 ZIP 编码兼容、大文件分片上传、签名续期与安全上限。
 - [features/nest-ai-domain.md](./features/nest-ai-domain.md)：AI 额度预占、SSE 停止、导航配置、鉴权媒体与 OpenAI 适配层。
 - [features/ai-provider-credential-transport.md](./features/ai-provider-credential-transport.md)：AI Provider Key 请求加密、落库加密与验证。
 - [features/ai-chat-sse-boundaries.md](./features/ai-chat-sse-boundaries.md)：AI 对话 SSE 接收、前端分帧渲染与故障定位。

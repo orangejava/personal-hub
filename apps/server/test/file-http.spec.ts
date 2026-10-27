@@ -228,6 +228,120 @@ describe('File / booklet HTTP', () => {
     expect(
       (await prisma.fileAsset.findUniqueOrThrow({ where: { id: session.data?.fileId } })).status,
     ).toBe('FAILED');
+    const renewFailed = await raw(`/api/v1/app/uploads/${session.data?.uploadId}/renew`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-failed-upload' },
+    });
+    expect(renewFailed.status).toBe(410);
+    expect(renewFailed.body.error?.code).toBe('UPLOAD_EXPIRED');
+  });
+
+  it('续签拒绝其他用户、过期会话；分片接口校验范围和数量', async () => {
+    const session = await json<{ uploadId: string; fileId: string }>('/api/v1/app/uploads', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-failure-session' },
+      body: {
+        purpose: FilePurpose.CONTENT_FILE,
+        originalName: 'renew.pdf',
+        mimeType: 'application/pdf',
+        size: 21 * 1024 * 1024,
+      },
+    });
+    const forbiddenRenew = await raw(`/api/v1/app/uploads/${session.data?.uploadId}/renew`, {
+      method: 'POST',
+      token: memberToken,
+      headers: { 'Idempotency-Key': 'renew-other-user' },
+    });
+    expect(forbiddenRenew.status).toBe(404);
+    expect(forbiddenRenew.body.error?.code).toBe('FILE_NOT_FOUND');
+
+    await prisma.uploadSession.update({
+      where: { id: session.data?.uploadId },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const expiredRenew = await raw(`/api/v1/app/uploads/${session.data?.uploadId}/renew`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-expired' },
+    });
+    expect(expiredRenew.status).toBe(410);
+    expect(expiredRenew.body.error?.code).toBe('UPLOAD_EXPIRED');
+
+    // 模拟幂等响应过期：相同创建键仍命中数据库旧会话，不得伪装成新的 24 小时会话。
+    await prisma.idempotencyRecord.deleteMany({
+      where: { idempotencyKey: 'renew-failure-session' },
+    });
+    const staleCreate = await raw('/api/v1/app/uploads', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-failure-session' },
+      body: {
+        purpose: FilePurpose.CONTENT_FILE,
+        originalName: 'renew.pdf',
+        mimeType: 'application/pdf',
+        size: 21 * 1024 * 1024,
+      },
+    });
+    expect(staleCreate.status).toBe(410);
+    expect(staleCreate.body.error?.code).toBe('UPLOAD_EXPIRED');
+
+    const freshCreate = await json<{ uploadId: string }>('/api/v1/app/uploads', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-fresh-session' },
+      body: {
+        purpose: FilePurpose.CONTENT_FILE,
+        originalName: 'renew.pdf',
+        mimeType: 'application/pdf',
+        size: 21 * 1024 * 1024,
+      },
+    });
+    expect(freshCreate.data?.uploadId).not.toBe(session.data?.uploadId);
+  });
+
+  it('分片签名拒绝单次上传会话、越界分片和超过 100 片的请求', async () => {
+    const single = await json<{ uploadId: string }>('/api/v1/app/uploads', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'single-parts-session' },
+      body: {
+        purpose: FilePurpose.CONTENT_FILE,
+        originalName: 'single.pdf',
+        mimeType: 'application/pdf',
+        size: 1024,
+      },
+    });
+    const singleParts = await raw(
+      `/api/v1/app/uploads/${single.data?.uploadId}/parts?startPart=1&count=1`,
+      { token: editorToken },
+    );
+    expect(singleParts.status).toBe(404);
+    expect(singleParts.body.error?.code).toBe('FILE_NOT_FOUND');
+
+    const multipart = await json<{ uploadId: string }>('/api/v1/app/uploads', {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'parts-failure-session' },
+      body: {
+        purpose: FilePurpose.CONTENT_FILE,
+        originalName: 'parts.pdf',
+        mimeType: 'application/pdf',
+        size: 21 * 1024 * 1024,
+      },
+    });
+    const outOfRange = await raw(
+      `/api/v1/app/uploads/${multipart.data?.uploadId}/parts?startPart=4&count=1`,
+      { token: editorToken },
+    );
+    expect(outOfRange.status).toBe(400);
+    expect(outOfRange.body.error?.code).toBe('FILE_VALIDATION_FAILED');
+    const tooMany = await raw(
+      `/api/v1/app/uploads/${multipart.data?.uploadId}/parts?startPart=1&count=101`,
+      { token: editorToken },
+    );
+    expect(tooMany.status).toBe(400);
   });
 
   it('超过 20MiB 的 PDF 走 multipart complete', async () => {
@@ -240,7 +354,6 @@ describe('File / booklet HTTP', () => {
       uploadId: string;
       objectKey: string;
       mode: string;
-      parts: Array<{ partNumber: number }> | null;
       partSize: number | null;
     }>('/api/v1/app/uploads', {
       method: 'POST',
@@ -254,15 +367,33 @@ describe('File / booklet HTTP', () => {
       },
     });
     expect(session.data?.mode).toBe('MULTIPART');
-    expect(session.data?.parts?.length).toBeGreaterThan(1);
+    const renewed = await json<{ partSize: number; expiresAt: string }>(
+      `/api/v1/app/uploads/${session.data?.uploadId}/renew`,
+      {
+        method: 'POST',
+        token: editorToken,
+        headers: { 'Idempotency-Key': 'multipart-pdf-renew' },
+      },
+    );
+    expect(renewed.data?.partSize).toBeGreaterThan(0);
+    expect(Date.parse(renewed.data?.expiresAt ?? '')).toBeGreaterThan(Date.now());
     const partSize = session.data?.partSize ?? 8 * 1024 * 1024;
-    for (const part of session.data?.parts ?? []) {
-      const start = (part.partNumber - 1) * partSize;
-      await storage.simulateBrowserPart(
-        session.data?.objectKey as string,
-        part.partNumber,
-        body.subarray(start, start + partSize),
+    const partCount = Math.ceil(body.length / partSize);
+    const completedParts: Array<{ partNumber: number; etag: string }> = [];
+    for (let startPart = 1; startPart <= partCount; startPart += 100) {
+      const signedParts = await json<Array<{ partNumber: number; url: string }>>(
+        `/api/v1/app/uploads/${session.data?.uploadId}/parts?startPart=${startPart}&count=${Math.min(100, partCount - startPart + 1)}`,
+        { token: editorToken },
       );
+      for (const part of signedParts.data ?? []) {
+        const start = (part.partNumber - 1) * partSize;
+        await storage.simulateBrowserPart(
+          session.data?.objectKey as string,
+          part.partNumber,
+          body.subarray(start, start + partSize),
+        );
+        completedParts.push({ partNumber: part.partNumber, etag: `"part-${part.partNumber}"` });
+      }
     }
     const ready = await json<{ id: string; size: number }>(
       `/api/v1/app/uploads/${session.data?.uploadId}/complete`,
@@ -271,14 +402,18 @@ describe('File / booklet HTTP', () => {
         token: editorToken,
         headers: { 'Idempotency-Key': 'multipart-pdf-complete' },
         body: {
-          parts: (session.data?.parts ?? []).map((part) => ({
-            partNumber: part.partNumber,
-            etag: `"part-${part.partNumber}"`,
-          })),
+          parts: completedParts,
         },
       },
     );
     expect(ready.data?.size).toBe(body.length);
+    const renewCompleted = await raw(`/api/v1/app/uploads/${session.data?.uploadId}/renew`, {
+      method: 'POST',
+      token: editorToken,
+      headers: { 'Idempotency-Key': 'renew-completed-upload' },
+    });
+    expect(renewCompleted.status).toBe(404);
+    expect(renewCompleted.body.error?.code).toBe('FILE_NOT_FOUND');
   });
 
   it('并发 complete 同一会话只落一次 READY', async () => {

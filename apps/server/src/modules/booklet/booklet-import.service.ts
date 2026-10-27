@@ -26,7 +26,12 @@ import { AuthService } from '../auth/auth.service';
 import { deriveMarkdown } from '../content/content-markdown';
 import { FileService } from '../file/file.service';
 import { sanitizeFileName } from '../file/file-magic';
-import { parseBookletZipFile, writeAsyncIterableToFile } from './parse-booklet-zip';
+import {
+  DEFAULT_MAX_UNCOMPRESSED_BYTES,
+  MAX_BOOKLET_COMPRESSION_RATIO,
+  parseBookletZipFile,
+  writeAsyncIterableToFile,
+} from './parse-booklet-zip';
 
 /** 心跳停止超过该时间后，允许其它 worker 重新认领 VALIDATING/IMPORTING。 */
 const IMPORT_STALE_MS = 45_000;
@@ -275,9 +280,15 @@ export class BookletImportService {
       tmpDir = await mkdtemp(join(tmpdir(), 'booklet-import-'));
       const zipPath = join(tmpDir, 'source.zip');
       await writeAsyncIterableToFile(await this.storage.getObjectStream(sourceObjectKey), zipPath);
+      const sourcePolicy = await this.files.resolvePolicy(FilePurpose.BOOKLET_SOURCE);
       const parsed = await parseBookletZipFile(
         zipPath,
         job.sourceFile.originalName.replace(/\.zip$/i, ''),
+        undefined,
+        Math.max(
+          DEFAULT_MAX_UNCOMPRESSED_BYTES,
+          sourcePolicy.maxBytes * MAX_BOOKLET_COMPRESSION_RATIO,
+        ),
       );
       await this.prisma.bookletImportJob.update({
         where: { id: jobId },

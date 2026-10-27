@@ -156,6 +156,16 @@ export default {
   'admin.reviews.rejectReason': 'Rejection reason',
   'admin.reviews.submittedAt': 'Submitted at',
   'admin.reviews.approve': 'Approve',
+  'admin.reviews.batchApprove': 'Approve selected',
+  'admin.reviews.batchReject': 'Reject selected',
+  'admin.reviews.clearSelection': 'Clear selection',
+  'admin.reviews.batchApprovedCount': 'Approved {count} items',
+  'admin.reviews.batchRejectedCount': 'Rejected {count} items',
+  'admin.reviews.batchApproveFailed': 'Failed to approve {count} items ({ids})',
+  'admin.reviews.batchRejectFailed': 'Failed to reject {count} items ({ids})',
+  'admin.reviews.batchApproveTitle': 'Approve selected with copyright details',
+  'admin.reviews.batchApproveDescription':
+    '{count} restricted imports will become visible. Confirm that the same permission applies to all of them; approval removes the restriction.',
   'admin.reviews.reject': 'Reject',
   'admin.reviews.approveTitle': 'Provide copyright details to approve',
   'admin.reviews.approveDescription':
@@ -163,7 +173,7 @@ export default {
   'admin.reviews.copyrightNote': 'Copyright details',
   'admin.reviews.copyrightRequired': 'Provide copyright details',
   'admin.reviews.copyrightPlaceholder':
-    'Describe the basis for permission to distribute publicly',
+    'For example: written permission from the author to publish here (granted on YYYY-MM-DD). Enter the actual basis.',
   'admin.reviews.rejectTitle': 'Reject review',
   'admin.reviews.rejectReasonLabel': 'Rejection reason',
   'admin.reviews.rejectRequired': 'Provide a rejection reason',

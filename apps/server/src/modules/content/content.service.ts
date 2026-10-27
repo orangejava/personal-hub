@@ -656,24 +656,47 @@ export class ContentService {
       { allowDeleted: false },
     );
     this.assertPublishable(row, { skipImportRestriction: true });
-    this.assertFileOrBookletReady(row);
+    await this.assertFileOrBookletReady(row);
     const targetVisibility = dto.requestedVisibility ?? row.visibility;
     if (!grant.all) {
-      return this.submitReview(auth, row, targetVisibility, viewer);
+      return this.submitReview(auth, row, dto.requestedVisibility, viewer, dto.sourceNotice);
     }
     this.assertCopyrightNoteIfNeeded(row, targetVisibility, dto.copyrightNote);
     await this.contents.asTransaction(async (tx) => {
-      if (this.needsImportLicense(row, targetVisibility)) {
+      // 与提交审核、审核通过统一先锁内容行，避免内容/审核记录反向加锁。
+      await this.contents.lockById(id, tx);
+      const current = await this.contents.findById(id, tx);
+      if (current === null || current.deletedAt !== null) {
+        throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
+      }
+      if (current.status !== row.status) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'CONTENT_STATE_CHANGED',
+          '内容状态已变化，请刷新后重试',
+        );
+      }
+      this.assertPublishable(current, { skipImportRestriction: true });
+      await this.assertFileOrBookletReady(current, tx);
+      const currentVisibility = dto.requestedVisibility ?? current.visibility;
+      this.assertCopyrightNoteIfNeeded(current, currentVisibility, dto.copyrightNote);
+      if (dto.sourceNotice !== undefined) {
+        await tx.content.update({
+          where: { id },
+          data: { sourceNotice: dto.sourceNotice?.trim() || null },
+        });
+      }
+      if (this.needsImportLicense(current, currentVisibility)) {
         await this.applyImportLicenseInTx(
           tx,
-          row,
+          current,
           auth.userId,
           dto.copyrightNote?.trim() ?? '',
           requestId,
         );
       }
       await this.cancelPendingReviewsInTx(tx, id, auth.userId);
-      await this.executePublishInTx(tx, row, auth.userId, requestId, dto.requestedVisibility);
+      await this.executePublishInTx(tx, current, auth.userId, requestId, dto.requestedVisibility);
     });
     const next = await this.contents.findById(id);
     if (next === null) {
@@ -721,7 +744,22 @@ export class ContentService {
     requestId: string | null,
   ) {
     await this.assertPublishAll(auth);
+    const reviewLocation = await this.prisma.contentReview.findUnique({
+      where: { id: reviewId },
+      select: { contentId: true },
+    });
+    if (!reviewLocation) {
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'CONTENT_REVIEW_NOT_FOUND',
+        '审核记录不存在',
+      );
+    }
     await this.contents.asTransaction(async (tx) => {
+      // 与编辑者重复提交、管理员直接发布保持同一锁顺序：先内容，后审核记录。
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM contents WHERE id = ${reviewLocation.contentId}::uuid FOR UPDATE`,
+      );
       await this.claimPendingReview(tx, reviewId, {
         status: ContentReviewStatus.APPROVED,
         reviewerId: auth.userId,
@@ -1496,6 +1534,7 @@ export class ContentService {
       OR: [
         { title: { contains: trimmed, mode: 'insensitive' } },
         { summary: { contains: trimmed, mode: 'insensitive' } },
+        { sourceNotice: { contains: trimmed, mode: 'insensitive' } },
       ],
     };
   }
@@ -1612,39 +1651,56 @@ export class ContentService {
   private async submitReview(
     auth: { userId: string },
     row: ContentDetailRow,
-    requestedVisibility: ContentVisibility,
+    requestedVisibility: ContentVisibility | undefined,
     viewer: ContentViewer,
+    sourceNotice?: string | null,
   ) {
-    const pending = await this.prisma.contentReview.findFirst({
-      where: { contentId: row.id, status: ContentReviewStatus.PENDING },
-    });
-    if (pending) {
-      if (pending.requestedVisibility !== requestedVisibility) {
-        await this.prisma.contentReview.update({
-          where: { id: pending.id },
-          data: { requestedVisibility },
-        });
-      }
-      const next = await this.contents.findById(row.id);
-      if (next === null) {
+    await this.contents.asTransaction(async (tx) => {
+      // 同一内容的重复提交串行化，保证“查找/更新待审记录”和来源说明处于同一原子操作。
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM contents WHERE id = ${row.id}::uuid FOR UPDATE`);
+      // 等待锁期间管理员可能已通过审核；必须按锁内最新状态决定能否继续提交。
+      const current = await this.contents.findById(row.id, tx);
+      if (current === null || current.deletedAt !== null) {
         throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
       }
-      return this.toDetail(next, viewer, { publicView: false, favorited: false });
-    }
-    try {
-      await this.prisma.contentReview.create({
+      if (current.status !== row.status) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'CONTENT_STATE_CHANGED',
+          '内容状态已变化，请刷新后重试',
+        );
+      }
+      // 锁前校验可能基于旧快照；编辑请求可在等待锁期间清空正文或主文件。
+      this.assertPublishable(current, { skipImportRestriction: true });
+      await this.assertFileOrBookletReady(current, tx);
+      const targetVisibility = requestedVisibility ?? current.visibility;
+      if (sourceNotice !== undefined) {
+        await tx.content.update({
+          where: { id: row.id },
+          data: { sourceNotice: sourceNotice?.trim() || null },
+        });
+      }
+      const pending = await tx.contentReview.findFirst({
+        where: { contentId: row.id, status: ContentReviewStatus.PENDING },
+      });
+      if (pending) {
+        if (pending.requestedVisibility !== targetVisibility) {
+          await tx.contentReview.update({
+            where: { id: pending.id },
+            data: { requestedVisibility: targetVisibility },
+          });
+        }
+        return;
+      }
+      await tx.contentReview.create({
         data: {
           contentId: row.id,
           requesterId: auth.userId,
-          requestedVisibility,
+          requestedVisibility: targetVisibility,
           status: ContentReviewStatus.PENDING,
         },
       });
-    } catch (error) {
-      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') {
-        throw error;
-      }
-    }
+    });
     const next = await this.contents.findById(row.id);
     if (next === null) {
       throw new DomainHttpException(HttpStatus.NOT_FOUND, 'CONTENT_NOT_FOUND', '内容不存在');
@@ -2057,6 +2113,8 @@ export class ContentService {
       type: row.type,
       title: row.title ?? '',
       summary: row.summary ?? '',
+      // 来源说明仅供管理端/工作区检索，不能随公开内容响应泄露。
+      ...(!publicView ? { sourceNotice: row.sourceNotice } : {}),
       coverFileId: row.coverFileId,
       coverUrl: await this.files.signFileId(row.coverFileId),
       category: row.category ? { slug: row.category.slug, name: row.category.name } : null,

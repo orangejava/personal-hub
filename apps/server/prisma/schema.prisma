@@ -703,6 +703,7 @@ model Content {
   type               ContentType
   title              String?            @db.VarChar(200)
   summary            String?
+  sourceNotice       String?            @map("source_notice") @db.VarChar(500)
   authorId           String             @map("author_id") @db.Uuid
   categoryId         String?            @map("category_id") @db.Uuid
   status             ContentStatus      @default(DRAFT)
@@ -887,7 +888,7 @@ model FileAsset {
   objectKey       String              @unique @map("object_key") @db.VarChar(512)
   storageProvider StorageProviderKind @map("storage_provider")
   mimeType        String              @map("mime_type") @db.VarChar(127)
-  size            Int
+  size            BigInt              @db.BigInt
   sha256          String?             @db.Char(64)
   purpose         FilePurpose
   status          FileAssetStatus     @default(UPLOADING)

@@ -6,10 +6,11 @@ import {
   ProTable,
 } from '@ant-design/pro-components';
 import { Button, message, Popconfirm, Tag } from 'antd';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { CategoryMutationInput, CategoryRecord } from '@personal-hub/shared-types';
 import { PageContainer } from '@/components/shared';
 import { useAdminTablePlaceholder } from '@/components/shared/useAdminTablePlaceholder';
+import { settleBatch } from '@/utils/settleBatch';
 import {
   createAdminCategory,
   deleteAdminCategory,
@@ -48,6 +49,33 @@ const Categories: React.FC = () => {
   const [editing, setEditing] = useState<CategoryRecord | null>(null);
   const [creatingParent, setCreatingParent] = useState<CategoryRecord | null>(null);
   const [deletingId, setDeletingId] = useState<string>();
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const batchRunningRef = useRef(false);
+
+  const removeSelected = async () => {
+    if (batchRunningRef.current) return;
+    const ids = selectedRowKeys.map(String);
+    batchRunningRef.current = true;
+    setBatchRunning(true);
+    try {
+      const results = await settleBatch(ids, deleteAdminCategory);
+      const succeeded = results.filter((result) => result.status === 'fulfilled').length;
+      const failed = results.length - succeeded;
+      if (succeeded) message.success(`已删除 ${succeeded} 个分类`);
+      if (failed) {
+        const failedIds = ids.filter((_, index) => results[index]?.status === 'rejected');
+        message.warning(
+          `${failed} 个分类删除失败（${failedIds.slice(0, 5).join('、')}${failedIds.length > 5 ? '…' : ''}），可能仍有子分类或关联内容`,
+        );
+      }
+      setSelectedRowKeys([]);
+      setReloadKey((key) => key + 1);
+    } finally {
+      batchRunningRef.current = false;
+      setBatchRunning(false);
+    }
+  };
 
   const parentOptions = useMemo(
     () =>
@@ -90,6 +118,28 @@ const Categories: React.FC = () => {
       <ProTable<CategoryRecord>
         key={reloadKey}
         rowKey="id"
+        rowSelection={{
+          selectedRowKeys,
+          onChange: setSelectedRowKeys,
+          getCheckboxProps: (record) => ({
+            disabled: (record.childCount ?? 0) > 0 || (record.contentCount ?? 0) > 0,
+          }),
+        }}
+        tableAlertOptionRender={() => (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <Popconfirm
+              title="确认删除所选分类？"
+              description="存在子分类或关联内容的分类无法删除。"
+              onConfirm={removeSelected}
+              okButtonProps={{ loading: batchRunning, disabled: batchRunning }}
+            >
+              <Button size="small" danger loading={batchRunning} disabled={batchRunning}>
+                批量删除
+              </Button>
+            </Popconfirm>
+            <a onClick={() => setSelectedRowKeys([])}>清除选择</a>
+          </div>
+        )}
         search={false}
         pagination={false}
         {...tablePlaceholder}

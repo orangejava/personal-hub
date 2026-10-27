@@ -263,8 +263,8 @@ const filePurposePolicySchema = z.object({
   maxBytes: z
     .number()
     .int()
-    .positive()
-    .max(500 * 1024 * 1024)
+    .nonnegative()
+    .refine(Number.isSafeInteger, '文件大小必须是安全整数')
     .optional(),
 });
 

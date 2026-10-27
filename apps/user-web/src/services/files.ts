@@ -15,7 +15,8 @@ export interface AppUploadSession {
   objectKey: string;
   uploadUrl: string | null;
   multipartUploadId: string | null;
-  parts: Array<{ partNumber: number; url: string }> | null;
+  /** 兼容旧页面的小型分片链接；新页面通过 /parts 按批获取。 */
+  parts?: Array<{ partNumber: number; url: string }> | null;
   partSize: number | null;
   expiresAt: string;
 }
@@ -72,6 +73,8 @@ type StoredUploadAttempt = {
   createKey: string;
   completeKey: string;
   session?: AppUploadSession;
+  /** 完成请求的原始分片清单；响应丢失后必须以同一请求体重放幂等键。 */
+  completeBody?: { parts: Array<{ partNumber: number; etag: string }> };
 };
 
 const inflightUploads = new Map<string, Promise<AppFileAsset>>();
@@ -154,27 +157,42 @@ async function uploadMultipartFile(
   file: File,
   session: AppUploadSession,
 ): Promise<Array<{ partNumber: number; etag: string }>> {
-  if (!session.parts?.length || !session.partSize) {
+  if (!session.multipartUploadId || !session.partSize) {
     throw new Error('上传会话缺少分片计划');
   }
   const completed: Array<{ partNumber: number; etag: string }> = [];
-  let nextIndex = 0;
-  const worker = async () => {
-    while (nextIndex < session.parts!.length) {
-      const part = session.parts![nextIndex++];
-      const start = (part.partNumber - 1) * session.partSize!;
-      const etag = await putSignedPart(part.url, file.slice(start, start + session.partSize!));
-      completed.push({ partNumber: part.partNumber, etag });
-    }
-  };
-  await Promise.all(Array.from({ length: Math.min(4, session.parts.length) }, worker));
+  const partCount = Math.ceil(file.size / session.partSize);
+  for (let startPart = 1; startPart <= partCount; startPart += 100) {
+    const count = Math.min(100, partCount - startPart + 1);
+    const parts = await request<Array<{ partNumber: number; url: string }>>(
+      `/api/v1/app/uploads/${session.uploadId}/parts?startPart=${startPart}&count=${count}`,
+    );
+    let nextIndex = 0;
+    const worker = async () => {
+      while (nextIndex < parts.length) {
+        const part = parts[nextIndex++];
+        const offset = (part.partNumber - 1) * session.partSize!;
+        const etag = await putSignedPart(part.url, file.slice(offset, offset + session.partSize!));
+        completed.push({ partNumber: part.partNumber, etag });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, parts.length) }, worker));
+  }
   return completed.sort((left, right) => left.partNumber - right.partNumber);
 }
 
-async function putObjectWithRetry(file: File, session: AppUploadSession, mimeType: string) {
+async function renewUpload(session: AppUploadSession): Promise<AppUploadSession> {
+  return requestIdempotent<AppUploadSession>(`/api/v1/app/uploads/${session.uploadId}/renew`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+async function putObjectWithRetry(file: File, initialSession: AppUploadSession, mimeType: string) {
   let lastError: unknown;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
+      const session = await renewUpload(initialSession);
       if (session.mode === 'MULTIPART') {
         return await uploadMultipartFile(file, session);
       }
@@ -192,6 +210,10 @@ async function putObjectWithRetry(file: File, session: AppUploadSession, mimeTyp
       return undefined;
     } catch (error) {
       lastError = error;
+      // 会话失效不是网络抖动，继续续签同一个 uploadId 只会重复收到 410/404。
+      if (['UPLOAD_EXPIRED', 'FILE_NOT_FOUND'].includes(nestError(error).code ?? '')) {
+        throw error;
+      }
       if (attempt === 2) {
         throw error;
       }
@@ -207,37 +229,72 @@ async function uploadAppFileOnce(
   attemptKey: string,
 ): Promise<AppFileAsset> {
   const mimeType = guessMime(file, purpose);
-  const stored = readStoredAttempt(attemptKey);
-  const createKey = stored?.createKey ?? newIdempotencyKey();
-  const completeKey = stored?.completeKey ?? newIdempotencyKey();
-  let session = stored?.session;
-  writeStoredAttempt(attemptKey, { createKey, completeKey, session });
+  // 只允许一次失效会话重建，避免服务端持续返回 410 时无限创建对象。
+  for (let sessionAttempt = 0; sessionAttempt < 2; sessionAttempt += 1) {
+    const stored = readStoredAttempt(attemptKey);
+    const createKey = stored?.createKey ?? newIdempotencyKey();
+    const completeKey = stored?.completeKey ?? newIdempotencyKey();
+    let session = stored?.session;
+    let completeBody = stored?.completeBody;
+    writeStoredAttempt(attemptKey, { createKey, completeKey, session, completeBody });
 
-  if (!session) {
-    session = await requestIdempotent<AppUploadSession>('/api/v1/app/uploads', {
-      method: 'POST',
-      data: {
-        purpose,
-        originalName: file.name,
-        mimeType,
-        size: file.size,
-      },
-      headers: { 'Idempotency-Key': createKey },
-    });
-    writeStoredAttempt(attemptKey, { createKey, completeKey, session });
+    try {
+      if (!session) {
+        session = await requestIdempotent<AppUploadSession>('/api/v1/app/uploads', {
+          method: 'POST',
+          data: {
+            purpose,
+            originalName: file.name,
+            mimeType,
+            size: file.size,
+          },
+          headers: { 'Idempotency-Key': createKey },
+        });
+        writeStoredAttempt(attemptKey, { createKey, completeKey, session });
+      }
+
+      const parts = await putObjectWithRetry(file, session, mimeType);
+      completeBody = parts ? { parts } : undefined;
+      writeStoredAttempt(attemptKey, { createKey, completeKey, session, completeBody });
+      const ready = await requestIdempotent<AppFileAsset>(
+        `/api/v1/app/uploads/${session.uploadId}/complete`,
+        {
+          method: 'POST',
+          data: completeBody,
+          headers: { 'Idempotency-Key': completeKey },
+        },
+      );
+      clearStoredAttempt(attemptKey);
+      return ready;
+    } catch (error) {
+      const code = nestError(error).code;
+      if (code === 'FILE_NOT_FOUND' && session) {
+        // 续签 404 也可能表示上一轮完成成功、响应却在浏览器端丢失；先取回结果。
+        try {
+          const ready = await requestIdempotent<AppFileAsset>(
+            `/api/v1/app/uploads/${session.uploadId}/complete`,
+            {
+              method: 'POST',
+              data: completeBody,
+              // 旧缓存没有分片请求体时使用新键读取已完成结果，避免旧键的请求指纹冲突。
+              headers: { 'Idempotency-Key': completeBody ? completeKey : newIdempotencyKey() },
+            },
+          );
+          clearStoredAttempt(attemptKey);
+          return ready;
+        } catch (recoveryError) {
+          if (!['FILE_NOT_FOUND', 'UPLOAD_EXPIRED'].includes(nestError(recoveryError).code ?? '')) {
+            throw recoveryError;
+          }
+        }
+      } else if (code !== 'UPLOAD_EXPIRED') {
+        throw error;
+      }
+      clearStoredAttempt(attemptKey);
+      if (sessionAttempt === 1) throw error;
+    }
   }
-
-  const parts = await putObjectWithRetry(file, session, mimeType);
-  const ready = await requestIdempotent<AppFileAsset>(
-    `/api/v1/app/uploads/${session.uploadId}/complete`,
-    {
-      method: 'POST',
-      data: parts ? { parts } : undefined,
-      headers: { 'Idempotency-Key': completeKey },
-    },
-  );
-  clearStoredAttempt(attemptKey);
-  return ready;
+  throw new Error('上传会话重建失败');
 }
 
 /**

@@ -152,6 +152,11 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
     name: 'admin.system.projects',
     icon: 'project',
   },
+  'admin.system.files': {
+    path: '/admin/system/files',
+    name: 'admin.system.files',
+    icon: 'cloudUpload',
+  },
   'admin.ai.group': {
     path: '/admin/ai',
     name: 'admin.ai.group',

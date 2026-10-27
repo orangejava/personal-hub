@@ -62,6 +62,10 @@ interface AdminConfigGroup {
   value: Record<string, unknown>;
 }
 
+export interface AdminBookletUploadLimit {
+  maxSizeMiB: number;
+}
+
 interface AdminMenuNode {
   id: string;
   scope: 'PUBLIC' | 'WORKSPACE' | 'ADMIN' | 'AI';
@@ -89,13 +93,16 @@ interface SiteHomepageValue {
 }
 
 /** GET 跳过全局 toast：列表页用 ErrorState；启动拉取也不该弹窗。 */
-async function loadAdminConfigGroups(group?: string): Promise<AdminConfigGroup[]> {
+async function loadAdminConfigGroups(
+  group?: string,
+  skipErrorHandler = true,
+): Promise<AdminConfigGroup[]> {
   const url =
     group === undefined
       ? '/api/v1/admin/system-configs'
       : `/api/v1/admin/system-configs?group=${encodeURIComponent(group)}`;
   const res = await request<NestEnvelope<AdminConfigGroup[]> | AdminConfigGroup[]>(url, {
-    skipErrorHandler: true,
+    skipErrorHandler,
   });
   return readNestData(res);
 }
@@ -110,6 +117,28 @@ async function putAdminConfigGroup(group: string, version: number, value: unknow
     },
   );
   return readNestData(res);
+}
+
+/** 读取工作区 ZIP 上传大小；后台界面使用 MiB，配置中心保存字节数。 */
+export async function fetchAdminBookletUploadLimit(): Promise<AdminBookletUploadLimit> {
+  const row = (await loadAdminConfigGroups('file.policies'))[0];
+  const policies = (row.value ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const rawBytes = policies.TEMPORARY_IMPORT?.maxBytes ?? policies.BOOKLET_SOURCE?.maxBytes;
+  return { maxSizeMiB: typeof rawBytes === 'number' ? rawBytes / (1024 * 1024) : 50 };
+}
+
+/** 同步更新两种 ZIP 用途，保留 MIME 白名单和其他文件策略。 */
+export async function updateAdminBookletUploadLimit(maxSizeMiB: number) {
+  // 保存流程的前置读取失败也应由全局 errorHandler 提示。
+  const row = (await loadAdminConfigGroups('file.policies', false))[0];
+  const policies = (row.value ?? {}) as Record<string, Record<string, unknown> | undefined>;
+  const maxBytes = Math.round(maxSizeMiB * 1024 * 1024);
+  await putAdminConfigGroup('file.policies', row.version, {
+    ...policies,
+    TEMPORARY_IMPORT: { ...policies.TEMPORARY_IMPORT, maxBytes },
+    BOOKLET_SOURCE: { ...policies.BOOKLET_SOURCE, maxBytes },
+  });
+  return { maxSizeMiB: maxBytes / (1024 * 1024) };
 }
 
 function groupsToPublicConfig(groups: AdminConfigGroup[]): NestPublicSiteConfig {
@@ -485,7 +514,7 @@ export async function deleteAdminContent(id: string) {
 export async function updateAdminContentStatus(
   id: string,
   status: string,
-  options?: { requestedVisibility?: string; copyrightNote?: string },
+  options?: { requestedVisibility?: string; copyrightNote?: string; sourceNotice?: string },
 ) {
   if (status === 'published' || status === 'PUBLISHED') {
     const requestedVisibility = toNestContentVisibility(options?.requestedVisibility);
@@ -494,6 +523,9 @@ export async function updateAdminContentStatus(
       data: {
         ...(requestedVisibility ? { requestedVisibility } : {}),
         ...(options?.copyrightNote?.trim() ? { copyrightNote: options.copyrightNote.trim() } : {}),
+        ...(options?.sourceNotice !== undefined
+          ? { sourceNotice: options.sourceNotice.trim() }
+          : {}),
       },
       headers: { 'Idempotency-Key': newIdempotencyKey() },
     });

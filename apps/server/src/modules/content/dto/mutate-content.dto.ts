@@ -170,6 +170,11 @@ export class PublishContentDto {
   @IsString()
   @MaxLength(500)
   copyrightNote?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  sourceNotice?: string | null;
 }
 
 export class ListContentReviewsQueryDto {

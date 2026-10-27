@@ -5,21 +5,25 @@ export interface FilePurposePolicy {
   maxBytes: number;
 }
 
-/** 代码天花板：配置覆盖不得超过这些上限。 */
-export const FILE_POLICY_CEILING_BYTES: Record<FilePurpose, number> = {
+/** COS 每片最大 5 GB，最多 10,000 片；这里只定义存储协议的技术边界。 */
+export const COS_MAX_PART_BYTES = 5_000_000_000;
+export const COS_MAX_MULTIPART_PARTS = 10_000;
+const COS_MEBIBYTE = 1024 * 1024;
+// 分片计划按 MiB 向上取整，因此可用单片上限必须先向下对齐，才能保证每片都不超 COS 的 5 GB。
+const COS_MAX_ALIGNED_PART_BYTES = Math.floor(COS_MAX_PART_BYTES / COS_MEBIBYTE) * COS_MEBIBYTE;
+export const MAX_COS_OBJECT_BYTES = COS_MAX_ALIGNED_PART_BYTES * COS_MAX_MULTIPART_PARTS;
+
+/** 头像、封面、普通内容和 AI 资产仍有代码上限；小册 ZIP 使用后台策略值。 */
+export const FILE_POLICY_CEILING_BYTES: Partial<Record<FilePurpose, number>> = {
   [FilePurpose.AVATAR]: 5 * 1024 * 1024,
   [FilePurpose.COVER]: 5 * 1024 * 1024,
   [FilePurpose.CONTENT_FILE]: 500 * 1024 * 1024,
-  [FilePurpose.BOOKLET_SOURCE]: 50 * 1024 * 1024,
-  [FilePurpose.TEMPORARY_IMPORT]: 50 * 1024 * 1024,
   [FilePurpose.AI_ASSET]: 50 * 1024 * 1024,
 };
 
 const IMAGE_MIMES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
-/**
- * 一期默认矩阵。二期后台可覆盖 MIME/大小，但不能越过天花板和 denylist。
- */
+/** 默认策略。小册 ZIP 的 50 MiB 可由系统管理员调整。 */
 export const FILE_POLICY_DEFAULTS: Record<FilePurpose, FilePurposePolicy> = {
   [FilePurpose.AVATAR]: { mimeTypes: [...IMAGE_MIMES], maxBytes: 5 * 1024 * 1024 },
   [FilePurpose.COVER]: { mimeTypes: [...IMAGE_MIMES, 'image/gif'], maxBytes: 5 * 1024 * 1024 },
@@ -30,7 +34,10 @@ export const FILE_POLICY_DEFAULTS: Record<FilePurpose, FilePurposePolicy> = {
     ],
     maxBytes: 500 * 1024 * 1024,
   },
-  [FilePurpose.BOOKLET_SOURCE]: { mimeTypes: ['application/zip', 'application/x-zip-compressed'], maxBytes: 50 * 1024 * 1024 },
+  [FilePurpose.BOOKLET_SOURCE]: {
+    mimeTypes: ['application/zip', 'application/x-zip-compressed'],
+    maxBytes: 50 * 1024 * 1024,
+  },
   [FilePurpose.TEMPORARY_IMPORT]: {
     mimeTypes: ['application/zip', 'application/x-zip-compressed'],
     maxBytes: 50 * 1024 * 1024,
@@ -72,7 +79,7 @@ export function resolveFilePolicy(
   const requested = overlay?.maxBytes ?? defaults.maxBytes;
   return {
     mimeTypes: unique.length > 0 ? unique : defaults.mimeTypes,
-    maxBytes: Math.min(Math.max(1, requested), ceiling),
+    maxBytes: ceiling === undefined ? requested : Math.min(Math.max(0, requested), ceiling),
   };
 }
 
@@ -82,6 +89,25 @@ export function isDeniedMime(mimeType: string): boolean {
 
 export function shouldUseMultipart(size: number): boolean {
   return size > SINGLE_PUT_MAX_BYTES;
+}
+
+/**
+ * 为大文件计算可被 COS 接受的分片计划。
+ * @param size 文件字节数
+ * @returns 每片大小与分片数；超过 COS 对象能力时抛错
+ */
+export function multipartPlan(size: number): { partSize: number; partCount: number } {
+  if (!Number.isSafeInteger(size) || size < 1 || size > MAX_COS_OBJECT_BYTES) {
+    throw new Error('文件大小超出对象存储支持范围');
+  }
+  const minPartSize = 8 * 1024 * 1024;
+  const required = Math.ceil(size / COS_MAX_MULTIPART_PARTS);
+  const partSize = Math.ceil(Math.max(minPartSize, required) / COS_MEBIBYTE) * COS_MEBIBYTE;
+  const partCount = Math.ceil(size / partSize);
+  if (partSize > COS_MAX_PART_BYTES || partCount > COS_MAX_MULTIPART_PARTS) {
+    throw new Error('文件大小超出对象存储支持范围');
+  }
+  return { partSize, partCount };
 }
 
 export { SINGLE_PUT_MAX_BYTES };

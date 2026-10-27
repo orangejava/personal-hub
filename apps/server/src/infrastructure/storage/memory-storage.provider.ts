@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
+import { multipartPlan } from '../../modules/file/file-policy';
 import type {
   CompletedPart,
   ObjectHead,
+  SignedUploadPart,
   SignedUploadSession,
   StorageProvider,
 } from './storage.types';
@@ -72,26 +74,37 @@ export class MemoryStorageProvider implements StorageProvider {
     key: string,
     size: number,
     contentType: string,
+    _expiresInSeconds?: number,
+    multipartUploadId?: string,
   ): Promise<SignedUploadSession> {
     void contentType;
     if (size > 20 * 1024 * 1024) {
-      const partSize = 8 * 1024 * 1024;
-      const partCount = Math.ceil(size / partSize);
-      this.multipart.set(key, new Map());
+      const { partSize } = multipartPlan(size);
+      const uploadId = multipartUploadId ?? `mem-${key}`;
+      if (!multipartUploadId) this.multipart.set(key, new Map());
       return {
         mode: 'MULTIPART',
-        multipartUploadId: `mem-${key}`,
+        multipartUploadId: uploadId,
         partSize,
-        parts: Array.from({ length: partCount }, (_, index) => ({
-          partNumber: index + 1,
-          url: `memory://upload/${encodeURIComponent(key)}/${index + 1}`,
-        })),
       };
     }
     return {
       mode: 'SINGLE',
       uploadUrl: `memory://upload/${encodeURIComponent(key)}`,
     };
+  }
+
+  async createSignedUploadParts(
+    key: string,
+    _multipartUploadId: string,
+    partNumbers: number[],
+    _expiresInSeconds: number,
+  ): Promise<SignedUploadPart[]> {
+    void _expiresInSeconds;
+    return partNumbers.map((partNumber) => ({
+      partNumber,
+      url: `memory://upload/${encodeURIComponent(key)}/${partNumber}`,
+    }));
   }
 
   async completeMultipartUpload(

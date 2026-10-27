@@ -41,6 +41,11 @@ const CONFIG_HUB_CARDS = [
     title: '性能汇总',
     description: '全站页面指标的上报比例，以及小时数据保留几天。',
   },
+  {
+    path: '/admin/system/files',
+    title: '文件上传配置',
+    description: '小册 ZIP 与工作区 ZIP 上传大小上限。',
+  },
 ] as const;
 
 /** 系统配置中心。主题和性能汇总从卡片进入。 */

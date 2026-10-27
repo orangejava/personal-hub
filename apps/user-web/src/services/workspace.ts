@@ -55,24 +55,17 @@ interface WorkspaceReadOptions {
   skipErrorHandler?: boolean;
 }
 
-export async function fetchAppContent(
-  id: string,
-  options?: WorkspaceReadOptions,
-) {
+export async function fetchAppContent(id: string, options?: WorkspaceReadOptions) {
   const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}`, {
     skipErrorHandler: options?.skipErrorHandler,
   });
   return mapNestContentDetail(res);
 }
 
-export async function fetchContentAccessGrants(
-  id: string,
-  options?: WorkspaceReadOptions,
-) {
-  return request<ContentAccessGrantList>(
-    `/api/v1/app/contents/${id}/access-grants`,
-    { skipErrorHandler: options?.skipErrorHandler },
-  );
+export async function fetchContentAccessGrants(id: string, options?: WorkspaceReadOptions) {
+  return request<ContentAccessGrantList>(`/api/v1/app/contents/${id}/access-grants`, {
+    skipErrorHandler: options?.skipErrorHandler,
+  });
 }
 
 export async function replaceContentAccessGrants(id: string, emails: string[]) {
@@ -141,7 +134,7 @@ export async function updateContent(id: string, data: Record<string, unknown>) {
 /** 发布可选体：OWN 提交审核；ALL 公开导入内容时带 copyrightNote。 */
 export async function publishContent(
   id: string,
-  options?: { requestedVisibility?: string; copyrightNote?: string },
+  options?: { requestedVisibility?: string; copyrightNote?: string; sourceNotice?: string },
 ) {
   const requestedVisibility = toNestContentVisibility(options?.requestedVisibility);
   const res = await request<NestContentDetail>(`/api/v1/app/contents/${id}/publish`, {
@@ -149,6 +142,7 @@ export async function publishContent(
     data: {
       ...(requestedVisibility ? { requestedVisibility } : {}),
       ...(options?.copyrightNote?.trim() ? { copyrightNote: options.copyrightNote.trim() } : {}),
+      ...(options?.sourceNotice !== undefined ? { sourceNotice: options.sourceNotice.trim() } : {}),
     },
     headers: { 'Idempotency-Key': newIdempotencyKey() },
   });
@@ -167,7 +161,7 @@ export async function archiveContent(id: string) {
 export async function setContentStatus(
   id: string,
   status: string,
-  options?: { requestedVisibility?: string; copyrightNote?: string },
+  options?: { requestedVisibility?: string; copyrightNote?: string; sourceNotice?: string },
 ) {
   if (status === 'published' || status === 'PUBLISHED') {
     return publishContent(id, options);

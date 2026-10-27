@@ -59,6 +59,8 @@ export interface ContentItem {
   title: string;
   type: ContentType;
   summary: string;
+  /** 发布弹窗填写的来源/侵权联系说明，仅管理端与工作区列表返回。 */
+  sourceNotice?: string | null;
   cover?: string;
   /** 分类 slug，筛选与写接口使用，不作为默认展示文案。 */
   categorySlug?: string;

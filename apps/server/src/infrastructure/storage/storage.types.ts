@@ -4,8 +4,12 @@ export interface SignedUploadSession {
   mode: 'SINGLE' | 'MULTIPART';
   uploadUrl?: string;
   multipartUploadId?: string;
-  parts?: Array<{ partNumber: number; url: string }>;
   partSize?: number;
+}
+
+export interface SignedUploadPart {
+  partNumber: number;
+  url: string;
 }
 
 export interface CompletedPart {
@@ -42,7 +46,14 @@ export interface StorageProvider {
     size: number,
     contentType: string,
     expiresInSeconds: number,
+    multipartUploadId?: string,
   ): Promise<SignedUploadSession>;
+  createSignedUploadParts(
+    key: string,
+    multipartUploadId: string,
+    partNumbers: number[],
+    expiresInSeconds: number,
+  ): Promise<SignedUploadPart[]>;
   completeMultipartUpload(key: string, uploadId: string, parts: CompletedPart[]): Promise<void>;
   abortMultipartUpload(key: string, uploadId: string): Promise<void>;
   /**
