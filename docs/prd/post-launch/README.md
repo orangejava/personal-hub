@@ -1,12 +1,12 @@
 # 上线后优化 PRD
 
 > 状态：当前开发主线
-> 最后更新：2026-10-16
-> 关系：首版已上线后，本目录承接可直接开工的跨端优化 PRD。历史 React-first 阶段 PRD 仍在 `apps/*/docs/prd/` 与 `docs/prd/react-first/`；长期后端契约仍在 `docs/prd/long-term/`。
+> 最后更新：2026-10-29
+> 关系：首版已上线后，本目录承接跨端优化 PRD；标为细化稿的文档需按各自列出的端点实测、容量压测和实施门槛收口，不能把已确认的产品规则重新列为待决。历史 React-first 阶段 PRD 仍在 `apps/*/docs/prd/` 与 `docs/prd/react-first/`；长期后端契约仍在 `docs/prd/long-term/`。
 
 ## 放置边界
 
-本目录放「已经确定要作为下一批 worktree 开发」且跨多个应用或需要统一验收的 PRD。
+本目录放上线后跨多个应用或需要统一验收的 PRD；是否进入下一批开发由各文档的状态和待决事项决定。
 
 不放：
 
@@ -22,7 +22,11 @@
 
 | 文档 | Worktree | 内容 | 当前状态 |
 | --- | --- | --- | --- |
-| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、发放和签到 | 开发中；充值等后置 |
+| [ai-admin-operations-prd.md](./ai-admin-operations-prd.md) | `ai-admin` | Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A–E 代码完成；优化、HTTP 集成测试、浏览器联调与验收中 |
+| [ai-media-generation-prd.md](./ai-media-generation-prd.md) | `ai-admin` | 五个首版生图/生视频模型、参考输入、任务、结果和实收计费 | F–G 细化稿；OpenRouter 已定，端点能力待实测 |
+| [ai-tool-experience-prd.md](./ai-tool-experience-prd.md) | 后续 worktree | 顶栏独立工具、目录/卡片模式、文本对比和 Cesium 展示入口 | 产品范围已定；历史不自动过期，容量待压测 |
+| [ai-asset-library-prd.md](./ai-asset-library-prd.md) | 后续 worktree | 工作区统一素材库、AI 生产 Tab、目录与回收站；后台站点素材及超级管理员私有视图 | 产品范围已定；完成回答自动显示引用，主动保存生成快照 |
+| [workspace-content-lifecycle-optimization-prd.md](./workspace-content-lifecycle-optimization-prd.md) | `main` 后续实施 | ZIP 资料包与混合章节、COS 图片、清理、全站回收站、草稿/阅读与两端表格 | 产品核心规则已定；纯文件资料包首版仅私有；未改业务代码 |
 | [performance-dashboard-prd.md](./performance-dashboard-prd.md) | `perf-dashboard` | 性能与接口响应面板、性能基线、入口体积优化、Nest 汇总 | ✅ 已完成并验收 |
 | [home-showcase-prd.md](../../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase` | 首页滚动改版、项目作品矩阵 | ✅ 已完成并验收 |
 | [theme-ui-performance-prd.md](./theme-ui-performance-prd.md) §3–§6 | `theme-config` | 主题、Loading / Skeleton、内容中心、小册阅读、AI 工作台、登录表单 | ✅ 已完成并验收 |
@@ -55,7 +59,7 @@
 - 入口体积优化（汇总导出改为直接引入）：留给 `perf-dashboard`，用面板记录优化前后
 - Prisma 新表：`perf-dashboard` 二期和 `ai-admin` 各自建
 
-**main 上的顺序**：已完成 worktree 验收收口 → 手机端 AI 发送和会话顶栏收口 → HTTPS、Nginx gzip 与缓存。HTTPS 实施见 [domain-https.md](../../deploy/domain-https.md)。
+**main 上的顺序**：手机端 AI 两项和 HTTPS 生产验收已完成；下一批按[工作区内容生命周期优化](./workspace-content-lifecycle-optimization-prd.md)分阶段实施。AI 媒体协议仍在 `ai-admin` worktree，公开 AI 登记确认暂缓。
 
 ## 开发顺序
 
@@ -67,7 +71,7 @@
 
 各 worktree 内部顺序：
 
-- `ai-admin`：先做配置中心，再做用量额度，最后做发放与签到。
+- `ai-admin`：先做配置中心，再做用量额度，最后做发放与签到；随后按 [ai-media-generation-prd.md](./ai-media-generation-prd.md) 先接真实文生视频，再接真实生图。
 - `perf-dashboard`：先做一期前端面板，再做首轮入口体积优化，最后做二期 Nest 汇总。
 - `home-showcase`：先做动效封装组件，再做首页，最后做项目页。
 - `theme-config`：先做后台主题表单，再做前台按配置渲染。

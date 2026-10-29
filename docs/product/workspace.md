@@ -1,7 +1,10 @@
 # 登录后工作区
 
 > 状态：🟢 产品与 UI 说明；未来数据、权限和接口以 Canonical 后端文档为准，当前 React-first mock 仅用于验证体验
-> 最后更新：2026-09-09
+> 最后更新：2026-10-28
+
+> 下一版工作区内容导入、统一回收站、草稿预览与阅读体验的可执行需求见 [工作区内容生命周期优化 PRD](../prd/post-launch/workspace-content-lifecycle-optimization-prd.md)；本页保留当前已上线能力与长期页面范围，不把计划中的功能写成已实现。
+> 后续 `/workspace/assets` 将作为用户统一素材库，含“AI 生产素材”“我上传的”“参考素材”Tab、文件夹目录与回收站联动，详见[素材库 PRD](../prd/post-launch/ai-asset-library-prd.md)；当前已有 `/ai/assets` 基础页面，但统一工作区入口尚未上线。
 
 ---
 
@@ -130,6 +133,7 @@
 - 下拉筛选默认 **全部**，可筛 **小册导入 / PDF / Word**
 - PDF/Word 不是 mock：新建内容时预签名上传会写入 `file_assets`（`CONTENT_FILE` + PDF/Word MIME），所以列表里能看到；未完成的 ZIP 不会出现在这里
 - 删除：只把该条从任务列表隐藏（`hiddenFromTaskList`），不删文档、不删源文件
+- 下一版将“隐藏任务”与“取消重试并移入回收站”分成不同操作，不能把当前“移除”理解成 COS 对象已删除。历史临时 ZIP 的对账和清理规则见[优化 PRD](../prd/post-launch/workspace-content-lifecycle-optimization-prd.md)。
 - 列表：`GET /app/upload-tasks` 服务端按 `createdAt` 真分页，默认 `pageSize=10`，不接受 `mimeKind`；可选 `taskKind` 由服务端过滤
 - 类型下拉走 `taskKind`；仅当存在 `QUEUED` / `VALIDATING` / `IMPORTING` 时轮询，标签隐藏时暂停
 - 失败小册可 `POST /app/booklet-imports/:jobId/retry`（重置同一任务，不新建内容）；`DELETE` 只隐藏列表项
@@ -139,7 +143,7 @@
 
 | 页面 | 判断 | 建议 |
 | --- | --- | --- |
-| 我的文件库 | 封面、PDF/Word、ZIP 已进 `file_assets`；后台已有全站文件管理 | **先讨论**：工作区按「我上传的」过滤，还是继续只用后台文件管理 + 内容资料里换封面 |
+| 工作区用户素材库 | 封面、PDF/Word、ZIP 等已有文件记录，现有 `/ai/assets` 仅覆盖 AI 资产基础能力 | **已确认后续做** `/workspace/assets`：全部、AI 生产素材、我上传的、参考素材等来源 Tab 与目录浏览；旧 AI 入口兼容跳转，见[素材库 PRD](../prd/post-launch/ai-asset-library-prd.md) |
 | Word 站内编辑器 | 产品目录有路由，一期明确不做 | 见 [phase-2/content-editors.md](./phase-2/content-editors.md) |
 | 头像上传 | `AVATAR` 白名单已留 | 见二期运维页 |
 | AI 审核 | 内容审核队列已人工处理 | **后续阶段**：只写产品意向，不调用模型 |

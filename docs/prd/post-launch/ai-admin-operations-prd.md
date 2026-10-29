@@ -1,10 +1,10 @@
 # AI 后台运营 PRD
 
-> 状态：阶段 A 代码已落地，隔离 HTTP 集成测试与浏览器联调待验收；阶段 B–E 待开发
-> 最后更新：2026-10-16
+> 状态：阶段 A–E 代码已完成，当前进行优化、隔离 HTTP 集成测试与浏览器联调验收；阶段 F–G 为同一 worktree 的后续真实媒体能力
+> 最后更新：2026-10-29
 > Worktree：AI 后台
 > 计划评分（plan-review，百分制，2026-10-02）：阶段 A 91，阶段 A–E 91，可以按本文开工。充值、支付、自研模型、活动运营界面、`ai_usage_daily`、`ai_quota_grants` 后置，不计入本期。
-> 关系：扩展 [../long-term/ai-tools-prd.md](../long-term/ai-tools-prd.md) 的上线后运营能力；实现时需要同步 Canonical API、数据模型和 `apps/server/docs/implementation/ai/`。
+> 关系：扩展 [../long-term/ai-tools-prd.md](../long-term/ai-tools-prd.md) 的上线后运营能力；真实生图/生视频的详细协议与任务要求见 [ai-media-generation-prd.md](./ai-media-generation-prd.md)；实现时需要同步 Canonical API、数据模型和 `apps/server/docs/implementation/ai/`。
 
 ## 1. 目标
 
@@ -20,6 +20,7 @@
 - 公共额度发放能力
 - 每日登录奖励
 - 连续签到日历
+- 真实文生视频与生图 Provider 适配（阶段 F–G）
 
 ## 2. 不做
 
@@ -97,7 +98,7 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 - `modality` 与 `toolTypes`（能力类型）
 - `contextWindowTokens`、`maxOutputTokens`
 - `enabled`、`userVisible`
-- `inputPricePer1k`、`outputPricePer1k`、`fixedPlatformCost`（这就是消耗规则，见 §5.3）
+- `inputPricePer1k`、`outputPricePer1k`、`fixedPlatformCost`（阶段 A–E 现有消耗字段；真实媒体改按上游实收，见 §5.3 与[真实媒体 PRD](./ai-media-generation-prd.md)）
 - `sort` 若现表没有排序列，本阶段不加；默认关系使用已有 `ai_tools.defaultModelId`，每种工具独立；接口 `defaultToolTypes` 表达默认范围，`isDefault` 仅作兼容摘要。
 
 用户端只展示 `enabled`、`userVisible`、当前工具类型匹配、并且通过 entitlement 的模型。未登录访客不展示 `guestAllowed = false` 的模型。
@@ -117,6 +118,8 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 - 不传 `modelId`：向 `{baseUrl}/models` 发 GET，Bearer 用解析出的密钥，超时取该 Provider 的 `timeoutMs`，最长 20 秒。HTTP 2xx 且 body 是 JSON 即成功。
 - 传入 `modelId`：先走上面的 GET。返回的模型列表里有该 `modelKey` 即成功。厂商对 `/models` 返回 404 时，再发一次非流式 `POST {baseUrl}/chat/completions`，`max_tokens: 1`，消息正文固定为 `ping`。只此一种回退。
 - Fake Provider 不发外网请求，直接返回成功。
+
+上述连接测试是阶段 A–E 的文本/OpenAI-compatible 基线。阶段 F–G 的 OpenRouter 生图/视频模型测试需分别查询图片/视频模型能力接口；不能把 `/chat/completions` 探测当成媒体模型可用证明。若管理员主动发起真实生成样本测试，需显示费用预估、使用测试预算并记录平台测试成本，不扣普通用户额度；详情以[真实媒体 PRD](./ai-media-generation-prd.md)为准。
 - 失败时前端展示后端 `error.message`。没有主密钥且也没有环境变量回退时，错误写明哪一项缺失。
 
 按钮放在 `AiConfig` 的厂商行上。模型行把当前 `modelId` 传给同一个接口。
@@ -219,9 +222,9 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 
 ### 5.3 消耗规则
 
-不另加一套「倍率」列。平台额度已经由 `platformCost` 决定：文本用 `inputPricePer1k` 和 `outputPricePer1k`；图片和视频用 `fixedPlatformCost`，按一次成功任务计，不按秒再拆。改这些字段只影响之后的预占和结算。`ai_usage_records` 里已经写入的 `platformCost` 不回算。
+阶段 A–E 的已有规则只描述**当前 Fake/既有能力**：文本用 `inputPricePer1k` 和 `outputPricePer1k`；现有图片/视频路径的 `fixedPlatformCost` 是固定额度基线。改价只影响后续任务，`ai_usage_records` 中已写入的 `platformCost` 不回算。
 
-按时长计视频费、按张数再乘系数，留到有真实视频厂商之后再加字段。本阶段两种都不用。
+**阶段 F–G 真实媒体以[真实生图生视频 PRD §6](./ai-media-generation-prd.md)为准**：五个首版模型的任务按上游可核实的实收费用结算，取消、失败、部分成功都不再用“只有成功才扣一次固定价”判断。上游未收费则用户不收费；已收费则按任务提交时展示的换算规则向用户结算；费用未知先保持待对账与预占。现有 `fixedPlatformCost` 不能直接作为真实媒体的最终结算金额，实施前需补充费用回执、价格快照与账本迁移方案。A–E 已完成的规则不被本次文档更新追溯改写。
 
 ### 5.4 验收
 
@@ -229,7 +232,7 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 - 手动调整额度后用户余额立即变化。
 - 扣减超过当前可用额度时，请求失败，余额不变。
 - 账本可以追溯操作者、原因、变化前后值。
-- 修改 `inputPricePer1k`、`outputPricePer1k` 或 `fixedPlatformCost` 后，新请求按新价消耗，旧用量记录不变。
+- 修改 `inputPricePer1k`、`outputPricePer1k` 或现有 Fake 路径的 `fixedPlatformCost` 后，新请求按新价消耗，旧用量记录不变；真实媒体按上游费用回执结算。
 
 ### 5.5 怎么落地
 
@@ -363,7 +366,29 @@ daily-login:<userId>:<yyyy-mm-dd>
 
 签到是否成功只按 §7.3 验收。不改操作系统时钟，也不把「跨过上海零点再签一次」当作浏览器步骤。
 
-## 8. 影响范围
+## 8. 阶段 F：真实文生视频
+
+阶段 A–E 验证收口后，在同一 `ai-admin` worktree 内通过 OpenRouter 聚合 API 接入真实视频能力。首版模型已确认：`bytedance/seedance-2.5`、`bytedance/seedance-2.0-mini`、`alibaba/happyhorse-1.1`。支持文生视频以及经端点实测的参考图/视频能力；HappyHorse 暂不开放参考视频。模型 slug、参数矩阵、取消计费和 OpenRouter 端点实测以[真实生图生视频 PRD](./ai-media-generation-prd.md)为准。
+
+后台 Provider / 模型配置只负责保存目录、启用状态、Base URL、价格、默认模型和预算等运营字段，不能替代厂商协议适配。服务端需要新增独立的视频 Provider adapter，隔离厂商请求格式和业务任务模型。
+
+适配层至少覆盖：
+
+- 文生视频请求体和模型参数映射；
+- 异步任务创建、状态查询或回调接收；
+- 失败重试、超时和幂等；
+- 结果文件保存、鉴权下载和任务终态落库；
+- 用量、额度预占/结算和预算限制。
+
+验收要求：用户提交一次文生视频后，页面能看到真实任务状态变化；任务成功后可以查看和下载结果；失败可看到明确错误并按规则重试；重复回调或重复轮询不会重复扣额度或生成重复资产。
+
+## 9. 阶段 G：真实生图
+
+视频链路稳定后，再补真实图片 Provider 适配。图片和视频共用 Provider、任务、结果文件和计费边界，但保留各自的厂商请求参数与状态转换。
+
+阶段 G 至少覆盖图片生成请求、结果保存、鉴权媒体访问、失败重试、用量记录和统一预算限制。首版通过 OpenRouter 聚合 API 接入已确认的 `qwen/qwen-image-2.1-pro`、`bytedance-seed/seedream-5-0-lite`，并支持端点验证通过的参考图能力。参数上限仍需按[真实生图生视频 PRD](./ai-media-generation-prd.md)核实；直连厂商的原生模型映射不属于本期，不能在后台配置中心中假定填入 Base URL 即可调用。
+
+## 10. 影响范围
 
 ### 后端
 
@@ -396,16 +421,16 @@ daily-login:<userId>:<yyyy-mm-dd>
 - `packages/api-client`：接口方法与类型
 - `packages/shared-types`：共享枚举和 DTO 类型
 
-## 9. 风险与控制
+## 11. 风险与控制
 
 - API Key 泄露风险：只写不回显、日志脱敏、传输走 HTTPS。
 - 重复发放风险：所有发放规则必须有幂等键。
 - 账本错账风险：余额只能由账本事务计算或在同一事务内更新。人工扣减会使 `availableAmount` 小于 0 时返回 `AI_QUOTA_ADJUSTMENT_REJECTED`，不写账本。
 - 现有对话、Fake Provider、流式输出和邮箱验证赠额必须保持可用。阶段 A 不改预占公式。
 - 用户自备 Key 合规风险：入口默认展示，管理端可关闭；关闭后已存凭据不参与调用。
-- 范围过大风险：严格按 A → B → C → D → E 阶段开发和验收。
+- 范围过大风险：严格按 A → B → C → D → E → F → G 阶段开发和验收；F、G 在 A–E 收口后继续推进。
 
-## 10. 验收总清单
+## 12. 验收总清单
 
 - [ ] 管理员可配置 Provider 和模型
 - [ ] API Key 不回显，日志不泄露
@@ -416,6 +441,8 @@ daily-login:<userId>:<yyyy-mm-dd>
 - [ ] 修改现有三列价格只影响之后的用量
 - [ ] 每日登录奖励可配置且幂等
 - [ ] 连续签到日历可用
+- [ ] 阶段 F 文生视频 Provider 适配、异步任务和结果保存可用
+- [ ] 阶段 G 生图 Provider 适配、结果保存和统一计费可用
 - [ ] 所有额度变化进入账本
 - [ ] 关键接口有测试
 - [ ] 浏览器验收通过后台和用户端关键路径
