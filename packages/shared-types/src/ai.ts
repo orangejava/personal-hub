@@ -37,12 +37,69 @@ export interface AiModel {
   id: string;
   name: string;
   provider: string;
+  providerId?: string;
+  providerCode?: string;
   toolTypes: AiToolType[];
+  /** 账号自备模式被管理员暂停时，保留模型目录但禁止这些工具发起调用。 */
+  blockedToolTypes?: AiToolType[];
   enabled: boolean;
   isDefault?: boolean;
   /** 各工具独立的默认关系；空数组表示没有默认工具。 */
   defaultToolTypes?: AiToolType[];
   description?: string;
+  source?: 'SYSTEM' | 'USER';
+  unavailableReason?: string;
+  /** 按工具标明实际占用平台额度的调用；混合用途模型不能只靠下方布尔值判断。 */
+  quotaRequiredToolTypes?: AiToolType[];
+  /** 兼容旧调用方：任一工具需要平台额度时为 true。 */
+  requiresPlatformQuota?: boolean;
+}
+
+export interface AiUserProviderState {
+  allowed: boolean;
+  userCanPickModel: boolean;
+  userKeyConsumesQuota: boolean;
+  enabled: boolean;
+  preferredUserModelId: string | null;
+  credentials: Array<{
+    id: string;
+    providerId: string | null;
+    code: string | null;
+    label: string | null;
+    baseUrl: string | null;
+    enabled: boolean;
+    hasKey: boolean;
+    userModels: Array<{ id: string; modelKey: string; displayName: string; enabled: boolean }>;
+  }>;
+  models: Array<{
+    id: string;
+    credentialId: string | null;
+    modelKey: string;
+    displayName: string;
+    enabled: boolean;
+  }>;
+}
+
+export interface AiSystemProviderOption {
+  id: string;
+  code: string;
+  label: string;
+  baseUrl: string | null;
+}
+
+export interface AiCheckinCalendar {
+  today: string;
+  todayClaimed: boolean;
+  enabled: boolean;
+  label: string;
+  streak: number;
+  records: Array<{
+    date: string;
+    streak: number;
+    baseAmount: number;
+    bonusAmount: number;
+    totalAmount: number;
+  }>;
 }
 
 export interface AiQuotaSummary {
@@ -139,6 +196,8 @@ export interface AiConversation {
   id: string;
   title: string;
   modelId: string;
+  modelName?: string;
+  providerName?: string;
   systemPrompt?: string;
   contextLimit?: number;
   enableKnowledgeReference?: boolean;

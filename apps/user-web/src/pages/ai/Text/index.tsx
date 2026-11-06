@@ -101,6 +101,7 @@ const AiTextPage: React.FC = () => {
   const modelState = useAiAvailableModels({
     toolType: 'text',
     value: generation.draft.modelId,
+    replaceUnavailableValue: true,
     onDefaultModel: (modelId) => generation.updateDraft({ modelId }),
   });
   const authRestoreFailed = Boolean(initialState?.sessionRestoreFailed);
@@ -108,16 +109,30 @@ const AiTextPage: React.FC = () => {
   const isGuest = !isAuthenticated && !authRestoreFailed;
   const textTool = homeData?.tools.find((tool) => tool.code === 'text');
   const requiresLogin = Boolean(textTool?.requiresLogin);
+  const selectedModel = modelState.models.find((item) => item.id === generation.draft.modelId);
+  const modelRequiresQuota = Boolean(
+    selectedModel &&
+      (selectedModel.quotaRequiredToolTypes?.includes('text') ??
+        selectedModel.requiresPlatformQuota !== false),
+  );
   const quotaInsufficient =
     isAuthenticated &&
+    !modelState.providerPaused &&
     runtimeConfig.quota !== undefined &&
-    runtimeConfig.quota.remainingTokens < generation.tokenEstimate;
+    runtimeConfig.quota.remainingTokens < generation.tokenEstimate &&
+    modelRequiresQuota;
+  const regenerateQuotaInsufficient =
+    isAuthenticated &&
+    !modelState.providerPaused &&
+    runtimeConfig.quota !== undefined &&
+    runtimeConfig.quota.remainingTokens < generation.regenerateTokenEstimate &&
+    modelRequiresQuota;
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
   const guestBlocked = isGuest && (requiresLogin || guestLimitExceeded);
   const [guestPrompt, setGuestPrompt] = useState(0);
   const { band } = useViewportBand();
   const canSubmit =
-    !authRestoreFailed && generation.canGenerate && modelState.hasModels && !quotaInsufficient;
+    !authRestoreFailed && !modelState.providerPaused && generation.canGenerate && modelState.hasModels && !quotaInsufficient;
   const overflowScenarioActive = phoneOverflowScenarios.some(
     (item) => item.key === generation.draft.scenario,
   );
@@ -134,7 +149,8 @@ const AiTextPage: React.FC = () => {
     generation.updateDraft({
       scenario: activeTemplate.textScenario ?? 'write',
       input: activeTemplate.prompt,
-      modelId: activeTemplate.modelId,
+      // 保留模板指定的可用模型；旧模型失效时由可用模型 Hook 回退默认值。
+      modelId: activeTemplate.modelId ?? '',
       tone: activeTemplate.textTone ?? 'professional',
       length: activeTemplate.textLength ?? 'medium',
       targetLanguage: activeTemplate.targetLanguage ?? '英文',
@@ -227,7 +243,15 @@ const AiTextPage: React.FC = () => {
             />
           )}
           <div className="ph-ai-text-hint">{generation.scenarioHint}</div>
-          {!modelState.loading && !modelState.error && !modelState.hasModels && (
+          {modelState.providerPaused && (
+            <Alert showIcon type="warning" title="管理员已暂停自备能力，请到 AI 管理的自备厂商页关闭个人自备模式后再使用文本生成" />
+          )}
+          {modelState.providerNeedsCredential && (
+            <Alert showIcon type="warning" title={modelState.providerNeedsCustomCredential
+              ? '自建文本模型的厂商凭据不可用，请到自备厂商页检查配置；若厂商已删除，请重新添加厂商和模型'
+              : '当前系统文本模型缺少匹配的自备 Key，请到自备厂商页补充对应厂商 Key，或关闭个人自备模式'} />
+          )}
+          {!modelState.loading && !modelState.error && !modelState.hasModels && !modelState.providerPaused && !modelState.providerNeedsCredential && (
             <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用文本模型" />
           )}
 
@@ -302,8 +326,9 @@ const AiTextPage: React.FC = () => {
               )}
               <Button
                 icon={<ReloadOutlined />}
-                disabled={authRestoreFailed || generation.isGenerating || !generation.hasOutput}
+                disabled={authRestoreFailed || modelState.providerPaused || modelState.loading || !modelState.hasModels || regenerateQuotaInsufficient || generation.isGenerating || !generation.hasOutput}
                 onClick={() => {
+                  if (modelState.providerPaused || modelState.loading || !modelState.hasModels || regenerateQuotaInsufficient) return;
                   if (guestBlocked) {
                     setGuestPrompt((current) => current + 1);
                     return;
@@ -320,11 +345,18 @@ const AiTextPage: React.FC = () => {
               suffix="Token"
             />
           </div>
+          {generation.hasOutput && regenerateQuotaInsufficient && (
+            <Alert
+              showIcon
+              type="warning"
+              title={`重新生成预计需要 ${generation.regenerateTokenEstimate} Token，当前余额不足`}
+            />
+          )}
           <AiQuotaAlert
             estimatedTokens={generation.tokenEstimate}
             quota={runtimeConfig.quota}
             toolName="文本生成"
-            visible={isAuthenticated}
+            visible={isAuthenticated && !modelState.providerPaused && modelRequiresQuota}
           />
           <AiGuestLimitAlert
             dailyLimit={homeData?.guestTrial?.dailyLimit}

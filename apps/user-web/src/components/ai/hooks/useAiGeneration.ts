@@ -158,13 +158,15 @@ export function useAiGeneration({
     message.info('已把本次输入回填到输入区');
   }, [message, task, toDraft]);
 
-  const regenerate = useCallback(async (source?: AiGenerationTask) => {
+  const regenerate = useCallback(async (source?: AiGenerationTask, modelIdOverride?: string) => {
     // Composer onSubmit 会传入字符串；只有历史任务对象才能回填草稿。
     const taskSource =
       source && typeof source === 'object' && typeof source.prompt === 'string'
         ? source
         : undefined;
-    const nextDraft = taskSource ? toDraft(taskSource) : draft;
+    const sourceDraft = taskSource ? toDraft(taskSource) : draft;
+    // 历史任务的模型可能已停用；页面在提交前解析当前可用模型，不能再把旧 ID 发给服务端。
+    const nextDraft = modelIdOverride ? { ...sourceDraft, modelId: modelIdOverride } : sourceDraft;
     if (taskSource) {
       draftTouchedRef.current = true;
       setDraft(nextDraft);

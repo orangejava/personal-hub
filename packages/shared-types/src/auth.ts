@@ -25,6 +25,7 @@ export interface User {
   email: string;
   nickname: string;
   avatar?: string;
+  bio?: string;
   role: UserRole;
   /** 当前用户拥有的权限点列表 */
   permissions: PermissionCode[];

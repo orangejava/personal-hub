@@ -10,6 +10,8 @@ export interface ChatProviderInput {
   signal: AbortSignal;
   /** 决定本次调用读哪一行系统凭据。只有 Fake 厂商不访问凭据表。 */
   providerId?: string;
+  userId?: string;
+  userCredentialId?: string;
   providerCode?: string;
   baseUrl?: string | null;
   authEnvKey?: string | null;

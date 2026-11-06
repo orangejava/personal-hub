@@ -226,8 +226,55 @@ export async function fetchAdminAiConfig() {
   return request<AdminAiConfigData>('/api/v1/admin/ai/config');
 }
 
-export async function fetchAdminAiStats() {
-  return request<AdminAiStatsData>('/api/v1/admin/ai/stats');
+export async function fetchAdminAiStats(range: '24h' | '7d' | '30d' = '7d') {
+  return request<AdminAiStatsData>('/api/v1/admin/ai/stats', { params: { range } });
+}
+
+export async function adjustAdminAiQuota(input: {
+  userId: string;
+  direction: 'CREDIT' | 'DEBIT';
+  amount: number;
+  reason: string;
+  idempotencyKey: string;
+}) {
+  return request<{ id: string; amount: number; availableAmount: number; reservedAmount: number }>(
+    '/api/v1/admin/ai/quota-adjustments',
+    {
+      method: 'POST',
+      data: input,
+      headers: { 'Idempotency-Key': input.idempotencyKey },
+    },
+  );
+}
+
+export async function fetchAdminAiQuotaAccount(userId: string) {
+  return request<{ userId: string; availableAmount: number; reservedAmount: number }>(
+    `/api/v1/admin/ai/quota-accounts/${userId}`,
+  );
+}
+
+export interface AdminAiRewardRule {
+  code: 'DAILY_LOGIN' | 'CHECKIN';
+  amount: number;
+  bonusEvery: number;
+  bonusAmount: number;
+  label: string;
+  enabled: boolean;
+}
+
+export async function fetchAdminAiRewardRules() {
+  return request<AdminAiRewardRule[]>('/api/v1/admin/ai/reward-rules');
+}
+
+export async function updateAdminAiRewardRule(
+  code: AdminAiRewardRule['code'],
+  data: Omit<AdminAiRewardRule, 'code'>,
+) {
+  return request<AdminAiRewardRule>(`/api/v1/admin/ai/reward-rules/${code}`, {
+    method: 'PATCH',
+    data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 export async function updateAdminAiNavigationItem(
@@ -447,21 +494,27 @@ export async function fetchAdminUsers(params: {
   current?: number;
   pageSize?: number;
   email?: string;
+  keyword?: string;
 }) {
-  return request<PaginationResult<AdminUserRecord>>('/api/admin/users', {
-    params: { page: params.current, pageSize: params.pageSize, email: params.email },
+  return request<PaginationResult<AdminUserRecord>>('/api/v1/admin/users', {
+    params: {
+      page: params.current,
+      pageSize: params.pageSize,
+      email: params.email,
+      keyword: params.keyword,
+    },
   });
 }
 
 export async function updateAdminUserStatus(id: string, status: 'active' | 'disabled') {
-  return request<AdminUserRecord>(`/api/admin/users/${id}/status`, {
+  return request<AdminUserRecord>(`/api/v1/admin/users/${id}/status`, {
     method: 'PUT',
     data: { status },
   });
 }
 
 export async function updateAdminUserRole(id: string, role: UserRole) {
-  return request<AdminUserRecord>(`/api/admin/users/${id}/role`, {
+  return request<AdminUserRecord>(`/api/v1/admin/users/${id}/role`, {
     method: 'PUT',
     data: { role },
   });

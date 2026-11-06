@@ -126,6 +126,7 @@ export function nestError(error: unknown): {
 export interface AuthHttpOptions {
   method?: string;
   data?: unknown;
+  headers?: Record<string, string>;
   params?: Record<string, unknown>;
   skipErrorHandler?: boolean;
 }

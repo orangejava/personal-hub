@@ -333,6 +333,9 @@ model User {
   quotaReservations       AiQuotaReservation[]
   usageRecords            AiUsageRecord[]
   providerCredentials     AiProviderCredential[]
+  userModels              AiUserModel[]
+  checkins                AiCheckin[]
+  aiProviderPreference    AiProviderPreference?
   generationJobs          AiGenerationJob[]
   aiAssets                AiAsset[]
   aiTemplates             AiTemplate[]
@@ -646,6 +649,36 @@ model AiQuotaAccount {
   reservations    AiQuotaReservation[]
 
   @@map("ai_quota_accounts")
+}
+
+/// 发放规则写库，登录与签到共用同一套额度账本。
+model AiRewardRule {
+  code        String   @id @db.VarChar(40)
+  amount      Int
+  bonusEvery  Int      @default(0) @map("bonus_every")
+  bonusAmount Int      @default(0) @map("bonus_amount")
+  label       String   @db.VarChar(120)
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("ai_reward_rules")
+}
+
+/// 奖励快照独立于规则，修改规则不回算历史签到。
+model AiCheckin {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  localDate   String   @map("local_date") @db.VarChar(10)
+  streak      Int
+  baseAmount  Int      @map("base_amount")
+  bonusAmount Int      @map("bonus_amount")
+  totalAmount Int      @map("total_amount")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, localDate])
+  @@index([userId, localDate])
+  @@map("ai_checkins")
 }
 
 model AiQuotaTransaction {
@@ -1023,6 +1056,8 @@ model AiProviderCredential {
   providerId   String?                @map("provider_id") @db.Uuid
   providerType String?                @map("provider_type") @db.VarChar(40)
   baseUrl      String?                @map("base_url") @db.VarChar(500)
+  code         String?                @db.VarChar(80)
+  label        String?                @db.VarChar(120)
   /// base64(密文 || 16 字节 GCM tag)。接口、日志和幂等响应都不返回。
   ciphertext   String                 @db.Text
   nonce        String                 @db.VarChar(48)
@@ -1032,10 +1067,43 @@ model AiProviderCredential {
   updatedAt    DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
   provider     AiProvider?            @relation(fields: [providerId], references: [id], onDelete: Cascade)
   user         User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userModels   AiUserModel[]
 
   @@index([providerId, ownerType])
   @@index([userId])
   @@map("ai_provider_credentials")
+}
+
+/// 自备模式只改变本人文本调用；管理员关闭总开关时保留此偏好。
+model AiProviderPreference {
+  userId               String       @id @map("user_id") @db.Uuid
+  enabled              Boolean      @default(false)
+  preferredUserModelId String?      @map("preferred_user_model_id") @db.Uuid
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_provider_preferences")
+}
+
+/// 用户模型与全站 AiModel 分表，避免泄露到公开目录或角色白名单。
+model AiUserModel {
+  id           String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String               @map("user_id") @db.Uuid
+  credentialId String?              @map("credential_id") @db.Uuid
+  modelKey     String               @map("model_key") @db.VarChar(120)
+  displayName  String               @map("display_name") @db.VarChar(120)
+  enabled      Boolean              @default(true)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential   AiProviderCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  conversations AiConversation[]
+  messages     AiMessage[]
+  usageRecords AiUsageRecord[]
+
+  @@unique([credentialId, modelKey])
+  @@index([userId, enabled])
+  @@map("ai_user_models")
 }
 
 model AiModel {
@@ -1173,7 +1241,8 @@ model AiConversation {
   status                   AiConversationStatus   @default(ACTIVE)
   pinnedAt                 DateTime?              @map("pinned_at") @db.Timestamptz(6)
   folderId                 String?                @map("folder_id") @db.Uuid
-  modelId                  String                 @map("model_id") @db.Uuid
+  modelId                  String?                @map("model_id") @db.Uuid
+  userModelId              String?                @map("user_model_id") @db.Uuid
   systemPrompt             String?                @map("system_prompt")
   temperature              Decimal?               @db.Decimal(3, 2)
   topP                     Decimal?               @map("top_p") @db.Decimal(3, 2)
@@ -1191,7 +1260,8 @@ model AiConversation {
   version                  Int                    @default(1)
   createdAt                DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
-  model                    AiModel                @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  model                    AiModel?               @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  userModel                AiUserModel?           @relation(fields: [userModelId], references: [id], onDelete: Restrict)
   messages                 AiMessage[]
 
   @@index([ownerType, ownerId, deletedAt, lastMessageAt])
@@ -1207,6 +1277,7 @@ model AiMessage {
   variantGroupId    String?          @map("variant_group_id") @db.Uuid
   isCurrentVariant  Boolean          @default(true) @map("is_current_variant")
   modelId           String?          @map("model_id") @db.Uuid
+  userModelId       String?          @map("user_model_id") @db.Uuid
   modelKeySnapshot  String?          @map("model_key_snapshot") @db.VarChar(120)
   content           String           @default("")
   contentParts      Json?            @map("content_parts")
@@ -1226,6 +1297,7 @@ model AiMessage {
   updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   conversation      AiConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   model             AiModel?         @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  userModel         AiUserModel?     @relation(fields: [userModelId], references: [id], onDelete: SetNull)
   parent            AiMessage?       @relation("MessageTree", fields: [parentMessageId], references: [id], onDelete: SetNull)
   children          AiMessage[]      @relation("MessageTree")
   references        AiMessageReference[]
@@ -1279,15 +1351,19 @@ model AiUsageRecord {
   ownerId       String     @map("owner_id") @db.Uuid
   toolType      AiToolCode @map("tool_type")
   modelId       String?    @map("model_id") @db.Uuid
+  userModelId   String?    @map("user_model_id") @db.Uuid
   inputTokens   Int        @default(0) @map("input_tokens")
   outputTokens  Int        @default(0) @map("output_tokens")
   platformCost  Int        @default(0) @map("platform_cost")
+  estimatedPlatformCost Int? @map("estimated_platform_cost")
   providerCost  Int?       @map("provider_cost")
+  latencyMs     Int?       @map("latency_ms")
   messageId     String?    @map("message_id") @db.Uuid
   jobId         String?    @map("job_id") @db.Uuid
   createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   user          User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
   model         AiModel?   @relation(fields: [modelId], references: [id], onDelete: SetNull)
+  userModel     AiUserModel? @relation(fields: [userModelId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
   @@index([ownerType, ownerId, createdAt])

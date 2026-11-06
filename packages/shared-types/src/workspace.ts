@@ -33,10 +33,19 @@ export interface WorkspaceContentQuery {
   visibility?: string;
 }
 
-/** 我的用量统计（Token，来自 Nest 额度账本） */
+/** 我的用量统计：额度字段与实际 Token 分开记录。 */
 export interface WorkspaceUsage {
   totalTokens: number;
   usedTokens: number;
   remainingTokens: number;
-  recent?: { date: string; tokens: number; reason?: string }[];
+  inputTokens: number;
+  outputTokens: number;
+  recent?: {
+    date: string;
+    tokens: number;
+    inputTokens?: number;
+    outputTokens?: number;
+    platformCost?: number;
+    reason?: string;
+  }[];
 }

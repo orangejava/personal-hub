@@ -82,6 +82,109 @@ export class AiCredentialService {
     `;
   }
 
+  /** 用户密钥与系统密钥使用同一主密钥，但读取必须同时约束所属用户。 */
+  async saveUserKey(
+    userId: string,
+    input: {
+      id?: string;
+      providerId?: string | null;
+      code?: string;
+      label?: string;
+      baseUrl?: string;
+      apiKey?: string;
+      enabled?: boolean;
+    },
+  ) {
+    const packed = input.apiKey ? encryptApiKey(input.apiKey, this.requireMasterKey()) : null;
+    const current = input.id
+      ? await this.prisma.aiProviderCredential.findFirst({
+          where: { id: input.id, userId, ownerType: AiCredentialOwnerType.USER },
+        })
+      : null;
+    if (input.id && !current) {
+      throw new DomainHttpException(
+        HttpStatus.NOT_FOUND,
+        'AI_CREDENTIAL_NOT_FOUND',
+        '自备厂商不存在',
+      );
+    }
+    if (!current && !packed) {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_CREDENTIAL_KEY_REQUIRED',
+        '新增厂商需要 API Key',
+      );
+    }
+    if (current) {
+      if (input.providerId && input.providerId !== current.providerId) {
+        throw new DomainHttpException(
+          HttpStatus.BAD_REQUEST,
+          'AI_USER_PROVIDER_IMMUTABLE',
+          '厂商绑定不可修改',
+        );
+      }
+      if (input.code && input.code !== current.code) {
+        throw new DomainHttpException(
+          HttpStatus.BAD_REQUEST,
+          'AI_USER_PROVIDER_IMMUTABLE',
+          '厂商代号不可修改',
+        );
+      }
+      return this.prisma.aiProviderCredential.update({
+        where: { id: current.id },
+        data: {
+          code: input.code ?? current.code,
+          label: input.label ?? current.label,
+          baseUrl: input.baseUrl ?? current.baseUrl,
+          enabled: input.enabled ?? current.enabled,
+          ...(packed
+            ? { ciphertext: packed.ciphertext, nonce: packed.nonce, keyVersion: packed.keyVersion }
+            : {}),
+        },
+        select: { id: true },
+      });
+    }
+    return this.prisma.aiProviderCredential.create({
+      data: {
+        ownerType: AiCredentialOwnerType.USER,
+        userId,
+        providerId: input.providerId ?? null,
+        providerType: 'openai-compatible',
+        code: input.code,
+        label: input.label,
+        baseUrl: input.baseUrl,
+        enabled: input.enabled ?? true,
+        ciphertext: packed!.ciphertext,
+        nonce: packed!.nonce,
+        keyVersion: packed!.keyVersion,
+      },
+      select: { id: true },
+    });
+  }
+
+  async resolveUserSecret(userId: string, credentialId: string) {
+    const credential = await this.prisma.aiProviderCredential.findFirst({
+      where: { id: credentialId, userId, ownerType: AiCredentialOwnerType.USER, enabled: true },
+    });
+    if (!credential) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_USER_CREDENTIAL_REQUIRED',
+        '此模型没有可用的自备 Key；请到个人设置补充，或关闭自备模式',
+      );
+    }
+    const key = this.requireMasterKey();
+    try {
+      return { apiKey: decryptApiKey(credential, key), baseUrl: credential.baseUrl };
+    } catch {
+      throw new DomainHttpException(
+        HttpStatus.BAD_REQUEST,
+        'AI_CREDENTIAL_INVALID',
+        '自备 Key 已损坏或无法解密，请重新保存',
+      );
+    }
+  }
+
   /**
    * 解析本次系统调用要用的密钥。Fake 厂商不读凭据表。
    *
@@ -113,7 +216,16 @@ export class AiCredentialService {
           '未配置 AI_CREDENTIAL_ENCRYPTION_KEY，无法解密已保存的密钥',
         );
       }
-      const plaintext = decryptApiKey(credential, key);
+      let plaintext: string;
+      try {
+        plaintext = decryptApiKey(credential, key);
+      } catch {
+        throw new DomainHttpException(
+          HttpStatus.BAD_REQUEST,
+          'AI_CREDENTIAL_INVALID',
+          '系统凭据已损坏或无法解密，请重新配置',
+        );
+      }
       const resolved = pickSystemSecret({
         credentialPlaintext: plaintext,
         credentialBaseUrl: credential.baseUrl,

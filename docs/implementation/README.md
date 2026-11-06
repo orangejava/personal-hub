@@ -69,6 +69,7 @@
 - `docs/implementation/content/markdown-reader.md`
 - `docs/implementation/content/booklet-import.md`
 - `docs/implementation/admin/theme-config.md`
+- `docs/implementation/ai/operations-stages-b-e.md`
 
 ---
 

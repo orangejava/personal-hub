@@ -18,7 +18,7 @@ export class AdminUserQueryDto {
   @Max(100)
   pageSize = 10;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: '按邮箱或昵称模糊搜索' })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
@@ -26,4 +26,13 @@ export class AdminUserQueryDto {
   @IsString()
   @MaxLength(320)
   email?: string;
+
+  @ApiPropertyOptional({ description: '兼容额度调整页的统一搜索词' })
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsOptional()
+  @IsString()
+  @MaxLength(320)
+  keyword?: string;
 }

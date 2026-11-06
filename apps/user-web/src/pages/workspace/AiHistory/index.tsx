@@ -1,11 +1,14 @@
 import { type ActionType, ProTable } from '@ant-design/pro-components';
-import type { AiConversation } from '@personal-hub/shared-types';
+import type { AiConversation, AiModel } from '@personal-hub/shared-types';
 import { history, Link, useIntl } from '@umijs/max';
-import { App, Button, Input, Modal, Popconfirm, Space, Tag } from 'antd';
+import { App, Button, Card, Col, Input, Modal, Popconfirm, Row, Space, Statistic, Tag } from 'antd';
 import React, { useRef, useState } from 'react';
 import PageContainer from '@/components/shared/PageContainer';
 import ResultState from '@/components/shared/ResultState';
 import { DEFAULT_TABLE_PAGINATION, DEFAULT_TABLE_SEARCH } from '@/constants/tablePagination';
+import { useRequest } from '@/hooks/useRequest';
+import { fetchAiModels } from '@/services/ai';
+import { fetchUsage } from '@/services/workspace';
 import {
   batchDeleteWorkspaceAiHistory,
   deleteWorkspaceAiHistory,
@@ -13,7 +16,14 @@ import {
   renameWorkspaceAiHistory,
 } from '@/services/workspace';
 
-/** 工作区 AI 历史：复用 AI 会话 mock，并跳转到 AI 工作台继续对话。 */
+/** 目录会保留暂停或缺 Key 的模型行，计数只包含至少一种工具可调用的模型。 */
+function countAvailableModels(models: AiModel[] = []): number {
+  return models.filter((model) =>
+    model.enabled && model.toolTypes.some((tool) => !model.blockedToolTypes?.includes(tool)),
+  ).length;
+}
+
+/** 工作区 AI 历史：真实会话列表，保留继续、重命名、删除和批量删除。 */
 const AiHistory: React.FC = () => {
   const intl = useIntl();
   const { message } = App.useApp();
@@ -22,6 +32,8 @@ const AiHistory: React.FC = () => {
   const [renaming, setRenaming] = useState<AiConversation | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
   const [operating, setOperating] = useState(false);
+  const { data: usage } = useRequest(fetchUsage);
+  const { data: models } = useRequest(fetchAiModels);
 
   const reload = () => actionRef.current?.reload();
 
@@ -83,6 +95,11 @@ const AiHistory: React.FC = () => {
         </Button>
       }
     >
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} sm={8}><Card><Statistic title="累计 Token" value={(usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)} /></Card></Col>
+        <Col xs={24} sm={8}><Card><Statistic title="可用额度" value={usage?.remainingTokens ?? 0} /></Card></Col>
+        <Col xs={24} sm={8}><Card><Statistic title="可用模型" value={countAvailableModels(models)} /></Card></Col>
+      </Row>
       <ProTable<AiConversation>
         actionRef={actionRef}
         rowKey="id"
@@ -96,7 +113,7 @@ const AiHistory: React.FC = () => {
           <Space>
             <Popconfirm
               title="确认批量删除？"
-              description="删除后该 mock 会话会从工作区历史和 AI 会话列表中移除。"
+              description="删除后该会话会从工作区历史和 AI 会话列表中移除。"
               onConfirm={removeBatch}
             >
               <a>{operating ? '处理中' : '批量删除'}</a>
@@ -140,7 +157,13 @@ const AiHistory: React.FC = () => {
             title: '模型',
             dataIndex: 'modelId',
             search: false,
-            render: (_, record) => <Tag color="blue">{record.modelId}</Tag>,
+            render: (_, record) => <Tag color="blue">{record.modelName ?? record.modelId}</Tag>,
+          },
+          {
+            title: '厂商',
+            dataIndex: 'providerName',
+            search: false,
+            render: (_, record) => record.providerName ?? '未知厂商',
           },
           {
             title: '消息数',
@@ -178,7 +201,7 @@ const AiHistory: React.FC = () => {
               <Popconfirm
                 key="delete"
                 title="确认删除该会话？"
-                description="删除后 mock 会话列表也会同步移除。"
+                description="删除后会话列表也会同步移除。"
                 onConfirm={() => removeOne(record.id)}
               >
                 <a style={{ color: '#ff4d4f' }}>{operating ? '处理中' : '删除'}</a>

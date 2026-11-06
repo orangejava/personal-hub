@@ -1,11 +1,13 @@
 import { HttpStatus } from '@nestjs/common';
 import { DomainHttpException } from '../../common/errors/domain-http.exception';
+import { userProviderFetch } from './user-provider-fetch';
 
 export interface ProviderProbeTarget {
   baseUrl: string;
   apiKey: string;
   timeoutMs: number;
   modelKey?: string;
+  userProvided?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ export async function probeProviderConnection(target: ProviderProbeTarget): Prom
   const baseUrl = target.baseUrl.replace(/\/$/, '');
   let listed: Response;
   try {
-    listed = await fetch(`${baseUrl}/models`, {
+    listed = await (target.userProvided ? userProviderFetch : fetch)(`${baseUrl}/models`, {
       method: 'GET',
       headers: { authorization: `Bearer ${target.apiKey}` },
       signal: AbortSignal.timeout(timeoutMs),
@@ -62,7 +64,7 @@ async function pingChatCompletion(
 ): Promise<string> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}/chat/completions`, {
+    response = await (target.userProvided ? userProviderFetch : fetch)(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         authorization: `Bearer ${target.apiKey}`,

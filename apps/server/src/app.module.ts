@@ -11,6 +11,7 @@ import { ContentModule } from './modules/content/content.module';
 import { FileModule } from './modules/file/file.module';
 import { BookletModule } from './modules/booklet/booklet.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AiRewardModule } from './modules/ai/ai-reward.module';
 import { MetricsModule } from './modules/metrics/metrics.module';
 import { StorageModule } from './infrastructure/storage/storage.module';
 
@@ -45,6 +46,8 @@ import { StorageModule } from './infrastructure/storage/storage.module';
           'req.headers.authorization',
           'req.headers.cookie',
           'req.body.password',
+          'req.body.apiKey',
+          'req.body.encryptedApiKey',
           'req.body.refreshToken',
           'res.headers.set-cookie',
         ],
@@ -60,6 +63,7 @@ import { StorageModule } from './infrastructure/storage/storage.module';
     FileModule,
     BookletModule,
     AiModule,
+    AiRewardModule,
     MetricsModule,
     AdminModule,
   ],

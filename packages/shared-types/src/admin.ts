@@ -9,7 +9,7 @@ import type { UserRole } from './user';
 export interface AdminUserRecord {
   id: string;
   email: string;
-  nickname: string;
+  nickname: string | null;
   role: UserRole;
   status: 'active' | 'disabled';
   createdAt: string;
@@ -308,6 +308,9 @@ export interface AdminAiBrandingConfig {
   brandName: string;
   logoText: string;
   aiEnabled?: boolean;
+  userProviderEnabled?: boolean;
+  userCanPickModel?: boolean;
+  userKeyConsumesQuota?: boolean;
   version?: number;
   updatedAt: string;
 }
@@ -317,6 +320,9 @@ export interface AdminAiBrandingMutationInput {
   brandName?: string;
   logoText?: string;
   aiEnabled?: boolean;
+  userProviderEnabled?: boolean;
+  userCanPickModel?: boolean;
+  userKeyConsumesQuota?: boolean;
 }
 
 /** 后台 AI 导航项。隐藏不展示；禁用/即将上线仍展示但不可进入。 */
@@ -373,6 +379,14 @@ export interface AdminAiStatsSummary {
   totalCalls: number;
   estimatedCost: number;
   activeUsers: number;
+  platformCharged?: number;
+  unknownEstimates?: number;
+  imageTasks?: number;
+  videoTasks?: number;
+  failedCalls?: number;
+  successRate?: number;
+  averageDurationMs?: number;
+  generationTasks?: number;
 }
 
 /** AI 近 N 天消耗趋势点。 */
@@ -381,6 +395,9 @@ export interface AdminAiUsageTrendPoint {
   tokens: number;
   calls: number;
   estimatedCost: number;
+  platformCharged?: number;
+  unknownEstimates?: number;
+  averageDurationMs?: number;
 }
 
 /** AI 工具消耗占比。 */
@@ -409,6 +426,8 @@ export interface AdminAiModelUsageDistribution {
   tokens: number;
   calls: number;
   estimatedCost: number;
+  platformCharged?: number;
+  unknownEstimates?: number;
 }
 
 /** 后台 AI 统计页聚合数据。 */
@@ -418,4 +437,5 @@ export interface AdminAiStatsData {
   toolShares: AdminAiToolUsageShare[];
   userRanks: AdminAiUserUsageRank[];
   modelDistributions: AdminAiModelUsageDistribution[];
+  statusShares?: Array<{ status: string; calls: number; ratio: number }>;
 }

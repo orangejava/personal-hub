@@ -37,6 +37,21 @@ export class AuthRepository {
     });
   }
 
+  async updateProfile(
+    userId: string,
+    input: { nickname?: string; bio?: string },
+    db: DbClient = this.prisma,
+  ): Promise<UserWithRole> {
+    return db.user.update({
+      where: { id: userId },
+      data: {
+        ...(input.nickname !== undefined ? { nickname: input.nickname || null } : {}),
+        ...(input.bio !== undefined ? { bio: input.bio || null } : {}),
+      },
+      include: { role: { select: { code: true } } },
+    });
+  }
+
   async findRoleByCode(code: RoleCode, db: DbClient = this.prisma): Promise<Role | null> {
     return db.role.findUnique({ where: { code } });
   }
@@ -141,10 +156,13 @@ export class AuthRepository {
     });
   }
 
-  async listUsers(input: { page: number; pageSize: number; email?: string }) {
-    const email = input.email?.trim().toLowerCase();
-    const where = email
-      ? { email: { contains: email, mode: 'insensitive' as const } }
+  async listUsers(input: { page: number; pageSize: number; email?: string; keyword?: string }) {
+    const keyword = (input.keyword ?? input.email)?.trim().toLowerCase();
+    const where = keyword
+      ? { OR: [
+          { email: { contains: keyword, mode: 'insensitive' as const } },
+          { nickname: { contains: keyword, mode: 'insensitive' as const } },
+        ] }
       : {};
     const [total, users] = await Promise.all([
       this.prisma.user.count({ where }),

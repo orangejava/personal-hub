@@ -196,7 +196,14 @@ export async function fetchFavorites(params: { page?: number; pageSize?: number 
 export async function fetchUsage() {
   const data = await request<
     WorkspaceUsage & {
-      list?: Array<{ createdAt: string; tokens: number; reason?: string }>;
+      list?: Array<{
+        createdAt: string;
+        tokens: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        platformCost?: number;
+        reason?: string;
+      }>;
     }
   >('/api/v1/app/usage');
   return {
@@ -206,6 +213,9 @@ export async function fetchUsage() {
       data.list?.map((item) => ({
         date: item.createdAt,
         tokens: item.tokens,
+        inputTokens: item.inputTokens,
+        outputTokens: item.outputTokens,
+        platformCost: item.platformCost,
         reason: item.reason,
       })),
   };
@@ -222,17 +232,14 @@ export async function fetchWorkspaceAiHistory(params: {
     total: number;
     page: number;
     pageSize: number;
-  }>('/api/v1/app/ai/sessions', { params: { page: params.page, pageSize: params.pageSize } });
-  const keyword = params.keyword?.trim().toLowerCase();
-  const list = keyword
-    ? page.list.filter((item) => item.title.toLowerCase().includes(keyword))
-    : page.list;
-  return {
-    list,
-    total: keyword ? list.length : page.total,
-    page: page.page,
-    pageSize: page.pageSize,
-  };
+  }>('/api/v1/app/ai/sessions', {
+    params: {
+      page: params.page,
+      pageSize: params.pageSize,
+      keyword: params.keyword?.trim() || undefined,
+    },
+  });
+  return page;
 }
 
 /** 重命名工作区 AI 历史会话。 */

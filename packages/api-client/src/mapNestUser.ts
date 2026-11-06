@@ -9,6 +9,7 @@ export interface NestAuthUser {
   status: string;
   mustChangePassword?: boolean;
   avatarFileId?: string | null;
+  bio?: string | null;
   createdAt: string;
 }
 
@@ -22,6 +23,7 @@ export function mapNestUser(user: NestAuthUser): User {
     email: user.email,
     nickname: user.nickname || user.email.split('@')[0],
     avatar: undefined,
+    bio: user.bio ?? undefined,
     role: mapNestRole(user.role),
     permissions: [],
     status: user.status === 'ACTIVE' ? 'active' : 'disabled',

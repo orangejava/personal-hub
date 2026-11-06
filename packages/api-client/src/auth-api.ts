@@ -8,6 +8,7 @@ import type {
 import type { AuthHttpRequest } from './http';
 import { nestHttpStatus, readNestData } from './http';
 import { mapNestUser } from './mapNestUser';
+import { newIdempotencyKey } from './uuid';
 import {
   adaptNestPermissions,
   type MapNestMenus,
@@ -31,6 +32,7 @@ interface NestLoginData {
     role: string;
     status: string;
     mustChangePassword?: boolean;
+    bio?: string | null;
     createdAt: string;
   };
 }
@@ -171,6 +173,21 @@ export function createAuthApi(options: CreateAuthApiOptions) {
     const user = mapNestUser(payload);
     setMockBridgeRole(user.role);
     return user;
+  }
+
+  async function updateCurrentUser(
+    data: { nickname?: string; bio?: string },
+    idempotencyKey = newIdempotencyKey(),
+  ): Promise<User> {
+    if (!isNestAuthEnabled()) {
+      return request<User>('/api/auth/me', { method: 'PATCH', data });
+    }
+    const payload = readNestData(
+      await request<NestLoginData['user']>('/api/v1/auth/me', {
+        method: 'PATCH', data, headers: { 'Idempotency-Key': idempotencyKey },
+      }),
+    );
+    return mapNestUser(payload);
   }
 
   async function fetchPermissions(): Promise<PermissionPayload> {
@@ -366,6 +383,7 @@ export function createAuthApi(options: CreateAuthApiOptions) {
     refreshAccessToken,
     logout,
     fetchCurrentUser,
+    updateCurrentUser,
     fetchPermissions,
     register,
     verifyEmail,

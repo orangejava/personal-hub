@@ -256,6 +256,9 @@ export const aiBrandingSchema = z.object({
   aiEnabled: z.boolean(),
   brandName: z.string().min(1).max(40),
   logoText: z.string().min(1).max(12),
+  userProviderEnabled: z.boolean().default(true),
+  userCanPickModel: z.boolean().default(false),
+  userKeyConsumesQuota: z.boolean().default(false),
 });
 
 const filePurposePolicySchema = z.object({
@@ -475,6 +478,9 @@ export const DEFAULT_SYSTEM_CONFIGS: Record<SystemConfigGroup, unknown> = {
     aiEnabled: true,
     brandName: 'Personal Hub AI',
     logoText: 'PH',
+    userProviderEnabled: true,
+    userCanPickModel: false,
+    userKeyConsumesQuota: false,
   } satisfies AiBranding,
   'file.policies': {} satisfies FilePolicies,
   'ops.metrics': {

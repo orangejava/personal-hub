@@ -72,10 +72,20 @@ export const NEST_ROUTE_REGISTRY: Record<string, RouteRegistryItem> = {
     name: 'workspace.aiHistory',
     icon: 'robot',
   },
-  'workspace.usage': {
-    path: '/workspace/usage',
-    name: 'workspace.usage',
-    icon: 'pieChart',
+  'workspace.ai': {
+    path: '/workspace/ai',
+    name: 'workspace.ai',
+    icon: 'robot',
+  },
+  'workspace.aiProviders': {
+    path: '/workspace/ai/providers',
+    name: 'workspace.aiProviders',
+    icon: 'setting',
+  },
+  'workspace.aiQuota': {
+    path: '/workspace/ai/quota',
+    name: 'workspace.aiQuota',
+    icon: 'wallet',
   },
   'workspace.profile': {
     path: '/workspace/profile',

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import argon2 from 'argon2';
 import { ConfigService } from '@nestjs/config';
@@ -6,6 +7,8 @@ import { Test } from '@nestjs/testing';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import {
   AiNavStatus,
+  AiOwnerType,
+  AiReservationStatus,
   AiToolCode,
   AiToolStatus,
   ContentStatus,
@@ -21,9 +24,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { configureHttpApp } from '../src/bootstrap';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { AiService } from '../src/modules/ai/ai.service';
+import { AiQuotaService } from '../src/modules/ai/ai-quota.service';
 import { encryptCredentialForRequest } from '../../admin-web/src/services/admin/aiCredentialTransport';
 import type { AiCredentialPublicKey } from '@personal-hub/shared-types';
 import { runBaselineSeed } from '../prisma/seed';
+import { shanghaiDate } from '../src/modules/ai/ai-reward.service';
 
 const serverDirectory = resolve(__dirname, '..');
 const ORIGIN = 'http://localhost:8000';
@@ -190,6 +195,88 @@ describe('AI HTTP', () => {
       '/api/v1/public/ai/models',
     );
     expect(models.data?.some((item) => item.toolTypes.includes('chat'))).toBe(true);
+  });
+
+  it('会员用量汇总统计全部记录并按上海自然日切分，明细仍分页', async () => {
+    const memberRole = await prisma.role.findUniqueOrThrow({ where: { code: RoleCode.MEMBER } });
+    const user = await prisma.user.create({
+      data: {
+        email: 'usage-summary@example.com',
+        passwordHash: await argon2.hash(PASSWORD),
+        status: UserStatus.ACTIVE,
+        roleId: memberRole.id,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const token = await login(user.email);
+    const yesterdayStart = new Date(`${shanghaiDate()}T00:00:00+08:00`);
+    yesterdayStart.setUTCDate(yesterdayStart.getUTCDate() - 1);
+    const beforeMidnight = new Date(yesterdayStart.getTime() - 60_000);
+    const afterMidnight = new Date(yesterdayStart.getTime() + 60_000);
+    await prisma.aiUsageRecord.createMany({
+      data: [
+        ...Array.from({ length: 50 }, () => ({
+          userId: user.id,
+          ownerType: AiOwnerType.USER,
+          ownerId: user.id,
+          toolType: AiToolCode.CHAT,
+          inputTokens: 2,
+          outputTokens: 3,
+          createdAt: beforeMidnight,
+        })),
+        {
+          userId: user.id,
+          ownerType: AiOwnerType.USER,
+          ownerId: user.id,
+          toolType: AiToolCode.TEXT,
+          inputTokens: 7,
+          outputTokens: 11,
+          createdAt: afterMidnight,
+        },
+      ],
+    });
+    const range = new URLSearchParams({
+      from: new Date(beforeMidnight.getTime() - 1_000).toISOString(),
+      to: new Date(afterMidnight.getTime() + 1_000).toISOString(),
+    });
+    const usage = await json<{
+      total: number;
+      list: unknown[];
+      trend: Array<{ date: string; tokens: number }>;
+      toolUsage: Array<{ toolType: string; calls: number; tokens: number }>;
+    }>(`/api/v1/app/usage?${range}`, { token });
+    expect(usage.data?.total).toBe(51);
+    expect(usage.data?.list).toHaveLength(50);
+    expect(usage.data?.trend).toEqual([
+      { date: shanghaiDate(beforeMidnight), tokens: 250 },
+      { date: shanghaiDate(afterMidnight), tokens: 18 },
+    ]);
+    expect(usage.data?.toolUsage).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ toolType: 'chat', calls: 50, tokens: 250 }),
+        expect.objectContaining({ toolType: 'text', calls: 1, tokens: 18 }),
+      ]),
+    );
+    const secondPage = await json<{
+      total: number;
+      list: unknown[];
+      trend: Array<{ date: string; tokens: number }>;
+    }>(`/api/v1/app/usage?${range}&page=2`, { token });
+    expect(secondPage.data?.total).toBe(51);
+    expect(secondPage.data?.list).toHaveLength(1);
+    expect(secondPage.data?.trend).toEqual(usage.data?.trend);
+    const chatOnly = await json<{
+      total: number;
+      trend: Array<{ date: string; tokens: number }>;
+      toolUsage: Array<{ toolType: string; calls: number }>;
+    }>(`/api/v1/app/usage?${range}&toolType=CHAT`, { token });
+    expect(chatOnly.data?.total).toBe(50);
+    expect(chatOnly.data?.trend).toEqual([{ date: shanghaiDate(beforeMidnight), tokens: 250 }]);
+    expect(chatOnly.data?.toolUsage).toMatchObject([{ toolType: 'chat', calls: 50 }]);
+    const membership = await json<{
+      usageOverview: { trend: Array<{ date: string; tokens: number }> };
+    }>('/api/v1/app/ai/membership', { token });
+    expect(membership.data?.usageOverview.trend).toEqual(usage.data?.trend);
   });
 
   it('会员可读模型与工具广场，并发起 Chat SSE', async () => {
@@ -370,6 +457,55 @@ describe('AI HTTP', () => {
     expect(assets.data?.list[0]?.fileUrl).toContain('/api/v1/app/ai/assets/');
   });
 
+  it('排队任务到期仍保留预占，视频按预占价格快照结算', async () => {
+    const quota = app.get(AiQuotaService);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: 'member@example.com' } });
+    const imageModel = await prisma.aiModel.findFirstOrThrow({
+      where: { toolTypes: { has: AiToolCode.IMAGE } },
+    });
+    const model = await prisma.aiModel.create({
+      data: {
+        providerId: imageModel.providerId,
+        modelKey: `video-price-${randomUUID()}`,
+        displayName: '视频价格快照测试',
+        toolTypes: [AiToolCode.VIDEO],
+      },
+    });
+    const requestId = randomUUID();
+    const reservation = await quota.reserve({ userId: user.id, amount: 800n, requestId });
+    const job = await prisma.aiGenerationJob.create({
+      data: {
+        userId: user.id,
+        toolType: AiToolCode.VIDEO,
+        modelId: model.id,
+        modelKeySnapshot: model.modelKey,
+        prompt: '价格快照测试',
+        idempotencyKey: randomUUID(),
+        reservationId: reservation.id,
+      },
+    });
+    await prisma.aiQuotaReservation.update({
+      where: { id: reservation.id },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    await quota.expireStale();
+    const retained = await prisma.aiQuotaReservation.findUniqueOrThrow({
+      where: { id: reservation.id },
+    });
+    expect(retained.status).toBe(AiReservationStatus.PENDING);
+    expect(retained.expiresAt.getTime()).toBeGreaterThan(Date.now());
+
+    await ai.processJob(job.id);
+    const result = await prisma.aiGenerationJob.findUniqueOrThrow({ where: { id: job.id } });
+    const usage = await prisma.aiUsageRecord.findFirstOrThrow({ where: { jobId: job.id } });
+    const settled = await prisma.aiQuotaReservation.findUniqueOrThrow({
+      where: { id: reservation.id },
+    });
+    expect(result.status).toBe('SUCCEEDED');
+    expect(usage.platformCost).toBe(800);
+    expect(settled).toMatchObject({ status: AiReservationStatus.SETTLED, settledAmount: 800n });
+  });
+
   it('后台可持久化品牌并配置导航显隐', async () => {
     const before = await json<{
       branding: { brandName: string; logoText: string };
@@ -433,6 +569,13 @@ describe('AI HTTP', () => {
   });
 
   it('新增模型不改变权益，显式授权后会员可见，重复标识被拒绝，停用后消失', async () => {
+    // 本用例验证权益授权；显式开启系统模型改选，避免默认模型开关遮蔽授权结果。
+    await json('/api/v1/admin/ai/branding', {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'allow-model-choice-for-entitlement' },
+      body: { userCanPickModel: true },
+    });
     const memberRole = await prisma.role.findUniqueOrThrow({ where: { code: RoleCode.MEMBER } });
     const before = await prisma.aiEntitlement.findMany({ orderBy: { id: 'asc' } });
     const payload = {
@@ -530,6 +673,12 @@ describe('AI HTTP', () => {
       token: memberToken,
     });
     expect(after.data?.some((item) => item.id === created.data?.id)).toBe(false);
+    await json('/api/v1/admin/ai/branding', {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'restore-model-choice-after-entitlement' },
+      body: { userCanPickModel: false },
+    });
   });
 
   it('Chat/Text 默认独立，编辑和清空定价校验最终状态，失败不改变数据库', async () => {
@@ -647,6 +796,13 @@ describe('AI HTTP', () => {
   });
 
   it('真实厂商缺少 Key 时返回错误并释放额度，不生成 Fake 成功回答', async () => {
+    // 缺 Key 路径需要先允许选择该非默认系统模型。
+    await json('/api/v1/admin/ai/branding', {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'allow-model-choice-for-missing-key' },
+      body: { userCanPickModel: true },
+    });
     const provider = await ai.createProvider({
       code: 'missing-chat-key',
       label: '无凭据测试',
@@ -702,6 +858,12 @@ describe('AI HTTP', () => {
     expect(after.availableAmount).toBe(account.availableAmount);
     expect(after.reservedAmount).toBe(account.reservedAmount);
     expect(await prisma.aiUsageRecord.count({ where: { modelId: created.data!.id } })).toBe(0);
+    await json('/api/v1/admin/ai/branding', {
+      method: 'PATCH',
+      token: adminToken,
+      headers: { 'Idempotency-Key': 'restore-model-choice-after-missing-key' },
+      body: { userCanPickModel: false },
+    });
   });
 
   it('匿名 Chat 登录后可认领历史', async () => {

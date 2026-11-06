@@ -121,6 +121,28 @@ describe('AI 凭据加密', () => {
     expect(decryptApiKey(packed, key)).toBe(secret);
   });
 
+  it('凭据密文损坏时返回稳定业务错误，而不是原始解密异常', async () => {
+    const credentials = new AiCredentialService(
+      {
+        aiProviderCredential: {
+          findFirst: async () => ({
+            ciphertext: 'broken',
+            nonce: Buffer.alloc(12).toString('base64'),
+            baseUrl: 'https://example.com/v1',
+          }),
+        },
+      } as unknown as PrismaService,
+      {
+        get: (name: string) =>
+          name === 'AI_CREDENTIAL_ENCRYPTION_KEY' ? key.toString('base64') : undefined,
+      } as unknown as ConfigService<Env, true>,
+    );
+
+    await expect(credentials.resolveUserSecret('user-id', 'credential-id')).rejects.toMatchObject({
+      response: expect.objectContaining({ code: 'AI_CREDENTIAL_INVALID' }),
+    });
+  });
+
   it('未配置主密钥时解析结果为空，长度不对则拒绝', () => {
     expect(parseCredentialEncryptionKey(undefined)).toBeNull();
     expect(parseCredentialEncryptionKey('')).toBeNull();

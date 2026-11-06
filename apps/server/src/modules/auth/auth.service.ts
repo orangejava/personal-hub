@@ -29,6 +29,7 @@ import { hashPassword } from './password';
 import { formatDeviceLabel, maskIp } from './session-display';
 import { AuthRepository, type UserWithRole } from './auth.repository';
 import { TokenService } from './token.service';
+import { AiRewardService } from '../ai/ai-reward.service';
 import {
   buildFilteredMenuTree,
   PERMISSION_CACHE_TTL_SECONDS,
@@ -95,6 +96,7 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly mailService: MailService,
     private readonly config: ConfigService<Env, true>,
+    private readonly rewards: AiRewardService,
   ) {}
 
   async login(input: LoginInput): Promise<AuthLoginResult> {
@@ -193,6 +195,12 @@ export class AuthService {
       expiresAt: session.expiresAt.toISOString(),
     });
     await this.clearLoginFailures(email, input.ip);
+
+    try {
+      await this.rewards.grantDailyLogin(user.id);
+    } catch (error) {
+      this.logger.error(`每日活跃奖励发放失败 user=${user.id}: ${error instanceof Error ? error.message : error}`);
+    }
 
     if (input.anonymousSubjectId) {
       try {
@@ -294,6 +302,15 @@ export class AuthService {
       mustChangePassword: user.mustChangePassword,
       expiresAt: existing.session.expiresAt.toISOString(),
     });
+
+    // refresh 成功完成轮换后计入每日活跃奖励；登录与 refresh 共用幂等键，确保每天只发一次。
+    try {
+      await this.rewards.grantDailyLogin(user.id, 'refresh');
+    } catch (error) {
+      this.logger.error(
+        `每日活跃奖励发放失败 user=${user.id}: ${error instanceof Error ? error.message : error}`,
+      );
+    }
 
     return {
       accessToken: this.tokenService.signAccessToken({
@@ -691,13 +708,14 @@ export class AuthService {
     return user;
   }
 
-  async listAdminUsers(input: { page: number; pageSize: number; email?: string }) {
+  async listAdminUsers(input: { page: number; pageSize: number; email?: string; keyword?: string }) {
     const page = input.page;
     const pageSize = input.pageSize;
     const result = await this.authRepository.listUsers({
       page,
       pageSize,
       email: input.email,
+      keyword: input.keyword,
     });
     return {
       list: result.users.map((user) => ({
@@ -1005,6 +1023,15 @@ export class AuthService {
       throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
     }
     return this.toUserSummary(user);
+  }
+
+  /** 更新当前用户可编辑的资料；邮箱、角色和账号状态由服务端保护。 */
+  async updateProfile(userId: string, input: { nickname?: string; bio?: string }) {
+    const user = await this.authRepository.findUserById(userId);
+    if (user === null || user.status !== UserStatus.ACTIVE) {
+      throw new DomainHttpException(HttpStatus.UNAUTHORIZED, 'AUTH_REQUIRED', '未登录或登录已失效');
+    }
+    return this.toUserSummary(await this.authRepository.updateProfile(userId, input));
   }
 
   /**

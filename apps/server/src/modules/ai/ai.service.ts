@@ -37,6 +37,8 @@ import { parseGroupValue, type AiBranding } from '../system/config-registry';
 import { SystemService } from '../system/system.service';
 import { AuthService } from '../auth/auth.service';
 import { AiCredentialService } from './ai-credential.service';
+import { AiUserProviderService } from './ai-user-provider.service';
+import { shanghaiDate } from './ai-reward.service';
 import { probeProviderConnection } from './ai-provider-probe';
 import { lockModelConfig, updateModelDefaults, validateModelConfig } from './ai-model-config';
 import { estimateTextTokens, platformCost, AiQuotaService } from './ai-quota.service';
@@ -53,6 +55,26 @@ import {
 
 const GUEST_MAX_CHARS = 2000;
 
+interface RuntimeTextModel {
+  id: string;
+  userModelId?: string;
+  userCredentialId?: string;
+  modelKey: string;
+  maxReserveAmount: number;
+  maxOutputTokens: number;
+  inputPricePer1k: number;
+  outputPricePer1k: number;
+  fixedPlatformCost: number | null;
+  chargePlatform: boolean;
+  provider: {
+    id: string;
+    code: string;
+    baseUrl: string | null;
+    authEnvKey: string | null;
+    timeoutMs: number;
+  };
+}
+
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
@@ -61,6 +83,7 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly quota: AiQuotaService,
     private readonly credentials: AiCredentialService,
+    private readonly userProviders: AiUserProviderService,
     private readonly runtime: AiRuntimeService,
     private readonly outbox: OutboxService,
     private readonly system: SystemService,
@@ -114,7 +137,7 @@ export class AiService {
       title: row.title,
       toolType: 'chat' as const,
       status: 'done' as const,
-      modelId: row.modelId,
+      modelId: row.userModelId ?? row.modelId ?? '',
       path: `/ai/chat?sessionId=${row.id}`,
       createdAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
     }));
@@ -172,7 +195,21 @@ export class AiService {
       orderBy: { displayName: 'asc' },
     });
     if (!owner.userId) {
-      return models.map(mapModel);
+      const guestModels = models.map((row) => ({
+        ...mapModel(row),
+        quotaRequiredToolTypes: row.toolTypes.map((tool) => tool.toLowerCase()),
+        requiresPlatformQuota: true,
+      }));
+      if ((await this.readBranding()).userCanPickModel) return guestModels;
+      return guestModels
+        .map((row) => ({
+          ...row,
+          toolTypes: row.toolTypes.filter((tool) => row.defaultToolTypes?.includes(tool)),
+          quotaRequiredToolTypes: row.quotaRequiredToolTypes.filter((tool) =>
+            row.defaultToolTypes?.includes(tool),
+          ),
+        }))
+        .filter((row) => row.toolTypes.length > 0);
     }
     const entitlement = await this.prisma.aiEntitlement.findFirst({
       where: { role: { users: { some: { id: owner.userId } } } },
@@ -182,7 +219,98 @@ export class AiService {
       : [];
     const filtered =
       allowed.length === 0 ? models : models.filter((model) => allowed.includes(model.id));
-    return filtered.map(mapModel);
+    const systemModels = filtered.map((row) => ({
+      ...mapModel(row),
+      quotaRequiredToolTypes: row.toolTypes.map((tool) => tool.toLowerCase()),
+      requiresPlatformQuota: true,
+    }));
+    const mode = await this.userProviders.activeMode(owner.userId);
+    // 关闭改选时只公开每个工具自己的默认关系，避免跨工具默认模型出现在错误的下拉框。
+    const selectableSystem = mode.userCanPickModel
+      ? systemModels
+      : systemModels
+          .map((row) => ({
+            ...row,
+            toolTypes: row.toolTypes.filter((tool) => row.defaultToolTypes?.includes(tool)),
+            quotaRequiredToolTypes: row.quotaRequiredToolTypes.filter((tool) =>
+              row.defaultToolTypes?.includes(tool),
+            ),
+          }))
+          .filter((row) => row.toolTypes.length > 0);
+    if (mode.enabled && !mode.allowed) {
+      // 保留图片/视频的系统模型；Chat/Text 的运行入口会拒绝，目录也必须标明不可发送。
+      return selectableSystem.map((row) => ({
+        ...row,
+        blockedToolTypes: row.toolTypes.filter((tool) => tool === 'chat' || tool === 'text'),
+      }));
+    }
+    if (!mode.enabled) return selectableSystem;
+    const [userModels, userCredentials] = await Promise.all([
+      this.prisma.aiUserModel.findMany({
+        where: { userId: owner.userId, enabled: true, credential: { enabled: true } },
+        include: { credential: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.aiProviderCredential.findMany({
+        where: {
+          ownerType: AiCredentialOwnerType.USER,
+          userId: owner.userId,
+          enabled: true,
+          providerId: { in: filtered.map((row) => row.providerId) },
+        },
+        select: { providerId: true },
+      }),
+    ]);
+    const credentialProviderIds = new Set(
+      userCredentials.map((row) => row.providerId).filter((id): id is string => id !== null),
+    );
+    const defaultUserModelId =
+      mode.preferredUserModelId && userModels.some((row) => row.id === mode.preferredUserModelId)
+        ? mode.preferredUserModelId
+        : userModels[0]?.id;
+    const custom = userModels.map((row) => ({
+      id: row.id,
+      name: row.displayName,
+      provider: row.credential?.label ?? '自备厂商',
+      providerCode: row.credential?.code ?? 'user',
+      providerName: row.credential?.label ?? '自备厂商',
+      toolTypes: ['chat', 'text'],
+      enabled: true,
+      isDefault: row.id === defaultUserModelId,
+      defaultToolTypes: row.id === defaultUserModelId ? ['chat', 'text'] : [],
+      source: 'USER',
+      quotaRequiredToolTypes: [],
+      requiresPlatformQuota: false,
+    }));
+    const hasUserDefault = Boolean(defaultUserModelId);
+    return [
+      ...custom,
+      ...selectableSystem.map((row) => {
+        // 自备模式不能用系统 Key；没有同厂商用户 Key 的文本工具只展示为不可调用。
+        const blockedToolTypes: string[] = row.providerId && credentialProviderIds.has(row.providerId)
+          ? []
+          : row.toolTypes.filter((tool) => tool === 'chat' || tool === 'text');
+        // 图片/视频仍由系统 Provider 执行并预占额度；文本工具才受用户 Key 扣额开关控制。
+        const quotaRequiredToolTypes = row.toolTypes.filter(
+          (tool) =>
+            !blockedToolTypes.includes(tool) &&
+            (tool === 'image' || tool === 'video' || mode.userKeyConsumesQuota),
+        );
+        const defaultToolTypes = row.defaultToolTypes?.filter(
+          (tool) =>
+            !blockedToolTypes.includes(tool) &&
+            (!hasUserDefault || tool === 'image' || tool === 'video'),
+        );
+        return {
+          ...row,
+          isDefault: Boolean(defaultToolTypes?.length),
+          defaultToolTypes,
+          blockedToolTypes,
+          quotaRequiredToolTypes,
+          requiresPlatformQuota: quotaRequiredToolTypes.length > 0,
+        };
+      }),
+    ];
   }
 
   async entitlement(userId: string) {
@@ -242,16 +370,33 @@ export class AiService {
     const entitlement = await this.entitlement(userId);
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 50;
-    const from = query.from
-      ? new Date(query.from)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    // 默认展示上海自然日的今天及之前 29 天，避免凌晨附近出现第 31 个日期。
+    const defaultFrom = new Date(`${shanghaiDate()}T00:00:00+08:00`);
+    defaultFrom.setUTCDate(defaultFrom.getUTCDate() - 29);
+    const from = query.from ? new Date(query.from) : defaultFrom;
     const to = query.to ? new Date(query.to) : new Date();
     const where = {
       userId,
       createdAt: { gte: from, lte: to },
       ...(query.toolType ? { toolType: query.toolType } : {}),
     };
-    const [records, total] = await Promise.all([
+    // 明细仍分页；趋势和工具分布在数据库按全部匹配记录聚合，不能从当前页推算。
+    const aggregates = this.prisma.$queryRaw<
+      Array<{ date: string; toolType: AiToolCode; tokens: bigint; calls: bigint }>
+    >(Prisma.sql`
+      SELECT to_char(created_at AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD') AS date,
+             tool_type AS "toolType",
+             COALESCE(SUM(input_tokens + output_tokens), 0)::bigint AS tokens,
+             COUNT(*)::bigint AS calls
+      FROM ai_usage_records
+      WHERE user_id = ${userId}::uuid
+        AND created_at >= ${from}
+        AND created_at <= ${to}
+        ${query.toolType ? Prisma.sql`AND tool_type::text = ${query.toolType}` : Prisma.empty}
+      GROUP BY 1, 2
+      ORDER BY 1 ASC
+    `);
+    const [records, total, summary] = await Promise.all([
       this.prisma.aiUsageRecord.findMany({
         where,
         orderBy: { createdAt: 'desc' },
@@ -260,15 +405,16 @@ export class AiService {
         include: { model: true },
       }),
       this.prisma.aiUsageRecord.count({ where }),
+      aggregates,
     ]);
     const byDay = new Map<string, number>();
     const byTool = new Map<string, { tokens: number; calls: number }>();
-    for (const row of records) {
-      const day = row.createdAt.toISOString().slice(0, 10);
-      byDay.set(day, (byDay.get(day) ?? 0) + row.platformCost);
+    for (const row of summary) {
+      const tokens = Number(row.tokens);
+      byDay.set(row.date, (byDay.get(row.date) ?? 0) + tokens);
       const current = byTool.get(row.toolType) ?? { tokens: 0, calls: 0 };
-      current.tokens += row.platformCost;
-      current.calls += 1;
+      current.tokens += tokens;
+      current.calls += Number(row.calls);
       byTool.set(row.toolType, current);
     }
     return {
@@ -283,7 +429,7 @@ export class AiService {
         id: row.id,
         toolType: row.toolType.toLowerCase(),
         toolName: row.toolType.toLowerCase(),
-        tokens: row.platformCost,
+        tokens: row.inputTokens + row.outputTokens,
         inputTokens: row.inputTokens,
         outputTokens: row.outputTokens,
         platformCost: row.platformCost,
@@ -298,14 +444,31 @@ export class AiService {
     };
   }
 
-  async listSessions(owner: { type: AiOwnerType; id: string }, page = 1, pageSize = 20) {
-    const where = { ownerType: owner.type, ownerId: owner.id, deletedAt: null };
+  async listSessions(
+    owner: { type: AiOwnerType; id: string },
+    page = 1,
+    pageSize = 20,
+    keyword?: string,
+  ) {
+    const normalizedKeyword = keyword?.trim();
+    const where = {
+      ownerType: owner.type,
+      ownerId: owner.id,
+      deletedAt: null,
+      ...(normalizedKeyword
+        ? { title: { contains: normalizedKeyword, mode: 'insensitive' as const } }
+        : {}),
+    };
     const [list, total] = await Promise.all([
       this.prisma.aiConversation.findMany({
         where,
         orderBy: [{ pinnedAt: 'desc' }, { lastMessageAt: 'desc' }],
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          model: { select: { displayName: true, provider: { select: { label: true } } } },
+          userModel: { select: { displayName: true, credential: { select: { label: true } } } },
+        },
       }),
       this.prisma.aiConversation.count({ where }),
     ]);
@@ -314,17 +477,19 @@ export class AiService {
 
   async createSession(
     owner: { type: AiOwnerType; id: string; userId?: string; permissionVersion?: number },
-    input: { title?: string; modelId?: string; systemPrompt?: string },
+    input: { title?: string; modelId?: string; systemPrompt?: string; toolCode?: AiToolCode },
   ) {
-    await this.assertToolAvailable(AiToolCode.CHAT, owner);
-    const model = await this.resolveModel(input.modelId, owner, AiToolCode.CHAT);
+    const toolCode = input.toolCode ?? AiToolCode.CHAT;
+    await this.assertToolAvailable(toolCode, owner);
+    const model = await this.resolveTextModel(input.modelId, owner, toolCode);
     return mapSession(
       await this.prisma.aiConversation.create({
         data: {
           ownerType: owner.type,
           ownerId: owner.id,
           title: input.title?.trim() || '新对话',
-          modelId: model.id,
+          modelId: model.userModelId ? null : model.id,
+          userModelId: model.userModelId ?? null,
           systemPrompt: input.systemPrompt,
         },
       }),
@@ -338,14 +503,16 @@ export class AiService {
   ) {
     await this.requireSession(owner, sessionId);
     await this.assertToolAvailable(AiToolCode.CHAT, owner);
-    const data: Prisma.AiConversationUpdateInput = {};
+    const data: Prisma.AiConversationUncheckedUpdateInput = {};
     if (input.title !== undefined) {
       data.title = input.title.trim();
       data.titleSource = AiTitleSource.USER;
     }
     if (input.modelId) {
-      const model = await this.resolveModel(input.modelId, owner, AiToolCode.CHAT);
-      data.model = { connect: { id: model.id } };
+      const model = await this.resolveTextModel(input.modelId, owner, AiToolCode.CHAT);
+      // 数据库要求两个模型外键恰好一个非空；嵌套 connect/disconnect 会拆成多次 UPDATE。
+      data.modelId = model.userModelId ? null : model.id;
+      data.userModelId = model.userModelId ?? null;
     }
     if (input.systemPrompt !== undefined) {
       data.systemPrompt = input.systemPrompt;
@@ -405,6 +572,7 @@ export class AiService {
     /** 内部重新生成入口：复用原问题，直到新消息事务提交才隐藏旧回答。 */
     regenerateFrom?: { assistantId: string; userMessageId: string };
   }) {
+    const startedAtMs = Date.now();
     const toolCode = input.toolCode ?? AiToolCode.CHAT;
     await this.assertToolAvailable(toolCode, input.owner);
     let session = await this.requireSession(input.owner, input.sessionId);
@@ -534,14 +702,14 @@ export class AiService {
         await this.runtime.hitRateLimit(`ai:guest:rpm:${guestKey}`, 5, 60);
         await this.runtime.hitRateLimit(`ai:guest:rpd:${guestKey}`, 20, 24 * 60 * 60);
       }
-      const model = await this.resolveModel(
-        input.body.modelId ?? session.modelId,
+      const model = await this.resolveTextModel(
+        input.body.modelId ?? session.userModelId ?? session.modelId ?? undefined,
         input.owner,
         toolCode,
       );
       const estimatedInputTokens = estimateTextTokens(input.body.content);
       const reserveAmount = BigInt(model.maxReserveAmount);
-      if (input.owner.userId) {
+      if (input.owner.userId && model.chargePlatform) {
         const reservation = await this.quota.reserve({
           userId: input.owner.userId,
           amount: reserveAmount,
@@ -586,7 +754,8 @@ export class AiService {
             role: AiMessageRole.ASSISTANT,
             parentMessageId: userMessage.id,
             status: AiMessageStatus.STREAMING,
-            modelId: model.id,
+            modelId: model.userModelId ? null : model.id,
+            userModelId: model.userModelId ?? null,
             modelKeySnapshot: model.modelKey,
             reservationId,
             requestId: input.requestId,
@@ -664,6 +833,8 @@ export class AiService {
           for await (const delta of this.chatProvider.stream({
             modelKey: model.modelKey,
             providerId: model.provider.id,
+            userId: input.owner.userId,
+            userCredentialId: model.userCredentialId,
             providerCode: model.provider.code,
             baseUrl: model.provider.baseUrl,
             authEnvKey: model.provider.authEnvKey,
@@ -691,16 +862,28 @@ export class AiService {
       const stopped = await this.runtime.isStopped(assistant.id);
       const inputTokens = providerUsage?.inputTokens ?? estimatedInputTokens;
       const outputTokens = providerUsage?.outputTokens ?? estimateTextTokens(output);
-      const cost = platformCost({
-        inputTokens,
-        outputTokens,
-        inputPricePer1k: model.inputPricePer1k,
-        outputPricePer1k: model.outputPricePer1k,
-        fixedPlatformCost: model.fixedPlatformCost,
-      });
+      const estimatedCost = model.userModelId
+        ? null
+        : platformCost({
+            inputTokens,
+            outputTokens,
+            inputPricePer1k: model.inputPricePer1k,
+            outputPricePer1k: model.outputPricePer1k,
+            fixedPlatformCost: model.fixedPlatformCost,
+          });
+      const cost = model.chargePlatform ? (estimatedCost ?? 0) : 0;
+      let reportedPlatformCost = stopped && output.length === 0 ? 0 : cost;
       // 消息终态和会话活跃指针必须在同一事务中落库，避免回答已完成但会话仍卡在生成中。
-      await this.prisma.$transaction([
-        this.prisma.aiMessage.update({
+      await this.prisma.$transaction(async (tx) => {
+        if (reservationId) {
+          // 先锁定预占行，再写消息终态；到期清理也锁这行，避免读到旧消息后释放新完成的回答。
+          const saved = await tx.aiQuotaReservation.updateMany({
+            where: { id: reservationId, status: 'PENDING' },
+            data: { settledAmount: BigInt(reportedPlatformCost) },
+          });
+          if (saved.count !== 1) throw new Error('AI_QUOTA_RESERVATION_UNAVAILABLE');
+        }
+        await tx.aiMessage.update({
           where: { id: assistant.id },
           data: {
             content: output,
@@ -710,31 +893,30 @@ export class AiService {
             stoppedBy: stopped ? AiStoppedBy.USER : null,
             errorCode: null,
           },
-        }),
-        this.prisma.aiMessage.update({
-          where: { id: userMessage.id },
-          data: { inputTokens },
-        }),
-        this.prisma.aiConversation.update({
+        });
+        await tx.aiMessage.update({ where: { id: userMessage.id }, data: { inputTokens } });
+        await tx.aiConversation.update({
           where: { id: session.id },
           data: {
             activeMessageId: null,
             totalInputTokens: { increment: inputTokens },
             totalOutputTokens: { increment: outputTokens },
           },
-        }),
-      ]);
+        });
+      });
       messageFinalized = true;
       if (reservationId && input.owner.userId) {
         try {
           if (stopped && output.length === 0) {
             await this.quota.release(reservationId, input.requestId);
           } else {
-            await this.quota.settle(reservationId, BigInt(cost), input.requestId);
+            const settled = await this.quota.settle(reservationId, BigInt(cost), input.requestId);
+            if (!settled) throw new Error('AI_QUOTA_RESERVATION_UNAVAILABLE');
           }
           reservationFinalized = true;
         } catch (quotaError) {
           // 回答已经持久化，额度结算交给后续补偿/过期清理，不能把成功回答改写成失败。
+          reportedPlatformCost = 0;
           this.logger.error(
             `AI 额度结算待补偿 ${assistant.id}: ${
               quotaError instanceof Error ? quotaError.message : quotaError
@@ -749,10 +931,13 @@ export class AiService {
             ownerType: input.owner.type,
             ownerId: input.owner.id,
             toolType: toolCode,
-            modelId: model.id,
+            modelId: model.userModelId ? null : model.id,
+            userModelId: model.userModelId ?? null,
             inputTokens,
             outputTokens,
-            platformCost: cost,
+            platformCost: reportedPlatformCost,
+            estimatedPlatformCost: estimatedCost,
+            latencyMs: Math.max(0, Date.now() - startedAtMs),
             messageId: assistant.id,
           },
         });
@@ -772,7 +957,7 @@ export class AiService {
         userMessageId: userMessage.id,
         assistantMessageId: assistant.id,
         status: stopped ? 'stopped' : 'done',
-        usage: { inputTokens, outputTokens, platformCost: cost },
+        usage: { inputTokens, outputTokens, platformCost: reportedPlatformCost },
       });
       input.response.end();
     } catch (error) {
@@ -826,10 +1011,7 @@ export class AiService {
           userMessageId: failureContext.userMessageId,
           assistantMessageId: failureContext.assistantMessageId,
           code: failureCode,
-          message:
-            failureCode === 'AI_PROVIDER_KEY_MISSING' || failureCode === 'AI_CREDENTIAL_KEY_MISSING'
-              ? '模型厂商缺少可用凭据，请联系管理员配置'
-              : 'AI 服务调用失败，请稍后重试',
+          message: aiFailureMessage(failureCode),
         });
         input.response.end();
         return;
@@ -965,6 +1147,7 @@ export class AiService {
     const session = await this.createSession(input.owner, {
       title: `文本生成 · ${input.body.scenario}`,
       modelId: input.body.modelId,
+      toolCode: AiToolCode.TEXT,
     });
     await this.streamChat({
       owner: input.owner,
@@ -1194,7 +1377,7 @@ export class AiService {
   async processJob(jobId: string): Promise<void> {
     const job = await this.prisma.aiGenerationJob.findUnique({
       where: { id: jobId },
-      include: { model: true },
+      include: { model: true, reservation: true },
     });
     if (
       !job ||
@@ -1308,7 +1491,10 @@ export class AiService {
           },
         });
       }
-      const cost = job.model.fixedPlatformCost ?? 500;
+      // 任务创建时的预占金额是价格快照；后台之后改价不应改变本次实扣。
+      const cost = job.reservation
+        ? Number(job.reservation.reservedAmount)
+        : (job.model.fixedPlatformCost ?? (job.toolType === AiToolCode.VIDEO ? 800 : 500));
       const usageData = {
         userId: job.userId,
         ownerType: AiOwnerType.USER,
@@ -1316,12 +1502,20 @@ export class AiService {
         toolType: job.toolType,
         modelId: job.modelId,
         platformCost: cost,
+        estimatedPlatformCost: cost,
+        latencyMs: job.startedAt ? Math.max(0, Date.now() - job.startedAt.getTime()) : null,
         jobId,
       };
       // 额度结算、usage 和成功终态必须同事务提交，避免只完成其中一部分。
       await this.prisma.$transaction(async (tx) => {
         if (job.reservationId) {
-          await this.quota.settleInTransaction(tx, job.reservationId!, BigInt(cost), jobId);
+          const settled = await this.quota.settleInTransaction(
+            tx,
+            job.reservationId!,
+            BigInt(cost),
+            jobId,
+          );
+          if (!settled) throw new Error('AI_QUOTA_RESERVATION_UNAVAILABLE');
         }
         await tx.aiUsageRecord.create({ data: usageData });
         const completed = await tx.aiGenerationJob.updateMany({
@@ -1623,26 +1817,261 @@ export class AiService {
     };
   }
 
-  async adminStats() {
-    const [jobs, usage] = await Promise.all([
-      this.prisma.aiGenerationJob.groupBy({ by: ['status'], _count: true }),
-      this.prisma.aiUsageRecord.aggregate({ _sum: { platformCost: true }, _count: true }),
-    ]);
+  async adminStats(range: '24h' | '7d' | '30d' = '7d') {
+    const since = new Date(Date.now() - { '24h': 1, '7d': 7, '30d': 30 }[range] * 86400000);
+    // 按稳定主键分页，避免 30 天记录一次性加载到 Node 内存。
+    const usageWhere = { createdAt: { gte: since } };
+    const usageInclude = {
+      user: { select: { nickname: true, email: true } },
+      model: { select: { displayName: true, provider: { select: { label: true } } } },
+      userModel: { select: { displayName: true, credential: { select: { label: true } } } },
+    } as const;
+    const trends = new Map<
+      string,
+      {
+        date: string;
+        tokens: number;
+        calls: number;
+        estimatedCost: number;
+        platformCharged: number;
+        unknownEstimates: number;
+      }
+    >();
+    const tools = new Map<
+      string,
+      { toolType: string; toolName: string; tokens: number; calls: number; ratio: number }
+    >();
+    const users = new Map<
+      string,
+      { userId: string; nickname: string; tokens: number; calls: number }
+    >();
+    const models = new Map<
+      string,
+      {
+        modelId: string;
+        modelName: string;
+        providerName: string;
+        tokens: number;
+        calls: number;
+        estimatedCost: number;
+        platformCharged: number;
+        unknownEstimates: number;
+      }
+    >();
+    let totalTokens = 0;
+    let estimatedCost = 0;
+    let platformCharged = 0;
+    let unknownEstimates = 0;
+    let totalCalls = 0;
+    let generationTasks = 0;
+    let imageTasks = 0;
+    let videoTasks = 0;
+    let failedCalls = 0;
+    let succeededJobs = 0;
+    let durationSum = 0;
+    let durationCount = 0;
+    const durationByDate = new Map<string, { sum: number; count: number }>();
+    const statusCounts = new Map<string, number>();
+    const dateFormat = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    let usageCursor: string | undefined;
+    while (true) {
+      const usage = await this.prisma.aiUsageRecord.findMany({
+        where: usageWhere,
+        include: usageInclude,
+        orderBy: { id: 'asc' },
+        take: 500,
+        ...(usageCursor ? { cursor: { id: usageCursor }, skip: 1 } : {}),
+      });
+      if (!usage.length) break;
+      for (const row of usage) {
+        totalCalls++;
+        const tokens = row.inputTokens + row.outputTokens;
+        const date = dateFormat.format(row.createdAt);
+        const trend = trends.get(date) ?? {
+          date,
+          tokens: 0,
+          calls: 0,
+          estimatedCost: 0,
+          platformCharged: 0,
+          unknownEstimates: 0,
+        };
+        trend.tokens += tokens;
+        trend.calls++;
+        trend.platformCharged += row.platformCost;
+        if (row.estimatedPlatformCost === null) trend.unknownEstimates++;
+        else trend.estimatedCost += row.estimatedPlatformCost;
+        trends.set(date, trend);
+        const toolType = row.toolType.toLowerCase();
+        const tool = tools.get(toolType) ?? {
+          toolType,
+          toolName: (
+            { chat: '对话', text: '文本', image: '图片', video: '视频' } as Record<string, string>
+          )[toolType],
+          tokens: 0,
+          calls: 0,
+          ratio: 0,
+        };
+        tool.tokens += tokens;
+        tool.calls++;
+        tools.set(toolType, tool);
+        if (row.userId) {
+          const user = users.get(row.userId) ?? {
+            userId: row.userId,
+            nickname: row.user?.nickname ?? row.user?.email ?? '已删除用户',
+            tokens: 0,
+            calls: 0,
+          };
+          user.tokens += tokens;
+          user.calls++;
+          users.set(row.userId, user);
+        }
+        const modelId = row.userModelId ?? row.modelId ?? 'deleted';
+        const model = models.get(modelId) ?? {
+          modelId,
+          modelName: row.userModel?.displayName ?? row.model?.displayName ?? '历史模型',
+          providerName:
+            row.userModel?.credential?.label ?? row.model?.provider.label ?? '已删除厂商',
+          tokens: 0,
+          calls: 0,
+          estimatedCost: 0,
+          platformCharged: 0,
+          unknownEstimates: 0,
+        };
+        model.tokens += tokens;
+        model.calls++;
+        model.platformCharged += row.platformCost;
+        if (row.estimatedPlatformCost === null) model.unknownEstimates++;
+        else model.estimatedCost += row.estimatedPlatformCost;
+        models.set(modelId, model);
+        totalTokens += tokens;
+        platformCharged += row.platformCost;
+        if (row.estimatedPlatformCost === null) unknownEstimates++;
+        else estimatedCost += row.estimatedPlatformCost;
+        // 已关联生成任务的耗时由 job 统计，避免重复计算。
+        if (row.latencyMs !== null && !row.jobId) {
+          durationSum += row.latencyMs;
+          durationCount++;
+          const item = durationByDate.get(date) ?? { sum: 0, count: 0 };
+          item.sum += row.latencyMs;
+          item.count++;
+          durationByDate.set(date, item);
+        }
+      }
+      usageCursor = usage.at(-1)!.id;
+      if (usage.length < 500) break;
+    }
+    let jobCursor: string | undefined;
+    while (true) {
+      const jobs = await this.prisma.aiGenerationJob.findMany({
+        where: { createdAt: { gte: since } },
+        select: {
+          id: true,
+          toolType: true,
+          status: true,
+          startedAt: true,
+          finishedAt: true,
+          createdAt: true,
+        },
+        orderBy: { id: 'asc' },
+        take: 500,
+        ...(jobCursor ? { cursor: { id: jobCursor }, skip: 1 } : {}),
+      });
+      if (!jobs.length) break;
+      for (const row of jobs) {
+        generationTasks++;
+        if (row.toolType === AiToolCode.IMAGE) imageTasks++;
+        if (row.toolType === AiToolCode.VIDEO) videoTasks++;
+        if (row.status === 'FAILED') failedCalls++;
+        if (row.status === 'SUCCEEDED') succeededJobs++;
+        if (row.startedAt && row.finishedAt) {
+          const duration = row.finishedAt.getTime() - row.startedAt.getTime();
+          durationSum += duration;
+          durationCount++;
+          const date = dateFormat.format(row.createdAt);
+          const item = durationByDate.get(date) ?? { sum: 0, count: 0 };
+          item.sum += duration;
+          item.count++;
+          durationByDate.set(date, item);
+        }
+        statusCounts.set(
+          row.status.toLowerCase(),
+          (statusCounts.get(row.status.toLowerCase()) ?? 0) + 1,
+        );
+      }
+      jobCursor = jobs.at(-1)!.id;
+      if (jobs.length < 500) break;
+    }
+    for (const date of durationByDate.keys()) {
+      if (!trends.has(date)) {
+        // 失败任务没有用量记录，仍需在每日趋势中展示它的耗时。
+        trends.set(date, {
+          date, tokens: 0, calls: 0, estimatedCost: 0, platformCharged: 0, unknownEstimates: 0,
+        });
+      }
+    }
     return {
       summary: {
-        totalTokens: usage._sum.platformCost ?? 0,
-        totalCalls: usage._count,
-        estimatedCost: usage._sum.platformCost ?? 0,
-        activeUsers: 0,
+        totalTokens,
+        totalCalls,
+        estimatedCost,
+        platformCharged,
+        unknownEstimates,
+        activeUsers: users.size,
+        imageTasks,
+        videoTasks,
+        generationTasks,
+        failedCalls,
+        successRate: generationTasks
+          ? Math.round((succeededJobs / generationTasks) * 10000) / 100
+          : 100,
+        averageDurationMs: durationCount ? Math.round(durationSum / durationCount) : 0,
       },
-      trends: [],
-      toolShares: [],
-      userRanks: [],
-      modelDistributions: [],
-      jobs: jobs.map((row) => ({ status: row.status, count: row._count })),
-      totalCalls: usage._count,
-      totalPlatformCost: usage._sum.platformCost ?? 0,
+      trends: [...trends.values()]
+        .map((trend) => {
+          const values = durationByDate.get(trend.date);
+          return {
+            ...trend,
+            averageDurationMs: values?.count ? Math.round(values.sum / values.count) : 0,
+          };
+        })
+        .sort((a, b) => a.date.localeCompare(b.date)),
+      toolShares: [...tools.values()].map((row) => ({
+        ...row,
+        ratio: totalCalls ? Math.round((row.calls / totalCalls) * 100) : 0,
+      })),
+      userRanks: [...users.values()]
+        .sort((a, b) => b.tokens - a.tokens)
+        .slice(0, 5)
+        .map((row, index) => ({ ...row, rank: index + 1 })),
+      modelDistributions: [...models.values()].sort((a, b) => b.tokens - a.tokens),
+      statusShares: [...statusCounts.entries()].map(([status, calls]) => ({
+        status,
+        calls,
+        ratio: generationTasks ? Math.round((calls / generationTasks) * 100) : 0,
+      })),
     };
+  }
+
+  adjustQuota(
+    input: {
+      userId: string;
+      direction: 'CREDIT' | 'DEBIT';
+      amount: number;
+      reason: string;
+      idempotencyKey: string;
+    },
+    actorId: string,
+  ) {
+    return this.quota.adjust({ ...input, actorId });
+  }
+
+  quotaAccount(userId: string, actorId: string) {
+    return this.quota.account(userId, actorId);
   }
 
   async patchProvider(
@@ -2193,7 +2622,14 @@ export class AiService {
   }
 
   async patchBranding(
-    input: { brandName?: string; logoText?: string; aiEnabled?: boolean },
+    input: {
+      brandName?: string;
+      logoText?: string;
+      aiEnabled?: boolean;
+      userProviderEnabled?: boolean;
+      userCanPickModel?: boolean;
+      userKeyConsumesQuota?: boolean;
+    },
     actorId: string,
     requestId: string,
   ) {
@@ -2204,6 +2640,9 @@ export class AiService {
         aiEnabled: input.aiEnabled ?? current.aiEnabled,
         brandName: input.brandName?.trim() || current.brandName,
         logoText: input.logoText?.trim() || current.logoText,
+        userProviderEnabled: input.userProviderEnabled ?? current.userProviderEnabled,
+        userCanPickModel: input.userCanPickModel ?? current.userCanPickModel,
+        userKeyConsumesQuota: input.userKeyConsumesQuota ?? current.userKeyConsumesQuota,
       },
       expectedVersion: current.version,
       actorId,
@@ -2214,6 +2653,9 @@ export class AiService {
       brandName: value.brandName,
       logoText: value.logoText,
       aiEnabled: value.aiEnabled,
+      userProviderEnabled: value.userProviderEnabled,
+      userCanPickModel: value.userCanPickModel,
+      userKeyConsumesQuota: value.userKeyConsumesQuota,
       version: next.version,
       updatedAt: next.updatedAt,
     };
@@ -2348,6 +2790,9 @@ export class AiService {
       brandName: value.brandName,
       logoText: value.logoText,
       aiEnabled: value.aiEnabled,
+      userProviderEnabled: value.userProviderEnabled,
+      userCanPickModel: value.userCanPickModel,
+      userKeyConsumesQuota: value.userKeyConsumesQuota,
       version: row?.version ?? 1,
       updatedAt: (row?.updatedAt ?? new Date()).toISOString(),
     };
@@ -2424,6 +2869,127 @@ export class AiService {
     }
   }
 
+  /** 自备模式的模型与凭据必须一同解析，避免在预占后才发现 Key 不可用。 */
+  private async resolveTextModel(
+    modelId: string | undefined,
+    owner: { type: AiOwnerType; id: string; userId?: string },
+    tool: AiToolCode,
+  ): Promise<RuntimeTextModel> {
+    const mode = owner.userId ? await this.userProviders.activeMode(owner.userId) : null;
+    if (mode?.enabled && !mode.allowed) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_USER_PROVIDER_DISABLED',
+        '管理员已暂停自备能力；请稍后重试或关闭自备模式',
+      );
+    }
+    if (mode?.enabled && owner.userId) {
+      let userModelId = modelId;
+      if (!userModelId) {
+        const preferred = mode.preferredUserModelId
+          ? await this.prisma.aiUserModel.findFirst({
+              where: {
+                id: mode.preferredUserModelId,
+                userId: owner.userId,
+                enabled: true,
+                credential: { enabled: true },
+              },
+              select: { id: true },
+            })
+          : null;
+        const first =
+          preferred ??
+          (await this.prisma.aiUserModel.findFirst({
+            where: { userId: owner.userId, enabled: true, credential: { enabled: true } },
+            orderBy: { createdAt: 'asc' },
+            select: { id: true },
+          }));
+        userModelId = first?.id;
+      }
+      if (userModelId) {
+        const userModel = await this.prisma.aiUserModel.findFirst({
+          where: { id: userModelId, userId: owner.userId, enabled: true },
+          include: { credential: true },
+        });
+        if (userModel) {
+          if (!userModel.credential?.enabled || !userModel.credential.baseUrl) {
+            throw new DomainHttpException(
+              HttpStatus.CONFLICT,
+              'AI_USER_CREDENTIAL_REQUIRED',
+              '自建模型的 Key 不可用；请到个人设置补充，或关闭自备模式',
+            );
+          }
+          return {
+            id: userModel.id,
+            userModelId: userModel.id,
+            userCredentialId: userModel.credential.id,
+            modelKey: userModel.modelKey,
+            maxReserveAmount: 0,
+            maxOutputTokens: 2048,
+            inputPricePer1k: 0,
+            outputPricePer1k: 0,
+            fixedPlatformCost: null,
+            chargePlatform: false,
+            provider: {
+              id: userModel.credential.id,
+              code: 'openai-compatible',
+              baseUrl: userModel.credential.baseUrl,
+              authEnvKey: null,
+              timeoutMs: 20_000,
+            },
+          };
+        }
+        const historical = await this.prisma.aiUserModel.findFirst({
+          where: { id: userModelId, userId: owner.userId },
+          select: { id: true },
+        });
+        if (historical) {
+          throw new DomainHttpException(
+            HttpStatus.CONFLICT,
+            'AI_USER_MODEL_UNAVAILABLE',
+            '原自建模型不可用；请重新选择模型，或关闭自备模式',
+          );
+        }
+      }
+    }
+    if (modelId && owner.userId) {
+      const historical = await this.prisma.aiUserModel.findFirst({
+        where: { id: modelId, userId: owner.userId },
+        select: { id: true },
+      });
+      if (historical) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_USER_MODEL_UNAVAILABLE',
+          '自建模型仅在自备模式可用；请重新选择模型或开启自备模式',
+        );
+      }
+    }
+    const systemModel = await this.resolveModel(modelId, owner, tool);
+    if (!mode?.enabled || !owner.userId) return { ...systemModel, chargePlatform: true };
+    const credential = await this.prisma.aiProviderCredential.findFirst({
+      where: {
+        ownerType: AiCredentialOwnerType.USER,
+        userId: owner.userId,
+        providerId: systemModel.provider.id,
+        enabled: true,
+      },
+      select: { id: true },
+    });
+    if (!credential) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_USER_CREDENTIAL_REQUIRED',
+        '此模型没有匹配的自备 Key；请到个人设置补充，或关闭自备模式',
+      );
+    }
+    return {
+      ...systemModel,
+      userCredentialId: credential.id,
+      chargePlatform: mode.userKeyConsumesQuota,
+    };
+  }
+
   private async resolveModel(
     modelId: string | undefined,
     owner: { type: AiOwnerType; id: string; userId?: string },
@@ -2465,6 +3031,22 @@ export class AiService {
           HttpStatus.FORBIDDEN,
           'AUTH_FORBIDDEN',
           '当前套餐未开放该模型',
+        );
+      }
+    }
+    const userCanPickModel = owner.userId
+      ? (await this.userProviders.activeMode(owner.userId)).userCanPickModel
+      : (await this.readBranding()).userCanPickModel;
+    if (!userCanPickModel && modelId) {
+      const defaultTool = await this.prisma.aiTool.findUnique({
+        where: { code: tool },
+        select: { defaultModelId: true },
+      });
+      if (model.id !== defaultTool?.defaultModelId) {
+        throw new DomainHttpException(
+          HttpStatus.CONFLICT,
+          'AI_SYSTEM_MODEL_SELECTION_DISABLED',
+          '当前不可改选系统模型；请选择该工具的默认模型',
         );
       }
     }
@@ -2663,13 +3245,15 @@ function mapModel(row: {
   enabled: boolean;
   isDefault: boolean;
   toolTypes: AiToolCode[];
-  provider?: { label: string } | null;
+  provider?: { id: string; code: string; label: string } | null;
   defaultForTools?: Array<{ code: AiToolCode }>;
 }) {
   return {
     id: row.id,
     name: row.displayName,
     provider: row.provider?.label ?? 'fake',
+    providerId: row.provider?.id,
+    providerCode: row.provider?.code,
     toolTypes: row.toolTypes.map((item) => item.toLowerCase()),
     enabled: row.enabled,
     isDefault: row.defaultForTools ? row.defaultForTools.length > 0 : row.isDefault,
@@ -2725,7 +3309,8 @@ function mapTemplate(row: {
 function mapSession(row: {
   id: string;
   title: string;
-  modelId: string;
+  modelId: string | null;
+  userModelId?: string | null;
   systemPrompt: string | null;
   contextLimit: number;
   enableKnowledgeReference: boolean;
@@ -2733,11 +3318,20 @@ function mapSession(row: {
   totalInputTokens: number;
   totalOutputTokens: number;
   lastMessageAt: Date | null;
+  model?: { displayName: string; provider?: { label: string } | null } | null;
+  userModel?: { displayName: string; credential?: { label: string | null } | null } | null;
 }) {
   return {
     id: row.id,
     title: row.title,
-    modelId: row.modelId,
+    modelId: row.userModelId ?? row.modelId ?? '',
+    modelName:
+      row.userModel?.displayName ??
+      row.model?.displayName ??
+      row.userModelId ??
+      row.modelId ??
+      '历史模型',
+    providerName: row.userModel?.credential?.label ?? row.model?.provider?.label ?? '未知厂商',
     systemPrompt: row.systemPrompt ?? undefined,
     contextLimit: row.contextLimit,
     enableKnowledgeReference: row.enableKnowledgeReference,
@@ -2788,7 +3382,14 @@ function aiFailureCode(error: unknown): string {
     const response = error.getResponse() as { code?: string };
     if (
       response.code &&
-      ['AI_PROVIDER_KEY_MISSING', 'AI_CREDENTIAL_KEY_MISSING'].includes(response.code)
+      [
+        'AI_PROVIDER_KEY_MISSING',
+        'AI_CREDENTIAL_KEY_MISSING',
+        'AI_CREDENTIAL_INVALID',
+        'AI_USER_CREDENTIAL_REQUIRED',
+        'AI_USER_MODEL_UNAVAILABLE',
+        'AI_SYSTEM_MODEL_SELECTION_DISABLED',
+      ].includes(response.code)
     )
       return response.code;
   }
@@ -2803,6 +3404,22 @@ function aiFailureCode(error: unknown): string {
     return 'AI_PROVIDER_TIMEOUT';
   }
   return 'AI_PROVIDER_FAILED';
+}
+
+function aiFailureMessage(code: string): string {
+  if (code === 'AI_USER_CREDENTIAL_REQUIRED' || code === 'AI_CREDENTIAL_INVALID') {
+    return '自备模式缺少可用 Key，请到个人设置补充配置或关闭自备模式';
+  }
+  if (code === 'AI_USER_MODEL_UNAVAILABLE') {
+    return '当前会话的自建模型已不可用，请重新选择模型或关闭自备模式';
+  }
+  if (code === 'AI_SYSTEM_MODEL_SELECTION_DISABLED') {
+    return '当前不可改选系统模型，请选择系统默认模型或自建模型';
+  }
+  if (code === 'AI_PROVIDER_KEY_MISSING' || code === 'AI_CREDENTIAL_KEY_MISSING') {
+    return '模型厂商缺少可用凭据，请联系管理员配置';
+  }
+  return 'AI 服务调用失败，请稍后重试';
 }
 
 function mapJob(

@@ -32,6 +32,7 @@ export class AdminUsersController {
       page: query.page,
       pageSize: query.pageSize,
       email: query.email,
+      keyword: query.keyword,
     });
   }
 

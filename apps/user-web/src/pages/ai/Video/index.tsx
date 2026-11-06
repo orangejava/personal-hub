@@ -118,6 +118,7 @@ const AiVideoPage: React.FC = () => {
   const modelState = useAiAvailableModels({
     toolType: 'video',
     value: generation.draft.modelId,
+    replaceUnavailableValue: true,
     onDefaultModel: (modelId) => generation.updateDraft({ modelId }),
   });
   const modelNames = useMemo(() => {
@@ -204,7 +205,18 @@ const AiVideoPage: React.FC = () => {
       setGuestPrompt((current) => current + 1);
       return;
     }
-    await generation.regenerate(source);
+    const requestedModelId = source?.modelId ?? generation.draft.modelId;
+    const availableModelId = modelState.models.some((model) => model.id === requestedModelId)
+      ? requestedModelId
+      : modelState.defaultModel?.id;
+    if (!availableModelId) {
+      message.error('暂无可用视频模型，请联系管理员');
+      return;
+    }
+    if (requestedModelId && requestedModelId !== availableModelId) {
+      message.info('原模型已不可用，已改用当前默认视频模型');
+    }
+    await generation.regenerate(source, availableModelId);
   };
   const handleViewDetail = useCallback(
     (asset: AiAsset, siblings: AiAsset[] = [], task?: AiGenerationTask) => {

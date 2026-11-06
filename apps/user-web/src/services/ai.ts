@@ -1,5 +1,5 @@
 import { request } from '@umijs/max';
-import { getAccessToken, newIdempotencyKey } from '@personal-hub/api-client';
+import { encryptCredentialForRequest, getAccessToken, newIdempotencyKey } from '@personal-hub/api-client';
 import {
   buildMediaJobBody,
   readCreatedJobId,
@@ -23,6 +23,9 @@ import type {
   AiMessage,
   AiMessageFeedbackInput,
   AiModel,
+  AiSystemProviderOption,
+  AiUserProviderState,
+  AiCheckinCalendar,
   AiNavigationItem,
   AiProfileSummary,
   AiPublishDraftItem,
@@ -191,6 +194,84 @@ export async function fetchAiTools() {
 export async function fetchAiModels() {
   const path = isLoggedIn() ? '/api/v1/app/ai/models' : '/api/v1/public/ai/models';
   return request<AiModel[]>(path);
+}
+
+export async function fetchAiUserProviders() {
+  return request<AiUserProviderState>('/api/v1/app/ai/credentials');
+}
+
+export async function fetchAiSystemProviders() {
+  return request<AiSystemProviderOption[]>('/api/v1/app/ai/system-providers');
+}
+
+export class AiCredentialLocalError extends Error {}
+
+export async function saveAiUserProvider(input: {
+  id?: string; providerId?: string; code?: string; label?: string;
+  baseUrl?: string; apiKey?: string; enabled?: boolean;
+}) {
+  const { apiKey, ...fields } = input;
+  let encryptedApiKey;
+  if (apiKey) {
+    const publicKey = await request('/api/v1/app/ai/credential-key');
+    try {
+      encryptedApiKey = await encryptCredentialForRequest(apiKey, publicKey);
+    } catch (error) {
+      throw new AiCredentialLocalError(
+        error instanceof Error ? error.message : '浏览器加密失败，请稍后重试',
+      );
+    }
+  }
+  return request<{ id: string }>('/api/v1/app/ai/credentials', {
+    method: 'PUT', data: { ...fields, encryptedApiKey },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function deleteAiUserProvider(id: string) {
+  return request<{ deleted: boolean }>(`/api/v1/app/ai/credentials/${id}`, {
+    method: 'DELETE', headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function testAiUserProvider(credentialId: string, userModelId?: string) {
+  return request<{ ok: boolean; message: string }>('/api/v1/app/ai/credentials/test', {
+    method: 'POST', data: { credentialId, userModelId },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function saveAiProviderPreference(enabled: boolean, preferredUserModelId: string | null) {
+  return request('/api/v1/app/ai/provider-preferences', {
+    method: 'PUT', data: { enabled, preferredUserModelId },
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function saveAiUserModel(input: {
+  id?: string; credentialId: string; modelKey: string; displayName: string; enabled?: boolean;
+}) {
+  const { id, ...data } = input;
+  return request(id ? `/api/v1/app/ai/user-models/${id}` : '/api/v1/app/ai/user-models', {
+    method: id ? 'PATCH' : 'POST', data,
+    headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function disableAiUserModel(id: string) {
+  return request(`/api/v1/app/ai/user-models/${id}`, {
+    method: 'DELETE', headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
+}
+
+export async function fetchAiCheckin(month: string) {
+  return request<AiCheckinCalendar>('/api/v1/app/ai/checkin', { params: { month } });
+}
+
+export async function claimAiCheckin() {
+  return request<{ claimed: boolean; reason?: string; date: string; streak: number; amount: number }>('/api/v1/app/ai/checkin', {
+    method: 'POST', headers: { 'Idempotency-Key': newIdempotencyKey() },
+  });
 }
 
 const EMPTY_QUOTA: AiQuotaSummary = {

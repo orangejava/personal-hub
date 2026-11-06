@@ -71,6 +71,7 @@ PRD 与路线图见 [../docs/prd/README.md](../docs/prd/README.md)、[../docs/re
 2. 启动或排障时，读 [local-environment-setup-handbook.md](./local-environment-setup-handbook.md) 和 [monorepo-docker-learning-handbook.md](./monorepo-docker-learning-handbook.md)。
 3. 开始 `apps/server` 领域模块时，读 [nestjs-learning-handbook.md](./nestjs-learning-handbook.md)。
 4. 开始数据库建模时，读 [prisma-postgres-learning-handbook.md](./prisma-postgres-learning-handbook.md)。
+5. AI 自备模型与奖励链路，读 [features/ai-byok-rewards.md](./features/ai-byok-rewards.md)。
 
 ### 后续：长期全栈与 Next.js
 

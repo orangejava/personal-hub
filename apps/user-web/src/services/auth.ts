@@ -16,6 +16,7 @@ export const {
   refreshAccessToken,
   logout,
   fetchCurrentUser,
+  updateCurrentUser,
   fetchPermissions,
   register,
   verifyEmail,

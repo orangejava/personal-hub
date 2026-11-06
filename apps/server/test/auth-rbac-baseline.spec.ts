@@ -85,6 +85,9 @@ describe('Auth/RBAC M1 数据基线', () => {
     expect(menus.find((menu) => menu.routeKey === 'workspace.contents')?.parentId).toBe(
       menus.find((menu) => menu.routeKey === 'workspace.content.group')?.id,
     );
+    expect(menus.find((menu) => menu.routeKey === 'workspace.aiHistory')?.parentId).toBe(
+      menus.find((menu) => menu.routeKey === 'workspace.ai')?.id,
+    );
     await expect(
       prisma.permission.create({
         data: {

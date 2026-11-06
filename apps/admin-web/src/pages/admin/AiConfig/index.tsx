@@ -41,6 +41,8 @@ import {
 } from '@/services/admin';
 import AiConfigSummaryCards from './SummaryCards';
 import ModelEntitlements, { modelAllowedForRole, roleLabels } from './ModelEntitlements';
+import QuotaAdjustments from './QuotaAdjustments';
+import RewardRules from './RewardRules';
 import { aiToolTypeOptions, navGroupLabels, toolStatusLabels } from './constants';
 import './index.less';
 
@@ -73,7 +75,7 @@ const AiConfig: React.FC = () => {
   const [modelForm] = Form.useForm<AdminAiModelConfig>();
   const [toolForm] = Form.useForm<AdminAiToolConfig>();
   const [section, setSection] = useState<
-    'branding' | 'navigation' | 'providers' | 'models' | 'tools' | 'entitlements'
+    'branding' | 'navigation' | 'providers' | 'models' | 'tools' | 'entitlements' | 'quota' | 'rewards'
   >('branding');
   const [savingToolCode, setSavingToolCode] = useState<string>();
   const [movingToolCode, setMovingToolCode] = useState<string>();
@@ -177,6 +179,9 @@ const AiConfig: React.FC = () => {
     setEditingBranding({
       ...data.branding,
       aiEnabled: data.branding.aiEnabled !== false,
+      userProviderEnabled: data.branding.userProviderEnabled === true,
+      userCanPickModel: data.branding.userCanPickModel !== false,
+      userKeyConsumesQuota: data.branding.userKeyConsumesQuota === true,
     });
   };
 
@@ -316,6 +321,9 @@ const AiConfig: React.FC = () => {
         brandName: values.brandName,
         logoText: values.logoText,
         aiEnabled: values.aiEnabled,
+        userProviderEnabled: values.userProviderEnabled,
+        userCanPickModel: values.userCanPickModel,
+        userKeyConsumesQuota: values.userKeyConsumesQuota,
       });
       await run();
       message.success('AI 品牌配置已保存');
@@ -487,9 +495,13 @@ const AiConfig: React.FC = () => {
               { label: '模型管理', value: 'models' },
               { label: '模型访问权限', value: 'entitlements' },
               { label: '工具配置', value: 'tools' },
+              { label: '额度调整', value: 'quota' },
+              { label: '奖励规则', value: 'rewards' },
             ]}
           />
         </div>
+        {section === 'quota' && <QuotaAdjustments />}
+        {section === 'rewards' && <RewardRules />}
         {section === 'entitlements' && (
           <ModelEntitlements
             entitlements={data?.entitlements ?? []}
@@ -916,6 +928,18 @@ const AiConfig: React.FC = () => {
               extra="关闭后公开菜单不再显示 /ai，直接打开地址仍然可以进入"
             >
               <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+            </Form.Item>
+            <Form.Item label="允许用户自备厂商" name="userProviderEnabled" valuePropName="checked"
+              extra="关闭时暂停自备模式，用户配置会保留">
+              <Switch />
+            </Form.Item>
+            <Form.Item label="允许改选系统模型" name="userCanPickModel" valuePropName="checked"
+              extra="自建模型始终可由本人选择">
+              <Switch />
+            </Form.Item>
+            <Form.Item label="用户 Key 占用平台额度" name="userKeyConsumesQuota" valuePropName="checked"
+              extra="仅系统模型使用用户 Key 时生效；自建模型不扣平台额度">
+              <Switch />
             </Form.Item>
           </Form>
         )}

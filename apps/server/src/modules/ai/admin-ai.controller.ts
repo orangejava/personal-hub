@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AiToolStatus, DataScope } from '@prisma/client';
 import type { Request } from 'express';
@@ -19,6 +19,8 @@ import {
   TestProviderDto,
   PutEntitlementDto,
   SortNavigationDto,
+  AiStatsQueryDto,
+  QuotaAdjustmentDto,
 } from './dto/ai.dto';
 
 @ApiTags('Admin AI')
@@ -44,8 +46,21 @@ export class AdminAiController {
 
   @Get('stats')
   @RequirePermission('dashboard:read', DataScope.ALL)
-  stats() {
-    return this.ai.adminStats();
+  stats(@Query() query: AiStatsQueryDto) {
+    return this.ai.adminStats(query.range ?? '7d');
+  }
+
+  @Post('quota-adjustments')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  @RequireIdempotency()
+  quotaAdjustment(@Body() body: QuotaAdjustmentDto, @CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.adjustQuota(body, auth.userId);
+  }
+
+  @Get('quota-accounts/:userId')
+  @RequirePermission('ai:provider:manage', DataScope.ALL)
+  quotaAccount(@Param('userId', new ParseUUIDPipe()) userId: string, @CurrentAuth() auth: RequestAuthContext) {
+    return this.ai.quotaAccount(userId, auth.userId);
   }
 
   @Get('navigation')

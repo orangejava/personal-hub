@@ -35,6 +35,11 @@ const scenarioHints: Record<AiTextScenarioKey, string> = {
   custom: '适合直接输入你自己的完整指令。',
 };
 
+function estimateTokens(inputLength: number, length: AiTextDraft['length']) {
+  const lengthRatio = length === 'short' ? 1.1 : length === 'long' ? 2.1 : 1.5;
+  return Math.max(180, Math.ceil(inputLength * lengthRatio + 160));
+}
+
 /**
  * 文本生成状态流。发送走 Canonical SSE；停止调用显式 stop 接口。
  */
@@ -43,7 +48,8 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
   const [draft, setDraft] = useState<AiTextDraft>({
     scenario: 'write',
     input: '',
-    modelId: 'qwen-turbo',
+    // 模型由页面加载后的真实可用模型列表决定，不能写死一个可能已删除的 ID。
+    modelId: '',
     tone: 'professional',
     length: 'medium',
     targetLanguage: '英文',
@@ -59,9 +65,11 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
   const canGenerate = draft.input.trim().length > 0 && !isGenerating;
 
   const tokenEstimate = useMemo(() => {
-    const lengthRatio = draft.length === 'short' ? 1.1 : draft.length === 'long' ? 2.1 : 1.5;
-    return Math.max(180, Math.ceil(draft.input.length * lengthRatio + 160));
+    return estimateTokens(draft.input.length, draft.length);
   }, [draft.input.length, draft.length]);
+  const regenerateTokenEstimate = lastSubmittedDraft
+    ? estimateTokens(lastSubmittedDraft.input.length, lastSubmittedDraft.length)
+    : tokenEstimate;
 
   const abortLocal = useCallback(() => {
     abortRef.current?.abort();
@@ -121,7 +129,10 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
 
   const regenerate = useCallback(() => {
     if (isGenerating) return;
-    void startStream(lastSubmittedDraft ?? { ...draft, input: draft.input.trim() });
+    // 复用上次生成的输入与参数，但模型采用页面当前选择，确保额度提示与真实请求一致。
+    const submittedDraft = lastSubmittedDraft ?? { ...draft, input: draft.input.trim() };
+    if (!submittedDraft.input || !draft.modelId) return;
+    void startStream({ ...submittedDraft, modelId: draft.modelId });
   }, [draft, isGenerating, lastSubmittedDraft, startStream]);
 
   const stop = useCallback(() => {
@@ -148,6 +159,7 @@ export function useAiTextGeneration(options: UseAiTextGenerationOptions = {}) {
     canGenerate,
     scenarioHint,
     tokenEstimate,
+    regenerateTokenEstimate,
     hasOutput: output.trim().length > 0,
     lastSubmittedDraft,
     updateDraft,

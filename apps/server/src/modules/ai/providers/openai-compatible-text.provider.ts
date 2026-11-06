@@ -5,6 +5,7 @@ import type { Env } from '../../../config/env.schema';
 import { AiCredentialService } from '../ai-credential.service';
 import { FakeChatProvider } from './fake-chat.provider';
 import type { AiChatProvider, ChatDelta, ChatProviderInput } from './ai-provider.types';
+import { userProviderFetch } from '../user-provider-fetch';
 
 function takeSseBlock(buffer: string): { block?: string; rest: string } {
   const match = /\r?\n\r?\n/.exec(buffer);
@@ -17,6 +18,7 @@ function takeSseBlock(buffer: string): { block?: string; rest: string } {
   };
 }
 
+// Provider stream implementation ends here.
 /**
  * 把 OpenAI Chat Completions SSE 拆成增量文本。
  * 独立导出方便单测覆盖 DONE / usage / 半包，不依赖真实外网。
@@ -63,7 +65,6 @@ export function parseOpenAiSseBlock(block: string): ChatDelta | 'done' | null {
     throw new Error('AI_UPSTREAM_INVALID_SSE');
   }
 }
-
 /**
  * OpenAI Chat Completions 兼容协议。
  * 密钥优先用该厂商已启用的系统凭据，没有再读 authEnvKey。只有 Fake 厂商使用演示实现。
@@ -83,16 +84,18 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       yield* this.fake.stream(input);
       return;
     }
-    if (!input.providerId) {
+    if (!input.providerId && !input.userCredentialId) {
       throw new DomainHttpException(
         HttpStatus.CONFLICT,
         'AI_MODEL_NOT_AVAILABLE',
         '模型未绑定厂商',
       );
     }
-    const secret = await this.credentials.resolveSystemSecret(
+    const secret = input.userCredentialId && input.userId
+      ? await this.credentials.resolveUserSecret(input.userId, input.userCredentialId)
+      : await this.credentials.resolveSystemSecret(
       {
-        id: input.providerId,
+        id: input.providerId!,
         code: input.providerCode ?? 'openai-compatible',
         baseUrl: input.baseUrl ?? this.config.get('AI_OPENAI_BASE_URL', { infer: true }) ?? null,
         authEnvKey: input.authEnvKey === undefined ? 'AI_OPENAI_API_KEY' : input.authEnvKey,
@@ -107,14 +110,17 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
         '厂商未配置可用凭据',
       );
     }
-    const baseUrl = secret.baseUrl;
+    const baseUrl = (secret.baseUrl ?? input.baseUrl)?.replace(/\/+$/, '');
+    if (!baseUrl) {
+      throw new DomainHttpException(HttpStatus.CONFLICT, 'AI_PROVIDER_URL_MISSING', '厂商未配置可用地址');
+    }
     const apiKey = secret.apiKey;
     const model = input.modelKey;
-    const timeoutMs = secret.timeoutMs;
+    const timeoutMs = 'timeoutMs' in secret && typeof secret.timeoutMs === 'number' ? secret.timeoutMs : 20_000;
 
     const timeout = AbortSignal.timeout(timeoutMs);
     const signal = AbortSignal.any([input.signal, timeout]);
-    const response = await fetch(`${baseUrl}/chat/completions`, {
+    const response = await (input.userCredentialId ? userProviderFetch : fetch)(`${baseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -133,8 +139,8 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       signal,
     });
     if (!response.ok || !response.body) {
-      const text = await response.text().catch(() => '');
-      this.logger.warn(`上游 ${response.status}: ${redactSecret(text, apiKey).slice(0, 200)}`);
+      await response.body?.cancel().catch(() => undefined);
+      this.logger.warn(`上游请求失败，状态 ${response.status}`);
       throw new Error(`OPENAI_COMPATIBLE_${response.status}`);
     }
 
@@ -186,12 +192,4 @@ export class OpenAiCompatibleTextProvider implements AiChatProvider {
       reader.releaseLock();
     }
   }
-}
-
-/** 上游错误体有时会回显密钥，日志里先抹掉。 */
-function redactSecret(text: string, secret: string): string {
-  if (!secret) {
-    return text;
-  }
-  return text.split(secret).join('[redacted]');
 }

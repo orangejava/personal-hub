@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -21,7 +22,11 @@ import { SkipResponseEnvelope } from '../../common/decorators/skip-response-enve
 import { RequireIdempotency } from '../../common/idempotency/require-idempotency.decorator';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import type { RequestAuthContext } from '../../common/types/request-id';
+import { DomainHttpException } from '../../common/errors/domain-http.exception';
 import { AiService } from './ai.service';
+import { AiCredentialService } from './ai-credential.service';
+import { AiUserProviderService } from './ai-user-provider.service';
+import { probeProviderConnection } from './ai-provider-probe';
 import {
   CreateFolderDto,
   CreateSessionDto,
@@ -38,13 +43,151 @@ import {
   TextGenerateDto,
   UsageQueryDto,
   VideoGenerateDto,
+  PutUserCredentialDto,
+  PutProviderPreferenceDto,
+  PutUserModelDto,
+  TestUserCredentialDto,
 } from './dto/ai.dto';
 
 @ApiTags('App AI')
 @ApiBearerAuth()
 @Controller('app/ai')
 export class AppAiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly credentials: AiCredentialService,
+    private readonly userProviders: AiUserProviderService,
+  ) {}
+
+  @Get('credential-key')
+  @RequirePermission('ai:use')
+  credentialKey() {
+    return this.credentials.publicKey();
+  }
+
+  @Get('credentials')
+  @RequirePermission('ai:use')
+  credentialsState(@CurrentAuth() auth: RequestAuthContext) {
+    return this.userProviders.state(auth.userId);
+  }
+
+  @Get('system-providers')
+  @RequirePermission('ai:use')
+  systemProviders() {
+    return this.userProviders.systemProviders();
+  }
+
+  @Put('credentials')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  putCredential(@CurrentAuth() auth: RequestAuthContext, @Body() body: PutUserCredentialDto) {
+    return this.userProviders.saveCredential(auth.userId, {
+      ...body,
+      apiKey: body.encryptedApiKey
+        ? this.credentials.decryptRequest(body.encryptedApiKey)
+        : undefined,
+    });
+  }
+
+  @Post('credentials/test')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  async testCredential(
+    @CurrentAuth() auth: RequestAuthContext,
+    @Body() body: TestUserCredentialDto,
+  ) {
+    // 管理员暂停自备能力时，测试也不能继续用保存的用户 Key 发起上游请求。
+    const branding = await this.userProviders.branding();
+    if (!branding.userProviderEnabled) {
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_USER_PROVIDER_DISABLED',
+        '管理员已暂停自备能力；请稍后重试或关闭自备模式',
+      );
+    }
+    const secret = await this.credentials.resolveUserSecret(auth.userId, body.credentialId);
+    const credential = await this.userProviders.credential(auth.userId, body.credentialId);
+    const baseUrl = secret.baseUrl ?? credential.provider?.baseUrl;
+    if (!baseUrl)
+      throw new DomainHttpException(
+        HttpStatus.CONFLICT,
+        'AI_PROVIDER_URL_MISSING',
+        '自备厂商缺少 HTTPS 地址',
+      );
+    const model = body.userModelId
+      ? await this.userProviders.findUserModel(auth.userId, body.userModelId, body.credentialId)
+      : null;
+    return {
+      ok: true,
+      message: await probeProviderConnection({
+        baseUrl,
+        apiKey: secret.apiKey,
+        timeoutMs: 20_000,
+        modelKey: model?.modelKey,
+        userProvided: true,
+      }),
+    };
+  }
+
+  @Delete('credentials/:id')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  deleteCredential(
+    @CurrentAuth() auth: RequestAuthContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.userProviders.deleteCredential(auth.userId, id);
+  }
+
+  @Get('provider-preferences')
+  @RequirePermission('ai:use')
+  providerPreference(@CurrentAuth() auth: RequestAuthContext) {
+    return this.userProviders.state(auth.userId);
+  }
+
+  @Put('provider-preferences')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  putProviderPreference(
+    @CurrentAuth() auth: RequestAuthContext,
+    @Body() body: PutProviderPreferenceDto,
+  ) {
+    return this.userProviders.preference(auth.userId, body);
+  }
+
+  @Get('user-models')
+  @RequirePermission('ai:use')
+  userModels(@CurrentAuth() auth: RequestAuthContext) {
+    return this.userProviders.state(auth.userId).then((state) => state.models);
+  }
+
+  @Post('user-models')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  postUserModel(@CurrentAuth() auth: RequestAuthContext, @Body() body: PutUserModelDto) {
+    return this.userProviders.saveModel(auth.userId, body);
+  }
+
+  @Patch('user-models/:id')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  patchUserModel(
+    @CurrentAuth() auth: RequestAuthContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: PutUserModelDto,
+  ) {
+    return this.userProviders.saveModel(auth.userId, { ...body, id });
+  }
+
+  @Delete('user-models/:id')
+  @RequirePermission('ai:use')
+  @RequireIdempotency()
+  deleteUserModel(
+    @CurrentAuth() auth: RequestAuthContext,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.userProviders.disableModel(auth.userId, id);
+  }
 
   @Get('home')
   @RequirePermission('ai:use')
@@ -55,7 +198,11 @@ export class AppAiController {
   @Get('models')
   @RequirePermission('ai:use')
   models(@CurrentAuth() auth: RequestAuthContext) {
-    return this.ai.listVisibleModels({ type: AiOwnerType.USER, id: auth.userId, userId: auth.userId });
+    return this.ai.listVisibleModels({
+      type: AiOwnerType.USER,
+      id: auth.userId,
+      userId: auth.userId,
+    });
   }
 
   @Get('entitlement')
@@ -109,7 +256,11 @@ export class AppAiController {
   @Get('templates')
   @RequirePermission('ai:use')
   async templates(@CurrentAuth() auth: RequestAuthContext) {
-    const home = await this.ai.home({ type: AiOwnerType.USER, id: auth.userId, userId: auth.userId });
+    const home = await this.ai.home({
+      type: AiOwnerType.USER,
+      id: auth.userId,
+      userId: auth.userId,
+    });
     return home.templates;
   }
 
@@ -144,14 +295,22 @@ export class AppAiController {
   @Get('sessions')
   @RequirePermission('ai:use')
   sessions(@Query() query: PageQueryDto, @CurrentAuth() auth: RequestAuthContext) {
-    return this.ai.listSessions({ type: AiOwnerType.USER, id: auth.userId }, query.page, query.pageSize);
+    return this.ai.listSessions(
+      { type: AiOwnerType.USER, id: auth.userId },
+      query.page,
+      query.pageSize,
+      query.keyword,
+    );
   }
 
   @Post('sessions')
   @RequirePermission('ai:use')
   @RequireIdempotency()
   createSession(@Body() body: CreateSessionDto, @CurrentAuth() auth: RequestAuthContext) {
-    return this.ai.createSession({ type: AiOwnerType.USER, id: auth.userId, userId: auth.userId }, body);
+    return this.ai.createSession(
+      { type: AiOwnerType.USER, id: auth.userId, userId: auth.userId },
+      body,
+    );
   }
 
   @Patch('sessions/:sessionId')
@@ -294,14 +453,20 @@ export class AppAiController {
 
   @Get('image-generations/:jobId')
   @RequirePermission('ai:use')
-  imageJob(@Param('jobId', new ParseUUIDPipe()) jobId: string, @CurrentAuth() auth: RequestAuthContext) {
+  imageJob(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
     return this.ai.getJob(auth.userId, jobId);
   }
 
   @Post('image-generations/:jobId/cancel')
   @RequirePermission('ai:use')
   @RequireIdempotency({ highRisk: true })
-  cancelImage(@Param('jobId', new ParseUUIDPipe()) jobId: string, @CurrentAuth() auth: RequestAuthContext) {
+  cancelImage(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
     return this.ai.cancelJob(auth.userId, jobId);
   }
 
@@ -309,21 +474,31 @@ export class AppAiController {
   @RequirePermission('ai:use')
   @RequireIdempotency({ highRisk: true })
   @HttpCode(HttpStatus.ACCEPTED)
-  video(@Body() body: VideoGenerateDto, @CurrentAuth() auth: RequestAuthContext, @Req() request: Request) {
+  video(
+    @Body() body: VideoGenerateDto,
+    @CurrentAuth() auth: RequestAuthContext,
+    @Req() request: Request,
+  ) {
     const key = request.header('idempotency-key') ?? request.requestId;
     return this.ai.createVideoJob(auth.userId, body, request.requestId, key);
   }
 
   @Get('video-generations/:jobId')
   @RequirePermission('ai:use')
-  videoJob(@Param('jobId', new ParseUUIDPipe()) jobId: string, @CurrentAuth() auth: RequestAuthContext) {
+  videoJob(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
     return this.ai.getJob(auth.userId, jobId);
   }
 
   @Post('video-generations/:jobId/cancel')
   @RequirePermission('ai:use')
   @RequireIdempotency({ highRisk: true })
-  cancelVideo(@Param('jobId', new ParseUUIDPipe()) jobId: string, @CurrentAuth() auth: RequestAuthContext) {
+  cancelVideo(
+    @Param('jobId', new ParseUUIDPipe()) jobId: string,
+    @CurrentAuth() auth: RequestAuthContext,
+  ) {
     return this.ai.cancelJob(auth.userId, jobId);
   }
 

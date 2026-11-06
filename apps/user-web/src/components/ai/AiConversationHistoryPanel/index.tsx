@@ -14,6 +14,7 @@ interface AiConversationHistoryPanelProps {
   sessions: AiConversation[];
   activeKey?: string;
   loading?: boolean;
+  createDisabled?: boolean;
   onCreate: () => void;
   onActiveChange: (sessionId: string) => void;
   onRename: (sessionId: string, title: string) => void;
@@ -31,6 +32,7 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
   sessions,
   activeKey,
   loading,
+  createDisabled,
   onCreate,
   onActiveChange,
   onRename,
@@ -67,6 +69,7 @@ const AiConversationHistoryPanel: React.FC<AiConversationHistoryPanelProps> = ({
           className="ph-ai-conversation-create"
           icon={<PlusOutlined />}
           type="primary"
+          disabled={createDisabled}
           onClick={onCreate}
         >
           新建对话

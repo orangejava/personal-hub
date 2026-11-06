@@ -29,8 +29,16 @@ export const workspaceMenu: MenuItem[] = [
       { path: '/workspace/favorites', name: 'workspace.favorites', icon: 'star' },
     ],
   },
-  { path: '/workspace/ai/history', name: 'workspace.aiHistory', icon: 'robot' },
-  { path: '/workspace/usage', name: 'workspace.usage', icon: 'pieChart' },
+  {
+    path: '/workspace/ai',
+    name: 'workspace.ai',
+    icon: 'robot',
+    children: [
+      { path: '/workspace/ai/history', name: 'workspace.aiHistory', icon: 'history' },
+      { path: '/workspace/ai/providers', name: 'workspace.aiProviders', icon: 'setting' },
+      { path: '/workspace/ai/quota', name: 'workspace.aiQuota', icon: 'wallet' },
+    ],
+  },
   { path: '/workspace/profile', name: 'workspace.profile', icon: 'setting' },
 ];
 

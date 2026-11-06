@@ -128,9 +128,9 @@ const AiChatPage: React.FC = () => {
     },
   });
   // 会话可能保留已停用模型；输入区只显示当前仍可选的模型。
-  const activeModelId = modelState.models.some((model) => model.id === currentSettings.modelId)
-    ? currentSettings.modelId
-    : modelState.defaultModel?.id;
+  const activeModelId = currentSettings.modelId ?? modelState.defaultModel?.id;
+  const selectedModel = modelState.models.find((model) => model.id === activeModelId);
+  const modelUnavailable = Boolean(activeModelId && !selectedModel && !modelState.loading && !modelState.providerPaused && !modelState.providerNeedsCredential);
   const updateCurrentSettings = useCallback(
     (nextSettings: AiChatAdvancedSettingsValue) => {
       // 首次对话尚未创建会话，也需要保留用户选择的模型和高级设置。
@@ -150,13 +150,19 @@ const AiChatPage: React.FC = () => {
     [syncSessionAfterMessagesChangeFor, updateMessagesForSession],
   );
   const handleCreateSession = useCallback(async () => {
+    if (modelState.loading) throw new Error('模型配置加载中，请稍后重试');
+    if (modelState.providerPaused) {
+      throw new Error('管理员已暂停自备能力，请先到自备厂商页关闭个人自备模式');
+    }
+    if (!modelState.hasModels) throw new Error('暂无可用对话模型，请补充自备 Key 或关闭自备模式');
     return createNewSession({
       ...currentSettings,
-      modelId: activeModelId,
+      modelId: selectedModel ? activeModelId : modelState.defaultModel?.id,
     });
-  }, [activeModelId, createNewSession, currentSettings]);
+  }, [activeModelId, createNewSession, currentSettings, modelState.defaultModel, modelState.hasModels, modelState.loading, modelState.providerPaused, selectedModel]);
 
   const handleCreateSessionFromHistory = () => {
+    if (modelState.providerPaused || modelState.loading || !modelState.hasModels) return;
     setConversationDrawerOpen(false);
     void handleCreateSession().catch((error: unknown) => {
       messageApi.error(error instanceof Error ? error.message : '创建对话失败，请稍后重试');
@@ -231,12 +237,20 @@ const AiChatPage: React.FC = () => {
   const chatTool = homeData?.tools.find((tool) => tool.code === 'chat');
   const requiresLogin = Boolean(chatTool?.requiresLogin);
   const guestLimitExceeded = Boolean(homeData?.guestTrial?.exceeded);
+  // 只有当前可调用模型需要平台额度时，余额不足才是本次对话的有效提示。
+  const modelRequiresQuota = Boolean(
+    selectedModel &&
+      (selectedModel.quotaRequiredToolTypes?.includes('chat') ??
+        selectedModel.requiresPlatformQuota !== false),
+  );
   const quotaInsufficient =
     isAuthenticated &&
+    !modelState.providerPaused &&
     runtimeConfig.quota !== undefined &&
-    runtimeConfig.quota.remainingTokens <= 0;
+    runtimeConfig.quota.remainingTokens <= 0 &&
+    modelRequiresQuota;
   const guestBlocked = isGuest && (requiresLogin || guestLimitExceeded);
-  const submitDisabled = authRestoreFailed || !modelState.hasModels || quotaInsufficient;
+  const submitDisabled = authRestoreFailed || modelState.providerPaused || !modelState.hasModels || modelUnavailable || quotaInsufficient;
 
   const copyAssistantMessage = useCallback(
     async (message: AiMessage) => {
@@ -352,6 +366,7 @@ const AiChatPage: React.FC = () => {
   }, []);
 
   const handleRegenerateMessage = (messageId: string) => {
+    if (modelState.providerPaused || modelState.loading || !modelState.hasModels || modelUnavailable) return;
     if (guestBlocked) {
       setGuestPrompt((current) => current + 1);
       return;
@@ -432,6 +447,7 @@ const AiChatPage: React.FC = () => {
     <AiConversationHistoryPanel
       activeKey={currentSessionId}
       loading={sessionsLoading}
+      createDisabled={modelState.providerPaused || modelState.loading || !modelState.hasModels}
       sessions={sessions}
       onActiveChange={handleSelectSession}
       onCreate={handleCreateSessionFromHistory}
@@ -473,6 +489,7 @@ const AiChatPage: React.FC = () => {
                       aria-label="新建对话"
                       icon={<PlusOutlined />}
                       type="text"
+                      disabled={modelState.providerPaused || modelState.loading || !modelState.hasModels}
                       onClick={handleCreateSessionFromHistory}
                     />
                   </Tooltip>
@@ -542,7 +559,7 @@ const AiChatPage: React.FC = () => {
                         />
                         <Button
                           aria-label="重新生成 AI 回复"
-                          disabled={authRestoreFailed || isGenerating}
+                          disabled={authRestoreFailed || modelState.providerPaused || modelState.loading || !modelState.hasModels || modelUnavailable || isGenerating}
                           icon={<ReloadOutlined />}
                           size="small"
                           type="text"
@@ -567,9 +584,18 @@ const AiChatPage: React.FC = () => {
           <div className="ph-ai-sender-bar">
             <Space orientation="vertical" size={8} style={{ width: '100%' }}>
               <AiGenerationStatus active={submittingMessage || isCreatingSession || isGenerating} />
-              {!modelState.loading && !modelState.error && !modelState.hasModels && (
+              {modelState.providerPaused && (
+                <Alert showIcon type="warning" title="管理员已暂停自备能力，请到 AI 管理的自备厂商页关闭个人自备模式后再使用对话" />
+              )}
+              {modelState.providerNeedsCredential && (
+                <Alert showIcon type="warning" title={modelState.providerNeedsCustomCredential
+                  ? '自建对话模型的厂商凭据不可用，请到自备厂商页检查配置；若厂商已删除，请重新添加厂商和模型'
+                  : '当前系统对话模型缺少匹配的自备 Key，请到自备厂商页补充对应厂商 Key，或关闭个人自备模式'} />
+              )}
+              {!modelState.loading && !modelState.error && !modelState.hasModels && !modelState.providerPaused && !modelState.providerNeedsCredential && (
                 <Alert showIcon type="info" title="暂无可用模型，请联系管理员启用对话模型" />
               )}
+              {modelUnavailable && <Alert showIcon type="warning" title="原会话模型当前不可用，请重新选择模型" />}
               {band !== 'phone' && (
                 <AiChatAdvancedSettings
                   hasModels={modelState.hasModels}
@@ -597,7 +623,8 @@ const AiChatPage: React.FC = () => {
                 loading={isGenerating}
                 submitDisabled={submitDisabled || submittingMessage || isCreatingSession}
                 model={{
-                  value: activeModelId,
+                  // 不把已失效会话的内部 UUID 交给 Select，否则 Ant Design 会直接把 UUID 当作文本显示。
+                  value: selectedModel ? activeModelId : undefined,
                   options: modelState.options,
                   loading: modelState.loading,
                   disabled: !modelState.hasModels,
@@ -661,7 +688,7 @@ const AiChatPage: React.FC = () => {
                 estimatedTokens={1}
                 quota={runtimeConfig.quota}
                 toolName="AI 对话"
-                visible={isAuthenticated}
+                visible={isAuthenticated && !modelState.providerPaused && modelRequiresQuota}
               />
               <AiGuestLimitAlert
                 dailyLimit={homeData?.guestTrial?.dailyLimit}

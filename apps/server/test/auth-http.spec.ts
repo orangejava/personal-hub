@@ -13,6 +13,7 @@ import { MailService } from '../src/infrastructure/mail/mail.service';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 import { REFRESH_COOKIE_NAME } from '../src/infrastructure/http/refresh-cookie';
 import { runBaselineSeed } from '../prisma/seed';
+import { AiRewardService, shanghaiDate } from '../src/modules/ai/ai-reward.service';
 
 vi.mock('svg-captcha', () => ({
   default: {
@@ -311,6 +312,94 @@ describe('Auth HTTP', () => {
     });
     expect(meAfterLogout.status).toBe(401);
     expect(((await meAfterLogout.json()) as Envelope<unknown>).error?.code).toBe('AUTH_REQUIRED');
+  });
+
+  it('资料保存要求幂等键，同键重放不会覆盖后续修改', async () => {
+    const { accessToken } = await loginWithCookie(baseUrl, 'member@example.com');
+    const url = `${baseUrl}/api/v1/auth/me`;
+    const save = (nickname: string, key?: string) => fetch(url, {
+      method: 'PATCH',
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+        ...(key ? { 'idempotency-key': key } : {}),
+      },
+      body: JSON.stringify({ nickname }),
+    });
+    const missing = await save('旧资料');
+    expect(missing.status).toBe(400);
+    expect(((await missing.json()) as Envelope<unknown>).error?.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
+    const first = await save('第一次', 'profile-first');
+    expect(first.status).toBe(200);
+    const second = await save('第二次', 'profile-second');
+    expect(second.status).toBe(200);
+    const replay = await save('第一次', 'profile-first');
+    expect(replay.status).toBe(200);
+    const conflict = await save('其它资料', 'profile-first');
+    expect(conflict.status).toBe(409);
+    expect(((await conflict.json()) as Envelope<unknown>).error?.code).toBe('IDEMPOTENCY_KEY_REUSED');
+    const me = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
+    expect(((await me.json()) as Envelope<{ nickname: string }>).data?.nickname).toBe('第二次');
+  });
+
+  it('当天首次成功 refresh 发奖，后续 refresh 与登录不重复发奖', async () => {
+    const rule = await prisma.aiRewardRule.findUniqueOrThrow({ where: { code: 'DAILY_LOGIN' } });
+    const member = await prisma.role.findUniqueOrThrow({ where: { code: RoleCode.MEMBER } });
+    const user = await prisma.user.create({
+      data: {
+        email: 'refresh-reward@example.com',
+        passwordHash: await argon2.hash(PASSWORD),
+        status: UserStatus.ACTIVE,
+        roleId: member.id,
+        emailVerifiedAt: new Date(),
+      },
+    });
+    const rewardKey = `daily-login:${user.id}:${shanghaiDate()}`;
+    // 仅跳过这个新用户的登录发放，其他用户的并发认证仍调用原服务。
+    const rewards = app.get(AiRewardService);
+    const originalGrant = rewards.grantDailyLogin.bind(rewards);
+    const grantSpy = vi.spyOn(rewards, 'grantDailyLogin').mockImplementation((userId, source) => {
+      if (userId === user.id && (source === undefined || source === 'login')) {
+        return Promise.resolve({ granted: false, reason: 'RULE_DISABLED' as const });
+      }
+      return originalGrant(userId, source);
+    });
+    let login: Awaited<ReturnType<typeof loginWithCookie>>;
+    try {
+      login = await loginWithCookie(baseUrl, user.email);
+    } finally {
+      grantSpy.mockRestore();
+    }
+    expect(await prisma.aiQuotaTransaction.count({ where: { idempotencyKey: rewardKey } })).toBe(0);
+
+    const invalidRefresh = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { origin: ORIGIN, cookie: `${REFRESH_COOKIE_NAME}=invalid` },
+    });
+    expect(invalidRefresh.status).toBe(401);
+    expect(await prisma.aiQuotaTransaction.count({ where: { idempotencyKey: rewardKey } })).toBe(0);
+    const firstRefresh = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { origin: ORIGIN, cookie: `${REFRESH_COOKIE_NAME}=${login.cookie}` },
+    });
+    expect(firstRefresh.status).toBe(200);
+    const firstCookie = rememberRefreshCookie(firstRefresh);
+    const firstGrant = await prisma.aiQuotaTransaction.findUniqueOrThrow({
+      where: { idempotencyKey: rewardKey },
+    });
+    expect(firstGrant.amount).toBe(BigInt(rule.amount));
+    expect(firstGrant.detail).toMatchObject({ source: 'refresh' });
+
+    const secondRefresh = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { origin: ORIGIN, cookie: `${REFRESH_COOKIE_NAME}=${firstCookie}` },
+    });
+    expect(secondRefresh.status).toBe(200);
+    rememberRefreshCookie(secondRefresh);
+    await loginWithCookie(baseUrl, user.email);
+    expect(await prisma.aiQuotaTransaction.count({ where: { idempotencyKey: rewardKey } })).toBe(1);
+    const account = await prisma.aiQuotaAccount.findUniqueOrThrow({ where: { userId: user.id } });
+    expect(account.availableAmount).toBe(BigInt(rule.amount));
   });
 
   it('登出优先认 Refresh Cookie，没有 Cookie 时再用 Access Token', async () => {
@@ -875,7 +964,10 @@ describe('Auth HTTP', () => {
       },
       body: JSON.stringify({ permissions: ['content:read'], version: memberRole?.version }),
     });
-    const updatedBody = (await updated.json()) as Envelope<{ permissions: string[]; version: number }>;
+    const updatedBody = (await updated.json()) as Envelope<{
+      permissions: string[];
+      version: number;
+    }>;
     expect(updated.status).toBe(200);
     expect(updatedBody.data?.permissions).toEqual(['content:read']);
     expect(updatedBody.data?.version).toBe((memberRole?.version ?? 0) + 1);

@@ -10,9 +10,11 @@ import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { PermissionsGuard } from './permissions.guard';
 import { TokenService } from './token.service';
+import { AiRewardModule } from '../ai/ai-reward.module';
 
 @Module({
   imports: [
+    AiRewardModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({

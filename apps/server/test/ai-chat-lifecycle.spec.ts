@@ -86,6 +86,8 @@ function fixture() {
       ),
     },
     aiUsageRecord: { create: vi.fn().mockResolvedValue({}) },
+    aiQuotaReservation: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    aiUserModel: { findFirst: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(async (work: unknown): Promise<unknown> =>
       typeof work === 'function' ? work(prisma) : Promise.all(work as Promise<unknown>[]),
     ),
@@ -115,7 +117,7 @@ function fixture() {
   };
   const quota = {
     reserve: vi.fn().mockResolvedValue({ id: 'reservation' }),
-    settle: vi.fn().mockResolvedValue(undefined),
+    settle: vi.fn().mockResolvedValue(true),
     release: vi.fn().mockResolvedValue(undefined),
     renew: vi.fn().mockResolvedValue(undefined),
   };
@@ -125,10 +127,12 @@ function fixture() {
       yield { content: '回答' };
     }),
   };
+  const userProviders = { activeMode: vi.fn().mockResolvedValue({ enabled: false }) };
   const service = new AiService(
     prisma as never,
     quota as never,
     {} as never,
+    userProviders as never,
     runtime as never,
     {} as never,
     {} as never,
@@ -194,12 +198,23 @@ function fixture() {
     runtime,
     quota,
     provider,
+    userProviders,
     response,
     send,
   };
 }
 
 describe('AI Chat 生命周期', () => {
+  it('管理员暂停已开启的自备模式时，拒绝回落系统 Key', async () => {
+    const f = fixture();
+    f.userProviders.activeMode.mockResolvedValue({ enabled: true, allowed: false });
+    await expect(
+      (f.service as unknown as { resolveTextModel: (id: string, owner: typeof f.owner, tool: string) => Promise<unknown> })
+        .resolveTextModel('model', f.owner, 'CHAT'),
+    ).rejects.toThrow('管理员已暂停自备能力');
+    expect(f.prisma.aiUserModel.findFirst).not.toHaveBeenCalled();
+  });
+
   it('生成中删除被拒绝，原会话仍可停止，终态后才能删除', async () => {
     const f = fixture();
     let entered!: () => void;
@@ -262,6 +277,31 @@ describe('AI Chat 生命周期', () => {
     expect(f.quota.release).toHaveBeenCalledWith('reservation', 'request');
     expect(f.runtime.releaseUserSlot).toHaveBeenCalled();
     expect(f.response.listenerCount('close')).toBe(0);
+    expect(f.prisma.aiUsageRecord.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ platformCost: 0 }) }),
+    );
+  });
+
+  it('预占已失效时不报告实扣，并保留补偿所需的估算', async () => {
+    const f = fixture();
+    f.quota.settle.mockResolvedValueOnce(false);
+    await f.send();
+    expect(f.prisma.aiQuotaReservation.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ settledAmount: expect.any(BigInt) }),
+      }),
+    );
+    expect(f.prisma.aiUsageRecord.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          platformCost: 0,
+          estimatedPlatformCost: expect.any(Number),
+        }),
+      }),
+    );
+    expect(f.prisma.aiQuotaReservation.updateMany.mock.invocationCallOrder[0]).toBeLessThan(
+      f.prisma.aiMessage.update.mock.invocationCallOrder[0],
+    );
   });
 
   it('删除在发送取锁前完成时，二次校验阻止向已删会话写消息', async () => {

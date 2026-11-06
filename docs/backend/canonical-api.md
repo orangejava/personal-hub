@@ -34,6 +34,7 @@
 | POST   | `/auth/forgot-password`      | 公开                          | 发送一次性重置邮件，统一 `202` 响应                              |
 | POST   | `/auth/reset-password`       | 公开                          | 使用重置 Token 更新密码并撤销旧会话                              |
 | GET    | `/auth/me`                   | 登录                          | 当前身份、单角色、资料、权益摘要                                 |
+| PATCH  | `/auth/me`                   | 登录                          | 更新当前用户昵称与个人简介；邮箱、角色和状态不可由用户修改       |
 | GET    | `/auth/permissions`          | 登录                          | 有效动作权限、独立数据范围、按权限过滤后的菜单                   |
 | GET    | `/auth/sessions`             | 登录                          | 当前账号会话列表，含 `isCurrent`                                 |
 | DELETE | `/auth/sessions/:sessionId`  | own / all                     | 撤销指定非当前会话                                               |
@@ -44,6 +45,7 @@
 | POST   | `/auth/mfa/totp/setup`       | admin / super_admin           | 创建待确认的 TOTP 绑定信息                                       |
 | POST   | `/auth/mfa/totp/confirm`     | admin / super_admin           | 校验动态码，启用 TOTP 并仅此一次返回恢复码                       |
 | POST   | `/auth/mfa/totp/disable`     | admin / super_admin           | 校验当前密码和动态码后停用 TOTP                                  |
+
 
 `POST /auth/register`：
 
@@ -389,7 +391,7 @@ Web 登录、MFA 登录完成或刷新成功：
 | ------------ | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | GET          | `/app/ai/home`                            | 工具、可见模型、权益、模板、品牌和近期活动聚合                                                                       |
 | GET          | `/app/ai/navigation`                      | 登录用户可见的 AI 左侧导航                                                                                           |
-| GET          | `/app/ai/models`                          | 当前用户可选模型                                                                                                     |
+| GET          | `/app/ai/models`                          | 当前用户可选系统模型与自备模式下本人自建的文本模型；`quotaRequiredToolTypes` 按工具列出实际占用平台额度的调用，`requiresPlatformQuota` 表示其中至少一个工具占用额度 |
 | GET/POST     | `/app/ai/templates`                       | 系统模板与我的私有模板列表/创建                                                                                      |
 | PATCH/DELETE | `/app/ai/templates/:templateId`           | 仅更新/删除私有模板                                                                                                  |
 | GET/POST     | `/app/ai/sessions`                        | 会话列表/创建                                                                                                        |
@@ -412,12 +414,17 @@ Web 登录、MFA 登录完成或刷新成功：
 | PATCH/DELETE | `/app/ai/assets/:assetId`                 | 移动、软删除、恢复、永久删除                                                                                         |
 | GET/POST     | `/app/ai/asset-folders`                   | 资产文件夹列表/创建                                                                                                  |
 | PATCH/DELETE | `/app/ai/asset-folders/:folderId`         | 重命名/删除空文件夹                                                                                                  |
-| GET          | `/app/ai/credentials`                     | 当前用户凭据列表：类型、地址、`hasKey`、是否启用；不返回密钥                                                         |
-| PUT          | `/app/ai/credentials`                     | 写入或轮换自己的 Key，`apiKey` 只写，必填幂等键                                                                      |
+| GET          | `/app/ai/credential-key`                 | 登录用户读取请求加密公钥                                                                                             |
+| GET          | `/app/ai/system-providers`              | 当前可绑定用户 Key 的启用系统厂商目录，不受模型可见性筛选影响                                                         |
+| GET          | `/app/ai/credentials`                    | 本人厂商及凭据列表：代号、名称、地址、`hasKey`、是否启用；不返回密钥                                                   |
+| PUT          | `/app/ai/credentials`                    | 写入或轮换自己的 Key，只接收 `encryptedApiKey`，必填幂等键                                                           |
 | DELETE       | `/app/ai/credentials/:id`                 | 只删自己的 `USER` 凭据                                                                                               |
 | POST         | `/app/ai/credentials/test`                | 只测自己的凭据；不写用量、不预占额度                                                                                 |
-| GET          | `/app/ai/checkins`                        | 登录用户读签到月历。`?month=yyyy-mm`，省略则为上海当月。返回今日日期、是否已签、连续天数、该月已签日期。只读，不发放 |
-| POST         | `/app/ai/checkins`                        | 登录用户签到，必填幂等键；当天重复请求回放                                                                           |
+| GET/PUT      | `/app/ai/provider-preferences`           | 当前用户自备模式与首选模型；PUT 必填幂等键                                                                            |
+| GET/POST     | `/app/ai/user-models`                    | 本人自建文本模型列表/新增；POST 必填幂等键                                                                            |
+| PATCH/DELETE | `/app/ai/user-models/:id`                | 更新/停用本人模型；写接口必填幂等键                                                                                   |
+| GET          | `/app/ai/checkin`                        | 登录用户读签到月历。`?month=yyyy-mm`，省略则为上海当月。返回今日日期、是否已签、连续天数、该月已签日期。只读，不发放 |
+| POST         | `/app/ai/checkin`                        | 登录用户签到，必填幂等键；当天重复请求回放                                                                           |
 | GET          | `/app/ai/entitlement`                     | 当前角色/套餐权益和用量                                                                                              |
 | GET          | `/app/ai/membership`                      | 套餐展示、额度摘要和用量概览                                                                                         |
 | GET          | `/app/ai/profile-summary`                 | AI 个人中心摘要                                                                                                      |
@@ -425,6 +432,7 @@ Web 登录、MFA 登录完成或刷新成功：
 | GET          | `/app/ai/publish-drafts`                  | 内容草稿列表                                                                                                         |
 | GET          | `/app/ai/tutorials`                       | 入门教程列表                                                                                                         |
 | GET          | `/app/usage`                              | 用量明细分页，支持时间范围和工具筛选                                                                                 |
+
 
 Chat/Text SSE 事件：
 
@@ -450,6 +458,7 @@ data: {"type":"ERROR","requestId":"uuid","sessionId":"uuid","userMessageId":"uui
 - 图片/视频走 Outbox + `server-worker`，HTTP 进程不消费队列；测试可直调 `AiService.processJob`。
 - 任务 `assets[].fileUrl` 指向 `/api/v1/app/ai/assets/:assetId/content`，不把 `memory://` 暴露给浏览器。
 - 文本 Provider 默认 Fake；`AI_TEXT_PROVIDER=openai_compatible` 且配置了 Key 时走 OpenAI Chat Completions 适配层。
+- 用户主动开启自备模式后，系统模型按厂商匹配本人已启用凭据，自建模型按所属用户厂商调用。无匹配 Key、凭据停用、模型不可用或上游失败时不回退系统 Key，返回包含处理指引的错误。自建模型仅本人可见可用，只支持 Chat/Text，始终不扣平台额度；使用系统模型的用户 Key 是否扣额度由后台开关控制。用量记录区分平台实扣与可计算的价格估算，自建模型估算为未知。
 
 ### 4.6 匿名 AI
 

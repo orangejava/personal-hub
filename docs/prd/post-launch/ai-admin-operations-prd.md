@@ -1,7 +1,7 @@
 # AI 后台运营 PRD
 
-> 状态：阶段 A 代码已落地，隔离 HTTP 集成测试与浏览器联调待验收；阶段 B–E 待开发
-> 最后更新：2026-10-16
+> 状态：阶段 A 代码已落地；阶段 B–E 按下述已确认方案逐段开发、逐段验收
+> 最后更新：2026-10-29
 > Worktree：AI 后台
 > 计划评分（plan-review，百分制，2026-10-02）：阶段 A 91，阶段 A–E 91，可以按本文开工。充值、支付、自研模型、活动运营界面、`ai_usage_daily`、`ai_quota_grants` 后置，不计入本期。
 > 关系：扩展 [../long-term/ai-tools-prd.md](../long-term/ai-tools-prd.md) 的上线后运营能力；实现时需要同步 Canonical API、数据模型和 `apps/server/docs/implementation/ai/`。
@@ -18,7 +18,7 @@
 - 用户额度调整
 - AI 消耗规则（沿用现有平台单价，不另建倍率）
 - 公共额度发放能力
-- 每日登录奖励
+- 每日活跃奖励（登录或成功 refresh）
 - 连续签到日历
 
 ## 2. 不做
@@ -139,33 +139,40 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 
 - 是否允许用户自备 Provider。默认开启，用户侧入口默认展示
 - 允许的 Provider 类型。第一版只有 `openai-compatible`，与现有文本 Provider 相同
-- 是否允许用户改选模型。默认关闭：即使用户有自己的 Key，仍用系统当前默认模型，只是请求发往用户凭据。打开后，只能在系统已启用且 `userVisible` 的模型里改选，不能填写任意模型名
+- 是否允许用户改选系统模型。默认关闭；自备模式中的本人自建文本模型始终可选，不受该开关限制
 - 是否允许用户自备 Key 占用平台额度。默认关闭。用量记录始终写。开关关闭时不预占、不结算平台额度，因为费用发生在用户自己的厂商账号上。开关打开时，在写用量之外再走现有预占和结算
 
-关闭总开关后，用户侧入口不可见，已保存的用户凭据保留但不参与调用。再次开启后沿用这些凭据，不要求用户重填。未登录访客没有用户凭据入口，也不能签到或领取每日登录额度。
+关闭总开关后，用户侧入口不可见，已保存的用户凭据保留但不参与调用。再次开启后沿用这些凭据，不要求用户重填。未登录访客没有用户凭据入口，也不能签到或领取每日活跃额度。
 
 用户侧入口和签到页沿用 `useViewportBand`：手机单列，可点区域不小于 44px。矮屏不把表单固定成一屏高度。
 
 ### 4.2 用户侧能力
 
-用户在个人设置或 AI 设置中维护自己的 Key：
+用户在个人设置中维护自己的厂商、模型与 Key：
 
-- Provider 类型
-- Base URL
-- API Key
-- 启用状态
-- 连接测试
+- 可填写厂商代号、名称、OpenAI-compatible 类型、HTTPS Base URL、API Key 和启用状态；内部 ID 由服务端生成，代号在用户范围内唯一
+- 每个厂商可添加多个文本模型，填写模型标识和显示名；模型标识在该厂商范围内唯一，模型仅本人可见可用
+- 可设置一个首选模型，进行厂商及模型连接测试
 
-用户自备 Key 同样只写不回显，密文写入 `ai_provider_credentials`。入口放在已有的 `/workspace/profile`，新增一张卡片，不改个人资料那张仍是 mock 的表单。
+用户自备 Key 同样只写不回显，沿用阶段 A 的请求加密及数据库加密，密文写入 `ai_provider_credentials`。自定义端点仅允许 HTTPS 公网地址；阻止重定向、私网/环回/链路本地地址及 DNS 重绑定。入口放在已有的 `/workspace/profile`，新增一张卡片，不改个人资料那张仍是 mock 的表单。
+
+用户主动开启自备模式。系统模型按厂商匹配用户 Key；自建模型使用所属厂商 Key。没有匹配凭据、凭据停用、模型不可用或调用失败时，不自动回退系统 Key，给出补充配置或关闭自备模式的指引。关闭模式后沿用系统 Provider。管理员关闭总开关时暂停自备调用、保留配置并向用户显示原因；重新开启后恢复原模式。
+
+自建模型仅支持 Chat/Text，仍受 `ai:use`、工具状态、并发和频率限制，不进入系统角色模型白名单。模式切换后旧会话的模型若不可用，提示用户重新选模型，不自动更改历史会话。删除凭据后保留历史模型与消息快照，但不得继续调用。
+
+用量始终记录次数和 token。自建模型始终不扣平台额度，价格估算为未知；系统模型使用用户 Key 时，只有 `userKeyConsumesQuota=true` 才按系统模型价格预占与结算。平台实际扣减与价格估算分别保存和展示。
 
 三个开关写入已有的 `ai.branding`，不新建配置组：`userProviderEnabled` 默认 true，`userCanPickModel` 默认 false，`userKeyConsumesQuota` 默认 false。
 
 接口：
 
-- `GET /api/v1/app/ai/credentials`：当前用户的凭据列表，只含类型、地址、`hasKey`、是否启用
-- `PUT /api/v1/app/ai/credentials`：写入或轮换。`apiKey` 只写。必填幂等键
+- `GET /api/v1/app/ai/credential-key`：当前用户的请求加密公钥
+- `GET /api/v1/app/ai/credentials`：当前用户的厂商与凭据列表，只含代号、名称、类型、地址、`hasKey`、是否启用
+- `PUT /api/v1/app/ai/credentials`：写入或轮换，只接收 `encryptedApiKey` 信封；必填幂等键
 - `DELETE /api/v1/app/ai/credentials/:id`：只删自己的 `USER` 行
 - 连接测试复用管理端同一套厂商探测，路径为 `POST /api/v1/app/ai/credentials/test`，只能测自己的凭据
+- `GET/PUT /api/v1/app/ai/provider-preferences`：当前用户的自备模式与首选模型
+- `GET/POST/PATCH/DELETE /api/v1/app/ai/user-models`：只管理本人的自建文本模型；写接口必填幂等键
 
 `userProviderEnabled = false` 时，个人中心不渲染这张卡片，对话也不读取 `USER` 凭据。
 
@@ -186,8 +193,8 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 - 默认状态下，用户侧入口可见。
 - 后台关闭开关后，用户侧入口不可见；已保存的 Key 仍在，且不会被用来调用。
 - 后台重新开启后，入口恢复，已保存的 Key 继续可用。
-- 用户自备 Key 不影响系统 Provider。
-- 用户自备调用仍保留用量记录。`userKeyConsumesQuota` 为 false 时，账本可用额度不变。
+- 用户自备 Key 不影响系统 Provider；自备模式缺少可用 Key 或模型时明确拒绝并提示解决路径，失败也不回退系统 Key。
+- 用户自备调用仍保留用量记录。自建模型永不扣平台额度；系统模型在 `userKeyConsumesQuota` 为 false 时账本可用额度不变。
 - 个人资料表单仍按原来的 mock 保存，不因凭据卡片改成真实资料接口。
 - 手机 390px 下凭据卡片单列，按钮高度不小于 44px。
 
@@ -257,7 +264,7 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 后台可配置：
 
 - 规则名称
-- 规则类型：每日登录、签到、活动、管理员赠送
+- 规则类型：每日活跃、签到、活动、管理员赠送
 - 发放额度
 - 生效时间
 - 失效时间
@@ -269,11 +276,11 @@ API Key 不写入 `ai_providers`。该表现在只有厂商目录：`code`、`la
 
 第一版内置默认规则：
 
-- 每日首次登录发放 AI 额度
+- 每日首次成功登录或成功 refresh 发放 AI 额度
 - 每个用户每天最多一次
 - 「一天」按 Asia/Shanghai 的自然日计算
 - 默认额度由后台可配置
-- 重复登录、刷新 Token、自动续期不重复发放
+- 登录与 refresh 共用每日一次奖励；当天再次登录、刷新或自动续期不重复发放
 
 ### 6.3 幂等
 
@@ -287,28 +294,30 @@ daily-login:<userId>:<yyyy-mm-dd>
 
 ### 6.4 验收
 
-- 用户每天首次登录获得额度。
-- 同一天多次登录只获得一次。
+- 用户每天首次成功登录或成功 refresh 获得额度。
+- 同一天多次登录和 refresh 合计只获得一次。
 - 关闭规则后不再发放。
 - 发放记录进入额度账本。
-- 登录失败和 refresh 不触发发放。
+- 登录失败、refresh 失败不触发发放。
 
 ### 6.5 怎么落地
 
-不建 `ai_quota_grants`。发放结果就是 `ai_quota_transactions` 上已有的唯一 `idempotencyKey`。新建 `ai_quota_rules`：名称、类型（`DAILY_LOGIN` / `CHECKIN` / `ACTIVITY` / `ADMIN_GRANT`）、额度、生效与失效时间、每周期次数、是否启用、文案。本阶段界面只启用 `DAILY_LOGIN`。`ACTIVITY` 和 `ADMIN_GRANT` 可以入库但没有运营页面。
+不建 `ai_quota_grants`。发放结果就是 `ai_quota_transactions` 上已有的唯一 `idempotencyKey`。`ai_reward_rules` 使用规则代码 `DAILY_LOGIN` / `CHECKIN`；`DAILY_LOGIN` 是每日活跃奖励的内部代码，登录与 refresh 共用。活动与管理员赠送的运营规则留待后续阶段。
 
-种子一条每日登录规则，额度 100，时区 Asia/Shanghai。只在 `AuthService.login` 成功写出刷新令牌之后调用发放。`refresh` 不调用。发放失败只记日志，不让登录失败。同一天重复登录回放已领取结果，不再加余额。
+种子一条每日活跃规则，额度 100，时区 Asia/Shanghai。`AuthService.login` 成功写出刷新令牌后，或 `AuthService.refresh` 成功轮换令牌后调用发放。发放失败只记日志，不让认证失败。两条路径共用 `daily-login:<userId>:<日期>`；同一天重复触发不再加余额。
 
 | 文件 | 改什么 |
 | --- | --- |
-| `apps/server/prisma/schema.prisma` | 新增 `AiQuotaRule` |
-| `apps/server/src/modules/ai/ai-quota-grant.service.ts` | 按规则和幂等键发放 |
-| `apps/server/src/modules/auth/auth.service.ts` | 仅 `login` 成功后调用，`refresh` 不调用 |
-| `apps/admin-web/src/pages/admin/AiConfig/index.tsx` | 每日登录规则的额度、文案、启用开关 |
+| `apps/server/prisma/schema.prisma` | 新增 `AiRewardRule` |
+| `apps/server/src/modules/ai/ai-reward.service.ts` | 按规则和幂等键发放 |
+| `apps/server/src/modules/auth/auth.service.ts` | `login` 与 `refresh` 成功后调用同一发放服务 |
+| `apps/admin-web/src/pages/admin/AiConfig/RewardRules.tsx` | 每日活跃规则的额度、文案、启用开关 |
 
-验收：同一账号当天第一次登录后可用额度增加 100，退出再登录不变。刷新访问令牌不变。把规则关掉后再登录，额度不增加。登录密码错误时额度不变。
+验收：同一账号当天首次成功登录或 refresh 后可用额度增加 100；同日再次登录或 refresh 不变。当天只靠 refresh 恢复登录态也能领取。把规则关掉后，两条路径都不发放；登录密码错误或 refresh 失败时额度不变。
 
 ## 7. 阶段 E：连续签到日历
+
+默认规则：每日基础奖励 100，第 7、14、21 天等每七天额外奖励 500；连续天数持续显示，奖励按七天循环，漏签重置。当天第七次连续签到领取 600。已领取金额按当时规则存入记录，后来修改规则不回算历史。
 
 连续签到是公共发放能力的第一个前台化入口。
 
@@ -339,7 +348,7 @@ daily-login:<userId>:<yyyy-mm-dd>
 - 每天只能签到一次。
 - 连续天数计算正确。
 - 断签策略符合后台配置。
-- 签到和每日登录是两条规则，幂等键分开：`daily-login:<userId>:<yyyy-mm-dd>` 与 `checkin:<userId>:<yyyy-mm-dd>`。同一条规则同一天只发一次。两条规则互不抵消，用户可以同一天既拿到登录发放，也拿到签到发放。
+- 签到和每日活跃是两条规则，幂等键分开：`daily-login:<userId>:<yyyy-mm-dd>` 与 `checkin:<userId>:<yyyy-mm-dd>`。同一条规则同一天只发一次。两条规则互不抵消，用户可以同一天既拿到每日活跃发放，也拿到签到发放。
 - 未登录不能签到。断签按后台「是否断签重置」计算；日期同样用 Asia/Shanghai。
 - 浏览器不改系统时钟：工作台卡片展示接口返回的上海日期，当天再点一次余额不变。断签重置由服务端测试覆盖：只插入前天的 `ai_checkins`、打开 `resetOnBreak`，再签到，连续天数应为 1。
 
@@ -407,15 +416,15 @@ daily-login:<userId>:<yyyy-mm-dd>
 
 ## 10. 验收总清单
 
-- [ ] 管理员可配置 Provider 和模型
-- [ ] API Key 不回显，日志不泄露
-- [ ] 用户端只展示启用模型
-- [ ] 用户自备 Key 入口默认展示，管理端可关闭；关闭后不调用已存用户 Key
-- [ ] 后台可查看用量统计
-- [ ] 超级管理员可调整额度；扣减不得使可用额度小于 0
-- [ ] 修改现有三列价格只影响之后的用量
-- [ ] 每日登录奖励可配置且幂等
-- [ ] 连续签到日历可用
-- [ ] 所有额度变化进入账本
-- [ ] 关键接口有测试
+- [x] 管理员可配置 Provider 和模型
+- [x] API Key 不回显，日志不泄露
+- [x] 用户端只展示启用模型
+- [x] 用户自备 Key 入口默认展示，管理端可关闭；关闭后不调用已存用户 Key
+- [x] 后台可查看用量统计
+- [x] 超级管理员可调整额度；扣减不得使可用额度小于 0
+- [x] 修改现有三列价格只影响之后的用量
+- [x] 每日活跃奖励可配置且幂等
+- [x] 连续签到日历可用
+- [x] 所有额度变化进入账本
+- [x] 关键接口有测试
 - [ ] 浏览器验收通过后台和用户端关键路径

@@ -6,6 +6,7 @@ import { AdminAiController } from './admin-ai.controller';
 import { AppAiController, AppUsageController } from './app-ai.controller';
 import { AiAnonymousGuard } from './ai-anonymous.guard';
 import { AiCredentialService } from './ai-credential.service';
+import { AiUserProviderService } from './ai-user-provider.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AiRuntimeService } from './ai-runtime.service';
 import { AiService } from './ai.service';
@@ -26,6 +27,7 @@ import {
     AiAnonymousGuard,
     AiService,
     AiCredentialService,
+    AiUserProviderService,
     AiQuotaService,
     AiRuntimeService,
     OutboxService,

@@ -54,3 +54,4 @@ export {
   setAccessToken,
   setMockBridgeRole,
 } from './session';
+export { encryptCredentialForRequest } from './ai-credential-transport';

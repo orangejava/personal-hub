@@ -1,30 +1,31 @@
-import { Link, useIntl } from '@umijs/max';
-import { Card, Col, Row, Statistic } from 'antd';
+import { Link, useAccess, useIntl, history } from '@umijs/max';
+import { Button, Card, Col, Row, Space, Statistic, Tag } from 'antd';
 import React from 'react';
+import { getAiCheckinStatus, shanghaiCheckinMonth } from '@/components/ai/checkinStatus';
 import AnimatedList from '@/components/shared/AnimatedList';
 import ErrorState from '@/components/shared/ErrorState';
 import PageContainer from '@/components/shared/PageContainer';
 import ResultState from '@/components/shared/ResultState';
 import SectionSkeleton from '@/components/shared/SectionSkeleton';
 import { useRequest } from '@/hooks/useRequest';
-import {
-  fetchContinueReading,
-  fetchWorkspaceStats,
-} from '@/services/workspace';
+import { fetchAiCheckin } from '@/services/ai';
+import { fetchContinueReading, fetchWorkspaceStats } from '@/services/workspace';
 
 /** 工作台：统计卡片 + 继续阅读 */
 const Dashboard: React.FC = () => {
   const intl = useIntl();
+  const { canUseAi } = useAccess();
   const { data: stats, error, loading } = useRequest(fetchWorkspaceStats);
-  const { data: continueList, loading: cLoading } =
-    useRequest(fetchContinueReading);
+  const { data: continueList, loading: cLoading } = useRequest(fetchContinueReading);
+  const { data: checkin, error: checkinError } = useRequest(
+    () => fetchAiCheckin(shanghaiCheckinMonth()), { ready: canUseAi },
+  );
+  const checkinStatus = getAiCheckinStatus(checkin, checkinError);
 
   if (error)
     return (
       <PageContainer>
-        <ErrorState
-          title={intl.formatMessage({ id: 'workspace.common.error' })}
-        />
+        <ErrorState title={intl.formatMessage({ id: 'workspace.common.error' })} />
       </PageContainer>
     );
 
@@ -57,9 +58,7 @@ const Dashboard: React.FC = () => {
   ];
 
   return (
-    <PageContainer
-      title={intl.formatMessage({ id: 'workspace.dashboard.title' })}
-    >
+    <PageContainer title={intl.formatMessage({ id: 'workspace.dashboard.title' })}>
       {loading ? (
         <SectionSkeleton variant="card" count={5} columns={5} rows={2} />
       ) : (
@@ -67,10 +66,7 @@ const Dashboard: React.FC = () => {
           {statCards.map((s) => (
             <Col xs={24} sm={12} lg={4} key={s.key}>
               <Card>
-                <Statistic
-                  title={intl.formatMessage({ id: s.titleId })}
-                  value={s.value ?? 0}
-                />
+                <Statistic title={intl.formatMessage({ id: s.titleId })} value={s.value ?? 0} />
               </Card>
             </Col>
           ))}
@@ -115,6 +111,20 @@ const Dashboard: React.FC = () => {
           />
         )}
       </Card>
+      {canUseAi && <Card title={intl.formatMessage({ id: 'workspace.dashboard.dailyReward' })} style={{ marginTop: 24 }}>
+        <Space wrap>
+          <Tag color={checkinStatus === 'claimed' ? 'green' : checkinStatus === 'unclaimed' ? 'gold' : 'default'}>
+            {intl.formatMessage(
+              { id: 'workspace.dashboard.checkinToday' },
+              { status: intl.formatMessage({ id: `workspace.dashboard.${checkinStatus}` }) },
+            )}
+          </Tag>
+          <Statistic title={intl.formatMessage({ id: 'workspace.dashboard.checkinStreak' })} value={checkin?.streak ?? 0} suffix={intl.formatMessage({ id: 'workspace.dashboard.days' })} />
+          <Button type="link" onClick={() => history.push('/workspace/ai/quota')}>
+            {intl.formatMessage({ id: 'workspace.dashboard.checkinCalendar' })}
+          </Button>
+        </Space>
+      </Card>}
     </PageContainer>
   );
 };

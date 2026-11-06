@@ -7,6 +7,7 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   Res,
@@ -24,6 +25,7 @@ import {
 import type { Request, Response } from 'express';
 import { CurrentAuth } from '../../common/decorators/current-auth.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { RequireIdempotency } from '../../common/idempotency/require-idempotency.decorator';
 import type { RequestAuthContext } from '../../common/types/request-id';
 import type { Env } from '../../config/env.schema';
 import {
@@ -42,6 +44,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { RevokeAllSessionsDto } from './dto/revoke-all-sessions.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { assertSameOrigin } from './origin';
 import { readSignedAnonymousId } from '../ai/ai-anonymous';
 
@@ -224,6 +227,14 @@ export class AuthController {
   @ApiForbiddenResponse({ description: '账号不可用。' })
   async me(@CurrentAuth() auth: RequestAuthContext) {
     return this.authService.getCurrentUser(auth.userId);
+  }
+
+  @Patch('me')
+  @ApiBearerAuth()
+  @RequireIdempotency()
+  @ApiOperation({ summary: '更新当前用户资料' })
+  async updateMe(@CurrentAuth() auth: RequestAuthContext, @Body() body: UpdateProfileDto) {
+    return this.authService.updateProfile(auth.userId, body);
   }
 
   @Get('permissions')

@@ -33,6 +33,12 @@ export class PageQueryDto {
   @Min(1)
   @Max(100)
   pageSize?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @MaxLength(160)
+  keyword?: string;
 }
 
 export class CreateSessionDto {
@@ -604,6 +610,18 @@ export class PatchToolDto {
 
 export class PatchBrandingDto {
   @IsOptional()
+  @IsBoolean()
+  userProviderEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  userCanPickModel?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  userKeyConsumesQuota?: boolean;
+
+  @IsOptional()
   @IsString()
   @MaxLength(40)
   brandName?: string;
@@ -616,6 +634,51 @@ export class PatchBrandingDto {
   @IsOptional()
   @IsBoolean()
   aiEnabled?: boolean;
+}
+
+export class PutUserCredentialDto {
+  @IsOptional() @IsUUID() id?: string;
+  @IsOptional() @IsUUID() providerId?: string;
+  @IsOptional() @IsString() @Matches(/^[a-z][a-z0-9_-]{1,79}$/) code?: string;
+  @IsOptional() @IsString() @MaxLength(120) label?: string;
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  baseUrl?: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => EncryptedCredentialDto)
+  encryptedApiKey?: EncryptedCredentialDto;
+}
+
+export class PutProviderPreferenceDto {
+  @IsBoolean() enabled!: boolean;
+  @IsOptional() @IsUUID() preferredUserModelId?: string | null;
+}
+
+export class PutUserModelDto {
+  @IsUUID() credentialId!: string;
+  @IsString() @IsNotEmpty() @MaxLength(120) modelKey!: string;
+  @IsString() @IsNotEmpty() @MaxLength(120) displayName!: string;
+  @IsOptional() @IsBoolean() enabled?: boolean;
+}
+
+export class TestUserCredentialDto {
+  @IsUUID() credentialId!: string;
+  @IsOptional() @IsUUID() userModelId?: string;
+}
+
+export class AiStatsQueryDto {
+  @IsOptional() @IsString() @Matches(/^(24h|7d|30d)$/) range?: '24h' | '7d' | '30d';
+}
+
+export class QuotaAdjustmentDto {
+  @IsUUID() userId!: string;
+  @IsString() @Matches(/^(CREDIT|DEBIT)$/) direction!: 'CREDIT' | 'DEBIT';
+  @IsInt() @Min(1) @Max(1000000000) amount!: number;
+  @IsString() @IsNotEmpty() @MaxLength(300) reason!: string;
+  @IsString() @IsNotEmpty() @MaxLength(128) idempotencyKey!: string;
 }
 
 export class PatchNavigationDto {

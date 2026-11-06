@@ -81,9 +81,21 @@ export const MENU_ROUTE_OPTIONS: readonly MenuRouteOption[] = [
     scopes: ['WORKSPACE'],
   },
   {
-    routeKey: 'workspace.usage',
-    localeKey: 'workspace.usage',
-    icon: 'pieChart',
+    routeKey: 'workspace.ai',
+    localeKey: 'workspace.ai',
+    icon: 'robot',
+    scopes: ['WORKSPACE'],
+  },
+  {
+    routeKey: 'workspace.aiProviders',
+    localeKey: 'workspace.aiProviders',
+    icon: 'setting',
+    scopes: ['WORKSPACE'],
+  },
+  {
+    routeKey: 'workspace.aiQuota',
+    localeKey: 'workspace.aiQuota',
+    icon: 'wallet',
     scopes: ['WORKSPACE'],
   },
   {
