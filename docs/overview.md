@@ -2,7 +2,7 @@
 
 > 个人知识平台 + AI 工具中台
 > 状态：React-first 阶段 0–5、Nest M0–M6 与首版上线已完成；上线后优化中 `perf-dashboard`、`home-showcase`、`theme-config` 已完成验收，当前仅 `ai-admin` 继续开发。域名 / ICP 备案并行办理，不占开发分支
-> 最后更新：2026-10-16
+> 最后更新：2026-10-29
 
 ---
 
@@ -134,7 +134,11 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [prd/README.md](./prd/README.md)                                                                       | PRD 总索引（post-launch / React-first / 长期全栈）           | ✅ 已完成                              |
 | [prd/module-prd-index.md](./prd/module-prd-index.md)                                                   | 大模块 PRD 细化索引                                        | ✅ 已完成                              |
 | [prd/post-launch/README.md](./prd/post-launch/README.md)                                               | 首版上线后优化 PRD 索引                                    | 🟢 当前主线                            |
-| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A 代码已落地，待联调；B–E 待开发 |
+| [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)             | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 阶段 A–E 代码完成，待验证收口 |
+| [prd/post-launch/ai-media-generation-prd.md](./prd/post-launch/ai-media-generation-prd.md)             | `ai-admin` 后续真实文生视频与生图适配 | 🟡 五模型、OpenRouter 与计费原则已定；参数待实测 |
+| [prd/post-launch/ai-tool-experience-prd.md](./prd/post-launch/ai-tool-experience-prd.md)               | 顶栏独立工具、目录/卡片模式、文本对比与 Cesium 展示入口 | 🟡 产品范围已定；容量待压测 |
+| [prd/post-launch/ai-asset-library-prd.md](./prd/post-launch/ai-asset-library-prd.md)                   | 工作区统一素材库、AI 生产 Tab、目录与回收站；后台权限 | 🟡 产品范围与对话引用/快照规则已定 |
+| [prd/post-launch/workspace-content-lifecycle-optimization-prd.md](./prd/post-launch/workspace-content-lifecycle-optimization-prd.md) | ZIP 资料包/混合章节、COS 图片、全站回收站、草稿阅读与表格 | 🟡 核心规则已定；纯文件资料包首版仅私有 |
 | [prd/post-launch/theme-ui-performance-prd.md](./prd/post-launch/theme-ui-performance-prd.md)           | 主题、性能与 UI 总纲：主题剩余 UI、加载速度、Loading、页面交互优化 | ✅ 当前范围已完成并验收                 |
 | [prd/post-launch/performance-dashboard-prd.md](./prd/post-launch/performance-dashboard-prd.md)         | 性能与接口响应面板、性能基线、首轮入口体积优化             | ✅ 已完成并验收                       |
 | [../apps/user-web/docs/prd/home-showcase-prd.md](../apps/user-web/docs/prd/home-showcase-prd.md)       | 首页滚动改版、项目作品矩阵、动效库选型                     | ✅ 已完成并验收                       |
@@ -175,7 +179,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 | [deploy/production-runbook.md](./deploy/production-runbook.md)             | 生产服务器发布、运维、排障、备份和恢复                        | ✅ 文档已完成；待实际上线 |
 | [deploy/production-verification.md](./deploy/production-verification.md)   | 上线后的真实环境验收                                         | ✅ 已完成   |
 | [deploy/prod-startup-order.md](./deploy/prod-startup-order.md)           | 首次上线检查清单                                              | ✅ 文档已完成；待实际上线 |
-| [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md)           | 腾讯云域名 / HTTPS / SMTP / COS                               | 🟡 进行中   |
+| [deploy/tencent-cloud-prep.md](./deploy/tencent-cloud-prep.md)           | 腾讯云域名 / HTTPS / SMTP / COS                               | ✅ 已完成   |
 | [deploy/nest-compose-strategy.md](./deploy/nest-compose-strategy.md)     | Nest Compose、COS 对象存储、数据库备份、健康检查与手工发布策略 | ✅ 已确定   |
 | [deploy/old/README.md](./deploy/old/README.md)                           | 阶段 A 和旧部署方案归档                                       | 📚 历史资料 |
 
@@ -209,12 +213,12 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ---
 
-## 当前开发主线（2026-10-16）
+## 当前开发主线（2026-10-28）
 
 1. **已落地**：React-first 0–5；Nest **M0–M6**；首版已按 [deploy/go-live-mainline.md](./deploy/go-live-mainline.md) 上线（公网 IP + Compose）。本地前端默认 `MOCK=none`。存量小册用 `pnpm booklet:import-local`。
-2. **进行中的 worktree**：`ai-admin`，见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。继续完成 Provider / 模型配置、用户自备 Key、用量、额度、公共发放和连续签到。
-3. **main 当前待办**：手机端 AI 首次发送与会话顶栏收口；HTTPS、Nginx gzip、静态资源缓存和 Lighthouse 前后基线（见 [deploy/domain-https.md](./deploy/domain-https.md)）；向属地网信办确认公开 AI 的应用/功能登记要求。域名与 ICP 备案已完成（2026-09）。
-4. **再往后，可互相并行**：Flutter、后台治理 M7（禁用用户 / 改角色 / 审计；额度调整已在 AI 后台）、账号安全（改邮箱、TOTP）。
+2. **进行中的 worktree**：`ai-admin`，见 [prd/post-launch/ai-admin-operations-prd.md](./prd/post-launch/ai-admin-operations-prd.md)。先完成 Provider / 模型配置、用户自备 Key、用量、额度、公共发放和连续签到，再在同一 worktree 继续接入真实文生视频和生图能力。
+3. **main 已完成**：手机端 AI 首次发送、会话顶栏与 HTTPS 真实生产验收。公开 AI 登记确认暂缓。
+4. **main 后续排期**：先按[工作区内容生命周期优化 PRD](./prd/post-launch/workspace-content-lifecycle-optimization-prd.md)实施小册、图片、上传清理、回收站、草稿预览和表格；再排独立工具栏、素材库、Flutter、后台治理 M7 与账号安全。
 5. **明确跳过**：阶段 5.5 Next API Bridge。
 6. **仍不进当前开发**：用户充值与支付、自研模型、LoRA/ComfyUI、二期编辑器见 [product/phase-2](./product/phase-2/README.md)。
 
@@ -245,7 +249,7 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 ### 上线后优化（当前状态）
 
-- [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：Provider、模型、用户自备 Key、用量、额度、公共发放和连续签到。不做充值、支付、自研模型。
+- [ ] [`ai-admin`](./prd/post-launch/ai-admin-operations-prd.md)：先完成 Provider、模型、用户自备 Key、用量、额度、公共发放和连续签到，再继续真实文生视频与生图适配。不做充值、支付、自研模型。
 - [x] [`perf-dashboard`](./prd/post-launch/performance-dashboard-prd.md)：性能面板、入口优化、二期全站汇总已完成并验收。告警和按人统计仍不做。
 - [x] [`home-showcase`](../apps/user-web/docs/prd/home-showcase-prd.md)：首页滚动改版、项目作品矩阵已完成并验收（Flutter / 桌面端仍规划中）。
 - [x] [`theme-config`](./prd/post-launch/theme-ui-performance-prd.md)：主题剩余 UI、导航位置、Logo / favicon / SEO 已完成并验收。见 [implementation/theme-config.md](./implementation/theme-config.md)。
@@ -255,13 +259,16 @@ React-first 相关文档见 [react-first/README.md](./react-first/README.md)。�
 
 - [x] 域名、个人非经营性 ICP 备案（2026-09 完成）
 - [x] 启动前骨架：共用文件拆分、共享配置、前后端契约。见 [prd/post-launch/README.md](./prd/post-launch/README.md)（`a70ab11` 已落地）
-- [ ] 手机端 AI 首次发送：修复第一次点击只出现发送提示、第二次点击才提交的问题，确保一次点击完成提交并进入对应会话
-- [ ] 手机端 AI 会话顶栏：标题 / 历史按钮条固定在对话容器最上方，为消息区预留顶部空间，不能遮挡或透出后面的消息
-- [ ] HTTPS、Nginx gzip 与静态资源缓存，改动前后各记一次 Lighthouse。见 [deploy/domain-https.md](./deploy/domain-https.md)
-- [ ] 向属地网信办确认：公开 AI 若只调用已备案模型，是否办理应用/功能登记。
+- [x] 手机端 AI 首次发送：一次点击完成提交并进入对应会话
+- [x] 手机端 AI 会话顶栏：标题 / 历史按钮条与消息区分层稳定
+- [x] HTTPS、Nginx gzip、静态资源缓存和 Lighthouse 前后基线：已完成真实生产验收，见 [deploy/domain-https.md](./deploy/domain-https.md)
 
-### 上述完成后可并行
+### 后续排期
 
+- [ ] 工作区内容生命周期优化：混合格式小册、安全图片转存、历史临时对象盘点、统一回收站、草稿预览、章节编辑、阅读返回和两端表格滚动。见 [可执行 PRD](./prd/post-launch/workspace-content-lifecycle-optimization-prd.md)。
+- [ ] AI 真实能力：在 `ai-admin` worktree 内按已确定的三款视频、两款图片模型推进；参考图/视频依所选端点实测能力开放，取消及失败按上游实收结算。补齐 Provider 适配、任务状态、回调/轮询、失败重试、结果保存、下载和统一计费预算。见[真实媒体 PRD](./prd/post-launch/ai-media-generation-prd.md)。
+- [ ] 公开顶栏新增独立“工具”入口：目录/卡片两种浏览方式、匿名本地文本对比与登录历史、Cesium 学习展示入口，和现有 AI 工作台分开。见[独立工具 PRD](./prd/post-launch/ai-tool-experience-prd.md)。
+- [ ] 素材库完善：工作区 `/workspace/assets` 统一展示 AI 结果、上传附件、参考图/视频、文本及对话素材；后台仅超级管理员可在受审计入口查看用户私有素材。删除进入统一回收站；现有 AI 工具首页的最近创作展示属于 AI 工作台，不属于独立工具栏。见[素材库 PRD](./prd/post-launch/ai-asset-library-prd.md)。
 - [ ] Flutter App（见 `prd/long-term/flutter-app-prd.md`）
 - [ ] M7 后台治理：禁用用户 / 改角色 / 审计列表。额度调整不在此项。
 - [ ] 账号安全：改邮箱、TOTP

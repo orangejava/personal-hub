@@ -1,7 +1,7 @@
 # PRD 文档索引
 
-> 最后更新：2026-10-16
-> 说明：本目录存放**可直接指导开发**的 PRD。首版上线后的当前开发主线见 **post-launch**；历史 React-first 与长期全栈契约分别保留在既有目录。
+> 最后更新：2026-10-29
+> 说明：本目录存放需求与验收 PRD；标为“细化稿”的文档需收口其中列明的产品待决项或技术验证项，再作为开发验收依据，已确认规则不重复讨论。首版上线后的排期见 **post-launch**。
 
 ---
 
@@ -27,6 +27,10 @@
 | 文档 | Worktree | 状态 |
 | --- | --- | --- |
 | [post-launch/ai-admin-operations-prd.md](./post-launch/ai-admin-operations-prd.md) | AI 后台：Provider、模型、用户自备 Key、用量、额度、发放和签到 | 🟢 下一步 |
+| [post-launch/ai-media-generation-prd.md](./post-launch/ai-media-generation-prd.md) | `ai-admin` 后续：五个已确定模型、参考输入、真实费用结算 | 🟡 OpenRouter 已定，端点参数待实测 |
+| [post-launch/ai-tool-experience-prd.md](./post-launch/ai-tool-experience-prd.md) | 顶栏独立工具、文本内容对比与 Cesium 展示入口 | 🟡 产品范围及历史保留策略已定，容量待压测 |
+| [post-launch/ai-asset-library-prd.md](./post-launch/ai-asset-library-prd.md) | 工作区统一素材库、AI 生产 Tab、目录与回收站；后台权限 | 🟡 产品范围及对话引用/快照规则已定 |
+| [post-launch/workspace-content-lifecycle-optimization-prd.md](./post-launch/workspace-content-lifecycle-optimization-prd.md) | `main` ZIP 资料包、图片、回收站、阅读与表格优化 | 🟡 核心规则已定；纯文件资料包仅私有 |
 | [post-launch/theme-ui-performance-prd.md](./post-launch/theme-ui-performance-prd.md) | 主题、性能与 UI 总纲；由 `theme-config` 落地 | ✅ 当前范围已完成并验收 |
 | [post-launch/performance-dashboard-prd.md](./post-launch/performance-dashboard-prd.md) | `perf-dashboard`：性能与接口响应面板、性能基线、入口体积优化与 Nest 汇总 | ✅ 已完成并验收 |
 | [../../apps/user-web/docs/prd/home-showcase-prd.md](../../apps/user-web/docs/prd/home-showcase-prd.md) | `home-showcase`：首页滚动改版、项目作品矩阵（用户端单应用 PRD） | ✅ 已完成并验收 |

@@ -185,6 +185,7 @@
 ## 小册导入与版权边界
 
 > 现有工作区小册管理页面保留为 React mock/UI 入口；真实导入、下载和可见性必须由 Nest 服务端执行。
+> 本节的仅 Markdown 导入规则是已上线首版；混合格式章节、图片转存和历史补全的下一版需求见[工作区内容生命周期优化 PRD](../prd/post-launch/workspace-content-lifecycle-optimization-prd.md)。下一版零可读章节的纯文件资料包已确认只允许私有保存与本人授权下载。
 
 ### 目录规范
 
@@ -243,6 +244,7 @@ booklet-dir/
 - 仅支持 Markdown 章节 ZIP；`meta.json` 可选，缺失时补全元数据而非拒绝合法章节。
 - ZIP 上传大小默认为 50 MiB，可在系统管理端配置；COS 协议上限仍为单片 5 GB、最多 10,000 片。解压总量阈值为 `max(500 MiB, 配置上传上限 × 100)`，且实际解析仍受压缩比、ZIP 文件名等元数据累计 8 MiB、Markdown 正文累计 64 MiB、最多 1,000 章和单章最大 2 MiB 限制。
 - 拒绝路径穿越、符号链接、未知文件、非法编码和 ZIP bomb；Markdown 渲染前净化 HTML。
+- 上述为当前已上线的 Markdown 小册限制；后续 ZIP 资料包支持存储未知文件、HTML 源码只读和受控下载，详见[工作区内容生命周期优化 PRD](../prd/post-launch/workspace-content-lifecycle-optimization-prd.md)。
 - 章节列表不返回正文，正文只能通过单章接口按需读取；原始 ZIP 也遵从内容可见性校验。
 
 ---

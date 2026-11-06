@@ -1,7 +1,7 @@
 # AI 工具平台
 
 > 状态：🟢 产品与 UI 说明；AI API、额度、任务和数据以 [Canonical API](../backend/canonical-api.md)、[Canonical 数据模型](../backend/canonical-data-model.md) 和长期 AI PRD 为准
-> 最后更新：2026-08-02
+> 最后更新：2026-10-29
 
 ---
 
@@ -70,10 +70,14 @@ AI 厂商（OpenAI / Anthropic / 阿里云百炼 / Gemini 等）
 | 分组         | 工具                                                                                         |
 | ------------ | -------------------------------------------------------------------------------------------- |
 | 首页         | AI 工具首页、最近创作、推荐模板                                                              |
-| 创作         | AI 对话、文本生成、图片生成、视频生成 mock、WebUI 占位、ComfyUI 占位、LoRA 训练占位、AI 应用 |
+| 创作         | AI 对话、文本生成、当前图片/视频生成基础页与 Fake Provider、WebUI 占位、ComfyUI 占位、LoRA 训练占位、AI 应用 |
 | 资产         | AI 生成资产、历史结果、草稿                                                                  |
 | 个人与商业化 | 个人中心、创建团队、创作中心、会员中心                                                       |
 | 帮助与开放   | 发布、教程、API                                                                              |
+
+当前 `/ai/assets` 已有 AI 资产基础页面与接口。后续会合并到工作区统一素材库 `/workspace/assets` 的“AI 生产素材”Tab，旧入口保留兼容跳转；生成结果、完成的对话引用、主动保存的对话快照和用户上传素材按来源区分，见[素材库 PRD](../prd/post-launch/ai-asset-library-prd.md)。
+
+真实生图/视频首版模型已确定为两种图片模型和三种视频模型；参考图/视频按模型实测能力开放，取消后的用户费用按接入平台实收结算。模型、参数和结算细节统一见[真实媒体 PRD](../prd/post-launch/ai-media-generation-prd.md)，本产品范围文档不重复维护参数表。公开前台独立“工具”入口承载文本对比与 Cesium 展示，与此 AI 工作台分开，见[独立工具 PRD](../prd/post-launch/ai-tool-experience-prd.md)。
 
 ---
 

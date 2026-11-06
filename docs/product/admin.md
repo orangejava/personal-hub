@@ -176,7 +176,7 @@
 | API Key  | 加密写入 `ai_provider_credentials`，不写入厂商表；后台只显示是否已配置，永不回显明文或脱敏值。尚无凭据时仍可读 `authEnvKey` 对应的环境变量 |
 | 启用状态 | 禁用后该厂商所有模型不可用                                           |
 
-新增厂商首版只支持 OpenAI-compatible；禁用是状态更新，不删除目录。保存 API Key 时浏览器先用服务端公钥加密，POST/PATCH 请求体只带密文信封；生产仍要求 HTTPS。
+阶段 A–E 新增厂商只支持 OpenAI-compatible 文本协议；禁用是状态更新，不删除目录。保存 API Key 时浏览器先用服务端公钥加密，POST/PATCH 请求体只带密文信封；生产仍要求 HTTPS。真实生图/视频的五个模型、接入平台与上游实收计费属于后续媒体 adapter 范围，见[真实媒体 PRD](../prd/post-launch/ai-media-generation-prd.md)；后台填 Base URL 不会自动生成图片或视频协议适配。
 
 **模型管理（Models）**
 
@@ -301,6 +301,8 @@
 | 项目配置 | `/admin/system/projects` | `site.layout` 的 `projectsTitle` / `projectsIntro` |
 
 不要把厂商 API Key、模型启停等「AI 管理」运营项，以及主题色混进本中心。AI 工具推荐和技术栈本轮仍留在首页配置，不拆独立卡片。
+
+后续新增全站回收站、存储对账和清理配置/观测入口：普通管理员仅看其授权范围的站点/内容项；用户私有素材及其回收站记录仅系统超级管理员加专门权限可检索，打开正文/文件、代恢复和删除均需记录原因并审计。失败 ZIP 默认保留 7 天、回收站默认保留 20 天，两项用整数天数输入框配置，允许用户提前彻底删除并查看清理积压与失败；当前尚未上线。工作区回收站、素材/内容/文件恢复和 COS 对象清理的实施依据见[工作区内容生命周期优化 PRD](../prd/post-launch/workspace-content-lifecycle-optimization-prd.md)。
 
 > 额度赠送在邮箱验证成功时由服务端账本处理；登录安全阈值、密钥、数据库地址等安全/运行配置属于环境变量或密钥管理，禁止通过系统配置页面编辑。
 
